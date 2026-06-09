@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTTP Redirection Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc; /* Purple accent for headings */
+        font-weight: 700;
+      }
+
+      h2,
+      h3 {
+        border-bottom: 2px solid #3700b3;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      p {
+        margin-bottom: 1rem;
+      }
+
+      .code-block {
+        /* VS Code Dark Theme Colors */
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin-bottom: 1rem;
+      }
+
+      .comment {
+        color: #6a9955; /* Green for comments */
+      }
+
+      .keyword {
+        color: #569cd6; /* Blue for keywords */
+      }
+
+      .string {
+        color: #ce9178; /* Orange for strings */
+      }
+
+      .function {
+        color: #dcdcaa; /* Yellow for function names */
+      }
+
+      .variable {
+        color: #9cdcfe; /* Light blue for variables/identifiers */
+      }
+
+      .number {
+        color: #b5cea8; /* Green-yellow for numbers */
+      }
+
+      strong {
+        color: #ffd700; /* Gold/Yellow for strong text */
+      }
+
+      ul,
+      ol {
+        padding-left: 1.5rem;
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>HTTP Redirection</h1>
+      <p>
+        HTTP redirection is a mechanism for a web server to tell a client (like
+        a browser) that the resource they requested is located at a different
+        URL. It's essentially a way to automatically forward users from one web
+        address to another. This is useful for things like moving a website,
+        handling changed URLs, or ensuring a user is directed to the correct
+        page after an action, like a successful login.
+      </p>
+
+      <h2>How It Works</h2>
+      <p>
+        The process of HTTP redirection involves a two-step communication
+        between the client and the server:
+      </p>
+      <ol>
+        <li>
+          <strong>Initial Request:</strong> A client sends a request to a server
+          for a specific URL, say
+          <span style="color: #ce9178">http://example.com/old-page</span>.
+        </li>
+        <li>
+          <strong>Server Response:</strong> The server receives the request and,
+          instead of sending the content for old-page, it sends back an HTTP
+          response with a redirection status code (e.g., 301, 302). This
+          response also includes a special header called
+          <strong>Location</strong> which contains the new URL, for example,
+          <span style="color: #ce9178">http://example.com/new-page</span>.
+        </li>
+        <li>
+          <strong>Client Action:</strong> The client's browser sees the
+          redirection status code, reads the Location header, and automatically
+          makes a new request to the new URL specified in the header.
+        </li>
+        <li>
+          <strong>Final Response:</strong> The server at the new URL then
+          responds with the actual content the user wanted, like the HTML for
+          new-page.
+        </li>
+      </ol>
+
+      <h2>HTTP Redirection Status Codes</h2>
+      <p>
+        Different status codes are used to indicate different types of
+        redirection, which tells the client how to handle the new URL in the
+        future.
+      </p>
+      <ul>
+        <li>
+          <strong>301 Moved Permanently:</strong> This code indicates that the
+          requested resource has been <strong>permanently</strong> moved to a
+          new URL. The browser will remember this redirection and, for all
+          future requests, will automatically go to the new URL without even
+          contacting the old one. This is good for SEO because search engines
+          will transfer the "link juice" from the old URL to the new one. Use
+          this when you are sure a URL will not change back.
+        </li>
+
+        <li>
+          <strong>Analogy:</strong> It's like changing your home address
+          permanently and telling the post office to forward your mail. They
+          won't ask you for the old address again; they'll just send it to the
+          new one.
+        </li>
+        <li>
+          <strong>302 Found:</strong> This code indicates that the resource has
+          been <strong>temporarily</strong> moved to a different URL. The
+          browser will not cache this redirection and will continue to request
+          the old URL for future visits, only to be redirected again. This is
+          useful for temporary situations like maintenance pages or A/B testing.
+        </li>
+        <li>
+          <strong>Analogy:</strong> It's like being on a business trip. Your
+          mail is being forwarded to a temporary address, but you'll eventually
+          go back to your permanent home.
+        </li>
+        <li>
+          <strong>303 See Other:</strong> Similar to 302, this is often used
+          after a POST request (e.g., submitting a form). It tells the browser
+          to redirect the user to a new URL using a GET request. This is a best
+          practice to prevent a user from accidentally re-submitting a form if
+          they refresh the page after a successful submission.
+        </li>
+        <li>
+          <strong>307 Temporary Redirect:</strong> This is the modern, more
+          specific version of 302. It's similar in that it's for temporary
+          redirects, but it strictly requires the client to use the
+          <strong>same HTTP method</strong> for the new request (e.g., if the
+          original request was a POST, the redirected request must also be a
+          POST). 302 doesn't always guarantee this.
+        </li>
+        <li>
+          <strong>308 Permanent Redirect:</strong> The modern, more specific
+          version of 301. It requires the client to use the
+          <strong>same HTTP method</strong> for the new request, similar to 307.
+        </li>
+      </ul>
+
+      <h2>Practical Example in Express.js</h2>
+      <p>
+        You can easily implement HTTP redirection in Express.js using the
+        <strong>res.redirect()</strong> method. By default,
+        <strong>res.redirect()</strong> sends a 302 Found status code. You can
+        also specify a different status code as the first argument.
+      </p>
+
+      <div class="code-block">
+        <span class="comment">// A simple Express.js server</span><br />
+        <span class="keyword">const</span>
+        <span class="variable">express</span> =
+        <span class="function">require</span>(<span class="string"
+          >'express'</span
+        >);<br />
+        <span class="keyword">const</span> <span class="variable">app</span> =
+        <span class="function">express</span>();<br />
+        <span class="keyword">const</span> <span class="variable">port</span> =
+        <span class="number">3000</span>;<br />
+        <br />
+        <span class="comment">// Example of a 301 Permanent Redirect</span
+        ><br />
+        <span class="variable">app</span>.<span class="function">get</span
+        >(<span class="string">'/old-page'</span>, (<span class="variable"
+          >req</span
+        >, <span class="variable">res</span>) => {<br />
+        &nbsp; <span class="variable">res</span>.<span class="function"
+          >redirect</span
+        >(<span class="number">301</span>,
+        <span class="string">'/new-page'</span>);<br />
+        });<br />
+        <br />
+        <span class="comment"
+          >// Example of a 302 Temporary Redirect (default behavior)</span
+        ><br />
+        <span class="variable">app</span>.<span class="function">get</span
+        >(<span class="string">'/temporary-page'</span>, (<span class="variable"
+          >req</span
+        >, <span class="variable">res</span>) => {<br />
+        &nbsp; <span class="variable">res</span>.<span class="function"
+          >redirect</span
+        >(<span class="string">'/home'</span>);<br />
+        });<br />
+        <br />
+        <span class="comment">// The destination for our redirects</span><br />
+        <span class="variable">app</span>.<span class="function">get</span
+        >(<span class="string">'/new-page'</span>, (<span class="variable"
+          >req</span
+        >, <span class="variable">res</span>) => {<br />
+        &nbsp; <span class="variable">res</span>.<span class="function"
+          >send</span
+        >(<span class="string">'Welcome to the new, permanent page!'</span
+        >);<br />
+        });<br />
+        <br />
+        <span class="variable">app</span>.<span class="function">get</span
+        >(<span class="string">'/home'</span>, (<span class="variable">req</span
+        >, <span class="variable">res</span>) => {<br />
+        &nbsp; <span class="variable">res</span>.<span class="function"
+          >send</span
+        >(<span class="string">'Welcome back home!'</span>);<br />
+        });<br />
+        <br />
+        <span class="variable">app</span>.<span class="function">listen</span
+        >(<span class="variable">port</span>, () => {<br />
+        &nbsp; <span class="variable">console</span>.<span class="function"
+          >log</span
+        >(<span class="string">`Server listening at http://localhost:</span
+        ><span class="variable">${port}</span
+        ><span class="string">`</span>);<br />
+        });
+      </div>
+
+      <p>In the example above:</p>
+      <ul>
+        <li>
+          When a user visits
+          <span style="color: #ce9178">http://localhost:3000/old-page</span>,
+          the server responds with a 301 status code and a Location header
+          pointing to <span style="color: #ce9178">/new-page</span>. The browser
+          will then immediately make a new request to
+          <span style="color: #ce9178">/new-page</span>.
+        </li>
+        <li>
+          When a user visits
+          <span style="color: #ce9178"
+            >http://localhost:3000/temporary-page</span
+          >, the server responds with the default 302 status code and a Location
+          header pointing to <span style="color: #ce9178">/home</span>. The
+          browser then requests <span style="color: #ce9178">/home</span>.
+        </li>
+      </ul>
+      <img
+        src="./images/http Redirection.png"
+        width="100%"
+        height="700px"
+        alt=""
+      />
+    </div>
+  </body>
+</html>

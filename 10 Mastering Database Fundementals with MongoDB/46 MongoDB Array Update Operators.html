@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Array Operators - Blackish Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&family=Fira+Code:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for Blackish Theme */
+      :root {
+        /* Blackish Palette */
+        --color-bg: #1e1e1e; /* Dark background */
+        --color-text: #d4d4d4; /* Light grey text */
+        --color-heading: #ffffff; /* White headings */
+        --color-accent: #569cd6; /* VS Code Blue for titles/bold */
+        --color-border: #383838; /* Subtle border/divider */
+
+        /* Code Palette (VS Code Dark Theme Inspired) */
+        --code-bg: #252526; /* Code block background */
+        --code-keyword: #569cd6; /* Blue for keywords (const, function, db, $pull) */
+        --code-string: #ce9178; /* Orange for strings/values */
+        --code-comment: #6a9955; /* Green for comments */
+        --code-variable: #9cdcfe; /* Light blue for variables/identifiers */
+        --code-punctuation: #d4d4d4; /* Grey for braces/commas */
+        --code-type: #4ec9b0; /* Teal for types/classes (ObjectId) */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #252526; /* Slightly lighter inner background for depth */
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-border);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        color: var(--color-accent);
+        font-size: 1.8em;
+      }
+
+      /* Styling for the content sections */
+      .section-title {
+        font-weight: 800;
+        color: var(--color-accent);
+        font-size: 1.4em;
+        margin-top: 25px;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #333333;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--color-border);
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #444444;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Fira Code', monospace; /* Monospace font for code */
+        line-height: 1.4;
+        margin: 15px 0;
+        white-space: pre-wrap; /* Allows long lines to wrap */
+      }
+
+      code.inline {
+        background-color: #383838;
+        color: #dcdcaa; /* Yellowish for in-line code */
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Fira Code', monospace;
+      }
+
+      .code-title {
+        color: #ccc;
+        font-style: italic;
+        margin-bottom: 5px;
+        font-family: 'Nunito', sans-serif;
+      }
+
+      /* Syntax Highlighting Classes */
+      .kw {
+        color: var(--code-keyword);
+      } /* Keyword: const, $pull */
+      .str {
+        color: var(--code-string);
+      } /* String: "data.cart" */
+      .cmt {
+        color: var(--code-comment);
+      } /* Comment */
+      .var {
+        color: var(--code-variable);
+      } /* Variable: newCourse, sid */
+      .punc {
+        color: var(--code-punctuation);
+      } /* Punctuation: {, }, : */
+      .meth {
+        color: var(--code-type);
+      } /* Method: updateOne */
+
+      .result {
+        margin-top: 10px;
+        padding: 10px;
+        border-left: 4px solid var(--code-comment);
+        background-color: #333333;
+      }
+
+      .emoji {
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Array Update Operators</h1>
+
+      <p>
+        Understanding the core array operators in MongoDB is key to effective
+        data manipulation.
+      </p>
+      <p>
+        Here is a clear breakdown of the differences between
+        <code class="inline">$pull</code>, <code class="inline">$push</code>,
+        and <code class="inline">$addToSet</code>, complete with syntax,
+        definitions, and how they work with the same example document structure
+        you shared.
+      </p>
+
+      <h2 class="section-title">
+        <span class="emoji">📚</span> MongoDB Array Update Operators
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Operator</th>
+            <th>Action</th>
+            <th>Definition</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code class="inline">$pull</code></td>
+            <td><span class="kw">Remove</span></td>
+            <td>
+              Removes all array elements that match a specified query condition.
+            </td>
+          </tr>
+          <tr>
+            <td><code class="inline">$push</code></td>
+            <td><span class="kw">Add</span></td>
+            <td>Appends an item (or multiple items) to the end of an array.</td>
+          </tr>
+          <tr>
+            <td><code class="inline">$addToSet</code></td>
+            <td><span class="kw">Add Unique</span></td>
+            <td>
+              Adds an item to an array only if the item is not already present
+              in the array.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-title">
+        <span class="emoji">1.</span> $pull (Removal)
+      </h2>
+      <h4 class="section-title">
+        <span class="emoji">📝</span> Definition & Purpose
+      </h4>
+      <p>
+        The <code class="inline">$pull</code> operator is used to
+        <span class="kw">remove elements</span> from an existing array. It is
+        the opposite of <code class="inline">$push</code>. When the array
+        contains objects (like your cart array), you provide a query object to
+        match the element(s) you want to remove.
+      </p>
+
+      <h4 class="section-title"><span class="emoji">🖥️</span> Syntax</h4>
+      <p class="code-title">JavaScript</p>
+      <pre>
+<span class="punc">{</span> <span class="kw">$pull</span><span class="punc">:</span> <span class="punc">{</span> <span class="var">&lt;array_field&gt;</span><span class="punc">:</span> <span class="var">&lt;condition&gt;</span> <span class="punc">}</span> <span class="punc">}</span>
+        </pre>
+
+      <h4 class="section-title">
+        <span class="emoji">💡</span> How It Works (Example)
+      </h4>
+      <p>
+        Let's remove the course with
+        <code class="inline">courseId: "690710af466326f7b4d984b0"</code>.
+      </p>
+      <p class="code-title">JavaScript</p>
+      <pre>
+<span class="meth">db</span><span class="punc">.</span><span class="var">sessions</span><span class="punc">.</span><span class="meth">updateOne</span><span class="punc">(</span>
+  <span class="punc">{</span> <span class="var">_id</span><span class="punc">:</span> <span class="var">sid</span> <span class="punc">}</span><span class="punc">,</span> <span class="cmt">// Query: Find the session document</span>
+  <span class="punc">{</span>
+    <span class="kw">$pull</span><span class="punc">:</span> <span class="punc">{</span>
+      <span class="str">"data.cart"</span><span class="punc">:</span> <span class="punc">{</span> <span class="cmt">// Target the 'data.cart' array</span>
+        <span class="var">courseId</span><span class="punc">:</span> <span class="str">"690710af466326f7b4d984b0"</span> <span class="cmt">// Condition: Remove element(s) matching this courseId</span>
+      <span class="punc">}</span>
+    <span class="punc">}</span>
+  <span class="punc">}</span>
+<span class="punc">)</span>
+        </pre>
+      <div class="result">
+        <strong>Result:</strong> MongoDB scans the
+        <code class="inline">data.cart</code> array and permanently deletes any
+        object that satisfies the criteria.
+      </div>
+
+      <h2 class="section-title">
+        <span class="emoji">2.</span> $push (Addition)
+      </h2>
+      <h4 class="section-title">
+        <span class="emoji">📝</span> Definition & Purpose
+      </h4>
+      <p>
+        The <code class="inline">$push</code> operator is used to
+        <span class="kw">add a new element</span> to the end of an existing
+        array. If you need to add multiple elements, you can use the
+        <code class="inline">$each</code> modifier within
+        <code class="inline">$push</code>. It allows for duplicates.
+      </p>
+
+      <h4 class="section-title"><span class="emoji">🖥️</span> Syntax</h4>
+      <p class="code-title">JavaScript</p>
+      <pre>
+<span class="punc">{</span> <span class="kw">$push</span><span class="punc">:</span> <span class="punc">{</span> <span class="var">&lt;array_field&gt;</span><span class="punc">:</span> <span class="var">&lt;value_to_add&gt;</span> <span class="punc">}</span> <span class="punc">}</span>
+        </pre>
+
+      <h4 class="section-title">
+        <span class="emoji">💡</span> How It Works (Example)
+      </h4>
+      <p>Let's add a new course to the cart.</p>
+      <p class="code-title">JavaScript</p>
+      <pre>
+<span class="kw">const</span> <span class="var">newCourse</span> <span class="punc">=</span> <span class="punc">{</span>
+  <span class="var">courseId</span><span class="punc">:</span> <span class="str">"a1b2c3d4e5f67890abcdef12"</span><span class="punc">,</span>
+  <span class="var">qty</span><span class="punc">:</span> <span class="kw">1</span>
+<span class="punc">}</span>
+
+<span class="meth">db</span><span class="punc">.</span><span class="var">sessions</span><span class="punc">.</span><span class="meth">updateOne</span><span class="punc">(</span>
+  <span class="punc">{</span> <span class="var">_id</span><span class="punc">:</span> <span class="var">sid</span> <span class="punc">}</span><span class="punc">,</span> <span class="cmt">// Query: Find the session document</span>
+  <span class="punc">{</span>
+    <span class="kw">$push</span><span class="punc">:</span> <span class="punc">{</span>
+      <span class="str">"data.cart"</span><span class="punc">:</span> <span class="var">newCourse</span> <span class="cmt">// Action: Add the newCourse object to the end of the array</span>
+    <span class="punc">}</span>
+  <span class="punc">}</span>
+<span class="punc">)</span>
+        </pre>
+      <div class="result">
+        <strong>Result:</strong> The
+        <code class="inline">newCourse</code> object is appended to the end of
+        the <code class="inline">data.cart</code> array. If you run this
+        operation again, the array will contain two identical
+        <code class="inline">newCourse</code> objects (it allows duplicates).
+      </div>
+
+      <h2 class="section-title">
+        <span class="emoji">3.</span> $addToSet (Unique Addition)
+      </h2>
+      <h4 class="section-title">
+        <span class="emoji">📝</span> Definition & Purpose
+      </h4>
+      <p>
+        The <code class="inline">$addToSet</code> operator is a special form of
+        <code class="inline">$push</code>. It adds an element to an array only
+        if the element does not already exist in the array. This is useful when
+        you want the array to behave like a mathematical
+        <span class="kw">set</span>, where all members are unique.
+      </p>
+
+      <h4 class="section-title"><span class="emoji">🖥️</span> Syntax</h4>
+      <p class="code-title">JavaScript</p>
+      <pre>
+<span class="punc">{</span> <span class="kw">$addToSet</span><span class="punc">:</span> <span class="punc">{</span> <span class="var">&lt;array_field&gt;</span><span class="punc">:</span> <span class="var">&lt;value_to_add&gt;</span> <span class="punc">}</span> <span class="punc">}</span>
+        </pre>
+
+      <h4 class="section-title">
+        <span class="emoji">💡</span> How It Works (Example)
+      </h4>
+      <p>
+        Let's attempt to add the same new course to the cart using
+        <code class="inline">$addToSet</code>.
+      </p>
+      <p class="code-title">JavaScript</p>
+      <pre>
+<span class="kw">const</span> <span class="var">newCourse</span> <span class="punc">=</span> <span class="punc">{</span>
+  <span class="var">courseId</span><span class="punc">:</span> <span class="str">"a1b2c3d4e5f67890abcdef12"</span><span class="punc">,</span>
+  <span class="var">qty</span><span class="punc">:</span> <span class="kw">1</span>
+<span class="punc">}</span>
+
+<span class="meth">db</span><span class="punc">.</span><span class="var">sessions</span><span class="punc">.</span><span class="meth">updateOne</span><span class="punc">(</span>
+  <span class="punc">{</span> <span class="var">_id</span><span class="punc">:</span> <span class="var">sid</span> <span class="punc">}</span><span class="punc">,</span> <span class="cmt">// Query: Find the session document</span>
+  <span class="punc">{</span>
+    <span class="kw">$addToSet</span><span class="punc">:</span> <span class="punc">{</span>
+      <span class="str">"data.cart"</span><span class="punc">:</span> <span class="var">newCourse</span> <span class="cmt">// Action: Add the newCourse object if it's not already in the array</span>
+    <span class="punc">}</span>
+  <span class="punc">}</span>
+<span class="punc">)</span>
+        </pre>
+      <div class="result">
+        <strong>Result:</strong>
+        <ul>
+          <li>
+            <strong>First time:</strong> The
+            <code class="inline">newCourse</code> object is added to the array.
+          </li>
+          <li>
+            <strong>Second time (and subsequent times):</strong> MongoDB checks
+            if an identical object already exists in the
+            <code class="inline">data.cart</code> array. Since it does,
+            <span class="kw">no change is made</span> to the array, ensuring the
+            course is not duplicated.
+          </li>
+        </ul>
+      </div>
+
+      <h2 class="section-title"><span class="emoji">🎯</span> Key Takeaway</h2>
+      <ul>
+        <li>
+          Use <code class="inline">$pull</code> when you need to **remove** an
+          item (or group of items) from an array.
+        </li>
+        <li>
+          Use <code class="inline">$push</code> when you need to **add** an item
+          and **allow duplicates**.
+        </li>
+        <li>
+          Use <code class="inline">$addToSet</code> when you need to **add** an
+          item but **prevent duplicates**.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

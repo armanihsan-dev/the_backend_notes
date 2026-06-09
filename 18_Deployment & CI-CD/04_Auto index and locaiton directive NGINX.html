@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX: location and autoindex Directives Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>NGINX: location and autoindex Directives</h1>
+
+    <h2>Part 1: The location Directive</h2>
+    <h3>Definition</h3>
+    <p>
+      The <strong>location</strong> directive is used to define how NGINX
+      handles requests for specific URIs. It allows you to apply different
+      configurations based on the request path.
+    </p>
+
+    <h3>Syntax</h3>
+    <pre><code><span class="kw">location</span> [<span class="prop">modifier</span>] <span class="str">pattern</span> {
+    <span class="cmt"># Configuration directives</span>
+}</code></pre>
+
+    <h3>Modifiers (Matching Rules)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Modifier</th>
+          <th>Description</th>
+          <th>Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>=</strong></td>
+          <td>Exact match</td>
+          <td>Highest (1)</td>
+        </tr>
+        <tr>
+          <td><strong>^~</strong></td>
+          <td>Preferential prefix match</td>
+          <td>High (2)</td>
+        </tr>
+        <tr>
+          <td><strong>~</strong></td>
+          <td>Case-sensitive regex</td>
+          <td>Medium (3)</td>
+        </tr>
+        <tr>
+          <td><strong>~*</strong></td>
+          <td>Case-insensitive regex</td>
+          <td>Medium (3)</td>
+        </tr>
+        <tr>
+          <td><strong>(none)</strong></td>
+          <td>Prefix match</td>
+          <td>Lowest (4)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>How It Works: Order of Evaluation</h3>
+    <pre><code><span class="cmt"># Example showing all types</span>
+<span class="kw">server</span> {
+    <span class="cmt"># 1. EXACT MATCH (Highest priority)</span>
+    <span class="kw">location</span> = <span class="str">/exact-path</span> {
+        <span class="kw">return</span> <span class="lit">200</span> <span class="str">"Exact match only"</span>;
+    }
+    
+    <span class="cmt"># 2. PREFERENTIAL PREFIX (High priority)</span>
+    <span class="kw">location</span> ^~ <span class="str">/static/</span> {
+        <span class="cmt"># Matches /static/, /static/file.html, etc.</span>
+        <span class="kw">alias</span> <span class="mono">/var/www/static/</span>;
+    }
+    
+    <span class="cmt"># 3. REGEX MATCHES (Medium priority - first match wins)</span>
+    <span class="kw">location</span> ~ <span class="str">\.php$</span> {
+        <span class="cmt"># Case-sensitive: matches .php files</span>
+        <span class="kw">fastcgi_pass</span> <span class="prop">php-fpm</span>;
+    }
+    
+    <span class="kw">location</span> ~* <span class="str">\.(jpg|png|gif)$</span> {
+        <span class="cmt"># Case-insensitive: matches image files</span>
+        <span class="kw">expires</span> <span class="lit">30d</span>;
+    }
+    
+    <span class="cmt"># 4. PREFIX MATCH (Lowest priority)</span>
+    <span class="kw">location</span> <span class="str">/</span> {
+        <span class="cmt"># Catches everything else</span>
+        <span class="kw">root</span> <span class="mono">/var/www/html</span>;
+        <span class="kw">index</span> <span class="str">index.html</span>;
+    }
+}</code></pre>
+
+    <h3>Practical Examples</h3>
+    <p><strong>Example 1: API vs Static Files</strong></p>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">80</span>;
+    <span class="kw">server_name</span> <span class="str">example.com</span>;
+    
+    <span class="cmt"># API endpoints (regex match)</span>
+    <span class="kw">location</span> ~ <span class="str">^/api/</span> {
+        <span class="kw">proxy_pass</span> <span class="mono">http://backend:3000</span>;
+        <span class="kw">proxy_set_header</span> <span class="prop">Host</span> <span class="lit">$host</span>;
+    }
+    
+    <span class="cmt"># Static files (preferential prefix)</span>
+    <span class="kw">location</span> ^~ <span class="str">/static/</span> {
+        <span class="kw">root</span> <span class="mono">/var/www</span>;
+        <span class="kw">expires</span> <span class="lit">1y</span>;
+        <span class="kw">add_header</span> <span class="prop">Cache-Control</span> <span class="str">"public, immutable"</span>;
+    }
+    
+    <span class="cmt"># Default (prefix match)</span>
+    <span class="kw">location</span> <span class="str">/</span> {
+        <span class="kw">root</span> <span class="mono">/var/www/html</span>;
+        <span class="kw">try_files</span> <span class="lit">$uri</span> <span class="lit">$uri/</span> <span class="str">/index.html</span>;
+    }
+}</code></pre>
+
+    <p><strong>Example 2: Admin Area Protection</strong></p>
+    <pre><code><span class="kw">location</span> <span class="str">/admin/</span> {
+    <span class="cmt"># Require authentication</span>
+    <span class="kw">auth_basic</span> <span class="str">"Admin Area"</span>;
+    <span class="kw">auth_basic_user_file</span> <span class="mono">/etc/nginx/.htpasswd</span>;
+    
+    <span class="cmt"># Only allow specific IPs</span>
+    <span class="kw">allow</span> <span class="lit">192.168.1.0/24</span>;
+    <span class="kw">allow</span> <span class="lit">10.0.0.1</span>;
+    <span class="kw">deny</span> <span class="lit">all</span>;
+}</code></pre>
+
+    <hr />
+
+    <h2>Part 2: The autoindex Directive</h2>
+    <h3>Definition</h3>
+    <p>
+      The <strong>autoindex</strong> directive enables directory listing when
+      the requested URL maps to a directory and no index file is found.
+    </p>
+
+    <h3>Syntax & Options</h3>
+    <pre><code><span class="kw">location</span> <span class="str">/path/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span> | <span class="lit">off</span>;  <span class="cmt"># Default: off</span>
+    
+    <span class="cmt"># Optional enhancements</span>
+    <span class="kw">autoindex_exact_size</span> <span class="lit">on</span> | <span class="lit">off</span>;
+    <span class="kw">autoindex_format</span> <span class="prop">html</span> | <span class="prop">xml</span> | <span class="prop">json</span> | <span class="prop">jsonp</span>;
+    <span class="kw">autoindex_localtime</span> <span class="lit">on</span> | <span class="lit">off</span>;
+}</code></pre>
+
+    <h3>Key Directives</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Directive</th>
+          <th>Values</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>autoindex</strong></td>
+          <td>on, off</td>
+          <td>off</td>
+          <td>Enable/disable directory listing</td>
+        </tr>
+        <tr>
+          <td><strong>autoindex_exact_size</strong></td>
+          <td>on, off</td>
+          <td>on</td>
+          <td>on: bytes, off: KB/MB/GB</td>
+        </tr>
+        <tr>
+          <td><strong>autoindex_format</strong></td>
+          <td>html, xml, json, jsonp</td>
+          <td>html</td>
+          <td>Output format</td>
+        </tr>
+        <tr>
+          <td><strong>autoindex_localtime</strong></td>
+          <td>on, off</td>
+          <td>off</td>
+          <td>on: local time, off: UTC</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Basic Example</h3>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">80</span>;
+    <span class="kw">server_name</span> <span class="str">files.example.com</span>;
+    <span class="kw">root</span> <span class="mono">/var/www/files</span>;
+    
+    <span class="kw">location</span> <span class="str">/downloads/</span> {
+        <span class="kw">autoindex</span> <span class="lit">on</span>;
+        <span class="kw">autoindex_exact_size</span> <span class="lit">off</span>;  <span class="cmt"># Human-readable sizes</span>
+        <span class="kw">autoindex_localtime</span> <span class="lit">on</span>;    <span class="cmt"># Show local time</span>
+        
+        <span class="cmt"># Optional: Add custom headers</span>
+        <span class="kw">add_header</span> <span class="prop">Content-Type</span> <span class="str">"text/html; charset=utf-8"</span>;
+    }
+}</code></pre>
+
+    <hr />
+
+    <h2>Part 3: Combined Use Cases</h2>
+    <h3>Use Case 1: File Sharing Server</h3>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">80</span>;
+    <span class="kw">server_name</span> <span class="str">share.local</span>;
+    <span class="kw">root</span> <span class="mono">/var/www/shared</span>;
+    
+    <span class="cmt"># Enable directory listing for all paths</span>
+    <span class="kw">location</span> <span class="str">/</span> {
+        <span class="kw">autoindex</span> <span class="lit">on</span>;
+        <span class="kw">autoindex_exact_size</span> <span class="lit">off</span>;
+        <span class="kw">autoindex_localtime</span> <span class="lit">on</span>;
+        
+        <span class="cmt"># Style the autoindex</span>
+        <span class="kw">autoindex_format</span> <span class="prop">html</span>;
+        <span class="kw">add_before_body</span> <span class="mono">/autoindex/header.html</span>;
+        <span class="kw">add_after_body</span> <span class="mono">/autoindex/footer.html</span>;
+    }
+    
+    <span class="cmt"># Protect sensitive directories</span>
+    <span class="kw">location</span> <span class="str">/private/</span> {
+        <span class="kw">autoindex</span> <span class="lit">off</span>;  <span class="cmt"># Explicitly disable</span>
+        <span class="kw">deny</span> <span class="lit">all</span>;       <span class="cmt"># Block access completely</span>
+    }
+    
+    <span class="cmt"># Disable listing for specific directory but allow file access</span>
+    <span class="kw">location</span> <span class="str">/confidential/</span> {
+        <span class="kw">autoindex</span> <span class="lit">off</span>;
+        <span class="cmt"># Files are accessible, but directory won't list contents</span>
+    }
+}</code></pre>
+
+    <h3>Use Case 2: Development Environment</h3>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">8080</span>;
+    <span class="kw">root</span> <span class="mono">/home/dev/projects</span>;
+    
+    <span class="cmt"># Enable autoindex for all project directories</span>
+    <span class="kw">location</span> <span class="str">/projects/</span> {
+        <span class="kw">autoindex</span> <span class="lit">on</span>;
+        <span class="kw">autoindex_format</span> <span class="prop">html</span>;
+        
+        <span class="cmt"># Show file sizes in human-readable format</span>
+        <span class="kw">autoindex_exact_size</span> <span class="lit">off</span>;
+        
+        <span class="cmt"># Customize appearance</span>
+        <span class="kw">location</span> ~ <span class="str">/projects/(.*)/docs/</span> {
+            <span class="cmt"># Different settings for docs folders</span>
+            <span class="kw">autoindex</span> <span class="lit">on</span>;
+            <span class="kw">autoindex_format</span> <span class="prop">json</span>;  <span class="cmt"># API-like output for docs</span>
+        }
+    }
+    
+    <span class="cmt"># API endpoints don't need autoindex</span>
+    <span class="kw">location</span> ~ <span class="str">^/api/</span> {
+        <span class="kw">autoindex</span> <span class="lit">off</span>;
+        <span class="kw">proxy_pass</span> <span class="mono">http://localhost:3000</span>;
+    }
+}</code></pre>
+
+    <h3>Use Case 3: Media Server with Thumbnails</h3>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">80</span>;
+    <span class="kw">server_name</span> <span class="str">media.local</span>;
+    <span class="kw">root</span> <span class="mono">/var/www/media</span>;
+    
+    <span class="cmt"># Photo galleries - show as directory listing</span>
+    <span class="kw">location</span> <span class="str">/photos/</span> {
+        <span class="kw">autoindex</span> <span class="lit">on</span>;
+        <span class="kw">autoindex_format</span> <span class="prop">html</span>;
+        
+        <span class="cmt"># Add custom CSS for better presentation</span>
+        <span class="kw">location</span> = <span class="str">/photos/autoindex.css</span> {
+            <span class="kw">alias</span> <span class="mono">/etc/nginx/autoindex-theme.css</span>;
+        }
+    }
+    
+    <span class="cmt"># Videos directory - no listing (streaming only)</span>
+    <span class="kw">location</span> <span class="str">/videos/</span> {
+        <span class="kw">autoindex</span> <span class="lit">off</span>;
+        
+        <span class="cmt"># MP4 streaming</span>
+        <span class="kw">location</span> ~ <span class="str">\.mp4$</span> {
+            <span class="kw">mp4</span>;
+            <span class="kw">mp4_buffer_size</span> <span class="lit">1m</span>;
+            <span class="kw">mp4_max_buffer_size</span> <span class="lit">5m</span>;
+        }
+    }
+}</code></pre>
+
+    <hr />
+
+    <h2>Part 4: Common Patterns & Best Practices</h2>
+    <h3>Pattern 1: Selective Autoindex</h3>
+    <pre><code><span class="cmt"># Enable autoindex only for specific directories</span>
+<span class="kw">location</span> ~ <span class="str">^/(downloads|public|shared)/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+    <span class="kw">autoindex_exact_size</span> <span class="lit">off</span>;
+    
+    <span class="cmt"># Don't list hidden files</span>
+    <span class="kw">location</span> ~ <span class="str">/\.</span> {
+        <span class="kw">deny</span> <span class="lit">all</span>;
+    }
+}
+
+<span class="cmt"># Everything else - no autoindex</span>
+<span class="kw">location</span> <span class="str">/</span> {
+    <span class="kw">autoindex</span> <span class="lit">off</span>;
+    <span class="kw">try_files</span> <span class="lit">$uri</span> <span class="lit">$uri/</span> =<span class="lit">404</span>;
+}</code></pre>
+
+    <h3>Pattern 2: JSON API for Directory Listing</h3>
+    <pre><code><span class="kw">location</span> <span class="str">/api/directory/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+    <span class="kw">autoindex_format</span> <span class="prop">json</span>;
+    
+    <span class="cmt"># Add CORS headers for web apps</span>
+    <span class="kw">add_header</span> <span class="str">'Access-Control-Allow-Origin'</span> <span class="str">'*'</span>;
+    <span class="kw">add_header</span> <span class="str">'Content-Type'</span> <span class="str">'application/json'</span>;
+    
+    <span class="cmt"># Remove HTML wrapper</span>
+    <span class="kw">location</span> = <span class="str">/api/directory/</span> {
+        <span class="kw">rewrite</span> <span class="prop">^</span> <span class="str">/api/directory/index.json</span> <span class="kw">last</span>;
+    }
+}</code></pre>
+
+    <h3>Pattern 3: Styling Autoindex Pages</h3>
+    <pre><code><span class="kw">location</span> <span class="str">/files/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+    
+    <span class="cmt"># Inject custom HTML/CSS</span>
+    <span class="kw">add_before_body</span> <span class="mono">/theme/header.html</span>;
+    <span class="kw">add_after_body</span> <span class="mono">/theme/footer.html</span>;
+    
+    <span class="cmt"># Custom location for CSS</span>
+    <span class="kw">location</span> = <span class="str">/files/autoindex.css</span> {
+        <span class="kw">alias</span> <span class="mono">/etc/nginx/custom-autoindex.css</span>;
+    }
+    
+    <span class="cmt"># Custom location for header/footer</span>
+    <span class="kw">location</span> ^~ <span class="str">/theme/</span> {
+        <span class="kw">internal</span>;  <span class="cmt"># Can't be accessed directly</span>
+        <span class="kw">alias</span> <span class="mono">/etc/nginx/autoindex-theme/</span>;
+    }
+}</code></pre>
+
+    <hr />
+
+    <h2>Part 5: Debugging & Testing</h2>
+    <h3>Test Commands</h3>
+    <pre><code><span class="cmt"># Test configuration</span>
+<span class="kw">sudo nginx -t</span>
+
+<span class="cmt"># Reload configuration</span>
+<span class="kw">sudo nginx -s reload</span>
+
+<span class="cmt"># Test different locations with curl</span>
+<span class="kw">curl -I http://localhost/files/</span>
+<span class="kw">curl http://localhost/files/</span>  <span class="cmt"># Should show directory listing</span>
+<span class="kw">curl -H "Accept: application/json" http://localhost/files/</span>
+
+<span class="cmt"># Check what location block matches</span>
+<span class="kw">tail -f /var/log/nginx/access.log</span></code></pre>
+
+    <h3>Common Issues & Solutions</h3>
+    <p><strong>Issue 1: Autoindex not working</strong></p>
+    <pre><code><span class="cmt"># WRONG - root at wrong level</span>
+<span class="kw">location</span> <span class="str">/downloads</span> {
+    <span class="kw">root</span> <span class="mono">/var/www</span>;  <span class="cmt"># Looks for /var/www/downloads</span>
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+}
+
+<span class="cmt"># RIGHT</span>
+<span class="kw">location</span> <span class="str">/downloads</span> {
+    <span class="kw">alias</span> <span class="mono">/var/www/downloads</span>;  <span class="cmt"># Maps /downloads to this path</span>
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+}</code></pre>
+
+    <p><strong>Issue 2: Conflict with index directive</strong></p>
+    <pre><code><span class="kw">location</span> <span class="str">/</span> {
+    <span class="kw">root</span> <span class="mono">/var/www/html</span>;
+    <span class="kw">index</span> <span class="str">index.html</span>;  <span class="cmt"># This prevents autoindex if index.html exists</span>
+    <span class="kw">autoindex</span> <span class="lit">on</span>;      <span class="cmt"># Only works if index.html is NOT found</span>
+}</code></pre>
+
+    <p><strong>Issue 3: Multiple location blocks interfering</strong></p>
+    <pre><code><span class="cmt"># This location might catch everything first</span>
+<span class="kw">location</span> ~ <span class="str">\.html$</span> {
+    <span class="cmt"># Processes HTML files</span>
+}
+
+<span class="cmt"># This location for directories</span>
+<span class="kw">location</span> <span class="str">/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span>;  <span class="cmt"># Might not work for HTML files</span>
+}</code></pre>
+
+    <hr />
+
+    <h2>Quick Reference Cheatsheet</h2>
+    <h3>Location Matching Priority</h3>
+    <ul>
+      <li><strong>1.</strong> <code>=</code> (exact match)</li>
+      <li><strong>2.</strong> <code>^~</code> (preferential prefix)</li>
+      <li>
+        <strong>3.</strong> <code>~</code> or <code>~*</code> (regex - first
+        match wins)
+      </li>
+      <li><strong>4.</strong> No modifier (prefix match)</li>
+    </ul>
+
+    <h3>Autoindex Best Practices</h3>
+    <ul>
+      <li>
+        Use <strong>alias</strong> not <strong>root</strong> for specific
+        location blocks
+      </li>
+      <li>
+        Set <strong>autoindex_exact_size off</strong> for user-friendly displays
+      </li>
+      <li>Use <strong>autoindex_localtime on</strong> for local time zones</li>
+      <li>Consider security: disable autoindex for sensitive directories</li>
+      <li>Add authentication for public-facing directories</li>
+    </ul>
+
+    <h3>Security Considerations</h3>
+    <pre><code><span class="cmt"># NEVER do this in production without protection</span>
+<span class="kw">location</span> <span class="str">/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+    <span class="cmt"># Anyone can browse your entire filesystem!</span>
+}
+
+<span class="cmt"># INSTEAD do this</span>
+<span class="kw">location</span> <span class="str">/public/</span> {
+    <span class="kw">autoindex</span> <span class="lit">on</span>;
+    <span class="cmt"># Only public files are exposed</span>
+    <span class="kw">auth_basic</span> <span class="str">"Restricted"</span>;
+    <span class="kw">auth_basic_user_file</span> <span class="mono">/etc/nginx/.htpasswd</span>;
+}</code></pre>
+  </body>
+</html>

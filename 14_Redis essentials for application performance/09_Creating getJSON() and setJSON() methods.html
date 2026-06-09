@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reusable Redis JSON Functions</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Dark Theme (Blakish) */
+      body {
+        background-color: #1e1e1e; /* VSCode Dark Background */
+        color: #d4d4d4; /* Light Text */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 25px;
+        margin: 0;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* General Content Styling */
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6; /* VSCode Blue for headings */
+        border-bottom: 2px solid #569cd650;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: #4ec9b0; /* Green/Teal for subheadings */
+        border-bottom: 1px solid #4ec9b050;
+      }
+      p {
+        margin-bottom: 15px;
+      }
+      strong {
+        color: #ce9178;
+      } /* VSCode Orange/Red for emphasis */
+
+      /* Inline Code */
+      code {
+        background-color: #333333;
+        color: #ce9178;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Courier New', monospace;
+      }
+
+      /* Lists and Tables */
+      ul {
+        list-style-type: none; /* Remove default bullet */
+        padding-left: 0;
+      }
+      ul li:before {
+        content: '•';
+        color: #4ec9b0; /* Green/Teal bullet points */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+      li {
+        margin-bottom: 10px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #252526; /* Table background */
+      }
+      th,
+      td {
+        border: 1px solid #3c3c3c;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #333333;
+        color: #9cdcfe; /* Light Blue for table headers */
+      }
+      td {
+        color: #d4d4d4;
+      }
+
+      /* Code Block Styling (VSCode Dark Theme) */
+      pre {
+        background-color: #1f1f1f; /* Slightly lighter black for code */
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        border: 1px solid #3c3c3c;
+        white-space: pre-wrap; /* Ensure long lines wrap */
+      }
+
+      /* Syntax Highlighting Mock */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .string {
+        color: #ce9178;
+      } /* Orange/Red */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .bash-prompt {
+        color: #9cdcfe;
+      } /* Light Blue for prompt */
+      .output {
+        color: #d7ba7d;
+      } /* Output color (Gold) */
+      .note {
+        color: #ffd700;
+        font-weight: bold;
+        background-color: #333315;
+        padding: 8px 12px;
+        border-radius: 4px;
+        display: block;
+        margin: 15px 0;
+        border-left: 5px solid #ffd700;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>♻️ Reusable JSON Functions for Redis in Node.js</h1>
+
+    <p>
+      You can easily create reusable functions for getting and setting JSON data
+      by leveraging the modern
+      <strong>Node-Redis client's ability to handle custom commands</strong> and
+      by using a technique called **prototype extension**.
+    </p>
+    <p>
+      This approach allows you to attach custom methods (like
+      <code>setJSON</code> and <code>getJSON</code>) directly to the Redis
+      client object, making them feel like built-in client methods.
+    </p>
+
+    <h2>1. Defining the Reusable Functions</h2>
+    <p>
+      We'll define two core functions that handle the
+      <strong>serialization</strong> (<code>JSON.stringify</code>) before a
+      <code>SET</code> and
+      <strong>deserialization</strong> (<code>JSON.parse</code>) after a
+      <code>GET</code>.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Function</th>
+          <th>Operation</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>setJSON</code></td>
+          <td>
+            $\text{Key, Object} \rightarrow \text{JSON.stringify} \rightarrow
+            \text{SET}$
+          </td>
+          <td>Stores an object under a key.</td>
+        </tr>
+        <tr>
+          <td><code>getJSON</code></td>
+          <td>
+            $\text{Key} \rightarrow \text{GET} \rightarrow \text{JSON.parse}
+            \rightarrow \text{Object}$
+          </td>
+          <td>
+            Retrieves and reconstructs the object from the stored JSON string.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>2. Attaching Methods to the Redis Client</h2>
+    <p>
+      The <code>node-redis</code> client allows you to pass a
+      <code>functions</code> object during client creation. This is the
+      **cleanest and recommended way** to extend the client's prototype without
+      polluting global classes.
+    </p>
+
+    <h3>💻 JS Example: Client Extension</h3>
+    <pre>
+<span class="keyword">import</span> { <span class="variable">createClient</span> } <span class="keyword">from</span> <span class="string">'redis'</span>;
+
+<span class="comment">/**</span>
+<span class="comment"> * 💡 Custom function definitions for the Redis client.</span>
+<span class="comment"> * All functions receive the Redis client instance as the 'this' context.</span>
+<span class="comment"> */</span>
+<span class="keyword">const</span> <span class="variable">jsonFunctions</span> = {
+    <span class="comment">/**</span>
+<span class="comment">     * Sets a key with a JSON stringified value.</span>
+<span class="comment">     * @param {string} key - The Redis key.</span>
+<span class="comment">     * @param {object} object - The JavaScript object to store.</span>
+<span class="comment">     * @param {object} options - Optional parameters like { EX: 3600 }.</span>
+<span class="comment">     * @returns {Promise&lt;string>} The Redis reply ('OK').</span>
+<span class="comment">     */</span>
+    <span class="keyword">async</span> <span class="variable">setJSON</span>(<span class="variable">key</span>, <span class="variable">object</span>, <span class="variable">options</span> = {}) {
+        <span class="keyword">const</span> <span class="variable">value</span> = <span class="variable">JSON</span>.stringify(<span class="variable">object</span>);
+        <span class="keyword">return</span> <span class="keyword">this</span>.set(<span class="variable">key</span>, <span class="variable">value</span>, <span class="variable">options</span>);
+    },
+
+    <span class="comment">/**</span>
+<span class="comment">     * Gets a key and parses the result back into a JavaScript object.</span>
+<span class="comment">     * Returns null if the key doesn't exist.</span>
+<span class="comment">     * @param {string} key - The Redis key.</span>
+<span class="comment">     * @returns {Promise&lt;object|null>} The parsed JavaScript object.</span>
+<span class="comment">     */</span>
+    <span class="keyword">async</span> <span class="variable">getJSON</span>(<span class="variable">key</span>) {
+        <span class="keyword">const</span> <span class="variable">value</span> = <span class="keyword">await</span> <span class="keyword">this</span>.get(<span class="variable">key</span>);
+        <span class="keyword">if</span> (<span class="variable">value</span> === <span class="keyword">null</span>) {
+            <span class="keyword">return</span> <span class="keyword">null</span>;
+        }
+        <span class="keyword">try</span> {
+            <span class="keyword">return</span> <span class="variable">JSON</span>.parse(<span class="variable">value</span>);
+        } <span class="keyword">catch</span> (<span class="variable">error</span>) {
+            <span class="variable">console</span>.error(<span class="string">`Error parsing JSON for key ${key}:`</span>, <span class="variable">error</span>);
+            <span class="comment">// Optionally throw or return raw value, depending on error policy</span>
+            <span class="keyword">return</span> <span class="keyword">null</span>; 
+        }
+    }
+};
+
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="variable">runExtendedClientExample</span>() {
+    <span class="comment">// 1. Create client and pass the custom functions object</span>
+    <span class="keyword">const</span> <span class="variable">client</span> = <span class="variable">createClient</span>({
+        <span class="variable">functions</span>: <span class="variable">jsonFunctions</span> 
+    });
+
+    <span class="variable">client</span>.on(<span class="string">'error'</span>, <span class="variable">err</span> => <span class="variable">console</span>.error(<span class="string">'Redis Client Error'</span>, <span class="variable">err</span>));
+    <span class="keyword">await</span> <span class="variable">client</span>.connect();
+
+    <span class="comment">// Data to store</span>
+    <span class="keyword">const</span> <span class="variable">userProfile</span> = {
+        <span class="variable">id</span>: <span class="output">101</span>,
+        <span class="variable">username</span>: <span class="string">"developer_2025"</span>,
+        <span class="variable">lastLogin</span>: <span class="keyword">new</span> <span class="variable">Date</span>().<span class="variable">toISOString</span>(),
+        <span class="variable">settings</span>: { <span class="variable">theme</span>: <span class="string">'dark'</span>, <span class="variable">notifications</span>: <span class="keyword">true</span> }
+    };
+    
+    <span class="keyword">const</span> <span class="variable">jsonKey</span> = <span class="string">'user:101:profile'</span>;
+
+    <span class="comment">// 2. Use the custom setJSON method</span>
+    <span class="variable">console</span>.log(<span class="string">`Setting JSON for key: ${jsonKey}`</span>);
+    <span class="keyword">const</span> <span class="variable">setReply</span> = <span class="keyword">await</span> <span class="variable">client</span>.setJSON(<span class="variable">jsonKey</span>, <span class="variable">userProfile</span>, { <span class="variable">EX</span>: <span class="output">60</span> });
+    <span class="variable">console</span>.log(<span class="string">`-> Set Reply: ${setReply}`</span>); <span class="comment">// >>> <span class="output">-> Set Reply: OK</span></span>
+
+    <span class="comment">// 3. Use the custom getJSON method</span>
+    <span class="variable">console</span>.log(<span class="string">`\nGetting JSON for key: ${jsonKey}`</span>);
+    <span class="keyword">const</span> <span class="variable">retrievedProfile</span> = <span class="keyword">await</span> <span class="variable">client</span>.getJSON(<span class="variable">jsonKey</span>);
+    
+    <span class="keyword">if</span> (<span class="variable">retrievedProfile</span>) {
+        <span class="variable">console</span>.log(<span class="string">"-> Retrieved Object:"</span>);
+        <span class="variable">console</span>.log(<span class="variable">retrievedProfile</span>);
+        <span class="comment">// Verify it's an object, not a string</span>
+        <span class="variable">console</span>.log(<span class="string">`-> Verified Type: ${typeof retrievedProfile}`</span>); 
+        <span class="variable">console</span>.log(<span class="string">`-> Nested setting: ${retrievedProfile.settings.theme}`</span>); 
+    } <span class="keyword">else</span> {
+        <span class="variable">console</span>.log(<span class="string">"Key not found or error occurred."</span>);
+    }
+    
+    <span class="keyword">await</span> <span class="variable">client</span>.quit();
+}
+
+<span class="variable">runExtendedClientExample</span>();
+</pre>
+
+    <h2>🔑 Key Concepts Explained</h2>
+    <ul>
+      <li>
+        <strong><code>this</code> Context</strong>: When defining functions in
+        the <code>functions</code> object passed to <code>createClient()</code>,
+        the <code>this</code> keyword inside those functions automatically
+        refers to the **Redis client instance itself**. This allows you to call
+        native client methods like <code>this.set()</code> and
+        <code>this.get()</code>.
+      </li>
+      <li>
+        <strong><code>JSON.stringify(object)</code></strong
+        >: This is the **serialization** step. Redis only stores strings (or
+        buffers), so the JavaScript object must be converted into its string
+        representation before storage.
+      </li>
+      <li>
+        <strong><code>JSON.parse(value)</code></strong
+        >: This is the **deserialization** step. The string retrieved from Redis
+        is converted back into a runnable JavaScript object, allowing you to
+        access properties like <code>retrievedProfile.settings.theme</code>.
+      </li>
+      <li>
+        <strong>Error Handling</strong>: The <code>getJSON</code> function
+        includes a <code>try...catch</code> block to handle potential issues if
+        the data stored under the key is not a valid JSON string (e.g., if
+        another part of the application used a simple <code>SET</code> instead
+        of <code>setJSON</code>). This makes the reusable function **robust**.
+      </li>
+    </ul>
+  </body>
+</html>

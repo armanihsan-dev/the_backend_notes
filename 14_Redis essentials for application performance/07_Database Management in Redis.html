@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Database Management Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Reset and Base Styles */
+      :root {
+        --color-bg-main: #1e1e1e; /* VS Code Dark Background */
+        --color-bg-card: #252526; /* VS Code Panel Background */
+        --color-text-main: #d4d4d4; /* VS Code Default Text */
+        --color-text-header: #569cd6; /* VS Code Blue for Headings */
+        --color-text-accent: #ce9178; /* VS Code Orange for Strings/Commands */
+        --color-text-comment: #6a9955; /* VS Code Green for Comments */
+        --color-text-keyword: #c586c0; /* VS Code Purple/Pink for Keywords */
+        --color-text-number: #b5cea8; /* VS Code Green for Numbers/Integers */
+        --color-border-subtle: #3c3c3c;
+        --font-main: 'Nunito', sans-serif;
+        --font-code: 'Consolas', 'Monaco', monospace;
+      }
+
+      body {
+        background-color: var(--color-bg-main);
+        color: var(--color-text-main);
+        font-family: var(--font-main);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: var(--color-bg-card);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Typography */
+      h1,
+      h2,
+      h3 {
+        font-weight: 800;
+        color: var(--color-text-header);
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      h1 {
+        border-bottom: 2px solid var(--color-border-subtle);
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.5em;
+        color: var(--color-text-main);
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ol,
+      ul {
+        padding-left: 25px;
+        margin-bottom: 20px;
+      }
+
+      li {
+        margin-bottom: 10px;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      .code-block {
+        background-color: #1a1a1a; /* Slightly darker than card for contrast */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+        margin: 20px 0;
+        white-space: pre-wrap; /* Ensure text wraps */
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0;
+      }
+
+      .redis-cli-prompt {
+        color: #9cdcfe; /* Light Blue for the address/prompt */
+      }
+
+      .redis-cli-command {
+        color: var(--color-text-accent); /* Orange for Commands/Keywords */
+        font-weight: 600;
+      }
+
+      .redis-cli-value {
+        color: #ffd700; /* Yellow for values/strings */
+      }
+
+      .redis-cli-output {
+        color: var(--color-text-number); /* Light green for integers/numbers */
+      }
+
+      .redis-cli-ok {
+        color: #8be9fd; /* Cyan for "OK" */
+      }
+
+      .redis-cli-comment {
+        color: var(--color-text-comment);
+        font-style: italic;
+      }
+
+      .redis-config-key {
+        color: var(--color-text-keyword);
+        font-weight: 600;
+      }
+
+      /* Inline Code */
+      code {
+        background-color: var(--color-bg-main);
+        color: var(--color-text-keyword);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: var(--font-code);
+        font-size: 0.95em;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        background-color: #2c2c2d;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--color-border-subtle);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3e3e40;
+        color: var(--color-text-header);
+        font-weight: 600;
+      }
+
+      /* Section Separator */
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: var(--color-border-subtle);
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        <span class="emoji">🗄️</span> Database Management in Redis using
+        <code>redis-cli</code>
+      </h1>
+
+      <p>
+        Redis is often referred to as a "single database instance," but it
+        supports **multiple, logical databases** (numbered **0 to 15 by
+        default**) within a single server instance. While modern applications
+        often prefer dedicated Redis instances or key prefixes for isolation,
+        these databases are still useful for simple separation.
+      </p>
+
+      <p>
+        Here is a deep dive into the commands for managing these logical
+        databases using <code>redis-cli</code>.
+      </p>
+
+      <hr />
+
+      <h2 id="connecting">
+        <span class="emoji">1. 🌐</span> Connecting and Switching Databases
+      </h2>
+      <p>
+        The core of managing databases in Redis is selecting which one you are
+        currently working with.
+      </p>
+
+      <h3><code>SELECT</code></h3>
+      <p>
+        This command switches the current connection to a specified logical
+        database.
+      </p>
+      <ul>
+        <li><strong>Syntax:</strong> <code>SELECT index</code></li>
+        <li>
+          <strong>Arguments:</strong>
+          <ul>
+            <li>
+              <code>index</code>: An integer between 0 and the maximum number of
+              databases configured (usually 15).
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <p><strong>Example:</strong></p>
+      <div class="code-block">
+        <pre>
+<span class="redis-cli-comment"># Connects to database 0 (the default)</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">app:name</span> <span class="redis-cli-value">"DatabaseZero"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-comment"># Switch to database 1</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SELECT</span> <span class="redis-cli-output">1</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-comment"># Set a key in database 1</span>
+<span class="redis-cli-prompt">127.0.0.1:6379[1]></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">app:name</span> <span class="redis-cli-value">"DatabaseOne"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-comment"># Check that the key in database 0 is isolated</span>
+<span class="redis-cli-prompt">127.0.0.1:6379[1]></span> <span class="redis-cli-command">SELECT</span> <span class="redis-cli-output">0</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">GET</span> <span class="redis-cli-value">app:name</span>
+<span class="redis-cli-value">"DatabaseZero"</span>
+</pre>
+      </div>
+
+      <hr />
+
+      <h2 id="information">
+        <span class="emoji">2. 🔢</span> Database Information
+      </h2>
+      <p>
+        You can check the size and current database number from the command
+        line.
+      </p>
+
+      <h3><code>DBSIZE</code></h3>
+      <p>Returns the **number of keys** in the currently selected database.</p>
+      <ul>
+        <li><strong>Syntax:</strong> <code>DBSIZE</code></li>
+      </ul>
+
+      <p><strong>Example:</strong></p>
+      <div class="code-block">
+        <pre>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SELECT</span> <span class="redis-cli-output">1</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379[1]></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">key1</span> <span class="redis-cli-value">value1</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379[1]></span> <span class="redis-cli-command">DBSIZE</span>
+<span class="redis-cli-output">(integer) 1</span>
+
+<span class="redis-cli-prompt">127.0.0.1:6379[1]></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">key2</span> <span class="redis-cli-value">value2</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379[1]></span> <span class="redis-cli-command">DBSIZE</span>
+<span class="redis-cli-output">(integer) 2</span>
+</pre>
+      </div>
+
+      <hr />
+
+      <h2 id="config">
+        <span class="emoji">📦</span> View the Number of Databases
+      </h2>
+      <p>
+        To find out how many databases your Redis server is configured to use:
+      </p>
+
+      <div class="code-block">
+        <pre>
+<span class="redis-cli-command">CONFIG GET</span> <span class="redis-config-key">databases</span>
+<span class="redis-cli-comment">or</span>
+<span class="redis-cli-command">redis-cli CONFIG GET</span> <span class="redis-config-key">databases</span>
+</pre>
+      </div>
+      <p>
+        This will return the configured number of databases (default is **16**).
+      </p>
+
+      <hr />
+
+      <h2 id="moving-keys">
+        <span class="emoji">4. 🔀</span> Moving Keys Between Databases
+      </h2>
+
+      <h3><code>MOVE</code></h3>
+      <p>
+        Moves a key from the **current database** to a specified destination
+        database.
+      </p>
+      <ul>
+        <li><strong>Syntax:</strong> <code>MOVE key db</code></li>
+        <li>
+          <strong>Return Values:</strong>
+          <ul>
+            <li><code>(integer) 1</code>: The key was moved successfully.</li>
+            <li>
+              <code>(integer) 0</code>: The key was not moved (either it didn't
+              exist in the source or it already exists in the destination).
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <p>
+        <strong>Example:</strong> Move the key <code>user:101</code> from
+        database 0 to database 3.
+      </p>
+      <div class="code-block">
+        <pre>
+<span class="redis-cli-comment"># Start in database 0 and set the key</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">user:101</span> <span class="redis-cli-value">"profile_data"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">DBSIZE</span>
+<span class="redis-cli-output">(integer) 1</span>
+<span class="redis-cli-comment"># Move the key to database 3</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">MOVE</span> <span class="redis-cli-value">user:101</span> <span class="redis-cli-output">3</span>
+<span class="redis-cli-output">(integer) 1</span>
+<span class="redis-cli-comment"># Verify the move in database 0 (source)</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">GET</span> <span class="redis-cli-value">user:101</span>
+<span class="redis-cli-output">(nil)</span>
+<span class="redis-cli-comment"># Verify the move in database 3 (destination)</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SELECT</span> <span class="redis-cli-output">3</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379[3]></span> <span class="redis-cli-command">GET</span> <span class="redis-cli-value">user:101</span>
+<span class="redis-cli-value">"profile_data"</span>
+</pre>
+      </div>
+
+      <hr />
+
+      <h2 id="configuration">
+        <span class="emoji">⚙️</span> Configure the Number of Databases
+      </h2>
+      <p>
+        By default, Redis supports up to 16 databases (0 to 15). You can change
+        this limit by editing the Redis configuration file.
+      </p>
+
+      <h3><span class="emoji">🔹</span> Modify <code>redis.conf</code>:</h3>
+      <p>
+        Mean create a file <code>touch redis.conf</code> and open it using nano
+        editor <code>nano redis.conf</code> and write the number of datbase
+      </p>
+      <div class="code-block">
+        <pre>
+<span class="redis-config-key">databases</span> <span class="redis-cli-output">40</span>
+</pre>
+      </div>
+      <p>
+        Then close the file and close the redis server and start again by
+        providing the create file like this :
+      </p>
+      <pre><code>redis-server redis-conf</code></pre>
+      <p>
+        After this try to check the number of databses from redis-cli it will
+        return <code>40</code>
+      </p>
+      <p>This restricts Redis to use only databases **0 to 3**.</p>
+
+      <p>
+        <strong>Note:</strong> In modern Redis usage, most applications rely
+        solely on database **0** and use **namespacing** (e.g.,
+        <code>user:123</code>, <code>session:abc</code>) to logically separate
+        data.
+      </p>
+
+      <hr />
+
+      <h2 id="key-points">
+        <span class="emoji">📝</span> Key Points to Remember
+      </h2>
+      <ul>
+        <li>Redis supports **numbered databases only** — no custom names.</li>
+        <li>All databases share the **same memory space**.</li>
+        <li>Redis does **not** track memory usage per database.</li>
+        <li>
+          Consider using **key namespacing** instead of multiple databases.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

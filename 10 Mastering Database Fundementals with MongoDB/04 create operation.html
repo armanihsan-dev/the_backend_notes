@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Create Operation Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Main Container Styling (Blackish Theme) */
+      body {
+        background-color: #1e1e1e; /* Dark Gray/Blackish background, similar to VS Code */
+        color: #d4d4d4; /* Light text for contrast */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner panel */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6; /* VS Code blue for headings */
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      pre {
+        background-color: #1f1f1f; /* Darker background for code */
+        color: #dcdcdc; /* Light text for code */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace; /* Monospace font for code */
+        font-size: 0.9em;
+        margin-bottom: 20px;
+        white-space: pre-wrap; /* Ensure code wraps */
+      }
+
+      /* Specific Code Highlighting to simulate VS Code syntax */
+      .code-comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .code-keyword {
+        color: #c586c0;
+      } /* Purple/Pink for keywords (const, function, await, try, finally) */
+      .code-string {
+        color: #ce9178;
+      } /* Orange for strings */
+      .code-method {
+        color: #dcdcdc;
+      } /* White for method names */
+      .code-type {
+        color: #4ec9b0;
+      } /* Teal for types (ObjectId, MongoClient) */
+      .code-variable {
+        color: #9cdcfe;
+      } /* Light blue for variables */
+      .code-property {
+        color: #dcdcdc;
+      } /* White/Light gray for properties */
+      .code-bracket {
+        color: #ffd700;
+      } /* Yellow for special characters/brackets */
+      .code-output {
+        color: #cccccc;
+        font-weight: bold;
+        background-color: #333333;
+        padding: 5px;
+        border-radius: 4px;
+        display: block;
+        margin-top: 10px;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        border: 1px solid #444;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #3c3c3c;
+        color: #569cd6;
+      }
+      td {
+        background-color: #2d2d30;
+      }
+      .table-method-name {
+        font-weight: bold;
+        color: #569cd6;
+      }
+      .table-syntax {
+        font-family: 'Consolas', monospace;
+        color: #ce9178;
+      }
+
+      /* Utility styles */
+      .note {
+        font-style: italic;
+        color: #aaaaaa;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Create Operation Notes</h1>
+      <p>
+        The **Create operation** in MongoDB (often referred to as **Insert**) is
+        used to add **new documents** to a collection. If the target collection
+        does not exist, MongoDB creates it implicitly upon the first insertion.
+        The primary methods for this are
+        <span style="color: #4ec9b0">insertOne()</span> for a single document
+        and <span style="color: #4ec9b0">insertMany()</span> for multiple
+        documents.
+      </p>
+
+      <h2>1. MongoDB Shell (<span style="color: #4ec9b0">mongosh</span>)</h2>
+      <p>
+        You interact with MongoDB using the
+        <span style="color: #4ec9b0">mongosh</span> terminal utility. The
+        commands operate on the currently selected database (<span
+          style="color: #9cdcfe"
+          >db</span
+        >).
+      </p>
+
+      <h3>Syntax and Definition</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Definition</th>
+            <th>Syntax</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="table-method-name">db.collection.insertOne()</td>
+            <td>Inserts a **single** document into a collection.</td>
+            <td class="table-syntax">
+              db.collection.insertOne( &lt;document&gt;, &lt;options&gt; )
+            </td>
+          </tr>
+          <tr>
+            <td class="table-method-name">db.collection.insertMany()</td>
+            <td>
+              Inserts **multiple** documents (an array of documents) into a
+              collection.
+            </td>
+            <td class="table-syntax">
+              db.collection.insertMany( [ &lt;document 1&gt;, &lt;document
+              2&gt;, ... ], &lt;options&gt; )
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        <span style="color: #9cdcfe">db</span>: Refers to the current
+        database.<br />
+        <span style="color: #9cdcfe">collection</span>: The name of the
+        collection you're inserting into.<br />
+        <span style="color: #9cdcfe">&lt;document&gt;</span>: The data to
+        insert, represented as a JSON-like object (<span style="color: #4ec9b0"
+          >BSON</span
+        >
+        in MongoDB).<br />
+        <span style="color: #9cdcfe">_id</span>: If you don't provide an
+        <span style="color: #9cdcfe">_id</span> field, MongoDB automatically
+        adds a unique <span style="color: #4ec9b0">ObjectId</span> for you.
+      </p>
+
+      <h3>Practical Example (Shell)</h3>
+      <p>Select a database (or create it if it doesn't exist):</p>
+      <p><span class="code-comment">JavaScript</span></p>
+      <pre>
+<span class="code-method">use</span> <span class="code-variable">universityDB</span></pre>
+
+      <p>
+        Insert a Single Document (using
+        <span style="color: #4ec9b0">insertOne</span>):
+      </p>
+      <p><span class="code-comment">JavaScript</span></p>
+      <pre>
+<span class="code-variable">db</span>.<span class="code-property">students</span>.<span class="code-method">insertOne</span><span class="code-bracket">(</span>
+  <span class="code-bracket">{</span>
+    <span class="code-string">name</span>: <span class="code-string">"Alice Johnson"</span>,
+    <span class="code-string">studentId</span>: <span class="code-type">1001</span>,
+    <span class="code-string">major</span>: <span class="code-string">"Computer Science"</span>,
+    <span class="code-string">gpa</span>: <span class="code-type">3.8</span>
+  <span class="code-bracket">}</span>
+<span class="code-bracket">)</span></pre>
+
+      <p>Output (Example):</p>
+      <pre class="code-output">
+<span class="code-bracket">{</span>
+  <span class="code-string">acknowledged</span>: <span class="code-type">true</span>,
+  <span class="code-string">insertedId</span>: <span class="code-type">ObjectId</span><span class="code-string">("...")</span> <span class="code-comment">// Unique ID generated by MongoDB</span>
+<span class="code-bracket">}</span></pre>
+
+      <p>
+        Insert Multiple Documents (using
+        <span style="color: #4ec9b0">insertMany</span>):
+      </p>
+      <p><span class="code-comment">JavaScript</span></p>
+      <pre>
+<span class="code-variable">db</span>.<span class="code-property">students</span>.<span class="code-method">insertMany</span><span class="code-bracket">([</span>
+  <span class="code-bracket">{</span>
+    <span class="code-string">name</span>: <span class="code-string">"Bob Williams"</span>,
+    <span class="code-string">studentId</span>: <span class="code-type">1002</span>,
+    <span class="code-string">major</span>: <span class="code-string">"History"</span>,
+    <span class="code-string">gpa</span>: <span class="code-type">3.2</span>
+  <span class="code-bracket">}</span>,
+  <span class="code-bracket">{</span>
+    <span class="code-string">name</span>: <span class="code-string">"Charlie Brown"</span>,
+    <span class="code-string">studentId</span>: <span class="code-type">1003</span>,
+    <span class="code-string">major</span>: <span class="code-string">"Biology"</span>,
+    <span class="code-string">gpa</span>: <span class="code-type">4.0</span>
+  <span class="code-bracket">}</span>
+<span class="code-bracket">])</span></pre>
+
+      <p>Output (Example):</p>
+      <pre class="code-output">
+<span class="code-bracket">{</span>
+  <span class="code-string">acknowledged</span>: <span class="code-type">true</span>,
+  <span class="code-string">insertedIds</span>: <span class="code-bracket">[</span>
+    <span class="code-type">ObjectId</span><span class="code-string">("...")</span>,
+    <span class="code-type">ObjectId</span><span class="code-string">("...")</span>
+  <span class="code-bracket">]</span>
+<span class="code-bracket">}</span></pre>
+
+      <h2>2. Node.js (with MongoDB Driver)</h2>
+      <p>
+        In a Node.js application, you use the official
+        <span style="color: #4ec9b0">mongodb</span> driver to connect and
+        perform operations. These methods are typically
+        <span style="color: #569cd6">asynchronous</span> (return
+        <span style="color: #569cd6">Promises</span>).
+      </p>
+
+      <h3>Setup (Node.js)</h3>
+      <p>
+        Assuming you have Node.js and the
+        <span style="color: #4ec9b0">mongodb</span> package installed (<span
+          style="color: #ce9178"
+          >npm install mongodb</span
+        >), you'd set up a basic connection:
+      </p>
+      <p><span class="code-comment">JavaScript</span></p>
+      <pre>
+<span class="code-keyword">const</span> <span class="code-bracket">{</span> <span class="code-type">MongoClient</span> <span class="code-bracket">}</span> <span class="code-keyword"> = </span><span class="code-method">require</span><span class="code-bracket">(</span><span class="code-string">'mongodb'</span><span class="code-bracket">)</span>;
+
+<span class="code-comment">// Replace with your MongoDB connection string</span>
+<span class="code-keyword">const</span> <span class="code-variable">uri</span> <span class="code-keyword">=</span> <span class="code-string">"mongodb://localhost:27017"</span>; 
+<span class="code-keyword">const</span> <span class="code-variable">client</span> <span class="code-keyword">=</span> <span class="code-keyword">new</span> <span class="code-type">MongoClient</span><span class="code-bracket">(</span><span class="code-variable">uri</span><span class="code-bracket">)</span>;
+
+<span class="code-keyword">async function</span> <span class="code-method">run</span><span class="code-bracket">()</span> <span class="code-bracket">{</span>
+  <span class="code-keyword">try</span> <span class="code-bracket">{</span>
+    <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">connect</span><span class="code-bracket">()</span>;
+    <span class="code-keyword">const</span> <span class="code-variable">database</span> <span class="code-keyword">=</span> <span class="code-variable">client</span>.<span class="code-method">db</span><span class="code-bracket">(</span><span class="code-string">'universityDB'</span><span class="code-bracket">)</span>;
+    <span class="code-keyword">const</span> <span class="code-variable">students</span> <span class="code-keyword">=</span> <span class="code-variable">database</span>.<span class="code-method">collection</span><span class="code-bracket">(</span><span class="code-string">'students'</span><span class="code-bracket">)</span>;
+    
+    <span class="code-comment">// --- Insert Operations will go here ---</span>
+    
+  <span class="code-bracket">}</span> <span class="code-keyword">finally</span> <span class="code-bracket">{</span>
+    <span class="code-comment">// Ensures that the client will close when you finish/error</span>
+    <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">close</span><span class="code-bracket">()</span>;
+  <span class="code-bracket">}</span>
+<span class="code-bracket">}</span>
+<span class="code-method">run</span><span class="code-bracket">()</span>.<span class="code-method">catch</span><span class="code-bracket">(</span><span class="code-property">console</span>.<span class="code-property">dir</span><span class="code-bracket">)</span>;</pre>
+
+      <h3>Practical Example (Node.js)</h3>
+      <p>
+        We'll place the following code inside the
+        <span style="color: #c586c0">try</span> block of the
+        <span style="color: #dcdcdc">run</span> function above.
+      </p>
+
+      <p>
+        Insert a Single Document (using
+        <span style="color: #4ec9b0">insertOne</span>):
+      </p>
+      <p><span class="code-comment">JavaScript</span></p>
+      <pre>
+<span class="code-comment">// 1. Insert a Single Document</span>
+<span class="code-keyword">const</span> <span class="code-variable">alice</span> <span class="code-keyword">=</span> <span class="code-bracket">{</span>
+  <span class="code-string">name</span>: <span class="code-string">"Alice Johnson (Node)"</span>,
+  <span class="code-string">studentId</span>: <span class="code-type">2001</span>,
+  <span class="code-string">major</span>: <span class="code-string">"Art"</span>,
+  <span class="code-string">gpa</span>: <span class="code-type">3.9</span>
+<span class="code-bracket">}</span>;
+
+<span class="code-keyword">const</span> <span class="code-variable">insertOneResult</span> <span class="code-keyword">=</span> <span class="code-keyword">await</span> <span class="code-variable">students</span>.<span class="code-method">insertOne</span><span class="code-bracket">(</span><span class="code-variable">alice</span><span class="code-bracket">)</span>;
+
+<span class="code-property">console</span>.<span class="code-method">log</span><span class="code-bracket">(</span><span class="code-string">`1 document inserted with the _id: ${<span class="code-variable">insertOneResult</span>.<span class="code-property">insertedId</span>}`</span><span class="code-bracket">)</span>;</pre>
+
+      <p>
+        Insert Multiple Documents (using
+        <span style="color: #4ec9b0">insertMany</span>):
+      </p>
+      <p><span class="code-comment">JavaScript</span></p>
+      <pre>
+<span class="code-comment">// 2. Insert Multiple Documents</span>
+<span class="code-keyword">const</span> <span class="code-variable">newStudents</span> <span class="code-keyword">=</span> <span class="code-bracket">[</span>
+  <span class="code-bracket">{</span>
+    <span class="code-string">name</span>: <span class="code-string">"David Lee"</span>,
+    <span class="code-string">studentId</span>: <span class="code-type">2004</span>,
+    <span class="code-string">major</span>: <span class="code-string">"Math"</span>,
+    <span class="code-string">gpa</span>: <span class="code-type">3.5</span>
+  <span class="code-bracket">}</span>,
+  <span class="code-bracket">{</span>
+    <span class="code-string">name</span>: <span class="code-string">"Eve Green"</span>,
+    <span class="code-string">studentId</span>: <span class="code-type">2005</span>,
+    <span class="code-string">major</span>: <span class="code-string">"Physics"</span>,
+    <span class="code-string">gpa</span>: <span class="code-type">3.1</span>
+  <span class="code-bracket">}</span>
+<span class="code-bracket">]</span>;
+
+<span class="code-keyword">const</span> <span class="code-variable">insertManyResult</span> <span class="code-keyword">=</span> <span class="code-keyword">await</span> <span class="code-variable">students</span>.<span class="code-method">insertMany</span><span class="code-bracket">(</span><span class="code-variable">newStudents</span><span class="code-bracket">)</span>;
+
+<span class="code-property">console</span>.<span class="code-method">log</span><span class="code-bracket">(</span><span class="code-string">`${<span class="code-variable">insertManyResult</span>.<span class="code-property">insertedCount</span>} documents inserted.`</span><span class="code-bracket">)</span>;
+<span class="code-property">console</span>.<span class="code-method">log</span><span class="code-bracket">(</span><span class="code-string">"Inserted IDs:"</span>, <span class="code-variable">insertManyResult</span>.<span class="code-property">insertedIds</span><span class="code-bracket">)</span>;</pre>
+
+      <p class="note">
+        The <span style="color: #4ec9b0">insertOne()</span> method is
+        demonstrated in this video, which is a key part of the MongoDB creation
+        operation.
+      </p>
+    </div>
+  </body>
+</html>

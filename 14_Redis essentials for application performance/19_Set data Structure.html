@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Sets Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="default.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>Redis Sets Data Structure 💾</h1>
+      </header>
+
+      <p class="intro-text">
+        <strong>Redis Sets</strong> are an **unordered collection of unique
+        strings**, perfect for tasks like tracking unique visitors or storing
+        tags.
+      </p>
+
+      <section class="notes-section">
+        <h2 id="section-1">1. Redis Sets Overview 📚</h2>
+
+        <div class="key-points">
+          <p>
+            <strong>Structure:</strong> An unordered collection of unique
+            strings (members).
+          </p>
+
+          <h3>Key Use Cases:</h3>
+          <ul>
+            <li>Tracking unique users (e.g., users who viewed a page).</li>
+            <li>Storing and managing tags associated with an entity.</li>
+            <li>
+              Performing quick set operations (union, intersection, difference).
+            </li>
+          </ul>
+
+          <p>
+            <strong>Time Complexity:</strong> Most operations (add, check for
+            membership, remove) are $O(1)$ (constant time), making them
+            **extremely fast**.
+          </p>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-2">
+          2. Working with Redis Sets via <code>redis-cli</code>
+        </h2>
+
+        <p>
+          These commands allow you to interact directly with the Redis server.
+        </p>
+
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Action</th>
+              <th>Syntax</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SADD</strong></td>
+              <td>
+                Add one or more members to a set. If a member already exists, it
+                is ignored.
+              </td>
+              <td><code>SADD key member1 [member2 ...]</code></td>
+              <td><code>SADD colors red green blue</code></td>
+            </tr>
+            <tr>
+              <td><strong>SMEMBERS</strong></td>
+              <td>
+                Get all members of the set. (Note: This can be slow for very
+                large sets.)
+              </td>
+              <td><code>SMEMBERS key</code></td>
+              <td><code>SMEMBERS colors</code></td>
+            </tr>
+            <tr>
+              <td><strong>SISMEMBER</strong></td>
+              <td>Check if a member exists in the set (returns 1 or 0).</td>
+              <td><code>SISMEMBER key member</code></td>
+              <td><code>SISMEMBER colors red</code></td>
+            </tr>
+            <tr>
+              <td><strong>SCARD</strong></td>
+              <td>Get the number of members in the set (cardinality).</td>
+              <td><code>SCARD key</code></td>
+              <td><code>SCARD colors</code></td>
+            </tr>
+            <tr>
+              <td><strong>SREM</strong></td>
+              <td>Remove one or more members from the set.</td>
+              <td><code>SREM key member1 [member2 ...]</code></td>
+              <td><code>SREM colors blue</code></td>
+            </tr>
+            <tr>
+              <td><strong>SPOP</strong></td>
+              <td>Remove and return a random member from the set.</td>
+              <td><code>SPOP key [count]</code></td>
+              <td><code>SPOP colors</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Example Flow in redis-cli:</h3>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">></span> <span class="command">SADD</span> <span class="key">users:online</span> <span class="string">"user:101"</span> <span class="string">"user:102"</span> <span class="string">"user:103"</span>
+<span class="number">(integer) 3</span>
+<span class="operator">></span> <span class="command">SMEMBERS</span> <span class="key">users:online</span>
+<span class="number">1)</span> <span class="string">"user:101"</span>
+<span class="number">2)</span> <span class="string">"user:103"</span>
+<span class="number">3)</span> <span class="string">"user:102"</span>
+<span class="operator">></span> <span class="command">SADD</span> <span class="key">users:online</span> <span class="string">"user:102"</span> <span class="string">"user:104"</span>
+<span class="number">(integer) 1</span> <span class="comment"># Only "user:104" was added</span>
+<span class="operator">></span> <span class="command">SISMEMBER</span> <span class="key">users:online</span> <span class="string">"user:104"</span>
+<span class="number">(integer) 1</span>
+<span class="operator">></span> <span class="command">SCARD</span> <span class="key">users:online</span>
+<span class="number">(integer) 4</span>
+<span class="operator">></span> <span class="command">SREM</span> <span class="key">users:online</span> <span class="string">"user:101"</span>
+<span class="number">(integer) 1</span>
+<span class="operator">></span> <span class="command">SMEMBERS</span> <span class="key">users:online</span>
+<span class="number">1)</span> <span class="string">"user:104"</span>
+<span class="number">2)</span> <span class="string">"user:103"</span>
+<span class="number">3)</span> <span class="string">"user:102"</span>
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-3">
+          3. Working with Redis Sets in Node.js (using ioredis)
+        </h2>
+
+        <p>First, ensure you have a Redis client installed and connected:</p>
+        <div class="code-block bash-code install-code">
+          <span class="comment"># Bash</span>
+          <pre><span class="command">npm install ioredis</span></pre>
+        </div>
+
+        <h3>Node.js Syntax Example:</h3>
+        <div class="code-block js-code">
+          <span class="comment"># JavaScript</span>
+          <pre>
+<span class="keyword">const</span> <span class="variable">Redis</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'ioredis'</span>);
+<span class="keyword">const</span> <span class="variable">redis</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">Redis</span>(); <span class="comment">// Connects to 127.0.0.1:6379 by default</span>
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function-name">handleRedisSets</span>() {
+    <span class="keyword">const</span> <span class="variable-name">setKey</span> <span class="operator">=</span> <span class="string">'product:tags:shirt'</span>;
+
+    <span class="comment">// 1. SADD: Add members to the set</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"--- SADD ---"</span>);
+    <span class="comment">// Returns the number of elements that were actually added.</span>
+    <span class="keyword">let</span> <span class="variable-name">addedCount</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sadd</span>(<span class="variable-name">setKey</span>, <span class="string">'cotton'</span>, <span class="string">'unisex'</span>, <span class="string">'long-sleeve'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Added ${</span><span class="variable-name">addedCount</span><span class="string">} new tags.`</span>); <span class="comment">// Output: Added 3 new tags.</span>
+
+    <span class="comment">// Adding an existing member is ignored</span>
+    <span class="variable-name">addedCount</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sadd</span>(<span class="variable-name">setKey</span>, <span class="string">'cotton'</span>, <span class="string">'t-shirt'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Added ${</span><span class="variable-name">addedCount</span><span class="string">} new tags.`</span>); <span class="comment">// Output: Added 1 new tag. (only 't-shirt')</span>
+
+    <span class="comment">// 2. SCARD: Get the number of members</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- SCARD ---"</span>);
+    <span class="keyword">let</span> <span class="variable-name">count</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">scard</span>(<span class="variable-name">setKey</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Total tags for shirt: ${</span><span class="variable-name">count</span><span class="string">}`</span>); <span class="comment">// Output: 4</span>
+
+    <span class="comment">// 3. SISMEMBER: Check for membership (returns 1 or 0)</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- SISMEMBER ---"</span>);
+    <span class="keyword">let</span> <span class="variable-name">isCotton</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sismember</span>(<span class="variable-name">setKey</span>, <span class="string">'cotton'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Is 'cotton' a tag? ${</span><span class="variable-name">isCotton</span> <span class="operator">?</span> <span class="string">'Yes'</span> <span class="operator">:</span> <span class="string">'No'</span><span class="string">}`</span>); <span class="comment">// Output: Yes</span>
+
+    <span class="keyword">let</span> <span class="variable-name">isWool</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sismember</span>(<span class="variable-name">setKey</span>, <span class="string">'wool'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Is 'wool' a tag? ${</span><span class="variable-name">isWool</span> <span class="operator">?</span> <span class="string">'Yes'</span> <span class="operator">:</span> <span class="string">'No'</span><span class="string">}`</span>); <span class="comment">// Output: No</span>
+
+    <span class="comment">// 4. SMEMBERS: Get all members</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- SMEMBERS ---"</span>);
+    <span class="keyword">let</span> <span class="variable-name">allTags</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">smembers</span>(<span class="variable-name">setKey</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"All tags:"</span>, <span class="variable-name">allTags</span>); <span class="comment">// Output: [ 'cotton', 'unisex', 'long-sleeve', 't-shirt' ] (order is not guaranteed)</span>
+
+    <span class="comment">// 5. SREM: Remove a member</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- SREM ---"</span>);
+    <span class="comment">// Returns the number of members removed</span>
+    <span class="keyword">let</span> <span class="variable-name">removedCount</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">srem</span>(<span class="variable-name">setKey</span>, <span class="string">'long-sleeve'</span>, <span class="string">'unisex'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Removed ${</span><span class="variable-name">removedCount</span><span class="string">} tags.`</span>); <span class="comment">// Output: Removed 2 tags.</span>
+
+    <span class="comment">// Check the remaining members</span>
+    <span class="variable-name">allTags</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">smembers</span>(<span class="variable-name">setKey</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"Remaining tags:"</span>, <span class="variable-name">allTags</span>); <span class="comment">// Output: [ 'cotton', 't-shirt' ]</span>
+
+    <span class="variable">redis</span>.<span class="method">quit</span>();
+}
+
+<span class="function-name">handleRedisSets</span>();
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-4">4. Advanced Set Operations (Set Algebra)</h2>
+
+        <p>
+          The power of Redis Sets comes from its ability to perform operations
+          between multiple sets.
+        </p>
+
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Action</th>
+              <th>Description</th>
+              <th><code>redis-cli</code> Syntax</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SINTER</strong></td>
+              <td>Intersection</td>
+              <td>Returns members common to all sets.</td>
+              <td><code>SINTER key1 key2 [key3 ...]</code></td>
+            </tr>
+            <tr>
+              <td><strong>SUNION</strong></td>
+              <td>Union</td>
+              <td>Returns all members in all sets combined.</td>
+              <td><code>SUNION key1 key2 [key3 ...]</code></td>
+            </tr>
+            <tr>
+              <td><strong>SDIFF</strong></td>
+              <td>Difference</td>
+              <td>
+                Returns members in the first set that are **not** present in any
+                of the subsequent sets.
+              </td>
+              <td><code>SDIFF key1 key2 [key3 ...]</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Example (Finding common users):</h3>
+        <ul>
+          <li>
+            <strong>Set A</strong> (<code>page:viewers:a</code>):
+            <code>user1</code>, <code>user2</code>, <code>user3</code>
+          </li>
+          <li>
+            <strong>Set B</strong> (<code>page:viewers:b</code>):
+            <code>user2</code>, <code>user4</code>, <code>user5</code>
+          </li>
+        </ul>
+
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">></span> <span class="command">SINTER</span> <span class="key">page:viewers:a</span> <span class="key">page:viewers:b</span>
+<span class="number">1)</span> <span class="string">"user2"</span>
+                </pre>
+        </div>
+
+        <h3>Node.js (Intersection Example):</h3>
+        <div class="code-block js-code">
+          <span class="comment"># JavaScript</span>
+          <pre>
+<span class="comment">// ... (assuming redis client is connected)</span>
+<span class="keyword">const</span> <span class="variable-name">usersWhoLikeA</span> <span class="operator">=</span> [<span class="string">'user:1'</span>, <span class="string">'user:3'</span>, <span class="string">'user:5'</span>];
+<span class="keyword">const</span> <span class="variable-name">usersWhoLikeB</span> <span class="operator">=</span> [<span class="string">'user:2'</span>, <span class="string">'user:3'</span>, <span class="string">'user:6'</span>];
+
+<span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sadd</span>(<span class="string">'likes:category:A'</span>, ...<span class="variable-name">usersWhoLikeA</span>);
+<span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sadd</span>(<span class="string">'likes:category:B'</span>, ...<span class="variable-name">usersWhoLikeB</span>);
+
+<span class="comment">// SINTER (Find users who like both A AND B)</span>
+<span class="keyword">const</span> <span class="variable-name">commonUsers</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">sinter</span>(<span class="string">'likes:category:A'</span>, <span class="string">'likes:category:B'</span>);
+
+<span class="function">console</span>.<span class="method">log</span>(<span class="string">`Users who like both: ${</span><span class="variable-name">commonUsers</span><span class="string">}`</span>);
+<span class="comment">// Output: Users who like both: [ 'user:3' ]</span>
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <footer class="notes-footer">
+        <p>End of Redis Sets Notes</p>
+      </footer>
+    </div>
+  </body>
+</html>

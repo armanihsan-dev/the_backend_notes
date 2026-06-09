@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lemon Squeezy Checkout Object - Developer Notes</title>
+    <style>
+      :root {
+        --primary: #7047eb; /* Lemon Squeezy Purple */
+        --primary-light: #f4f0ff;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --bg-body: #f9fafb;
+        --bg-card: #ffffff;
+        --border: #e5e7eb;
+        --code-bg: #1f2937;
+        --success: #10b981;
+        --danger: #ef4444;
+        --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          Helvetica, Arial, sans-serif;
+        --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+          monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: var(--font-main);
+        background-color: var(--bg-body);
+        color: var(--text-main);
+        line-height: 1.6;
+        padding: 40px 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+
+      /* Header */
+      header {
+        text-align: center;
+        margin-bottom: 60px;
+      }
+
+      .pill {
+        display: inline-block;
+        background: var(--primary-light);
+        color: var(--primary);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      h1 {
+        font-size: 3rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 16px;
+        background: linear-gradient(135deg, #111827 0%, #4b5563 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      /* Cards */
+      .card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 32px;
+        margin-bottom: 32px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      }
+
+      h2 {
+        font-size: 1.5rem;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      h2::before {
+        content: '#';
+        color: var(--primary);
+      }
+
+      h3 {
+        font-size: 1.1rem;
+        margin: 20px 0 10px;
+        color: var(--text-main);
+      }
+
+      /* Highlight Box (Interview Answer) */
+      .highlight-box {
+        background: linear-gradient(135deg, var(--primary) 0%, #5b21b6 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 40px;
+        margin-bottom: 40px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .highlight-box::after {
+        content: 'Interview Ready';
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: rgba(255, 255, 255, 0.2);
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .highlight-box h3 {
+        color: rgba(255, 255, 255, 0.9);
+        margin-top: 0;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .highlight-box p {
+        font-size: 1.25rem;
+        font-weight: 500;
+        line-height: 1.5;
+      }
+
+      /* Grid Layout for Definitions */
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+
+      @media (max-width: 768px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .concept-card {
+        background: var(--bg-body);
+        padding: 24px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+      }
+
+      .list-check li {
+        list-style: none;
+        position: relative;
+        padding-left: 24px;
+        margin-bottom: 8px;
+      }
+
+      .list-check li::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: var(--primary);
+        font-weight: bold;
+      }
+
+      .list-tech li {
+        list-style: none;
+        margin-bottom: 8px;
+      }
+
+      .icon-x {
+        color: var(--danger);
+        margin-right: 8px;
+      }
+      .icon-check {
+        color: var(--success);
+        margin-right: 8px;
+      }
+
+      /* Table */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      th {
+        background-color: var(--bg-body);
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        color: var(--text-muted);
+      }
+
+      /* Flow Chart Visualization */
+      .flow-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .step {
+        display: flex;
+        gap: 20px;
+        position: relative;
+        padding-bottom: 30px;
+      }
+
+      .step:last-child {
+        padding-bottom: 0;
+      }
+
+      .step:not(:last-child)::after {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 30px;
+        bottom: 0;
+        width: 2px;
+        background: var(--border);
+      }
+
+      .step-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--primary-light);
+        color: var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        flex-shrink: 0;
+        z-index: 2;
+      }
+
+      .step-content strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text-main);
+      }
+
+      .step-content span {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--code-bg);
+        color: #e5e7eb;
+        padding: 20px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+      }
+
+      /* Simple Syntax Highlighting Classes */
+      .c-comment {
+        color: #6b7280;
+        font-style: italic;
+      }
+      .c-key {
+        color: #93c5fd;
+      } /* Light Blue */
+      .c-str {
+        color: #a5f3fc;
+      } /* Cyan */
+      .c-num {
+        color: #fca5a5;
+      } /* Red/Pink */
+      .c-bool {
+        color: #fdba74;
+      } /* Orange */
+      .c-func {
+        color: #c4b5fd;
+      } /* Purple */
+
+      .attribute-browser {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <span class="pill">Lemon Squeezy API</span>
+        <h1>The Checkout Object</h1>
+        <p style="color: var(--text-muted); max-width: 600px; margin: 0 auto">
+          A comprehensive guide to understanding, creating, and managing secure
+          payment flows.
+        </p>
+      </header>
+
+      <!-- Interview Ready Answer -->
+      <div class="highlight-box">
+        <h3>One-Line Definition</h3>
+        <p>
+          A checkout in Lemon Squeezy is a secure, hosted payment flow where
+          Lemon Squeezy controls pricing, collects payment, and confirms
+          transactions, while the app only initiates and verifies the purchase.
+        </p>
+      </div>
+
+      <!-- Core Definition -->
+      <div class="card">
+        <h2>What is it?</h2>
+        <div class="grid-2">
+          <div class="concept-card">
+            <h3>Simple Definition</h3>
+            <p style="margin-bottom: 16px; color: var(--text-muted)">
+              A hosted payment page that:
+            </p>
+            <ul class="list-check">
+              <li>Shows the product & images</li>
+              <li>Calculates final price (tax, currency)</li>
+              <li>Collects payment details securely</li>
+              <li>Processes the transaction</li>
+              <li>Confirms the purchase</li>
+            </ul>
+          </div>
+          <div class="concept-card">
+            <h3>Technical Meaning</h3>
+            <p style="margin-bottom: 16px; color: var(--text-muted)">
+              A server-side object where:
+            </p>
+            <ul class="list-tech">
+              <li>You send a <code>variant_id</code> to the API</li>
+              <li>The price is <strong>locked</strong> on the server</li>
+              <li>
+                <span class="icon-x">❌</span> User cannot change amount
+                (DevTools proof)
+              </li>
+              <li><span class="icon-x">❌</span> User cannot fake payment</li>
+              <li>
+                <span class="icon-check">✅</span> Only Lemon Squeezy decides
+                the price
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Table -->
+      <div class="card">
+        <h2>Checkout vs. Payment Intent</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Lemon Squeezy Checkout</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Card Handling</strong></td>
+              <td>Handled by Lemon Squeezy</td>
+            </tr>
+            <tr>
+              <td><strong>Price Control</strong></td>
+              <td>Locked on Server</td>
+            </tr>
+            <tr>
+              <td><strong>Security</strong></td>
+              <td>PCI Compliant</td>
+            </tr>
+            <tr>
+              <td><strong>Frontend Work</strong></td>
+              <td>Minimal (Redirect only)</td>
+            </tr>
+            <tr>
+              <td><strong>Best For</strong></td>
+              <td>SaaS, Digital Products, Subscriptions</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- The Flow -->
+      <div class="card">
+        <h2>The Full-Stack Flow</h2>
+        <div class="flow-steps">
+          <div class="step">
+            <div class="step-icon">1</div>
+            <div class="step-content">
+              <strong>User clicks "Buy"</strong>
+              <span
+                >Frontend requests your backend endpoint (e.g.,
+                <code>/api/create-checkout</code>).</span
+              >
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-icon">2</div>
+            <div class="step-content">
+              <strong>Backend calls Lemon Squeezy</strong>
+              <span
+                >Your server talks to Lemon Squeezy API to generate the
+                link.</span
+              >
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-icon">3</div>
+            <div class="step-content">
+              <strong>Redirect User</strong>
+              <span
+                >Frontend sends the user to the returned unique Checkout
+                URL.</span
+              >
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-icon">4</div>
+            <div class="step-content">
+              <strong>Payment & Webhook</strong>
+              <span
+                >Payment succeeds. Lemon Squeezy sends a webhook to your server
+                to unlock the product.</span
+              >
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attributes JSON -->
+      <div class="card">
+        <h2>Checkout Attributes Anatomy</h2>
+        <div class="attribute-browser">
+          <pre><code><span class="c-key">attributes</span>: {
+  <span class="c-comment">// 1. Required Relationships</span>
+  <span class="c-key">store_id</span>: <span class="c-str">"store_123"</span>,
+  <span class="c-key">variant_id</span>: <span class="c-str">"variant_456"</span>,
+  
+  <span class="c-comment">// 2. Pricing (In Cents)</span>
+  <span class="c-key">custom_price</span>: <span class="c-num">5000</span>, <span class="c-comment">// $50.00</span>
+  
+  <span class="c-comment">// 3. UI/UX Customization</span>
+  <span class="c-key">checkout_options</span>: {
+    <span class="c-key">embed</span>: <span class="c-bool">false</span>,       <span class="c-comment">// true = overlay, false = full page</span>
+    <span class="c-key">media</span>: <span class="c-bool">true</span>,        <span class="c-comment">// Show product images</span>
+    <span class="c-key">discount</span>: <span class="c-bool">true</span>,     <span class="c-comment">// Show discount field</span>
+    <span class="c-key">button_color</span>: <span class="c-str">"#7047EB"</span>
+  },
+  
+  <span class="c-comment">// 4. Prefilled User Data</span>
+  <span class="c-key">checkout_data</span>: {
+    <span class="c-key">email</span>: <span class="c-str">"customer@example.com"</span>,
+    <span class="c-key">custom</span>: {
+      <span class="c-key">user_id</span>: <span class="c-num">123</span>      <span class="c-comment">// Pass your app's user ID here</span>
+    }
+  },
+
+  <span class="c-comment">// 5. Security & Meta</span>
+  <span class="c-key">expires_at</span>: <span class="c-str">"2024-12-31T23:59:59Z"</span>,
+  <span class="c-key">url</span>: <span class="c-str">"https://store.lemonsqueezy.com/checkout/..."</span>
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- API Implementation -->
+      <div class="card">
+        <h2>Node.js Implementation</h2>
+        <p style="margin-bottom: 16px; color: var(--text-muted)">
+          How to create a checkout session securely from your backend.
+        </p>
+
+        <pre><code><span class="c-func">async function</span> <span class="c-func">createCheckout</span>(storeId, variantId) {
+  <span class="c-func">const</span> url = <span class="c-str">'https://api.lemonsqueezy.com/v1/checkouts'</span>;
+  
+  <span class="c-func">const</span> payload = {
+    <span class="c-key">data</span>: {
+      <span class="c-key">type</span>: <span class="c-str">"checkouts"</span>,
+      <span class="c-key">attributes</span>: {
+        <span class="c-key">custom_price</span>: <span class="c-num">2500</span>, <span class="c-comment">// Optional dynamic price</span>
+        <span class="c-key">checkout_data</span>: {
+          <span class="c-key">email</span>: <span class="c-str">"user@example.com"</span>
+        }
+      },
+      <span class="c-key">relationships</span>: {
+        <span class="c-key">store</span>: { <span class="c-key">data</span>: { <span class="c-key">type</span>: <span class="c-str">"stores"</span>, <span class="c-key">id</span>: storeId } },
+        <span class="c-key">variant</span>: { <span class="c-key">data</span>: { <span class="c-key">type</span>: <span class="c-str">"variants"</span>, <span class="c-key">id</span>: variantId } }
+      }
+    }
+  };
+
+  <span class="c-func">const</span> response = <span class="c-func">await</span> fetch(url, {
+    <span class="c-key">method</span>: <span class="c-str">'POST'</span>,
+    <span class="c-key">headers</span>: {
+      <span class="c-str">'Authorization'</span>: <span class="c-str">`Bearer ${process.env.LS_API_KEY}`</span>,
+      <span class="c-str">'Content-Type'</span>: <span class="c-str">'application/vnd.api+json'</span>
+    },
+    <span class="c-key">body</span>: JSON.stringify(payload)
+  });
+
+  <span class="c-func">const</span> data = <span class="c-func">await</span> response.json();
+  <span class="c-func">return</span> data.data.attributes.url; <span class="c-comment">// Redirect user to this URL</span>
+}</code></pre>
+      </div>
+
+      <footer
+        style="
+          text-align: center;
+          color: var(--text-muted);
+          font-size: 0.85rem;
+          margin-top: 60px;
+        "
+      >
+        <p>Lemon Squeezy Checkout Notes • Generated for Developers</p>
+      </footer>
+    </div>
+  </body>
+</html>

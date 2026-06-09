@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSH Error Notes</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@400;700&display=swap');
+
+      body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 2rem;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: auto;
+        background-color: #222222;
+        padding: 2rem;
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        border: 1px solid #333;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: 'Roboto Mono', monospace;
+        color: #e0e0e0;
+        border-bottom: 2px solid #444;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+        color: #c9c9c9;
+        text-align: center;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+      }
+
+      .error-section {
+        background-color: #2b2b2b;
+        padding: 1rem;
+        border-left: 5px solid #ff6347;
+        margin-bottom: 2rem;
+      }
+
+      .error-title {
+        color: #ff6347;
+        font-weight: bold;
+        font-family: 'Roboto Mono', monospace;
+      }
+
+      pre {
+        background-color: #151515;
+        color: #63d471;
+        padding: 1rem;
+        border-radius: 5px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Roboto Mono', monospace;
+        font-size: 0.9rem;
+        border: 1px solid #333;
+      }
+
+      code {
+        font-family: 'Roboto Mono', monospace;
+        background-color: #2c2c2c;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        color: #f0c38e;
+      }
+
+      .key-symbol {
+        color: #f0c38e;
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+
+      ul {
+        list-style-type: '👉 ';
+        padding-left: 1.5rem;
+      }
+
+      ul li {
+        margin-bottom: 0.5rem;
+      }
+
+      .best-way-icon {
+        color: #f0e68c;
+        font-size: 1.2rem;
+      }
+
+      .summary-section {
+        background-color: #2b2b2b;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 1px solid #444;
+        margin-top: 2rem;
+      }
+
+      .summary-symbol {
+        color: #ff69b4;
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(
+          to right,
+          rgba(255, 255, 255, 0),
+          rgba(255, 255, 255, 0.75),
+          rgba(255, 255, 255, 0)
+        );
+        margin: 2rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>SSH Troubleshooting Notes</h1>
+      <div class="error-section">
+        <span class="error-title">❌ The Error You Saw</span>
+        <pre>
+ssh local-server
+ssh: Could not resolve hostname local-server: No such host is known.
+
+ssh aws-server
+ssh: Could not resolve hostname aws-server: No such host is known.
+            </pre
+        >
+        <p>
+          This happens because <code>ssh</code> is trying to interpret
+          <code>local-server</code> and <code>aws-server</code> as actual
+          hostnames.
+        </p>
+        <p>But your system has no idea what those names mean. They are not:</p>
+        <ul>
+          <li>Real domain names (like google.com)</li>
+          <li>Real IP addresses (like 192.168.1.10)</li>
+          <li>Or aliases defined in your SSH config or hosts file</li>
+        </ul>
+        <p>So the system responds: "No such host is known."</p>
+      </div>
+
+      <hr />
+
+      <h2><span class="key-symbol">🔑</span> Why It Happens</h2>
+      <p>SSH command syntax is:</p>
+      <pre>
+ssh &lt;user&gt;@&lt;host&gt;
+        </pre
+      >
+      <p>where <code>&lt;host&gt;</code> must be:</p>
+      <ul>
+        <li>A real IP address (192.168.1.10)</li>
+        <li>A real DNS hostname (ec2-11-22-33-44.compute-1.amazonaws.com)</li>
+        <li>
+          An alias you define yourself in either:
+          <ul>
+            <li>SSH config (~/.ssh/config)</li>
+            <li>
+              Or Windows hosts file (C:\Windows\System32\drivers\etc\hosts)
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <p>
+        Since you typed <code>local-server</code> and <code>aws-server</code>,
+        but they aren’t defined anywhere, SSH cannot resolve them.
+      </p>
+
+      <hr />
+
+      <h2>✅ How to Fix</h2>
+
+      <h3>Option 1: Use the Real IP/Domain Directly</h3>
+      <p>Instead of <code>ssh local-server</code>, run:</p>
+      <pre>
+ssh arman@192.168.1.10       # Example: local machine
+ssh ubuntu@3.22.45.67        # Example: AWS EC2
+ssh ubuntu@ec2-xx-xx-xx-xx.compute-1.amazonaws.com
+        </pre
+      >
+
+      <h3>
+        Option 2: Create SSH Aliases (<span class="best-way-icon">💡</span> Best
+        Way)
+      </h3>
+      <p>
+        Aliases let you connect with short names like
+        <code>ssh local-server</code>.
+      </p>
+      <p>Open your SSH config file:</p>
+      <pre>
+nano ~/.ssh/config
+        </pre
+      >
+      <p>
+        (In Windows + WSL or Git Bash, the path is the same:
+        <code>~/.ssh/config</code>)
+      </p>
+      <p>Add entries:</p>
+      <pre>
+Host local-server
+    HostName 192.168.1.10
+    User arman
+
+Host aws-server
+    HostName ec2-xx-xx-xx-xx.compute-1.amazonaws.com
+    User ubuntu
+        </pre
+      >
+      <p>Save and exit.</p>
+      <p>Now you can connect with:</p>
+      <pre>
+ssh local-server
+ssh aws-server
+        </pre
+      >
+
+      <h3>Option 3: Use Windows Hosts File</h3>
+      <p>
+        This makes names like <code>local-server</code> behave like real DNS
+        names.
+      </p>
+      <p>Open this file as Administrator:</p>
+      <pre>
+C:\Windows\System32\drivers\etc\hosts
+        </pre
+      >
+      <p>Add mappings:</p>
+      <pre>
+192.168.1.10    local-server
+3.22.45.67      aws-server
+        </pre
+      >
+      <p>Save. Now you can run:</p>
+      <pre>
+ssh arman@local-server
+ssh ubuntu@aws-server
+        </pre
+      >
+
+      <hr />
+
+      <div class="summary-section">
+        <h2><span class="summary-symbol">📌</span> Summary</h2>
+        <p>
+          The error happens because <code>local-server</code> and
+          <code>aws-server</code> don’t mean anything to your system by default.
+        </p>
+        <p>
+          You must use real IPs/domains OR define aliases in either
+          <code>~/.ssh/config</code> or <code>hosts</code> file.
+        </p>
+        <p>
+          Best practice: use <code>~/.ssh/config</code> so you can also store
+          <code>User</code>, <code>Port</code>, and
+          <code>IdentityFile</code> (private key) all in one place.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

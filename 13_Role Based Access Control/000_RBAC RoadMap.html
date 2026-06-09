@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RBAC and Soft-Delete Production Roadmap</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap');
+
+      :root {
+        --bg-color: #121212;
+        --container-bg: #1f1f1f;
+        --text-color: #e0e0e0;
+        --primary-color: #ffc107; /* Gold/Yellow for main headings */
+        --secondary-color: #00bcd4; /* Cyan/Teal for subheadings/structure */
+        --code-bg: #1e1e1e; /* VSCode Dark+ background */
+        --code-text: #d4d4d4;
+        --keyword-color: #569cd6; /* Blue for keywords (const, function, class) */
+        --string-color: #ce9178; /* Orange for strings/messages */
+        --method-color: #dcdcaa; /* Yellow for functions/methods */
+        --comment-color: #6a9955; /* Green for comments */
+        --number-color: #b5cea8; /* Light Green for numbers */
+        --operator-color: #c5c5c5; /* Light Gray for operators */
+        --type-color: #4ec9b0; /* Teal/Cyan for Types */
+        --variable-color: #9cdcfe; /* Light Blue for variables */
+        --prop-color: #c586c0; /* Magenta for object properties/keys */
+        --constant-color: #569cd6; /* Blue for special constants/methods (e.g., true, false) */
+        --regex-color: #d16969; /* Reddish for Regex */
+        --phase-color: #ff7043; /* Orange for roadmap phases */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--container-bg);
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+      }
+
+      h1 {
+        color: var(--primary-color);
+        font-size: 2.5em;
+        border-bottom: 3px solid var(--primary-color);
+        padding-bottom: 10px;
+        margin-top: 40px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+        color: var(--secondary-color);
+        margin-top: 30px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #333;
+      }
+
+      h3 {
+        font-size: 1.4em;
+        color: var(--text-color);
+        margin-top: 25px;
+        font-weight: 700;
+      }
+
+      p,
+      ul,
+      ol,
+      table {
+        margin-bottom: 15px;
+      }
+
+      /* --- List Styles --- */
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 8px;
+        position: relative;
+      }
+
+      ul li::before {
+        content: '➤';
+        color: var(--secondary-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      ol li {
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: var(--secondary-color);
+      }
+
+      ol li span {
+        color: var(--text-color);
+        font-weight: 400;
+      }
+
+      /* --- Code Styling (VSCode Dark+ Theme) --- */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 0.9em;
+        margin: 15px 0;
+        border-left: 5px solid var(--primary-color);
+        font-family: 'Fira Code', monospace;
+        line-height: 1.4;
+      }
+
+      code {
+        font-family: 'Fira Code', monospace;
+        color: var(--code-text);
+      }
+
+      .inline-code {
+        background-color: #333;
+        color: var(--type-color);
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+
+      .code-keyword {
+        color: var(--keyword-color);
+      }
+      .code-string {
+        color: var(--string-color);
+      }
+      .code-method {
+        color: var(--method-color);
+      }
+      .code-comment {
+        color: var(--comment-color);
+      }
+      .code-operator {
+        color: var(--operator-color);
+      }
+      .code-tag {
+        color: #808080;
+      }
+      .code-number {
+        color: var(--number-color);
+      }
+      .code-type {
+        color: var(--type-color);
+      }
+      .code-variable {
+        color: var(--variable-color);
+      }
+      .code-constant {
+        color: var(--constant-color);
+      }
+      .code-prop {
+        color: var(--prop-color);
+      }
+      .code-regex {
+        color: var(--regex-color);
+      }
+
+      .phase-title {
+        font-weight: 800;
+        color: var(--phase-color);
+        font-size: 1.1em;
+        margin-top: 15px;
+      }
+
+      .list-header {
+        color: var(--primary-color);
+        font-weight: 700;
+        margin-bottom: 5px;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #444;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>RBAC Roadmap — Complete Overview</h1>
+
+      <div class="phase-title">Phases:</div>
+      <ul>
+        <li>Foundations (concepts & modeling)</li>
+        <li>Core implementation (auth + RBAC + soft-delete)</li>
+        <li>Hardening (auditing, logging, security)</li>
+        <li>Scale & operations (performance, background jobs)</li>
+        <li>Maintenance & governance (data retention, legal, monitoring)</li>
+      </ul>
+
+      <hr />
+
+      <h2 id="foundations-what-to-know-first">
+        1. Foundations (what to know first)
+      </h2>
+      <ul>
+        <li>
+          <span class="highlight-text">Auth vs AuthZ:</span> **Authentication**
+          (who you are) vs **Authorization** (what you can do).
+        </li>
+        <li>
+          <span class="highlight-text">RBAC concepts:</span>
+          <ul>
+            <li>
+              **Roles** (<span class="inline-code">Admin</span>,
+              <span class="inline-code">Manager</span>,
+              <span class="inline-code">User</span>,
+              <span class="inline-code">Guest</span>)
+            </li>
+            <li>
+              **Permissions** (<span class="inline-code">read:user</span>,
+              <span class="inline-code">delete:user</span>,
+              <span class="inline-code">create:resource</span>)
+            </li>
+            <li>Role hierarchy (optional) and separation of duties</li>
+            <li>
+              Scope / resource-level permissions (e.g.,
+              <span class="inline-code">canDeleteOwnResource</span>)
+            </li>
+          </ul>
+        </li>
+        <li>
+          <span class="highlight-text">Principles:</span> **least privilege**,
+          **defense in depth**, **auditability**, **fail-safe defaults**.
+        </li>
+        <li>
+          <span class="highlight-text">Data modeling basics:</span> Referential
+          vs embedded references, **soft delete implications**, transaction
+          support in MongoDB.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="core-implementation-express-mongoose">
+        2. Core Implementation (Express + Mongoose)
+      </h2>
+      <p>This is the practical heart. Key pieces:</p>
+
+      <h3>2.1 Data models (high-level)</h3>
+      <div class="list-header">User</div>
+      <pre><code>{
+  _<span class="code-variable">id</span>,
+  <span class="code-prop">name</span>,
+  <span class="code-prop">email</span>,
+  <span class="code-prop">passwordHash</span>,
+  <span class="code-prop">role</span>,               <span class="code-comment">// "admin" | "manager" | "user"</span>
+  <span class="code-prop">permissions</span>: [],    <span class="code-comment">// optional explicit grants</span>
+  <span class="code-prop">deleted</span>: <span class="code-type">Boolean</span>,
+  <span class="code-prop">deletedAt</span>: <span class="code-type">Date</span>,
+  <span class="code-prop">deletedBy</span>: <span class="code-type">ObjectId</span>
+}</code></pre>
+      <div class="list-header">Role (optional, helpful for dynamic RBAC)</div>
+      <pre><code>{
+  <span class="code-prop">name</span>: <span class="code-string">"manager"</span>,
+  <span class="code-prop">permissions</span>: [<span class="code-string">"users:read"</span>,<span class="code-string">"users:update"</span>,<span class="code-string">"files:read"</span>]
+}</code></pre>
+      <div class="list-header">Permission (conceptual)</div>
+      <pre><code><span class="code-string">"users:delete"</span>, <span class="code-string">"files:create"</span>, <span class="code-string">"files:delete:own"</span></code></pre>
+
+      <h3>2.2 Soft-delete pattern</h3>
+      <ul>
+        <li>
+          Add <span class="inline-code">deleted</span>,
+          <span class="inline-code">deletedAt</span>,
+          <span class="inline-code">deletedBy</span>.
+        </li>
+        <li>
+          Add **query middleware** to auto-filter deleted docs (<span
+            class="inline-code"
+            >pre /^find/</span
+          >).
+        </li>
+        <li>
+          Provide <span class="inline-code">.withDeleted()</span> or
+          <span class="inline-code">.onlyDeleted()</span> helpers for admin
+          queries.
+        </li>
+        <li>Consider **TTL-index** for auto-hard-delete after grace period.</li>
+      </ul>
+
+      <div class="list-header">Soft-delete plugin (compact idea)</div>
+      <pre><code><span class="code-keyword">function</span> <span class="code-method">softDeletePlugin</span>(<span class="code-variable">schema</span>) {
+  <span class="code-variable">schema</span>.<span class="code-method">add</span>({ <span class="code-prop">deleted</span>: { <span class="code-prop">type</span>: <span class="code-type">Boolean</span>, <span class="code-prop">default</span>: <span class="code-constant">false</span> }, <span class="code-prop">deletedAt</span>: <span class="code-type">Date</span>, <span class="code-prop">deletedBy</span>: <span class="code-constant">mongoose</span>.<span class="code-type">Schema</span>.<span class="code-type">Types</span>.<span class="code-type">ObjectId</span> });
+
+  <span class="code-variable">schema</span>.<span class="code-method">pre</span>(<span class="code-regex">/^find/</span>, <span class="code-keyword">function</span>(<span class="code-variable">next</span>) {
+    <span class="code-keyword">if</span> (!<span class="code-keyword">this</span>.<span class="code-method">getQuery</span>().<span class="code-prop">includeDeleted</span>) {
+      <span class="code-keyword">this</span>.<span class="code-method">where</span>({ <span class="code-prop">deleted</span>: { <span class="code-prop">$ne</span>: <span class="code-constant">true</span> } });
+    } <span class="code-keyword">else</span> {
+      <span class="code-comment">// remove helper key to avoid DB filter</span>
+      <span class="code-keyword">delete</span> <span class="code-keyword">this</span>.<span class="code-method">getQuery</span>().<span class="code-prop">includeDeleted</span>;
+    }
+    <span class="code-method">next</span>();
+  });
+
+  <span class="code-variable">schema</span>.<span class="code-prop">methods</span>.<span class="code-method">softDelete</span> = <span class="code-keyword">function</span>(<span class="code-variable">userId</span>) {
+    <span class="code-keyword">this</span>.<span class="code-prop">deleted</span> = <span class="code-constant">true</span>; <span class="code-keyword">this</span>.<span class="code-prop">deletedAt</span> = <span class="code-keyword">new</span> <span class="code-type">Date</span>(); <span class="code-keyword">this</span>.<span class="code-prop">deletedBy</span> = <span class="code-variable">userId</span>;
+    <span class="code-keyword">return</span> <span class="code-keyword">this</span>.<span class="code-method">save</span>();
+  };
+
+  <span class="code-comment">// static restore, purge methods...</span>
+}</code></pre>
+      <p>
+        Note: using <span class="inline-code">includeDeleted</span> is one
+        pattern — or use chained method
+        <span class="inline-code">.withDeleted()</span> that toggles internal
+        flag.
+      </p>
+
+      <h3>2.3 Authentication</h3>
+      <ul>
+        <li>
+          Use **JWT** (short-lived access token + refresh token) or session
+          cookies (<span class="inline-code">httpOnly</span>,
+          <span class="inline-code">secure</span>).
+        </li>
+        <li>Hash passwords (**bcrypt/argon2**).</li>
+        <li>
+          Store refresh tokens and mark them soft-deleted on user deletion.
+        </li>
+      </ul>
+
+      <h3>2.4 Authorization Middleware (Express)</h3>
+      <ul>
+        <li>
+          <span class="inline-code">checkAuth</span> middleware to authenticate
+          and attach <span class="inline-code">req.user</span>.
+        </li>
+        <li>
+          <span class="inline-code">requireRole(...roles)</span> middleware to
+          allow by role.
+        </li>
+        <li>
+          <span class="inline-code">requirePermission('users:delete')</span>
+          middleware that checks user permissions and role permissions.
+        </li>
+      </ul>
+
+      <div class="list-header">Example permission check (simple):</div>
+      <pre><code><span class="code-keyword">function</span> <span class="code-method">requirePermission</span>(<span class="code-variable">permission</span>) {
+  <span class="code-keyword">return</span> (<span class="code-variable">req</span>, <span class="code-variable">res</span>, <span class="code-variable">next</span>) => {
+    <span class="code-keyword">const</span> <span class="code-variable">user</span> = <span class="code-variable">req</span>.<span class="code-variable">user</span>;
+    <span class="code-keyword">if</span> (!<span class="code-variable">user</span>) <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">status</span>(<span class="code-number">401</span>).<span class="code-method">send</span>();
+    <span class="code-keyword">const</span> <span class="code-variable">rolePerms</span> = <span class="code-method">getRolePermissions</span>(<span class="code-variable">user</span>.<span class="code-prop">role</span>);
+    <span class="code-keyword">const</span> <span class="code-variable">effective</span> = <span class="code-keyword">new</span> <span class="code-constant">Set</span>([...(<span class="code-variable">user</span>.<span class="code-prop">permissions</span><span class="code-operator">||</span>[]), ...<span class="code-variable">rolePerms</span>]);
+    <span class="code-keyword">if</span> (!<span class="code-variable">effective</span>.<span class="code-method">has</span>(<span class="code-variable">permission</span>)) <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">status</span>(<span class="code-number">403</span>).<span class="code-method">json</span>({ <span class="code-prop">msg</span>: <span class="code-string">'Forbidden'</span> });
+    <span class="code-method">next</span>();
+  }
+}</code></pre>
+
+      <h3>2.5 Soft-delete in operations (example delete user)</h3>
+      <ul>
+        <li>
+          Prefer **soft-delete** in most RBAC flows:
+          <pre><code><span class="code-keyword">await</span> <span class="code-constant">User</span>.<span class="code-method">findByIdAndUpdate</span>(<span class="code-variable">id</span>, { <span class="code-prop">deleted</span>:<span class="code-constant">true</span>, <span class="code-prop">deletedAt</span>:<span class="code-type">Date</span>, <span class="code-prop">deletedBy</span>:<span class="code-variable">req</span>.<span class="code-variable">user</span>.<span class="code-prop">_id</span> }, { <span class="code-prop">session</span> })</code></pre>
+        </li>
+        <li>
+          Soft-delete related collections in **same transaction** (or enqueue
+          background job to soft-delete large volumes).
+        </li>
+        <li>
+          Use **transactions** when you must ensure atomicity across multiple
+          collections (Mongo replica set required).
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="hardening-auditing-observability">
+        3. Hardening, Auditing & Observability
+      </h2>
+      <ul>
+        <li>
+          <span class="highlight-text">Audit logs:</span> Save an audit document
+          for critical actions: **actor, action, targetId, before/after
+          snapshot, timestamp.**
+        </li>
+        <li>
+          <span class="highlight-text">Immutability:</span> Audit logs should be
+          **append-only** (no soft-delete).
+        </li>
+        <li>
+          Event sourcing (optional): store events for critical domain changes.
+        </li>
+        <li>
+          Action confirmations: Admin-only **permanent-delete** endpoints with
+          multi-step confirmations.
+        </li>
+        <li>**Rate-limit** admin sensitive endpoints.</li>
+        <li>**MFA** for privilege escalation (admins).</li>
+        <li>Log retention and secure storage of logs.</li>
+        <li>Access logs: who changed role/permissions and when.</li>
+      </ul>
+
+      <hr />
+
+      <h2 id="scale-performance-considerations">
+        4. Scale & performance considerations
+      </h2>
+      <ul>
+        <li>
+          Bulk ops: use <span class="inline-code">updateMany</span>/<span
+            class="inline-code"
+            >deleteMany</span
+          >
+          rather than per-document operations.
+        </li>
+        <li>
+          **Indexes:** index <span class="inline-code">userId</span>,
+          <span class="inline-code">deleted</span>,
+          <span class="inline-code">deletedAt</span> and fields used in filters.
+        </li>
+        <li>
+          Background job queue (**BullMQ/Agenda**) for heavy tasks (purging
+          files, deleting storage objects).
+        </li>
+        <li>Sharding considerations for very large collections.</li>
+        <li>
+          Read replicas: ensure reading non-authoritative data accounts for
+          eventual consistency.
+        </li>
+        <li>
+          Pagination: **cursor-based**; avoid
+          <span class="inline-code">skip</span> for large offsets.
+        </li>
+        <li>
+          Monitoring: DB slow query logs, app-level metrics (Prometheus),
+          alerts.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="data-lifecycle-compliance-legal">
+        5. Data lifecycle, compliance & legal
+      </h2>
+      <ul>
+        <li>
+          <span class="highlight-text">Retention policy:</span> how long to keep
+          soft-deleted data before hard purge.
+        </li>
+        <li>
+          <span class="highlight-text">GDPR / Right to be forgotten:</span>
+          implement **permanent deletion process** and export process.
+        </li>
+        <li>
+          **Purge process:** background job deletes soft-deleted rows after
+          grace period, removes associated files (S3), and records audit.
+        </li>
+        <li>Encryption at rest for sensitive PII.</li>
+        <li>Data export: admin can export user data before purge.</li>
+      </ul>
+
+      <hr />
+
+      <h2 id="testing-qa">6. Testing & QA</h2>
+      <ul>
+        <li>**Unit tests** for middleware and permission checks.</li>
+        <li>
+          **Integration tests** for flows (create user, role changes,
+          deletion/restore).
+        </li>
+        <li>
+          **Concurrency tests** for transactions (simulate parallel
+          deletes/updates).
+        </li>
+        <li>
+          **Security tests:** ensure role escalation is impossible by API
+          misuse.
+        </li>
+        <li>CI: run tests on every PR.</li>
+      </ul>
+
+      <hr />
+
+      <h2 id="ux-frontend-considerations">7. UX & Frontend considerations</h2>
+      <ul>
+        <li>Soft-deleted entries should **not appear** in regular views.</li>
+        <li>
+          **Admin console:** Add filters: Active, Deleted, All. Provide restore
+          & purge actions.
+        </li>
+        <li>
+          **Confirmation UI:** Delete (soft) vs Permanently delete — **clear
+          warnings**.
+        </li>
+        <li>Audit trail UI: show who deleted/updated role and timestamp.</li>
+      </ul>
+
+      <hr />
+
+      <h2 id="example-developer-tasks-concrete-checklist">
+        8. Example developer tasks (concrete checklist)
+      </h2>
+
+      <ol>
+        <li>
+          <span class="phase-title">MVP (week 1–2)</span>
+          <ul>
+            <li>Models: User, Role, Permission</li>
+            <li>Auth: login, register, JWT + refresh</li>
+            <li>
+              Middleware: <span class="inline-code">checkAuth</span>,
+              <span class="inline-code">requireRole</span>
+            </li>
+            <li>Simple admin UI to assign roles</li>
+          </ul>
+        </li>
+        <li>
+          <span class="phase-title">Soft-delete & RBAC (week 3)</span>
+          <ul>
+            <li>
+              Add <span class="inline-code">deleted</span>,
+              <span class="inline-code">deletedAt</span>,
+              <span class="inline-code">deletedBy</span> to models
+            </li>
+            <li>Install softDelete plugin, pre find hook</li>
+            <li>
+              Implement <span class="inline-code">softDelete()</span> and
+              <span class="inline-code">restore()</span> endpoints
+            </li>
+            <li>Unit tests</li>
+          </ul>
+        </li>
+        <li>
+          <span class="phase-title">Audit & Safety (week 4)</span>
+          <ul>
+            <li>
+              Audit log model and write logs for role-change, delete, perms
+              change
+            </li>
+            <li>Admin-only permanent-delete endpoint (with audit)</li>
+            <li>Background purge worker (configurable grace period)</li>
+          </ul>
+        </li>
+        <li>
+          <span class="phase-title">Scale & Security (week 5–6)</span>
+          <ul>
+            <li>
+              Add indexes for <span class="inline-code">deleted</span>,
+              <span class="inline-code">userId</span>,
+              <span class="inline-code">role</span>
+            </li>
+            <li>Add rate limiting and MFA for admin panel</li>
+            <li>Add monitoring and alerts</li>
+          </ul>
+        </li>
+      </ol>
+
+      <hr />
+
+      <h2 id="best-practices-trade-offs-short">
+        9. Best practices & trade-offs (short)
+      </h2>
+      <ul>
+        <li>
+          **Prefer soft-delete** by default in RBAC systems. Hard-delete only
+          for compliance or purge.
+        </li>
+        <li>
+          Use **query middleware** to avoid missing
+          <span class="inline-code">deleted:false</span> filters.
+        </li>
+        <li>Keep **audit logs immutable** and separate.</li>
+        <li>
+          Use **transactions** for related updates if needed, but minimize work
+          inside transactions.
+        </li>
+        <li>
+          For large delete operations, **offload to background workers** to
+          reduce request latency.
+        </li>
+        <li>
+          Keep role definitions small and granular; grant permissions, not just
+          roles, for edge cases.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="sample-soft-delete-withdeleted-api-practical-snippet">
+        10. Sample Soft-Delete + withDeleted API (practical snippet)
+      </h2>
+      <div class="list-header">// plugin soft-delete.js</div>
+      <pre><code><span class="code-constant">module</span>.<span class="code-prop">exports</span> = <span class="code-keyword">function</span> <span class="code-method">softDeletePlugin</span>(<span class="code-variable">schema</span>) {
+  <span class="code-variable">schema</span>.<span class="code-method">add</span>({ <span class="code-prop">deleted</span>: { <span class="code-prop">type</span>: <span class="code-type">Boolean</span>, <span class="code-prop">default</span>: <span class="code-constant">false</span> }, <span class="code-prop">deletedAt</span>: <span class="code-type">Date</span>, <span class="code-prop">deletedBy</span>: <span class="code-constant">mongoose</span>.<span class="code-type">Schema</span>.<span class="code-type">Types</span>.<span class="code-type">ObjectId</span> });
+
+  <span class="code-variable">schema</span>.<span class="code-method">pre</span>(<span class="code-regex">/^find/</span>, <span class="code-keyword">function</span>(<span class="code-variable">next</span>) {
+    <span class="code-comment">// if query explicitly wants deleted: includeDeleted flag</span>
+    <span class="code-keyword">if</span> (<span class="code-keyword">this</span>.<span class="code-method">getQuery</span>().<span class="code-prop">includeDeleted</span>) {
+      <span class="code-keyword">delete</span> <span class="code-keyword">this</span>.<span class="code-method">getQuery</span>().<span class="code-prop">includeDeleted</span>;
+      <span class="code-keyword">return</span> <span class="code-method">next</span>();
+    }
+    <span class="code-keyword">this</span>.<span class="code-method">where</span>({ <span class="code-prop">deleted</span>: { <span class="code-prop">$ne</span>: <span class="code-constant">true</span> } });
+    <span class="code-method">next</span>();
+  });
+
+  <span class="code-variable">schema</span>.<span class="code-prop">statics</span>.<span class="code-method">withDeleted</span> = <span class="code-keyword">function</span>() {
+    <span class="code-comment">// helper returning a Query with includeDeleted flag</span>
+    <span class="code-keyword">return</span> <span class="code-keyword">this</span>.<span class="code-method">find</span>({ <span class="code-prop">includeDeleted</span>: <span class="code-constant">true</span> });
+  };
+
+  <span class="code-variable">schema</span>.<span class="code-prop">methods</span>.<span class="code-method">softDelete</span> = <span class="code-keyword">function</span>(<span class="code-variable">userId</span>) {
+    <span class="code-keyword">this</span>.<span class="code-prop">deleted</span> = <span class="code-constant">true</span>;
+    <span class="code-keyword">this</span>.<span class="code-prop">deletedAt</span> = <span class="code-keyword">new</span> <span class="code-type">Date</span>();
+    <span class="code-keyword">this</span>.<span class="code-prop">deletedBy</span> = <span class="code-variable">userId</span>;
+    <span class="code-keyword">return</span> <span class="code-keyword">this</span>.<span class="code-method">save</span>();
+  };
+
+  <span class="code-variable">schema</span>.<span class="code-prop">methods</span>.<span class="code-method">restore</span> = <span class="code-keyword">function</span>() {
+    <span class="code-keyword">this</span>.<span class="code-prop">deleted</span> = <span class="code-constant">false</span>;
+    <span class="code-keyword">this</span>.<span class="code-prop">deletedAt</span> = <span class="code-constant">null</span>;
+    <span class="code-keyword">this</span>.<span class="code-prop">deletedBy</span> = <span class="code-constant">null</span>;
+    <span class="code-keyword">return</span> <span class="code-keyword">this</span>.<span class="code-method">save</span>();
+  };
+};</code></pre>
+      <div class="list-header">Usage:</div>
+      <pre><code><span class="code-constant">User</span>.<span class="code-method">plugin</span>(<span class="code-method">require</span>(<span class="code-string">'./soft-delete'</span>));
+
+<span class="code-keyword">await</span> <span class="code-constant">User</span>.<span class="code-method">findByIdAndUpdate</span>(<span class="code-variable">id</span>, { <span class="code-prop">deleted</span>:<span class="code-constant">true</span>, <span class="code-prop">deletedAt</span>: <span class="code-keyword">new</span> <span class="code-type">Date</span>(), <span class="code-prop">deletedBy</span>: <span class="code-variable">req</span>.<span class="code-variable">user</span>.<span class="code-prop">_id</span> }, { <span class="code-prop">session</span> });
+
+<span class="code-keyword">const</span> <span class="code-variable">allUsers</span> = <span class="code-keyword">await</span> <span class="code-constant">User</span>.<span class="code-method">withDeleted</span>(); <span class="code-comment">// returns all including deleted</span></code></pre>
+
+      <hr />
+
+      <h2 id="example-rbac-permission-model-json">
+        11. Example RBAC permission model (JSON)
+      </h2>
+      <pre><code>{
+  <span class="code-string">"roles"</span>: {
+    <span class="code-string">"admin"</span>: [<span class="code-string">"users:read"</span>,<span class="code-string">"users:update"</span>,<span class="code-string">"users:delete"</span>,<span class="code-string">"roles:manage"</span>,<span class="code-string">"audit:read"</span>],
+    <span class="code-string">"manager"</span>: [<span class="code-string">"users:read"</span>,<span class="code-string">"files:manage"</span>],
+    <span class="code-string">"user"</span>: [<span class="code-string">"files:read"</span>,<span class="code-string">"files:create"</span>]
+  }
+}</code></pre>
+
+      <hr />
+
+      <h2 id="final-suggestions-next-steps">
+        12. Final suggestions & next steps
+      </h2>
+      <p>If you want, I can:</p>
+      <ul>
+        <li>
+          generate a full starter repo skeleton (Express + Mongoose) with
+          soft-delete plugin, RBAC middleware, and audit logging.
+        </li>
+        <li>write unit tests for the middleware and soft-delete flows.</li>
+        <li>convert the soft-delete plugin to TypeScript.</li>
+        <li>show background job code (BullMQ) for purge tasks.</li>
+      </ul>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Dive: Hashing in Computer Science</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Font Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a; /* Very dark grayish-black */
+        color: #d4d4d4; /* Off-white for readability (VSCode text color) */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VSCode keyword blue for main titles */
+        font-weight: 900;
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+      h2 {
+        font-size: 1.5em;
+        color: #f7a900; /* Amber for sub-sections */
+      }
+      h3 {
+        font-size: 1.2em;
+        color: #ce9178; /* Orange-brown for minor headings */
+      }
+
+      /* Highlighting and Strong Text */
+      strong {
+        color: #dcdcdc; /* Lighter white for emphasis */
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ul {
+        list-style-type: '👉 '; /* Custom bullet point for notes style */
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Tables (Summary and Terminology) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #252526; /* VSCode sidebar/panel background */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        padding: 10px 15px;
+        text-align: left;
+        border: 1px solid #3c3c3c;
+      }
+
+      th {
+        background-color: #005f6b; /* Darker teal for table headers */
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #333; /* Stripe effect for readability */
+      }
+
+      /* Code Block (VSCode Dark Theme Style) */
+      .code-block {
+        background-color: #1e1e1e; /* VSCode Dark Theme background */
+        color: #d4d4d4; /* Default text color */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        font-family: 'Consolas', 'Monaco', monospace;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      .code-comment {
+        color: #6a9955; /* Green for comments */
+      }
+
+      .code-keyword {
+        color: #569cd6; /* Blue for keywords/commands */
+      }
+
+      .code-string {
+        color: #ce9178; /* Orange-brown for strings/arguments */
+      }
+
+      /* Horizontal Rule */
+      hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(
+          to right,
+          rgba(0, 0, 0, 0),
+          #569cd6,
+          rgba(0, 0, 0, 0)
+        );
+        margin: 40px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>⚙️ What is Hashing?</h1>
+    <p>
+      <strong>Hashing</strong> is the process of converting any binary input
+      (like a string, file, or data) into a
+      <strong>fixed-size output of bytes</strong> using a mathematical function
+      called a <strong>hash function</strong>. This output is typically
+      represented as a string of hexadecimal characters, but fundamentally, the
+      size is in bytes.
+    </p>
+
+    <hr />
+
+    <h2>🔒 Why is Hashing Used?</h2>
+    <p>Hashing has many applications in computer science and cyber security:</p>
+    <ul>
+      <li>
+        <strong>Data Integrity Checks:</strong> Hashes verify that data has not
+        been altered (e.g., file checksums).
+      </li>
+      <li>
+        <strong>Version Control:</strong> Hashes are used to uniquely identify
+        commits, files, and changes, ensuring integrity and traceability.
+      </li>
+      <li>
+        <strong>Digital Signatures:</strong> Hashes ensure the authenticity and
+        integrity of digital messages.
+      </li>
+      <li>
+        <strong>Password Storage:</strong> Passwords are hashed before being
+        stored in databases to prevent plaintext exposure.
+      </li>
+      <li>
+        <strong>Blockchain and Cryptocurrencies:</strong> Blocks and
+        transactions are hashed to secure and verify data.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>✨ Characteristics of Cryptographically Secure Hashing Functions:</h2>
+    <ul>
+      <li>
+        <strong>Deterministic:</strong> Same input always gives the same output.
+      </li>
+      <li>
+        <strong>Fast Computation:</strong> The hash function should return the
+        hash value quickly.
+      </li>
+      <li>
+        <strong>Irreversible:</strong> It should not be feasible to reverse the
+        hash to get the original input.
+      </li>
+      <li>
+        <strong>Collision-resistant:</strong> Two different inputs should not
+        produce the same output.
+      </li>
+      <li>
+        <strong>Avalanche Effect:</strong> Small change in input produces a
+        significantly different output.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>🧪 Popular and Secure Hashing Algorithms</h2>
+
+    <h3>1. SHA-2 Family</h3>
+    <ul>
+      <li>
+        Includes <strong>SHA-224, SHA-256, SHA-384</strong>, and
+        <strong>SHA-512</strong>.
+      </li>
+      <li>
+        Produces fixed output sizes of 224, 256, 384, or 512 bits (28, 32, 48,
+        or 64 bytes).
+      </li>
+      <li>Widely used in modern cryptographic applications.</li>
+      <li>
+        Considered <strong>secure and recommended</strong> for most
+        general-purpose use cases.
+      </li>
+    </ul>
+
+    <h3>2. SHA-3 Family</h3>
+    <ul>
+      <li>
+        Includes <strong>SHA3-224, SHA3-256, SHA3-384</strong>, and
+        <strong>SHA3-512</strong>.
+      </li>
+      <li>Based on the <strong>Keccak</strong> algorithm.</li>
+      <li>
+        Provides the same output sizes as SHA-2 but with a different internal
+        structure.
+      </li>
+      <li>
+        Designed to be a <strong>secure alternative</strong> to SHA-2 in case
+        SHA-2 is ever broken.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>⚠️ Outdated and Insecure Hashing Algorithms</h2>
+    <h3>1. MD5 (Message Digest Algorithm 5)</h3>
+    <ul>
+      <li>Outputs 128-bit (16-byte) hash.</li>
+      <li>
+        <strong>Broken and insecure</strong> due to collision vulnerabilities.
+      </li>
+      <li>
+        Should <strong>not be used</strong> for any security-critical purpose.
+      </li>
+    </ul>
+
+    <h3>2. SHA 1</h3>
+    <ul>
+      <li>Outputs 160-bit (20-byte) hash.</li>
+      <li><strong>Vulnerable</strong> to collision attacks.</li>
+      <li>
+        Deprecated by major standards organizations and
+        <strong>not recommended</strong> for use.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>📊 Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Algorithm</th>
+          <th>Output Size</th>
+          <th>Status</th>
+          <th>Use Case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>MD5</td>
+          <td>128 bits</td>
+          <td>Insecure</td>
+          <td>Basic checksums only</td>
+        </tr>
+        <tr>
+          <td>SHA-1</td>
+          <td>160 bits</td>
+          <td>Insecure</td>
+          <td>Legacy systems</td>
+        </tr>
+        <tr>
+          <td>SHA-224</td>
+          <td>224 bits</td>
+          <td>Secure</td>
+          <td>Specialized use cases</td>
+        </tr>
+        <tr>
+          <td>SHA-256</td>
+          <td>256 bits</td>
+          <td>Secure</td>
+          <td>General-purpose hashing</td>
+        </tr>
+        <tr>
+          <td>SHA-384</td>
+          <td>384 bits</td>
+          <td>Secure</td>
+          <td>Applications needing larger hashes</td>
+        </tr>
+        <tr>
+          <td>SHA-512</td>
+          <td>512 bits</td>
+          <td>Secure</td>
+          <td>High-security applications</td>
+        </tr>
+        <tr>
+          <td>SHA3-224</td>
+          <td>224 bits</td>
+          <td>Secure</td>
+          <td>SHA-3 alternative to SHA-224</td>
+        </tr>
+        <tr>
+          <td>SHA3-256</td>
+          <td>256 bits</td>
+          <td>Secure</td>
+          <td>SHA-3 alternative to SHA-256</td>
+        </tr>
+        <tr>
+          <td>SHA3-384</td>
+          <td>384 bits</td>
+          <td>Secure</td>
+          <td>SHA-3 alternative to SHA-384</td>
+        </tr>
+        <tr>
+          <td>SHA3-512</td>
+          <td>512 bits</td>
+          <td>Secure</td>
+          <td>SHA-3 alternative to SHA-512</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <strong>Avoid using MD5 and SHA-1 in any new systems.</strong> For secure
+      hashing, use <strong>SHA-2 or SHA-3 family algorithms</strong> depending
+      on your needs.
+    </p>
+
+    <hr />
+
+    <h2>✍️ Terminology in Hashing</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Term</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>🔤 Message</td>
+          <td>The original input data (e.g., a password, file, or string).</td>
+        </tr>
+        <tr>
+          <td>🧩 Hash / Digest</td>
+          <td>The fixed-length output generated by the hashing algorithm.</td>
+        </tr>
+        <tr>
+          <td>🛠️ Hash Function</td>
+          <td>
+            The algorithm that maps data of arbitrary size to a fixed-size
+            output.
+          </td>
+        </tr>
+        <tr>
+          <td>🧨 Collision</td>
+          <td>
+            When two different inputs produce the same hash (undesirable).
+          </td>
+        </tr>
+        <tr>
+          <td>🧂 Salt</td>
+          <td>Random data added to input to prevent hash-based attacks.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Remember <strong>hashing is not same as encryption</strong>. They
+      completely two different things used for completely different purposes.
+    </p>
+    <p>
+      Remember, <strong>encoding is not the same as encryption</strong>. They
+      serve entirely different purposes — encoding is for data representation,
+      while encryption is for data protection.
+    </p>
+
+    <hr />
+
+    <h1>File Hashing Guide with SHA-256</h1>
+    <p>
+      This guide explains how to hash files using SHA-256 on different
+      platforms: Windows, macOS, and Linux. It also demonstrates a
+      cross-platform method using <strong>openssl</strong>.
+    </p>
+
+    <h2>✅ Hashing Files on Windows with <code>certutil</code></h2>
+    <p>
+      <code>certutil</code> is a built-in tool on Windows that can be used to
+      generate SHA-256 hashes.
+    </p>
+    <p>Example:</p>
+    <div class="code-block">
+      <span class="code-keyword">certutil</span>
+      <span class="code-string">-hashfile path/to/file.txt SHA256</span>
+    </div>
+    <p>Hash as string input.</p>
+    <div class="code-block">
+      <span class="code-keyword">echo</span>
+      <span class="code-string">Hello World</span>
+      <span class="code-keyword">></span> temp.txt<br />
+      <span class="code-keyword">certutil</span>
+      <span class="code-string">-hashfile temp.txt SHA256</span><br />
+      <span class="code-keyword">rm</span> temp.txt
+    </div>
+    <p>List supported algorithms and commands.</p>
+    <div class="code-block">
+      <span class="code-keyword">certutil</span>
+      <span class="code-string">-hashfile -?</span>
+    </div>
+
+    <h2>✅ Alternative for macOS and Linux: <code>shasum</code></h2>
+    <p>
+      macOS and most Linux distributions come with
+      <code>shasum</code> pre-installed.
+    </p>
+    <p>Example:</p>
+    <div class="code-block">
+      <span class="code-keyword">shasum</span>
+      <span class="code-string">-a 256 path/to/file.txt</span>
+    </div>
+    <p>Hash as string input.</p>
+    <div class="code-block">
+      <span class="code-keyword">echo</span>
+      <span class="code-string">"Hello World"</span> |
+      <span class="code-keyword">shasum</span>
+      <span class="code-string">-a 256 path/to/file.txt</span>
+    </div>
+    <p>List supported algorithms and commands.</p>
+    <div class="code-block">
+      <span class="code-keyword">shasum</span>
+      <span class="code-string">-h</span>
+    </div>
+
+    <h2>✅ Cross-Platform Method: Using <code>openssl</code></h2>
+    <p>
+      <code>openssl</code> is available on Windows, macOS, and Linux, and
+      provides a consistent way to generate hashes.
+    </p>
+    <p>Example:</p>
+    <div class="code-block">
+      <span class="code-keyword">openssl</span>
+      <span class="code-keyword">dgst</span>
+      <span class="code-string">-sha256 path/to/file.txt</span>
+    </div>
+    <p>Hash as string input.</p>
+    <div class="code-block">
+      <span class="code-keyword">echo</span>
+      <span class="code-string">"Hello World"</span> |
+      <span class="code-keyword">openssl</span>
+      <span class="code-keyword">dgst</span>
+      <span class="code-string">-sha256</span>
+    </div>
+    <p>List supported algorithms and commands.</p>
+    <div class="code-block">
+      <span class="code-keyword">openssl</span>
+      <span class="code-keyword">list</span>
+      <span class="code-string">-digest-algorithms</span>
+    </div>
+
+    <p>
+      <strong>Note:</strong> If <code>openssl</code> is not installed, you can
+      install it using a package manager:
+    </p>
+    <ul>
+      <li>
+        <strong>macOS:</strong>
+        <span class="code-string">brew install openssl</span>
+      </li>
+      <li>
+        <strong>Linux:</strong>
+        <span class="code-string">sudo apt install openssl</span> or
+        <span class="code-string">sudo yum install openssl</span>
+      </li>
+      <li>
+        <strong>Windows:</strong> Install Git Bash or Download from
+        <span class="code-string"
+          >https://slproweb.com/products/Win32OpenSSL.html</span
+        >
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Summary (File Hashing Tools)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Platform</th>
+          <th>Tool</th>
+          <th>Command</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Windows</td>
+          <td><code>certutil</code></td>
+          <td>
+            <span class="code-string">certutil -hashfile file.txt SHA256</span>
+          </td>
+        </tr>
+        <tr>
+          <td>macOS</td>
+          <td><code>shasum</code></td>
+          <td><span class="code-string">shasum -a 256 file.txt</span></td>
+        </tr>
+        <tr>
+          <td>Linux</td>
+          <td><code>shasum</code></td>
+          <td><span class="code-string">shasum -a 256 file.txt</span></td>
+        </tr>
+        <tr>
+          <td>All</td>
+          <td><code>openssl</code></td>
+          <td>
+            <span class="code-string">openssl dgst -sha256 file.txt</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

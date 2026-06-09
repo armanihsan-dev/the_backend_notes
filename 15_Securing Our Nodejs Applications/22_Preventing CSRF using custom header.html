@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Dive: CSRF Prevention with Custom Headers</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1 style="text-align: center">
+      Deep Dive: CSRF Prevention with Custom Headers
+    </h1>
+
+    <h2 class="section-title section-1">
+      1. Why CSRF Happens (simple & clear)
+    </h2>
+    <p>CSRF happens because:</p>
+    <ul>
+      <li>
+        <span class="check">✔</span>
+        <strong>Browsers automatically attach cookies</strong> even on
+        cross-site requests
+      </li>
+    </ul>
+
+    <h3>Example:</h3>
+    <p>A user is logged in at:</p>
+    <pre><code><span class="mono">bank.com</span></code></pre>
+
+    <p>Attacker page sends:</p>
+    <pre><code>&lt;<span class="prop">form</span> <span class="prop">method</span>=<span class="str">"POST"</span> <span class="prop">action</span>=<span class="str">"https://bank.com/pay"</span>&gt;
+&lt;/form&gt;</code></pre>
+
+    <p>Browser automatically attaches:</p>
+    <pre><code><span class="prop">Cookie</span>: <span class="str">session=abc123</span></code></pre>
+
+    <p>
+      <span class="op">→</span> Server cannot know the request came from
+      <span class="mono">attacker.com</span>.
+    </p>
+    <p>This is <strong>CSRF</strong>.</p>
+
+    <hr style="border-color: #333" />
+
+    <div class="section-title section-2">
+      2. How Custom Header Prevents CSRF
+    </div>
+    <p>
+      Attackers cannot set <strong>custom request headers</strong> (like
+      <code class="prop">X-CSRF-Token</code>) from:
+    </p>
+    <ul>
+      <li><span class="cross">HTML forms ❌</span></li>
+      <li><span class="cross">Image tags ❌</span></li>
+      <li><span class="cross">Script tags ❌</span></li>
+      <li><span class="cross">iframes ❌</span></li>
+      <li><span class="cross">Links ❌</span></li>
+    </ul>
+
+    <p>
+      Only <span class="prop">JavaScript on the same origin</span> can set
+      custom headers.
+    </p>
+
+    <p>So if your client sets:</p>
+    <pre><code><span class="dir">fetch</span>(<span class="str">"/pay"</span>, {
+  <span class="prop">method</span>: <span class="str">"POST"</span>,
+  <span class="prop">headers</span>: {
+    <span class="str">"X-CSRF-Token"</span>: <span class="str">"12345"</span>
+  }
+});</code></pre>
+
+    <p>Then the attacker cannot:</p>
+    <ul>
+      <li><span class="cross">run JS due to CORS ❌</span></li>
+      <li><span class="cross">send custom header ❌</span></li>
+      <li><span class="cross">bypass the requirement ❌</span></li>
+    </ul>
+
+    <p>Therefore, <strong>custom header = strong CSRF prevention</strong>.</p>
+
+    <hr style="border-color: #333" />
+
+    <div class="section-title section-3">
+      3. The “Double Submit Cookie” Pattern (the correct method)
+    </div>
+    <ul>
+      <li>
+        <span class="pin">📌</span> Server sets a non-<code class="prop"
+          >HttpOnly</code
+        >
+        cookie called <code class="prop">csrfToken</code>.
+      </li>
+      <li>
+        <span class="pin">📌</span> Client reads that cookie using
+        <code class="dir">document.cookie</code> and sends it back inside a
+        custom header (<code class="prop">X-CSRF-Token</code>).
+      </li>
+      <li>
+        <span class="pin">📌</span> Server compares the cookie value with the
+        header value.
+      </li>
+    </ul>
+
+    <p>If they match <span class="op">→</span> request is valid.</p>
+    <p>If not <span class="op">→</span> CSRF attack.</p>
+
+    <h3>This works because:</h3>
+    <p>Attackers can’t:</p>
+    <ul>
+      <li>
+        <span class="cross">read cookies →</span> browser blocks cross-site
+        cookie reading
+      </li>
+      <li><span class="cross">send custom headers →</span> CORS blocks them</li>
+      <li><span class="cross">guess your token →</span> random & long</li>
+    </ul>
+
+    <hr style="border-color: #333" />
+
+    <div class="section-title section-4">
+      4. Practical Example — Complete Express.js CSRF Protection
+    </div>
+
+    <h3><span class="check">✔</span> Step 1 — Install dependencies</h3>
+    <pre><code><span class="prop">npm</span> <span class="dir">install</span> <span class="mono">express cookie-parser</span></code></pre>
+
+    <h3>
+      <span class="check">✔</span> Step 2 — Server generates CSRF token and sets
+      cookie
+    </h3>
+    <pre><code><span class="kw">import</span> <span class="prop">express</span> <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> <span class="prop">cookieParser</span> <span class="kw">from</span> <span class="str">"cookie-parser"</span>;
+<span class="kw">import</span> <span class="prop">crypto</span> <span class="kw">from</span> <span class="str">"crypto"</span>;
+
+<span class="kw">const</span> <span class="prop">app</span> = <span class="dir">express</span>();
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="dir">cookieParser</span>());
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="dir">express</span>.<span class="dir">json</span>());
+
+<span class="cmt">// Generate token</span>
+<span class="kw">function</span> <span class="dir">generateToken</span>() {
+  <span class="kw">return</span> <span class="prop">crypto</span>.<span class="dir">randomBytes</span>(<span class="lit">20</span>).<span class="dir">toString</span>(<span class="str">"hex"</span>);
+}
+
+<span class="cmt">// Middleware: attach csrf cookie if not exist</span>
+<span class="prop">app</span>.<span class="dir">use</span>((<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+  <span class="kw">if</span> (!<span class="prop">req</span>.<span class="prop">cookies</span>.<span class="prop">csrfToken</span>) {
+    <span class="kw">const</span> <span class="prop">token</span> = <span class="dir">generateToken</span>();
+    <span class="prop">res</span>.<span class="dir">cookie</span>(<span class="str">"csrfToken"</span>, <span class="prop">token</span>, {
+      <span class="prop">sameSite</span>: <span class="str">"strict"</span>,   <span class="cmt">// reduce CSRF chance</span>
+      <span class="prop">secure</span>: <span class="lit">false</span>,        <span class="cmt">// set true in production (https)</span>
+    });
+  }
+  <span class="dir">next</span>();
+});</code></pre>
+
+    <h3><span class="check">✔</span> Step 3 — CSRF Validate Middleware</h3>
+    <pre><code><span class="kw">function</span> <span class="dir">csrfProtection</span>(<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) {
+  <span class="kw">const</span> <span class="prop">csrfCookie</span> = <span class="prop">req</span>.<span class="prop">cookies</span>.<span class="prop">csrfToken</span>;
+  <span class="kw">const</span> <span class="prop">csrfHeader</span> = <span class="prop">req</span>.<span class="prop">headers</span>[<span class="str">"x-csrf-token"</span>];
+
+  <span class="kw">if</span> (!<span class="prop">csrfHeader</span> || <span class="prop">csrfHeader</span> !== <span class="prop">csrfCookie</span>) {
+    <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">403</span>).<span class="dir">send</span>(<span class="str">"CSRF Attack Blocked!"</span>);
+  }
+
+  <span class="dir">next</span>();
+}</code></pre>
+
+    <h3><span class="check">✔</span> Step 4 — Protected POST route</h3>
+    <pre><code><span class="prop">app</span>.<span class="dir">post</span>(<span class="str">"/pay"</span>, <span class="dir">csrfProtection</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">send</span>(<span class="str">"Payment Success!"</span>);
+});</code></pre>
+
+    <h3>
+      <span class="check">✔</span> Step 5 — Frontend Example (Same Origin)
+    </h3>
+    <p>Automatically send header using <code class="dir">fetch</code>:</p>
+    <pre><code>&lt;<span class="prop">script</span>&gt;
+  <span class="kw">const</span> <span class="prop">csrf</span> = <span class="dir">document</span>.<span class="prop">cookie</span>
+    .<span class="dir">split</span>(<span class="str">"; "</span>)
+    .<span class="dir">find</span>(<span class="prop">row</span> => <span class="prop">row</span>.<span class="dir">startsWith</span>(<span class="str">"csrfToken="</span>))
+    ?.<span class="dir">split</span>(<span class="str">"="</span>)[<span class="lit">1</span>];
+
+  <span class="kw">async</span> <span class="kw">function</span> <span class="dir">pay</span>() {
+    <span class="kw">const</span> <span class="prop">res</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">"/pay"</span>, {
+      <span class="prop">method</span>: <span class="str">"POST"</span>,
+      <span class="prop">credentials</span>: <span class="str">"include"</span>,
+      <span class="prop">headers</span>: {
+        <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span>,
+        <span class="str">"X-CSRF-Token"</span>: <span class="prop">csrf</span>,
+      }
+    });
+    <span class="dir">alert</span>(<span class="kw">await</span> <span class="prop">res</span>.<span class="dir">text</span>());
+  }
+&lt;/<span class="prop">script</span>&gt;
+&lt;<span class="prop">button</span> <span class="prop">onclick</span>=<span class="str">"pay()"</span>&gt;Pay&lt;/<span class="prop">button</span>&gt;</code></pre>
+    <ul>
+      <li><span class="check">✔</span> Custom header added</li>
+      <li><span class="check">✔</span> Cookies included</li>
+      <li><span class="check">✔</span> Tokens compared</li>
+      <li><span class="check">✔</span> <strong>CSRF prevented</strong></li>
+    </ul>
+
+    <hr style="border-color: #333" />
+
+    <div class="section-title section-5">
+      5. Why Attackers CANNOT Bypass This
+    </div>
+    <h3>
+      <span class="cross">❌</span> Attacker cannot set
+      <code class="prop">X-CSRF-Token</code>
+    </h3>
+    <p>
+      Browsers block custom headers from attackers unless server explicitly
+      allows it via CORS:
+    </p>
+    <pre><code><span class="prop">Access-Control-Allow-Headers</span>: <span class="prop">X-CSRF-Token</span></code></pre>
+    <p>
+      Since <code class="mono">attacker.com</code> does
+      <span class="kw">NOT</span> have this permission
+      <span class="op">→</span> <code class="dir">fetch</code> fails at
+      preflight.
+    </p>
+
+    <h3><span class="cross">❌</span> Attacker cannot read your CSRF cookie</h3>
+    <p>
+      <code class="dir">document.cookie</code> is blocked in cross-site
+      contexts.
+    </p>
+
+    <h3><span class="cross">❌</span> Attacker cannot guess the token</h3>
+    <p>Token is long & random.</p>
+
+    <h3>
+      <span class="cross">❌</span> Attacker’s HTML form cannot attach custom
+      header
+    </h3>
+    <p>
+      Only JavaScript can, but JS from
+      <code class="mono">attacker.com</code> cannot run on your domain
+      (same-origin policy).
+    </p>
+    <p><span class="check">✔</span> <strong>Fully secure.</strong></p>
+
+    <hr style="border-color: #333" />
+
+    <div class="section-title section-6">6. Quick Summary Table</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Can attacker bypass?</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Custom header + token</td>
+          <td><span class="cross">❌ No</span></td>
+          <td>attacker can't set header & JS blocked by CORS</td>
+        </tr>
+        <tr>
+          <td>Hidden <code>&lt;input&gt;</code> CSRF</td>
+          <td><span class="check">✔ maybe</span></td>
+          <td><code class="dir">fetch()</code> allows cross-site JS</td>
+        </tr>
+        <tr>
+          <td><code class="prop">SameSite=Lax</code> cookie</td>
+          <td><span class="cross">❌ mostly no</span></td>
+          <td>form post blocked</td>
+        </tr>
+        <tr>
+          <td><code class="prop">HttpOnly</code> cookie</td>
+          <td><span class="check">✔ useless alone</span></td>
+          <td>attacker doesn’t need to read cookie</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

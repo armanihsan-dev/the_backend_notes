@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Webhooks Master Guide | Complete Documentation</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b; /* Zinc 950 */
+        --bg-secondary: #18181b; /* Zinc 900 */
+        --bg-tertiary: #27272a; /* Zinc 800 */
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399; /* Emerald 400 */
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --danger-dim: rgba(239, 68, 68, 0.1);
+        --border: #27272a;
+        --code-bg: #1e1e20;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+
+      th {
+        background: var(--bg-tertiary);
+        color: var(--accent);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code,
+      td code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        } /* Hide nav on mobile for simplicity */
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-bolt"></i> WEBHOOKS</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#intro" class="nav-link">Definition & Analogy</a>
+        <a href="#why-name" class="nav-link">Why "Web Hooks"?</a>
+        <a href="#how-it-works" class="nav-link">How Webhooks Work</a>
+        <a href="#purpose" class="nav-link">Purpose & Benefits</a>
+        <a href="#vs-api" class="nav-link">Webhooks vs APIs</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Core Mechanics</div>
+        <a href="#payment-events" class="nav-link">Payment Events</a>
+        <a href="#express-convention" class="nav-link">Express.js Convention</a>
+        <a href="#x-signature" class="nav-link">X-Signature Security</a>
+        <a href="#https" class="nav-link">Why HTTPS?</a>
+        <a href="#express-raw" class="nav-link">express.raw() Explained</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Implementation</div>
+        <a href="#lemon-events" class="nav-link">Lemon Squeezy Events</a>
+        <a href="#nodejs-impl" class="nav-link">Complete Node.js Code</a>
+        <a href="#database-impl" class="nav-link">Database Integration</a>
+        <a href="#queue-system" class="nav-link">Advanced (Queue)</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Operations</div>
+        <a href="#best-practices" class="nav-link">Security Best Practices</a>
+        <a href="#testing" class="nav-link">Testing & Debugging</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="intro">
+        <span class="badge">Event-Driven Architecture</span>
+        <h1>Webhooks Guide</h1>
+
+        <h2>Definition</h2>
+        <p>
+          Webhooks are automated messages sent from one application to another
+          when a specific event occurs. They are essentially "user-defined HTTP
+          callbacks" triggered by events.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-pizza-slice"></i> Simple Analogy</span
+          >
+          Imagine you order pizza delivery:
+          <br /><br />
+          <strong>Polling (API):</strong> You call every 5 minutes: "Is my pizza
+          ready yet?" <br /><br />
+          <strong>Webhook:</strong> Pizza place calls YOU: "Your pizza is ready
+          for delivery!"
+        </div>
+
+        <pre><code class="language-javascript">// Traditional API (Polling) - Inefficient
+setInterval(async () => {
+  const order = await checkPizzaStatus();
+  if (order.ready) {
+    // Pizza is ready
+  }
+}, 5000); // Check every 5 seconds
+
+// Webhook (Event-driven) - Efficient
+// Pizza shop automatically notifies you when ready</code></pre>
+
+        <h3>Technical Definition</h3>
+        <p>
+          A webhook is an HTTP POST request sent to a pre-configured URL (your
+          server) when an event occurs in a third-party service (like Lemon
+          Squeezy).
+        </p>
+      </section>
+
+      <section id="why-name">
+        <h2>1. Why is it called "Web Hooks"?</h2>
+        <p>
+          The name comes from the programming concept of "hooks" combined with
+          "web":
+        </p>
+        <ul>
+          <li>
+            <strong>Hooks:</strong> In programming, hooks are points where you
+            can insert custom code to be executed when specific events occur.
+            Like hanging your code on a "hook" that gets triggered.
+          </li>
+          <li>
+            <strong>Web:</strong> Because these hooks work over HTTP/HTTPS on
+            the web.
+          </li>
+        </ul>
+        <p>
+          Think of it as web-based callbacks - instead of your application
+          constantly asking "Has something happened?" (polling), services can
+          "hook into" your application by calling your URL when events occur.
+        </p>
+      </section>
+
+      <section id="how-it-works">
+        <h2>2. ⚙️ How Webhooks Work</h2>
+        <h3>Architecture Flow</h3>
+        <pre><code class="language-text">┌─────────────┐      Event      ┌─────────────┐
+│             │   (Order placed)  │             │
+│  Lemon      ├──────────────────►│  Your       │
+│  Squeezy    │                  │  Server     │
+│             │  HTTP POST       │             │
+│  (Sender)   │  with JSON data  │ (Receiver)  │
+└─────────────┘                  └─────────────┘
+        ▲                                │
+        │                                │ Process
+        │                                ▼
+        │                         ┌─────────────┐
+        │    Response (200 OK)    │  Your       │
+        └─────────────────────────┤  Database   │
+                                  │  / Logic    │
+                                  └─────────────┘</code></pre>
+
+        <h3>Step-by-Step Process</h3>
+        <ol>
+          <li>
+            <strong>Configuration:</strong> You provide a URL endpoint to Lemon
+            Squeezy
+          </li>
+          <li>
+            <strong>Event Occurs:</strong> Customer makes a purchase on Lemon
+            Squeezy
+          </li>
+          <li>
+            <strong>Notification:</strong> Lemon Squeezy sends HTTP POST to your
+            endpoint
+          </li>
+          <li>
+            <strong>Processing:</strong> Your server receives and processes the
+            data
+          </li>
+          <li>
+            <strong>Response:</strong> Your server returns HTTP 200 (success) or
+            error
+          </li>
+          <li>
+            <strong>Retry:</strong> If error, Lemon Squeezy retries (usually 3
+            times)
+          </li>
+        </ol>
+      </section>
+
+      <section id="purpose">
+        <h2>🎯 Purpose & Benefits</h2>
+        <h3>Primary Purposes</h3>
+        <ul>
+          <li>
+            <strong>⚡ Efficiency</strong><br />
+            <p>
+              <strong>Problem with traditional polling:</strong> Your server
+              keeps asking <em>“Any updates?”</em> every few minutes—even when
+              nothing has changed.
+            </p>
+
+            <p>
+              <strong>With webhooks:</strong> Lemon Squeezy notifies your server
+              <strong>only when something actually happens</strong>. No wasted
+              API calls.
+            </p>
+
+            <p>
+              <strong>Example:</strong> 1,000 users × polling every 5 minutes =
+              <strong>12,000 checks per hour</strong>. With webhooks: only real
+              events (maybe 10–20 per hour).
+            </p>
+          </li>
+
+          <li>
+            <strong>⏱️ Real-time</strong><br />
+            <p>
+              <strong>Traditional polling:</strong> Updates are delayed by the
+              polling interval (5–10 minutes).
+            </p>
+
+            <p>
+              <strong>With webhooks:</strong> Instant notifications. User
+              cancels or upgrades → your app knows immediately.
+            </p>
+
+            <p>
+              <strong>Example:</strong> User upgrades to PRO. Polling: waits up
+              to 5 minutes. Webhooks: PRO features unlocked instantly.
+            </p>
+          </li>
+
+          <li>
+            <strong>📈 Scalability</strong><br />
+            <p>
+              <strong>Traditional polling:</strong> As users grow, API calls
+              explode (10,000 users × 12 checks/hour = 120,000 calls/hour).
+            </p>
+
+            <p>
+              <strong>With webhooks:</strong> You only process real events, no
+              matter how large your user base becomes.
+            </p>
+
+            <p>
+              <strong>Example:</strong> Black Friday sale with 5,000 purchases
+              in one hour. Webhooks process each purchase as it happens.
+            </p>
+          </li>
+
+          <li>
+            <strong>🔗 Decoupled</strong><br />
+            <p>
+              <strong>Traditional polling:</strong> Your app depends on Lemon
+              Squeezy’s API being constantly available.
+            </p>
+
+            <p>
+              <strong>With webhooks:</strong> Services remain independent.
+              Events are delivered when ready.
+            </p>
+
+            <p>
+              <strong>Example:</strong> Lemon Squeezy maintenance for 1 hour.
+              Polling: your app breaks. Webhooks: events queue and deliver
+              afterward.
+            </p>
+          </li>
+
+          <li>
+            <strong>🤖 Automation</strong><br />
+            <p>
+              <strong>Traditional polling:</strong> You manually check status
+              and trigger actions.
+            </p>
+
+            <p><strong>With webhooks:</strong> Fully automated workflows.</p>
+
+            <p>
+              <strong>Example:</strong> User subscribes → Webhook triggers →
+              Create account → Send welcome email → Setup dashboard → Notify
+              sales team.
+            </p>
+          </li>
+        </ul>
+
+        <hr />
+
+        <h3>⚖️ Side-by-Side Comparison</h3>
+
+        <table border="1" cellpadding="8" cellspacing="0">
+          <thead>
+            <tr>
+              <th>Traditional Polling (Old Way)</th>
+              <th>Webhooks (Modern Way)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Server constantly asks for updates</td>
+              <td>Lemon Squeezy notifies only when events occur</td>
+            </tr>
+            <tr>
+              <td>Wastes most API calls</td>
+              <td>Zero wasted API calls</td>
+            </tr>
+            <tr>
+              <td>Delayed updates</td>
+              <td>Real-time notifications</td>
+            </tr>
+            <tr>
+              <td>Doesn’t scale well</td>
+              <td>Scales effortlessly</td>
+            </tr>
+            <tr>
+              <td>High server load</td>
+              <td>Low server load</td>
+            </tr>
+            <tr>
+              <td>Manual workflows</td>
+              <td>Fully automated workflows</td>
+            </tr>
+            <tr>
+              <td>
+                Analogy: Calling a pizza shop every 5 minutes asking, “Is my
+                pizza ready?”
+              </td>
+              <td>
+                Analogy: Pizza shop calls you and says, “Your pizza is ready for
+                delivery!”
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Benefits</h3>
+        <ul>
+          <li>
+            <strong>Efficiency:</strong> Server doesn't waste resources polling
+          </li>
+          <li><strong>Real-time:</strong> Immediate notification of events</li>
+          <li>
+            <strong>Scalability:</strong> Handles high-volume events efficiently
+          </li>
+          <li><strong>Decoupled:</strong> Services remain independent</li>
+          <li><strong>Automation:</strong> Enables complex workflows</li>
+        </ul>
+      </section>
+
+      <section id="vs-api">
+        <h2>🔄 Webhooks vs APIs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Webhooks</th>
+              <th>Traditional API</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Direction</td>
+              <td>Push (server → you)</td>
+              <td>Pull (you → server)</td>
+            </tr>
+            <tr>
+              <td>Timing</td>
+              <td>Real-time, event-driven</td>
+              <td>On-demand, request-driven</td>
+            </tr>
+            <tr>
+              <td>Traffic</td>
+              <td>Low (only when events occur)</td>
+              <td>High (constant polling)</td>
+            </tr>
+            <tr>
+              <td>Complexity</td>
+              <td>Simpler for event monitoring</td>
+              <td>More control but complex</td>
+            </tr>
+            <tr>
+              <td>Use Case</td>
+              <td>Notifications, sync</td>
+              <td>Data retrieval, actions</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <pre><code class="language-javascript">// API POLLING (Inefficient)
+async function checkOrdersPolling() {
+  while(true) {
+    const orders = await fetch('https://api.lemonsqueezy.com/orders');
+    // Process orders...
+    await sleep(5000); // Wait 5 seconds
+  }
+}
+
+// WEBHOOKS (Efficient)
+app.post('/webhook', (req, res) => {
+  // Instantly notified when order happens!
+  const order = req.body;
+  processOrder(order);
+  res.sendStatus(200);
+});</code></pre>
+      </section>
+
+      <section id="payment-events">
+        <h2>What events might be in payment processing?</h2>
+        <p>Common payment processing webhook events include:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Event Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>payment_intent.succeeded</code></td>
+              <td>Customer's payment completed successfully</td>
+            </tr>
+            <tr>
+              <td><code>payment_intent.failed</code></td>
+              <td>Payment failed (insufficient funds, card declined)</td>
+            </tr>
+            <tr>
+              <td><code>charge.refunded</code></td>
+              <td>Full or partial refund processed</td>
+            </tr>
+            <tr>
+              <td><code>invoice.paid</code></td>
+              <td>Subscription invoice paid successfully</td>
+            </tr>
+            <tr>
+              <td><code>invoice.payment_failed</code></td>
+              <td>Subscription payment failed</td>
+            </tr>
+            <tr>
+              <td><code>customer.subscription.created</code></td>
+              <td>New subscription started</td>
+            </tr>
+            <tr>
+              <td><code>customer.subscription.deleted</code></td>
+              <td>Subscription cancelled/ended</td>
+            </tr>
+            <tr>
+              <td><code>dispute.created</code></td>
+              <td>Customer initiated a chargeback</td>
+            </tr>
+            <tr>
+              <td><code>payout.paid</code></td>
+              <td>Funds transferred to your bank account</td>
+            </tr>
+            <tr>
+              <td><code>account.updated</code></td>
+              <td>Your payment account details changed</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>
+          <strong>Example Flow:</strong> When a user pays via Stripe → Stripe
+          processes payment → Stripe sends
+          <code>payment_intent.succeeded</code> webhook to your server → Your
+          server marks order as paid in your database.
+        </p>
+      </section>
+
+      <section id="express-convention">
+        <h2>Convention for webhook endpoint in Express.js</h2>
+        <pre><code class="language-javascript">// Standard convention: POST /api/webhooks/{service-name}
+const express = require('express');
+const app = express();
+
+// Use raw body for signature verification
+app.use('/api/webhooks/stripe', express.raw({type: 'application/json'}));
+
+// Endpoint pattern
+app.post('/api/webhooks/stripe', (req, res) => {
+    const signature = req.headers['stripe-signature'];
+    const payload = req.body;
+    
+    try {
+        // Verify signature first
+        const event = stripe.webhooks.constructEvent(
+            payload, 
+            signature, 
+            process.env.STRIPE_WEBHOOK_SECRET
+        );
+        
+        // Handle event types
+        switch(event.type) {
+            case 'payment_intent.succeeded':
+                // Update order status
+                break;
+            case 'invoice.payment_failed':
+                // Notify customer
+                break;
+            default:
+                console.log(`Unhandled event: ${event.type}`);
+        }
+        
+        res.json({received: true});
+    } catch (err) {
+        res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+});
+
+// For other services
+app.post('/api/webhooks/paypal', handlePaypalWebhook);
+app.post('/api/webhooks/slack', handleSlackWebhook);</code></pre>
+
+        <h3>Best Practices:</h3>
+        <ul>
+          <li>Use POST only (webhooks should not use GET)</li>
+          <li>Return 2xx quickly (within 5-10 seconds)</li>
+          <li>Log webhook receipts for debugging</li>
+          <li>Implement idempotency (handle duplicate events)</li>
+        </ul>
+      </section>
+
+      <section id="x-signature">
+        <h2>How X-Signature makes webhooks secure</h2>
+        <p>
+          The signature header (like <code>stripe-signature</code>,
+          <code>x-hub-signature-256</code>) works like this:
+        </p>
+
+        <pre><code class="language-javascript">// Simplified concept:
+const secret = 'your_webhook_secret';
+const payload = req.body; // Raw request body
+const receivedSignature = req.headers['x-signature'];
+
+// Server creates expected signature:
+const expectedSignature = crypto
+    .createHmac('sha256', secret)
+    .update(payload)
+    .digest('hex');
+
+// Compare signatures
+if (receivedSignature !== expectedSignature) {
+    // REJECT - request is forged or tampered with
+    return res.status(401).send('Invalid signature');
+}
+
+// Only if signatures match, process webhook</code></pre>
+
+        <h3>Security Guarantees:</h3>
+        <ul>
+          <li>
+            <strong>Authentication:</strong> Proves the request came from the
+            legitimate service
+          </li>
+          <li>
+            <strong>Integrity:</strong> Ensures payload wasn't modified in
+            transit
+          </li>
+          <li>
+            <strong>Anti-replay:</strong> Timestamps in signatures prevent old
+            requests from being replayed
+          </li>
+        </ul>
+      </section>
+
+      <section id="https">
+        <h2>Why HTTPS instead of HTTP?</h2>
+        <h3>Security reasons:</h3>
+        <ul>
+          <li>
+            <strong>Encryption:</strong> HTTPS encrypts the entire
+            request/response, preventing:
+            <ul>
+              <li>
+                Eavesdropping on sensitive data (customer info, payment details)
+              </li>
+              <li>Man-in-the-middle attacks</li>
+            </ul>
+          </li>
+          <li>
+            <strong>Data Integrity:</strong> HTTPS ensures data isn't modified
+            between sender and receiver
+          </li>
+          <li>
+            <strong>Server Authentication:</strong> HTTPS certificates verify
+            you're sending data to the actual server (not a phishing site)
+          </li>
+          <li>
+            <strong>Required by Standards:</strong> PCI DSS (payment security
+            standard) requires HTTPS for any payment-related data transmission
+          </li>
+          <li>
+            <strong>Trust:</strong> Services like Stripe, GitHub, etc., often
+            require HTTPS endpoints and refuse to send to HTTP URLs
+          </li>
+        </ul>
+
+        <div class="note-box danger">
+          <span class="note-title"
+            ><i class="fa-solid fa-triangle-exclamation"></i> Example danger
+            with HTTP:</span
+          >
+          <pre><code class="language-text">Attacker intercepts HTTP webhook about $1000 payment
+↓
+Modifies it to $10 payment before it reaches your server  
+↓
+Your system processes $10 payment instead of $1000
+↓
+You ship $1000 product but only get paid $10</code></pre>
+        </div>
+      </section>
+
+      <section id="express-raw">
+        <h2>What is express.raw({type: 'application/json'})?</h2>
+        <p>
+          It's a special Express middleware that parses the raw request body as
+          a Buffer instead of automatically parsing it as JSON.
+        </p>
+
+        <h4>Normal Express JSON parsing (what you usually use):</h4>
+        <pre><code class="language-javascript">app.use(express.json()); // Parses JSON automatically into req.body
+// Result: req.body is already a JavaScript object</code></pre>
+
+        <h4>Raw body parsing:</h4>
+        <pre><code class="language-javascript">app.use(express.raw({type: 'application/json'})); 
+// Result: req.body is a Buffer (raw bytes)</code></pre>
+
+        <p><strong>Key difference:</strong></p>
+        <ul>
+          <li>
+            <code>express.json()</code> →
+            <code
+              >req.body = { "event": "payment.succeeded", "amount": 1000 }</code
+            >
+            (object)
+          </li>
+          <li>
+            <code>express.raw()</code> →
+            <code
+              >req.body = &lt;Buffer 7b 22 65 76 65 6e 74 22 3a 22...&gt;</code
+            >
+            (raw buffer)
+          </li>
+        </ul>
+
+        <h3>Why Webhooks Need Raw Body Parsing?</h3>
+        <h4>1. Signature Verification Requires Raw Data</h4>
+        <p>
+          Webhook signatures are computed from the exact raw bytes sent. Even
+          minor differences break verification:
+        </p>
+
+        <pre><code class="language-javascript">// ❌ PROBLEM with express.json():
+// Express might modify whitespace or formatting when parsing JSON
+const payload1 = '{"event":"payment","amount":1000}';
+const payload2 = '{"event": "payment", "amount": 1000}'; // Same content, different spacing
+
+// These create DIFFERENT signatures even though content is same!
+const sig1 = createSignature(payload1);
+const sig2 = createSignature(payload2);
+// sig1 !== sig2 !!!</code></pre>
+
+        <pre><code class="language-javascript">// ✅ SOLUTION with express.raw():
+// You get the EXACT bytes that were sent
+const signature = req.headers['stripe-signature'];
+const rawBody = req.body; // Exact bytes received
+
+// Stripe computes signature from same raw bytes
+const event = stripe.webhooks.constructEvent(
+    rawBody,          // Raw Buffer
+    signature,        // Signature header
+    webhookSecret     // Your secret
+);</code></pre>
+
+        <h4>2. Middleware Order Matters</h4>
+        <pre><code class="language-javascript">// ❌ WRONG ORDER - Breaks signature verification
+app.use(express.json()); // Parses ALL incoming JSON requests
+app.use('/webhooks/stripe', stripeWebhookHandler); // Too late! Body already modified
+
+// ✅ CORRECT ORDER - Isolate webhook endpoint
+app.use('/webhooks/stripe', 
+    express.raw({type: 'application/json'}), // Only for this route
+    stripeWebhookHandler
+);
+
+// Other routes still use normal JSON parsing
+app.use(express.json()); 
+app.post('/api/orders', normalJsonHandler); // req.body is parsed JSON here</code></pre>
+
+        <h4>3. Complete Example with Proper Isolation</h4>
+        <pre><code class="language-javascript">const express = require('express');
+const app = express();
+
+// Route-specific raw parsing for webhooks
+app.post('/webhooks/stripe', 
+    // Step 1: Get raw body for this specific route only
+    express.raw({type: 'application/json'}),
+    
+    // Step 2: Handle webhook with signature verification
+    async (req, res) => {
+        const sig = req.headers['stripe-signature'];
+        const rawBody = req.body; // Buffer, not parsed JSON
+        
+        try {
+            // Verify with raw bytes
+            const event = stripe.webhooks.constructEvent(
+                rawBody, 
+                sig, 
+                process.env.STRIPE_SECRET
+            );
+            
+            // Now you can safely parse as JSON
+            const eventData = JSON.parse(rawBody.toString());
+            
+            // Process event...
+            res.json({received: true});
+        } catch (err) {
+            res.status(400).send(`Webhook Error: ${err.message}`);
+        }
+    }
+);
+
+// All other routes use normal JSON parsing
+app.use(express.json());
+
+// Normal API endpoint
+app.post('/api/orders', (req, res) => {
+    // req.body is already a JavaScript object here
+    const { productId, quantity } = req.body;
+    // Process order...
+});</code></pre>
+
+        <p><strong>Summary:</strong></p>
+        <ul>
+          <li>
+            Use <code>express.raw()</code> for webhook endpoints needing
+            signature verification
+          </li>
+          <li>Use <code>express.json()</code> for normal API endpoints</li>
+          <li>Never mix them globally - apply to specific routes only</li>
+          <li>
+            Signature verification is cryptographic - it needs the exact
+            original bytes
+          </li>
+        </ul>
+      </section>
+
+      <section id="lemon-events">
+        <h2>📋 Lemon Squeezy Webhook Events</h2>
+        <h3>Available Events</h3>
+        <p>Lemon Squeezy sends these events:</p>
+        <pre><code class="language-javascript">// Order Events
+'order_created'           // New order placed
+'order_refunded'          // Order refunded
+
+// Subscription Events
+'subscription_created'    // New subscription
+'subscription_updated'    // Subscription modified
+'subscription_cancelled'  // Subscription cancelled
+'subscription_expired'    // Subscription expired
+'subscription_resumed'    // Subscription resumed
+'subscription_paused'     // Subscription paused
+'subscription_unpaused'   // Subscription unpaused
+
+// License Events
+'license_key_created'     // License key generated
+'license_key_updated'     // License key updated
+
+// Discount Events
+'discount_created'        // Discount created
+'discount_updated'        // Discount updated
+'discount_deleted'        // Discount deleted</code></pre>
+
+        <h3>Event Data Structure</h3>
+        <pre><code class="language-javascript">{
+  "meta": {
+    "event_name": "order_created",  // Type of event
+    "custom_data": {                 // Your custom data
+      "user_id": "123"
+    },
+    "test_mode": false               // Whether in test mode
+  },
+  "data": {
+    "type": "orders",               // Resource type
+    "id": "123456",                 // Resource ID
+    "attributes": {                 // Actual data
+      "store_id": 1,
+      "customer_id": 2,
+      "identifier": "unique-order-id",
+      "total": 2900,                // In cents ($29.00)
+      "currency": "USD",
+      "status": "paid",
+      "created_at": "2023-10-01T12:00:00.000000Z",
+      "updated_at": "2023-10-01T12:00:00.000000Z"
+    },
+    "relationships": {              // Related resources
+      "store": {
+        "data": {
+          "type": "stores",
+          "id": "1"
+        }
+      }
+    }
+  }
+}</code></pre>
+      </section>
+
+      <section id="nodejs-impl">
+        <h2>6. 🚀 Complete Node.js Implementation</h2>
+
+        <h3>6.1 Basic Webhook Handler</h3>
+        <pre><code class="language-javascript">// server.js
+import express from "express";
+import bodyParser from 'body-parser';
+import crypto from 'crypto'
+import cors from "cors";
+import { createNewCheckout, getAllProducts, getDefaultVariant } from './LSFunctions.js'
+
+
+const app = express();
+const verifyWebhookSignature = (req, res, next) => {
+  try {
+    const signature = req.headers['x-signature'];
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+
+    if (!signature) {
+      return res.status(401).json({ error: 'No signature' });
+    }
+
+    const hmac = crypto.createHmac('sha256', secret);
+    const digest = hmac.update(req.body).digest('hex');
+
+    const sigBuffer = Buffer.from(signature, 'hex');
+    const digestBuffer = Buffer.from(digest, 'hex');
+
+    if (
+      sigBuffer.length !== digestBuffer.length ||
+      !crypto.timingSafeEqual(sigBuffer, digestBuffer)
+    ) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // ✅ IMPORTANT PART
+    req.parsedBody = JSON.parse(req.body.toString());
+
+    console.log('✅ Webhook signature verified');
+    next();
+  } catch (err) {
+    console.error('❌ Verification error:', err);
+    res.status(500).json({ error: 'Webhook verification failed' });
+  }
+};
+
+
+
+//creating web hook URL
+app.post('/WH_orderCreated', express.raw({ type: 'application/json' }), verifyWebhookSignature, (req, res) => {
+  const { meta, data } = req.parsedBody;
+  console.log(req.body);
+
+  const order = data.attributes;
+
+  const importantData = {
+    event: meta.event_name,
+    testMode: meta.test_mode,
+
+    orderId: data.id,
+    orderNumber: order.order_number,
+    identifier: order.identifier,
+
+    customer: {
+      id: order.customer_id,
+      name: order.user_name,
+      email: order.user_email,
+    },
+
+    payment: {
+      status: order.status,
+      total: order.total / 100, // cents → dollars
+      currency: order.currency,
+      formatted: order.total_formatted,
+    },
+
+    createdAt: order.created_at,
+  };
+
+  console.log('✅ Order Webhook (Important Data):');
+  console.log(importantData);
+
+
+  res.sendStatus(200);
+});
+app.use(express.json())
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL,
+  })
+);
+
+
+
+app.post('/create-checkout', async (req, res) => {
+  const { productId, buyer } = req.body;
+  const LMS_PRODUCTS = new Set([
+    '000111', // ReactJs Variant ID on lemon squeezy server
+    '111000', // Nodejs ...
+    '001101', // NextJs ...
+  ]);
+  
+  if (!LMS_PRODUCTS.has(productId)) {
+    return res.status(400).json({ error: 'Invalid product ID' });
+  }
+
+  const defaultVariant = await getDefaultVariant(productId);
+  
+  if (!defaultVariant) {
+    return res.status(404).json({ error: 'Variant not found' });
+  }
+  
+  const url = await createNewCheckout(defaultVariant.id);
+  res.json({ url });
+});
+
+
+app.get("/", (req, res) => {
+  res.json("Hiii");
+});
+
+app.listen(4000, () => {
+  console.log("Server started");
+});
+</code></pre>
+      </section>
+
+      <section id="database-impl">
+        <h3>6.2 Database Integration Example</h3>
+        <pre><code class="language-javascript">// database.js - Example database operations
+const mongoose = require('mongoose');
+
+// Connect to MongoDB
+mongoose.connect(process.env.MONGODB_URI);
+
+// Define schemas
+const orderSchema = new mongoose.Schema({
+  lemonOrderId: String,
+  customerEmail: String,
+  amount: Number,
+  status: String,
+  createdAt: { type: Date, default: Date.now }
+});
+
+const userSchema = new mongoose.Schema({
+  email: String,
+  subscriptionId: String,
+  subscriptionStatus: String,
+  plan: String,
+  features: [String],
+  createdAt: { type: Date, default: Date.now }
+});
+
+const Order = mongoose.model('Order', orderSchema);
+const User = mongoose.model('User', userSchema);
+
+// Database functions for webhook handlers
+async function saveOrderToDatabase(orderData) {
+  try {
+    const order = new Order(orderData);
+    await order.save();
+    console.log(`✅ Order saved to database: ${orderData.lemonOrderId}`);
+    return order;
+  } catch (error) {
+    console.error('❌ Error saving order:', error);
+    throw error;
+  }
+}
+
+async function updateUserSubscription(email, subscriptionData) {
+  try {
+    const user = await User.findOneAndUpdate(
+      { email },
+      { $set: subscriptionData },
+      { upsert: true, new: true }
+    );
+    console.log(`✅ User subscription updated: ${email}`);
+    return user;
+  } catch (error) {
+    console.error('❌ Error updating user:', error);
+    throw error;
+  }
+}
+
+async function grantProductAccess(email) {
+  const user = await User.findOneAndUpdate(
+    { email },
+    { 
+      $addToSet: { features: 'premium_access' },
+      subscriptionStatus: 'active'
+    },
+    { upsert: true, new: true }
+  );
+  console.log(`✅ Product access granted to: ${email}`);
+  return user;
+}
+
+module.exports = {
+  saveOrderToDatabase,
+  updateUserSubscription,
+  grantProductAccess,
+  revokeProductAccess: async (email) => {
+    await User.findOneAndUpdate(
+      { email },
+      { 
+        $pull: { features: 'premium_access' },
+        subscriptionStatus: 'inactive'
+      }
+    );
+    console.log(`✅ Product access revoked from: ${email}`);
+  }
+};</code></pre>
+
+        <h3>6.3 Complete Event Handler Registry</h3>
+        <pre><code class="language-javascript">// webhookHandlers.js
+const db = require('./database');
+const emailService = require('./emailService');
+const analytics = require('./analytics');
+
+// Registry of all event handlers
+const eventHandlers = {
+  // Order Events
+  'order_created': async (event) => {
+    const order = event.data;
+    
+    // 1. Save to database
+    await db.saveOrder({
+      id: order.id,
+      customerEmail: order.attributes.user_email,
+      amount: order.attributes.total / 100,
+      status: 'paid',
+      metadata: order.attributes
+    });
+    
+    // 2. Send receipt email
+    await emailService.sendReceipt({
+      to: order.attributes.user_email,
+      orderId: order.id,
+      amount: order.attributes.total / 100
+    });
+    
+    // 3. Track in analytics
+    analytics.trackPurchase({
+      orderId: order.id,
+      amount: order.attributes.total / 100,
+      email: order.attributes.user_email
+    });
+    
+    console.log(`✅ Processed order_created: ${order.id}`);
+  },
+  
+  'order_refunded': async (event) => {
+    const order = event.data;
+    
+    await db.updateOrder(order.id, { status: 'refunded' });
+    await emailService.sendRefundNotification({
+      to: order.attributes.user_email,
+      orderId: order.id
+    });
+    
+    console.log(`✅ Processed order_refunded: ${order.id}`);
+  },
+  
+  // Subscription Events
+  'subscription_created': async (event) => {
+    const subscription = event.data;
+    const email = subscription.attributes.user_email;
+    
+    // Update user subscription
+    await db.createUserSubscription({
+      email,
+      subscriptionId: subscription.id,
+      status: 'active',
+      plan: subscription.attributes.variant_name
+    });
+    
+    // Send welcome email
+    await emailService.sendWelcomeEmail({
+      to: email,
+      plan: subscription.attributes.variant_name
+    });
+    
+    // Grant access
+    await db.grantFeatures(email, ['premium', 'support']);
+    
+    console.log(`✅ Processed subscription_created: ${subscription.id}`);
+  },
+  
+  'subscription_updated': async (event) => {
+    const subscription = event.data;
+    
+    await db.updateUserSubscription(
+      subscription.attributes.user_email,
+      {
+        plan: subscription.attributes.variant_name,
+        status: subscription.attributes.status
+      }
+    );
+    
+    console.log(`✅ Processed subscription_updated: ${subscription.id}`);
+  },
+  
+  'subscription_cancelled': async (event) => {
+    const subscription = event.data;
+    const email = subscription.attributes.user_email;
+    
+    await db.updateUserSubscription(email, {
+      status: 'cancelled',
+      cancelledAt: new Date()
+    });
+    
+    await emailService.sendCancellationEmail({
+      to: email,
+      subscriptionId: subscription.id
+    });
+    
+    // Schedule access removal (grace period)
+    setTimeout(async () => {
+      await db.revokeFeatures(email, ['premium']);
+    }, 30 * 24 * 60 * 60 * 1000); // 30 days
+    
+    console.log(`✅ Processed subscription_cancelled: ${subscription.id}`);
+  },
+  
+  // License Key Events
+  'license_key_created': async (event) => {
+    const license = event.data;
+    
+    await db.saveLicenseKey({
+      key: license.attributes.key,
+      productId: license.attributes.product_id,
+      customerEmail: license.attributes.customer_email
+    });
+    
+    await emailService.sendLicenseEmail({
+      to: license.attributes.customer_email,
+      licenseKey: license.attributes.key
+    });
+    
+    console.log(`✅ Processed license_key_created: ${license.id}`);
+  }
+};
+
+// Main handler function
+async function handleWebhookEvent(event) {
+  const eventName = event.meta.event_name;
+  const handler = eventHandlers[eventName];
+  
+  if (!handler) {
+    console.log(`⚠️ No handler for event: ${eventName}`);
+    return;
+  }
+  
+  try {
+    await handler(event);
+    console.log(`🎉 Successfully processed ${eventName}`);
+  } catch (error) {
+    console.error(`❌ Error processing ${eventName}:`, error);
+    // Re-throw to be handled by main webhook endpoint
+    throw error;
+  }
+}
+
+module.exports = { handleWebhookEvent, eventHandlers };</code></pre>
+      </section>
+
+      <section id="queue-system">
+        <h3>6.4 Enhanced Webhook Server with Queue</h3>
+        <pre><code class="language-javascript">// advancedWebhookServer.js
+const express = require('express');
+const crypto = require('crypto');
+const { Queue, Worker } = require('bullmq');
+const Redis = require('ioredis');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Redis connection for job queue
+const connection = new Redis(process.env.REDIS_URL);
+
+// Create job queue for async processing
+const webhookQueue = new Queue('webhooks', { connection });
+
+// Worker to process webhook jobs
+const worker = new Worker('webhooks', async (job) => {
+  const { event, signature } = job.data;
+  console.log(`🎯 Processing job for event: ${event.meta.event_name}`);
+  
+  // Process the event (this runs in background)
+  await processWebhookEvent(event);
+  
+}, { connection });
+
+// Simplified webhook endpoint
+app.post('/api/webhooks/lemon', 
+  express.json(),
+  async (req, res) => {
+    try {
+      const signature = req.headers['x-signature'];
+      const event = req.body;
+      
+      // 1. Verify signature synchronously (fast)
+      if (!verifySignature(signature, event)) {
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+      
+      // 2. Add to queue for async processing (fast response)
+      await webhookQueue.add('process', {
+        event,
+        signature,
+        receivedAt: new Date()
+      }, {
+        attempts: 3, // Retry 3 times on failure
+        backoff: {
+          type: 'exponential',
+          delay: 1000
+        }
+      });
+      
+      // 3. Respond immediately (important!)
+      console.log(`📨 Webhook received and queued: ${event.meta.event_name}`);
+      res.sendStatus(200);
+      
+    } catch (error) {
+      console.error('❌ Webhook error:', error);
+      res.sendStatus(200); // Still return 200 to prevent retries
+    }
+  }
+);
+
+// Signature verification
+function verifySignature(signature, body) {
+  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+  const hmac = crypto.createHmac('sha256', secret);
+  const digest = hmac.update(JSON.stringify(body)).digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(digest)
+  );
+}
+
+// Event processing (runs in background)
+async function processWebhookEvent(event) {
+  const eventName = event.meta.event_name;
+  
+  console.log(`🔧 Processing ${eventName} in background...`);
+  
+  // Add your processing logic here
+  // This can take as long as needed since it's async
+  
+  // Simulate processing delay
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  console.log(`✅ Completed processing ${eventName}`);
+}
+
+app.listen(PORT, () => {
+  console.log(`🚀 Advanced webhook server running on port ${PORT}`);
+});</code></pre>
+      </section>
+
+      <section id="best-practices">
+        <h2>7. 🔒 Security Best Practices</h2>
+        <h3>7.1 Essential Security Measures</h3>
+        <pre><code class="language-javascript">// security.js
+const crypto = require('crypto');
+
+class WebhookSecurity {
+  constructor(secret) {
+    this.secret = secret;
+  }
+  
+  // 1. Verify signature
+  verifySignature(signature, payload) {
+    if (!signature) return false;
+    
+    const hmac = crypto.createHmac('sha256', this.secret);
+    const digest = hmac.update(JSON.stringify(payload)).digest('hex');
+    
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(digest)
+    );
+  }
+  
+  // 2. Validate payload structure
+  validatePayload(payload) {
+    if (!payload || typeof payload !== 'object') {
+      throw new Error('Invalid payload format');
+    }
+    
+    if (!payload.meta || !payload.meta.event_name) {
+      throw new Error('Missing event metadata');
+    }
+    
+    if (!payload.data || !payload.data.id) {
+      throw new Error('Missing event data');
+    }
+    
+    return true;
+  }
+  
+  // 3. Check for replay attacks (optional)
+  async checkReplayAttack(eventId, timestamp) {
+    const eventAge = Date.now() - new Date(timestamp).getTime();
+    
+    // Reject events older than 5 minutes
+    if (eventAge > 5 * 60 * 1000) {
+      throw new Error('Event too old, possible replay attack');
+    }
+    
+    // Check if we've already processed this event
+    const isDuplicate = await this.isEventProcessed(eventId);
+    if (isDuplicate) {
+      throw new Error('Duplicate event detected');
+    }
+    
+    return false;
+  }
+  
+  // 4. Rate limiting
+  setupRateLimiting(app) {
+    const rateLimit = require('express-rate-limit');
+    
+    const webhookLimiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // Limit each IP to 100 requests per window
+      message: 'Too many webhook requests from this IP',
+      skipSuccessfulRequests: false
+    });
+    
+    app.use('/webhooks', webhookLimiter);
+  }
+}</code></pre>
+
+        <h3>7.2 Complete Security Middleware</h3>
+        <pre><code class="language-javascript">// middleware/security.js
+const crypto = require('crypto');
+
+const securityMiddleware = (secret) => {
+  return async (req, res, next) => {
+    try {
+      const signature = req.headers['x-signature'];
+      const payload = req.body;
+      
+      // 1. Check if webhook secret is configured
+      if (!secret) {
+        console.error('Webhook secret not configured');
+        return res.status(500).json({ error: 'Server misconfigured' });
+      }
+      
+      // 2. Verify signature exists
+      if (!signature) {
+        console.warn('Webhook request without signature');
+        return res.status(401).json({ error: 'Missing signature' });
+      }
+      
+      // 3. Verify signature validity
+      const isValid = verifySignature(signature, payload, secret);
+      if (!isValid) {
+        console.warn('Invalid webhook signature');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+      
+      // 4. Validate payload structure
+      validatePayloadStructure(payload);
+      
+      // 5. Optional: Check timestamp (prevent replay attacks)
+      if (payload.meta.timestamp) {
+        const eventTime = new Date(payload.meta.timestamp).getTime();
+        const currentTime = Date.now();
+        const maxAge = 5 * 60 * 1000; // 5 minutes
+        
+        if (currentTime - eventTime > maxAge) {
+          console.warn('Stale webhook event');
+          return res.status(400).json({ error: 'Event too old' });
+        }
+      }
+      
+      // 6. Optional: Check for test mode if needed
+      if (process.env.NODE_ENV === 'production' && payload.meta.test_mode) {
+        console.log('Ignoring test mode webhook in production');
+        return res.status(200).json({ received: true });
+      }
+      
+      next();
+      
+    } catch (error) {
+      console.error('Security middleware error:', error);
+      res.status(400).json({ error: error.message });
+    }
+  };
+};
+
+function verifySignature(signature, payload, secret) {
+  try {
+    const hmac = crypto.createHmac('sha256', secret);
+    const digest = hmac.update(JSON.stringify(payload)).digest('hex');
+    
+    // Use timing-safe comparison to prevent timing attacks
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(digest)
+    );
+  } catch (error) {
+    return false;
+  }
+}
+
+function validatePayloadStructure(payload) {
+  const requiredFields = ['meta', 'data'];
+  const requiredMeta = ['event_name'];
+  
+  // Check top-level structure
+  requiredFields.forEach(field => {
+    if (!payload[field]) {
+      throw new Error(`Missing required field: ${field}`);
+    }
+  });
+  
+  // Check meta structure
+  requiredMeta.forEach(field => {
+    if (!payload.meta[field]) {
+      throw new Error(`Missing required meta field: ${field}`);
+    }
+  });
+  
+  // Check data structure
+  if (!payload.data.id || !payload.data.type) {
+    throw new Error('Invalid data structure');
+  }
+}
+
+module.exports = securityMiddleware;</code></pre>
+      </section>
+
+      <section id="testing">
+        <h2>8. 🧪 Testing & Debugging</h2>
+        <h3>8.1 Local Testing with ngrok</h3>
+        <pre><code class="language-bash"># Install ngrok
+npm install -g ngrok
+
+# Start your server
+node server.js
+
+# In another terminal, expose your local server
+ngrok http 3000
+
+# Copy the ngrok URL and add it to Lemon Squeezy webhooks
+# Example: https://abc123.ngrok.io/api/webhooks/lemon</code></pre>
+
+        <h3>8.2 Test Webhook Script</h3>
+        <pre><code class="language-javascript">// testWebhook.js
+const crypto = require('crypto');
+const axios = require('axios');
+
+async function sendTestWebhook() {
+  const webhookUrl = 'http://localhost:3000/api/webhooks/lemon';
+  const secret = 'your_test_secret';
+  
+  // Create test event
+  const testEvent = {
+    meta: {
+      event_name: 'order_created',
+      custom_data: { user_id: 'test_123' },
+      test_mode: true
+    },
+    data: {
+      type: 'orders',
+      id: 'test_order_123',
+      attributes: {
+        store_id: 1,
+        user_email: 'test@example.com',
+        identifier: 'test-order-123',
+        total: 2900,
+        currency: 'USD',
+        status: 'paid'
+      }
+    }
+  };
+  
+  // Create signature
+  const hmac = crypto.createHmac('sha256', secret);
+  const signature = hmac.update(JSON.stringify(testEvent)).digest('hex');
+  
+  try {
+    const response = await axios.post(webhookUrl, testEvent, {
+      headers: {
+        'x-signature': signature,
+        'content-type': 'application/json'
+      }
+    });
+    
+    console.log('✅ Test webhook sent successfully');
+    console.log('Response status:', response.status);
+    console.log('Response data:', response.data);
+    
+  } catch (error) {
+    console.error('❌ Error sending test webhook:');
+    if (error.response) {
+      console.log('Status:', error.response.status);
+      console.log('Data:', error.response.data);
+    } else {
+      console.log('Error:', error.message);
+    }
+  }
+}
+
+sendTestWebhook();</code></pre>
+
+        <h3>8.3 Webhook Logging & Monitoring</h3>
+        <pre><code class="language-javascript">// logger.js
+const winston = require('winston');
+
+// Create logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    // Console transport
+    new winston.transports.Console({
+      format: winston.format.simple()
+    }),
+    // File transport for webhooks
+    new winston.transports.File({ 
+      filename: 'logs/webhooks.log',
+      level: 'info'
+    }),
+    // Error file
+    new winston.transports.File({ 
+      filename: 'logs/webhooks-error.log', 
+      level: 'error' 
+    })
+  ]
+});
+
+// Webhook specific logger
+class WebhookLogger {
+  static logIncoming(event) {
+    logger.info('INCOMING_WEBHOOK', {
+      event: event.meta.event_name,
+      resourceId: event.data.id,
+      timestamp: new Date().toISOString(),
+      testMode: event.meta.test_mode || false
+    });
+  }
+  
+  static logProcessing(event, success = true, error = null) {
+    logger.info('PROCESSING_WEBHOOK', {
+      event: event.meta.event_name,
+      resourceId: event.data.id,
+      success,
+      error: error?.message,
+      duration: `${Date.now() - event._receivedAt}ms`
+    });
+  }
+  
+  static logError(event, error) {
+    logger.error('WEBHOOK_ERROR', {
+      event: event.meta.event_name,
+      resourceId: event.data.id,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+module.exports = { logger, WebhookLogger };</code></pre>
+      </section>
+
+      <footer>
+        <p>Complete Webhooks Documentation</p>
+        <p>Generated for <strong>Secure Integration Protocols</strong></p>
+        <p>Built with 💝 by Arman Ihsan Khan</p>
+
+        <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a"
+            target="_blank"
+          >
+            <i
+              class="fa-brands fa-linkedin"
+              style="font-size: 32px; color: #6366f1"
+            ></i>
+          </a>
+
+          <a href="https://github.com/armanihsan-dev" target="_blank">
+            <i
+              class="fa-brands fa-github"
+              style="font-size: 32px; color: #ebeef0"
+            ></i>
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  </body>
+</html>

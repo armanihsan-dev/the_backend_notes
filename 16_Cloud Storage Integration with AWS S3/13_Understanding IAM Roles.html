@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS IAM Roles Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>🔑 AWS IAM Roles: A Deep Dive</h1>
+
+    <h2>1. What is a Role in AWS IAM?</h2>
+
+    <p>
+      A <strong>Role</strong> in AWS Identity and Access Management (IAM) is an
+      identity that you create in your AWS account that has specific
+      permissions. Unlike an <span class="prop">IAM user</span>, a role is not
+      uniquely associated with one person. Instead, it is designed to be
+      <strong>assumed</strong> by anyone or anything that needs temporary access
+      to perform specific AWS actions.
+    </p>
+
+    <ul>
+      <li><strong>Role vs. User:</strong></li>
+      <li>
+        <strong><span class="prop">IAM User</span>:</strong> A long-term
+        credential for a single human user or application, with static access
+        keys and a password.
+      </li>
+      <li>
+        <strong><span class="prop">IAM Role</span>:</strong> A temporary
+        credential that can be assumed by various identities (users, services,
+        applications) to grant temporary, time-bound access without sharing
+        long-term credentials.
+      </li>
+    </ul>
+
+    <h2>2. How a Role Works?</h2>
+
+    <p>
+      The mechanism by which a role grants access is called
+      <strong>assuming a role</strong>.
+    </p>
+
+    <ul>
+      <li>
+        <strong>Identity:</strong> An entity (like an
+        <span class="prop">IAM user</span>, an
+        <span class="prop">AWS service</span>, or an application running on an
+        <span class="prop">EC2 instance</span>) needs to perform an action.
+      </li>
+      <li>
+        <strong>Request:</strong> The entity calls the AWS Security Token
+        Service (<span class="prop">STS</span>) API action, specifically
+        <span class="dir">AssumeRole</span>.
+      </li>
+      <li>
+        <strong>Authentication:</strong> AWS verifies the entity's identity and
+        checks the Role's <strong>Trust Policy</strong> to ensure the entity is
+        allowed to assume it.
+      </li>
+      <li>
+        <strong>Temporary Credentials:</strong> If authorized,
+        <span class="prop">STS</span> returns a set of
+        <strong>temporary security credentials</strong> (an access key ID, a
+        secret access key, and a session token).
+      </li>
+      <li>
+        <strong>Access:</strong> The entity uses these temporary credentials to
+        make subsequent AWS API calls. These credentials are valid only for a
+        defined duration (up to <span class="lit">12</span> hours by default)
+        and only grant the permissions defined in the Role's
+        <strong>Permissions Policy</strong>.
+      </li>
+    </ul>
+
+    <h2>3. Core Components of a Role</h2>
+
+    <p>
+      An <span class="prop">IAM Role</span> is defined by two primary policies:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Definition</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong>Trust Policy</strong> (or
+            <span class="prop">Assume Role Policy</span>)
+          </td>
+          <td>
+            A <span class="prop">JSON</span> policy document attached to the
+            role that specifies
+            <strong><span class="kw">who</span></strong> (which
+            principals/identities) is allowed to assume the role.
+          </td>
+          <td>
+            Defines the <strong>trusted principals</strong> that can exchange
+            their own credentials for the role's temporary credentials.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Permissions Policy</strong></td>
+          <td>
+            A <span class="prop">JSON</span> policy document attached to the
+            role that specifies
+            <strong><span class="kw">what</span></strong> actions and resources
+            the role can access.
+          </td>
+          <td>
+            Defines the <strong>permissions</strong> that the principal receives
+            once the role is successfully assumed.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      <strong>Key takeaway:</strong> The <strong>Trust Policy</strong> controls
+      <span class="kw">who</span> can assume the role, and the
+      <strong>Permissions Policy</strong> controls
+      <span class="kw">what</span> they can do <strong>after</strong> assuming
+      it.
+    </p>
+
+    <h2>4. Why Use IAM Roles?</h2>
+
+    <p>
+      <span class="prop">IAM roles</span> are the cornerstone of the
+      <span class="prop">principle of least privilege</span> and secure access
+      management in AWS.
+    </p>
+
+    <ul>
+      <li>
+        <strong>Delegation:</strong> Allow users in one AWS account to access
+        resources in a different account (<strong>Cross-Account Access</strong
+        >).
+      </li>
+      <li>
+        <strong>Secure Access for AWS Services:</strong> Allow
+        <span class="prop">AWS services</span> (e.g.,
+        <span class="prop">EC2</span>, <span class="prop">Lambda</span>,
+        <span class="prop">ECS</span>) to securely interact with other
+        <span class="prop">AWS services</span> (e.g.,
+        <span class="prop">S3</span>, <span class="prop">DynamoDB</span>)
+        without embedding static credentials. (This uses
+        <span class="prop">Service-Linked Roles</span> or
+        <span class="prop">Service Roles</span>).
+      </li>
+      <li>
+        <strong>Federation:</strong> Grant external identities (e.g., corporate
+        users via <span class="prop">SAML</span>) temporary access to your AWS
+        account.
+      </li>
+      <li>
+        <strong>Temporary Access:</strong> Eliminate the need to manage and
+        distribute long-term static credentials (access keys), greatly reducing
+        the risk of a security breach.
+      </li>
+    </ul>
+
+    <h2>5. Example Scenarios</h2>
+
+    <h3>Scenario 1: Granting an EC2 Instance Access to S3</h3>
+
+    <p>
+      This is the most common use case for a <strong>Service Role</strong>. We
+      attach a role to an <span class="prop">EC2 instance</span> so that an
+      application running on the instance can securely read and write to an
+      <span class="prop">S3 bucket</span>.
+    </p>
+
+    <h4>Step-by-Step with AWS CLI:</h4>
+
+    <p>
+      <strong
+        >A. Define the Trust Policy (<span class="prop"
+          >ec2-trust-policy.json</span
+        >):</strong
+      ><br />
+      This policy allows the <span class="prop">EC2</span> service (<span
+        class="mono"
+        >ec2.amazonaws.com</span
+      >) to assume the role.
+    </p>
+
+    <pre><code class="json-block">{
+    <span class="json-key">"Version"</span>: <span class="str">"2012-10-17"</span>,
+    <span class="json-key">"Statement"</span>: [
+        {
+        <span class="json-key">"Effect"</span>: <span class="str">"Allow"</span>,
+        <span class="json-key">"Principal"</span>: { <span class="json-key">"Service"</span>: <span class="str">"ec2.amazonaws.com"</span> },
+        <span class="json-key">"Action"</span>: <span class="str">"sts:AssumeRole"</span>
+        }
+    ]
+}</code></pre>
+
+    <p><strong>B. Create the IAM Role:</strong></p>
+
+    <pre><code><span class="kw">aws</span> <span class="dir">iam</span> <span class="dir">create-role</span> \
+    <span class="op">--role-name</span> <span class="str">"S3ReadOnlyAccessRole"</span> \
+    <span class="op">--assume-role-policy-document</span> <span class="str">file://ec2-trust-policy.json</span></code></pre>
+
+    <p>
+      <strong
+        >C. Define the Permissions Policy (<span class="prop"
+          >s3-read-policy.json</span
+        >):</strong
+      ><br />
+      This policy grants read-only access to all
+      <span class="prop">S3</span> buckets.
+    </p>
+
+    <pre><code class="json-block">{
+    <span class="json-key">"Version"</span>: <span class="str">"2012-10-17"</span>,
+    <span class="json-key">"Statement"</span>: [
+        {
+            <span class="json-key">"Effect"</span>: <span class="str">"Allow"</span>,
+            <span class="json-key">"Action"</span>: [
+                <span class="str">"s3:GetObject"</span>,
+                <span class="str">"s3:ListBucket"</span>
+            ],
+            <span class="json-key">"Resource"</span>: <span class="str">"*"</span>
+        }
+    ]
+}</code></pre>
+
+    <p><strong>D. Attach the Permissions Policy to the Role:</strong></p>
+
+    <pre><code><span class="cmt"># First, create the policy</span>
+<span class="kw">aws</span> <span class="dir">iam</span> <span class="dir">create-policy</span> \
+    <span class="op">--policy-name</span> <span class="str">"S3ReadOnlyPolicy"</span> \
+    <span class="op">--policy-document</span> <span class="str">file://s3-read-policy.json</span> \
+    <span class="op">--query</span> <span class="str">'Policy.Arn'</span> <span class="op">--output</span> <span class="str">text</span>
+
+<span class="cmt"># Then, attach the policy (replace &lt;Policy-ARN&gt; with the output from above)</span>
+<span class="kw">aws</span> <span class="dir">iam</span> <span class="dir">attach-role-policy</span> \
+    <span class="op">--role-name</span> <span class="str">"S3ReadOnlyAccessRole"</span> \
+    <span class="op">--policy-arn</span> <span class="str">"arn:aws:iam::123456789012:policy/S3ReadOnlyPolicy"</span></code></pre>
+
+    <p>
+      <strong>E. Attach the Role to an EC2 Instance:</strong><br />
+      (This is done via an <strong>Instance Profile</strong>, which is a
+      container for the role used when attaching it to an
+      <span class="prop">EC2 instance</span>. This typically happens when
+      launching the instance.)
+    </p>
+
+    <pre><code><span class="cmt"># Example command during instance launch</span>
+<span class="kw">aws</span> <span class="dir">ec2</span> <span class="dir">run-instances</span> \
+    <span class="op">--image-id</span> <span class="str">ami-xxxxxxxxxxxxxxxxx</span> \
+    <span class="op">--instance-type</span> <span class="str">t2.micro</span> \
+    <span class="op">--iam-instance-profile</span> <span class="str">Name="S3ReadOnlyAccessRole"</span></code></pre>
+
+    <h3>Scenario 2: Cross-Account Access Delegation</h3>
+
+    <p>
+      An <span class="prop">IAM user</span> in
+      <span class="prop">Account A</span> (The Trusting Account) wants to
+      temporarily access resources in <span class="prop">Account B</span> (The
+      Trusted Account).
+    </p>
+
+    <h4>In Account B (The Trusted Account):</h4>
+
+    <p>
+      <strong
+        >A. Define the Trust Policy (<span class="prop"
+          >cross-account-trust.json</span
+        >):</strong
+      ><br />
+      This policy trusts the root account or a specific user/role from
+      <span class="prop">Account A</span>.
+    </p>
+
+    <pre><code class="json-block">{
+    <span class="json-key">"Version"</span>: <span class="str">"2012-10-17"</span>,
+    <span class="json-key">"Statement"</span>: [
+        {
+        <span class="json-key">"Effect"</span>: <span class="str">"Allow"</span>,
+        <span class="json-key">"Principal"</span>: { <span class="json-key">"AWS"</span>: <span class="str">"arn:aws:iam::111122223333:root"</span> }, 
+        <span class="json-key">"Action"</span>: <span class="str">"sts:AssumeRole"</span>,
+        <span class="json-key">"Condition"</span>: {
+            <span class="json-key">"Bool"</span>: { <span class="json-key">"aws:MultiFactorAuthPresent"</span>: <span class="str">"true"</span> }
+        }
+        }
+    ]
+}</code></pre>
+
+    <p>
+      <span class="type">Note:</span> The principal
+      <span class="mono">111122223333:root</span> represents all identities in
+      Account <span class="lit">111122223333</span>, but best practice is to
+      restrict it to a specific <span class="prop">IAM User</span> or Role's
+      <span class="prop">ARN</span>.
+    </p>
+
+    <p>
+      <strong>B. Create the Role in Account B (The Trusted Account):</strong>
+    </p>
+
+    <pre><code><span class="kw">aws</span> <span class="dir">iam</span> <span class="dir">create-role</span> \
+    <span class="op">--role-name</span> <span class="str">"CrossAccountAccessRole"</span> \
+    <span class="op">--assume-role-policy-document</span> <span class="str">file://cross-account-trust.json</span></code></pre>
+
+    <p>
+      <strong>C. Attach the Permissions Policy in Account B:</strong><br />
+      Attach a policy (e.g., <span class="prop">AmazonS3FullAccess</span>) that
+      defines what the user from <span class="prop">Account A</span> can do in
+      <span class="prop">Account B</span>.
+    </p>
+
+    <h4>In Account A (The Trusting Account):</h4>
+
+    <p>
+      The <span class="prop">IAM user</span> in
+      <span class="prop">Account A</span> must have a policy that grants them
+      permission to call <span class="dir">sts:AssumeRole</span> on the specific
+      role <span class="prop">ARN</span> in <span class="prop">Account B</span>.
+    </p>
+
+    <pre><code class="json-block">{
+    <span class="json-key">"Version"</span>: <span class="str">"2012-10-17"</span>,
+    <span class="json-key">"Statement"</span>: [
+        {
+            <span class="json-key">"Effect"</span>: <span class="str">"Allow"</span>,
+            <span class="json-key">"Action"</span>: <span class="str">"sts:AssumeRole"</span>,
+            <span class="json-key">"Resource"</span>: <span class="str">"arn:aws:iam::444455556666:role/CrossAccountAccessRole"</span>
+        }
+    ]
+}</code></pre>
+
+    <p>
+      <strong>D. Assuming the Role (The Action):</strong><br />
+      The <span class="prop">IAM user</span> in
+      <span class="prop">Account A</span> executes the following command:
+    </p>
+
+    <pre><code><span class="kw">aws</span> <span class="dir">sts</span> <span class="dir">assume-role</span> \
+    <span class="op">--role-arn</span> <span class="str">"arn:aws:iam::444455556666:role/CrossAccountAccessRole"</span> \
+    <span class="op">--role-session-name</span> <span class="str">"SessionForAccountAUser"</span> \
+    <span class="op">--query</span> <span class="str">'Credentials'</span> <span class="op">--output</span> <span class="str">json</span></code></pre>
+
+    <p>
+      This returns the <strong>temporary credentials</strong> (<span
+        class="prop"
+        >AccessKeyId</span
+      >, <span class="prop">SecretAccessKey</span>,
+      <span class="prop">SessionToken</span>), which the user/script can then
+      use to interact with <span class="prop">Account B</span>'s resources.
+    </p>
+
+    <h2>6. Security Benefits</h2>
+
+    <p>
+      The core security benefits of using
+      <span class="prop">IAM Roles</span> center on eliminating long-term
+      credentials.
+    </p>
+
+    <ul>
+      <li>
+        <strong>No Stored Credentials:</strong> For
+        <span class="prop">EC2</span>/<span class="prop">Lambda</span>/<span
+          class="prop"
+          >ECS</span
+        >, the code doesn't store sensitive access keys on disk. AWS handles the
+        secure exchange for temporary credentials via the instance metadata
+        service.
+      </li>
+      <li>
+        <strong>Time-Bound Access:</strong> Temporary credentials automatically
+        expire, reducing the window of opportunity for an attacker if they are
+        compromised.
+      </li>
+      <li>
+        <strong>Principle of Least Privilege:</strong> A role's permissions are
+        tightly scoped to only what is needed for a specific task, and they are
+        only available when the role is actively assumed.
+      </li>
+      <li>
+        <strong>Simplified Auditing:</strong> Role assumption events are logged
+        in <span class="prop">AWS CloudTrail</span>, clearly showing
+        <span class="kw">who</span> (the original identity) assumed the role and
+        <span class="kw">what</span> actions they performed.
+      </li>
+    </ul>
+  </body>
+</html>

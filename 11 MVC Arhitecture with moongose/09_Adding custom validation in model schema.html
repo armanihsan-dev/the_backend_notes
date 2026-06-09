@@ -1,0 +1,1948 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Custom Validation Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Blakish Theme - Inspired by VSCode Dark Mode */
+      :root {
+        --bg-color: #1e1e1e; /* Dark background */
+        --text-color: #d4d4d4; /* Light text */
+        --heading-color: #569cd6; /* Blue for headings/keywords */
+        --section-bg: #2d2d30; /* Slightly lighter section background */
+        --note-bg: #3c3c3c; /* Background for important notes */
+        --keyword-color: #569cd6; /* Blue */
+        --comment-color: #6a9955; /* Green */
+        --string-color: #ce9178; /* Orange-ish */
+        --number-color: #b5cea8; /* Light green */
+        --function-color: #dcdcaa; /* Yellow-ish */
+        --constant-color: #4fc1ff; /* Light blue */
+        --note-keyword-color: #c586c0; /* Purple */
+        --divider-color: #37373d;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--divider-color);
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: var(--heading-color);
+        margin-top: 30px;
+        padding-left: 10px;
+        border-left: 4px solid var(--heading-color);
+      }
+
+      p,
+      ul {
+        margin-bottom: 15px;
+      }
+
+      /* Notes and Tips Section */
+      .notes-section {
+        background-color: var(--section-bg);
+        padding: 20px;
+        margin-top: 30px;
+        border-radius: 8px;
+        border: 1px solid var(--divider-color);
+      }
+
+      .notes-section h3 {
+        color: var(--note-keyword-color);
+        border-bottom: 1px solid var(--divider-color);
+        padding-bottom: 5px;
+      }
+
+      .notes-section ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .notes-section ul li strong {
+        color: var(--keyword-color);
+      }
+
+      /* Code Block Styling (VSCode-like) */
+      .code-container {
+        background-color: #1e1e1e; /* Darkest background for code */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 14px;
+        margin: 20px 0;
+        border: 1px solid var(--divider-color);
+      }
+
+      .code-line {
+        line-height: 1.4;
+      }
+
+      /* Syntax Highlighting Classes */
+      .keyword {
+        color: var(--keyword-color);
+        font-weight: bold;
+      }
+      .comment {
+        color: var(--comment-color);
+      }
+      .string {
+        color: var(--string-color);
+      }
+      .number {
+        color: var(--number-color);
+      }
+      .function {
+        color: var(--function-color);
+      }
+      .constant {
+        color: var(--constant-color);
+      }
+      .property {
+        color: var(--text-color);
+      }
+      .regex {
+        color: #d16969;
+      } /* Reddish for Regex */
+      .type {
+        color: #4ec9b0;
+      } /* Teal */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .preprocessor {
+        color: #57a64a;
+      } /* Darker green for preprocessor-like lines */
+      .object-key {
+        color: #9cdcfe;
+      } /* Light blue for object keys */
+      .mongoose-type {
+        color: #5b9ff7;
+      } /* A dedicated blue for Mongoose types */
+
+      /* Specific note styling */
+      .key-concepts strong {
+        color: var(--keyword-color);
+      }
+      .important-notes strong {
+        color: var(--note-keyword-color);
+      }
+      .pro-tips strong {
+        color: var(--constant-color);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Mongoose Custom Validation: Advanced Techniques</h1>
+
+    <h2>1. BASIC CUSTOM VALIDATION</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="keyword">import</span>
+        <span class="variable">mongoose</span>
+        <span class="keyword">from</span>
+        <span class="string">'mongoose'</span>;
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 1. BASIC CUSTOM VALIDATION</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">userSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; // Method 1: Using validate object with validator
+          function</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">username</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Must start with letter, only alphanumeric
+          and underscore</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="regex">/^[a-zA-Z][a-zA-Z0-9_]*$/</span>.<span
+          class="function"
+          >test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string"
+          >'Username must start with a letter and contain only letters, numbers,
+          and underscores'</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; // Method 2: Shorthand - function that returns boolean</span
+        >
+      </div>
+      <div class="code-line">&nbsp; <span class="object-key">age</span>: {</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Number</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span> >= <span class="number">18</span> &&
+        <span class="variable">value</span> <= <span class="number">100</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Age must be between 18 and 100'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; // Method 3: Multiple validators for same field</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">email</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: [
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; {</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="regex">/^\S+@\S+\.\S+$/</span>.<span class="function"
+          >test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Please enter a valid email address'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; {</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">async</span>
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp; &nbsp;   // Async validation - check if email
+          already exists</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">user</span> = <span class="keyword">await</span>
+        <span class="variable">mongoose</span>.<span class="property"
+          >models</span
+        >.<span class="property">User</span>.<span class="function"
+          >findOne</span
+        >({ <span class="object-key">email</span>:
+        <span class="variable">value</span> });
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+        <span class="keyword">return</span> !<span class="variable">user</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Email already exists'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; &nbsp; ]</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>2. CUSTOM VALIDATION WITH PROPS ACCESS</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 2. CUSTOM VALIDATION WITH PROPS ACCESS</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">productSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">name</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">price</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Number</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">discount</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Number</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">default</span>:
+        <span class="number">0</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // 'this' refers to the document</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Discount cannot be greater than price</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span> <=
+        <span class="keyword">this</span>.<span class="property">price</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Discount cannot be greater than the price'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; // Validate based on another field</span>
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">salePrice</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Number</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Sale price must be less than regular
+          price</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span> <
+        <span class="keyword">this</span>.<span class="property">price</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="variable">props</span> =>
+        <span class="string"
+          >`Sale price (${<span class="variable">props</span>.<span
+            class="property"
+            >value</span
+          >}) must be less than regular price`</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>3. ASYNC CUSTOM VALIDATION</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 3. ASYNC CUSTOM VALIDATION</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">articleSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">title</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">slug</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">async</span>
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Check if slug is unique (excluding current
+          document on update)</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">article</span> =
+        <span class="keyword">await</span>
+        <span class="variable">mongoose</span>.<span class="property"
+          >models</span
+        >.<span class="property">Article</span>.<span class="function"
+          >findOne</span
+        >({&nbsp;
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">slug</span>:
+        <span class="variable">value</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">_id</span>:
+        { <span class="constant">$ne</span>:
+        <span class="keyword">this</span>.<span class="property">_id</span> }
+        <span class="comment">// Exclude current document</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp; });</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span> !<span
+          class="variable"
+          >article</span
+        >; <span class="comment">// Return true if no duplicate found</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Slug must be unique'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">authorId</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">mongoose</span>.<span class="property">Schema</span
+        >.<span class="property">Types</span>.<span class="property"
+          >ObjectId</span
+        >,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">async</span>
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Check if author exists in database</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">User</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'User'</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">author</span> =
+        <span class="keyword">await</span>
+        <span class="variable">User</span>.<span class="function">findById</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span> !!<span
+          class="variable"
+          >author</span
+        >;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Author does not exist'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>4. CONDITIONAL VALIDATION</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 4. CONDITIONAL VALIDATION</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">orderSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">orderType</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">enum</span>: [<span
+          class="string"
+          >'delivery'</span
+        >, <span class="string">'pickup'</span>],
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; // Only required if orderType is 'delivery'</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">deliveryAddress</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="keyword">function</span>() {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="keyword">this</span>.<span class="property"
+          >orderType</span
+        >
+        === <span class="string">'delivery'</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Only validate if orderType is
+          delivery</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">if</span> (<span
+          class="keyword"
+          >this</span
+        >.<span class="property">orderType</span> !==
+        <span class="string">'delivery'</span>)
+        <span class="keyword">return</span> <span class="constant">true</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Address must be at least 10
+          characters</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span> &&
+        <span class="variable">value</span>.<span class="property">length</span>
+        >= <span class="number">10</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string"
+          >'Delivery address must be at least 10 characters long'</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; // Only required if orderType is 'pickup'</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">pickupTime</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Date</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="keyword">function</span>() {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="keyword">this</span>.<span class="property"
+          >orderType</span
+        >
+        === <span class="string">'pickup'</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>5. ARRAY VALIDATION</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 5. ARRAY VALIDATION</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">courseSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">title</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; // Validate array length</span>
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">tags</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>: [<span class="type"
+          >String</span
+        >],
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span>.<span class="property">length</span>
+        >= <span class="number">1</span> &&
+        <span class="variable">value</span>.<span class="property">length</span>
+        <= <span class="number">5</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Must have between 1 and 5 tags'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; // Validate array elements</span>
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">ratings</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>: [<span class="type"
+          >Number</span
+        >],
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">array</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Each rating must be between 1 and 5</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">array</span>.<span class="function">every</span
+        >(<span class="variable">rating</span> =>
+        <span class="variable">rating</span> >= <span class="number">1</span> &&
+        <span class="variable">rating</span> <= <span class="number">5</span>);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'All ratings must be between 1 and 5'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; // Validate unique array values</span>
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">participants</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>: [<span class="type"
+          >mongoose</span
+        >.<span class="property">Schema</span>.<span class="property"
+          >Types</span
+        >.<span class="property">ObjectId</span>],
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">array</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Check for duplicates</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">array</span>.<span class="property">length</span>
+        === <span class="variable">new</span>
+        <span class="type">Set</span>(<span class="variable">array</span>.<span
+          class="function"
+          >map</span
+        >(<span class="variable">id</span> =>
+        <span class="variable">id</span>.<span class="function">toString</span
+        >())).<span class="property">size</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Participants must be unique'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>6. NESTED OBJECT VALIDATION</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 6. NESTED OBJECT VALIDATION</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">profileSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">name</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">socialMedia</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">twitter</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+        <span class="keyword">if</span> (!<span class="variable">value</span>)
+        <span class="keyword">return</span> <span class="constant">true</span>;
+        <span class="comment">// Optional field</span>
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="regex">/^@[a-zA-Z0-9_]{1,15}$/</span>.<span
+          class="function"
+          >test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string"
+          >'Twitter handle must start with @ and be 1-15 characters'</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">&nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">linkedin</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;
+        <span class="keyword">if</span> (!<span class="variable">value</span>)
+        <span class="keyword">return</span> <span class="constant">true</span>;
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span>.<span class="function"
+          >includes</span
+        >(<span class="string">'linkedin.com/'</span>);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Invalid LinkedIn URL'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; // Validate entire nested object</span>
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">address</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">street</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">city</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">zipCode</span>:
+        <span class="type">String</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // If address exists, all fields must be
+          provided</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">if</span> (!<span
+          class="variable"
+          >value</span
+        >) <span class="keyword">return</span>
+        <span class="constant">true</span>;
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span>.<span class="property">street</span>
+        && <span class="variable">value</span>.<span class="property"
+          >city</span
+        >
+        && <span class="variable">value</span>.<span class="property"
+          >zipCode</span
+        >;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string"
+          >'Address must include street, city, and zip code'</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>7. CUSTOM VALIDATION WITH CUSTOM ERROR</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 7. CUSTOM VALIDATION WITH CUSTOM ERROR</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">passwordSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">username</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">password</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Complex password validation</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">hasUpperCase</span> =
+        <span class="regex">/[A-Z]/</span>.<span class="function">test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">hasLowerCase</span> =
+        <span class="regex">/[a-z]/</span>.<span class="function">test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">hasNumber</span> =
+        <span class="regex">/[0-9]/</span>.<span class="function">test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">hasSpecialChar</span> =
+        <span class="regex">/[!@#$%^&*]/</span>.<span class="function"
+          >test</span
+        >(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">isLongEnough</span> =
+        <span class="variable">value</span>.<span class="property">length</span>
+        >= <span class="number">8</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">hasUpperCase</span> &&
+        <span class="variable">hasLowerCase</span> &&
+        <span class="variable">hasNumber</span> &&
+        <span class="variable">hasSpecialChar</span> &&
+        <span class="variable">isLongEnough</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string"
+          >'Password must contain at least 8 characters, including uppercase,
+          lowercase, number, and special character (!@#$%^&*)'</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">confirmPassword</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; &nbsp; &nbsp;   // Compare with password field</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span> ===
+        <span class="keyword">this</span>.<span class="property">password</span
+        >;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Passwords do not match'</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>8. SCHEMA-LEVEL VALIDATION (Multiple Fields)</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// 8. SCHEMA-LEVEL VALIDATION (Multiple Fields)</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">eventSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">name</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">startDate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Date</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">endDate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Date</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">maxParticipants</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Number</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">required</span>:
+        <span class="constant">true</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">registeredParticipants</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Number</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">default</span>:
+        <span class="number">0</span>
+      </div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="comment">// Validate multiple fields together</span>
+      </div>
+      <div class="code-line">
+        <span class="variable">eventSchema</span>.<span class="function"
+          >pre</span
+        >(<span class="string">'save'</span>,
+        <span class="keyword">function</span>(<span class="variable">next</span
+        >) {
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; // End date must be after start date</span>
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="keyword">if</span> (<span class="keyword">this</span
+        >.<span class="property">endDate</span> <=
+        <span class="keyword">this</span>.<span class="property">startDate</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">next</span>(<span class="keyword">new</span>
+        <span class="type">Error</span>(<span class="string"
+          >'End date must be after start date'</span
+        >));
+      </div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment"
+          >&nbsp; // Registered participants cannot exceed max</span
+        >
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="keyword">if</span> (<span class="keyword">this</span
+        >.<span class="property">registeredParticipants</span> >
+        <span class="keyword">this</span>.<span class="property"
+          >maxParticipants</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">next</span>(<span class="keyword">new</span>
+        <span class="type">Error</span>(<span class="string"
+          >'Registered participants cannot exceed maximum'</span
+        >));
+      </div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">&nbsp; <span class="variable">next</span>();</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>9. CUSTOM VALIDATOR FUNCTIONS (Reusable)</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 9. CUSTOM VALIDATOR FUNCTIONS (Reusable)</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="comment">// Create reusable validator functions</span>
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">validators</span> = {
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">isStrongPassword</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="regex"
+          >/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/</span
+        >.<span class="function">test</span>(<span class="variable">value</span
+        >);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string"
+          >'Password must be at least 8 characters with uppercase, lowercase,
+          number, and special character'</span
+        >
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">isPhoneNumber</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="regex"
+          >/^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/</span
+        >.<span class="function">test</span>(<span class="variable">value</span
+        >);
+      </div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Please enter a valid phone number'</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">isURL</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">try</span> {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">new</span>
+        <span class="type">URL</span>(<span class="variable">value</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="constant">true</span>;
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; } <span class="keyword">catch</span> {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="constant">false</span>;
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Please enter a valid URL'</span>
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">isFutureDate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validator</span>:
+        <span class="keyword">function</span>(<span class="variable">value</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">value</span> > <span class="keyword">new</span>
+        <span class="type">Date</span>();
+      </div>
+      <div class="code-line">&nbsp; &nbsp; },</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Date must be in the future'</span>
+      </div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">};</div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="comment">// Use reusable validators</span>
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">memberSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">phone</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>:
+        <span class="variable">validators</span>.<span class="property"
+          >isPhoneNumber</span
+        >
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">website</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>:
+        <span class="variable">validators</span>.<span class="property"
+          >isURL</span
+        >
+      </div>
+      <div class="code-line">&nbsp; },</div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">expiryDate</span>: {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">type</span>:
+        <span class="type">Date</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="object-key">validate</span>:
+        <span class="variable">validators</span>.<span class="property"
+          >isFutureDate</span
+        >
+      </div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">});</div>
+    </div>
+
+    <h2>10. HANDLING VALIDATION ERRORS</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 10. HANDLING VALIDATION ERRORS</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="comment">// In your controller/route handler</span>
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">createUser</span> =
+        <span class="keyword">async</span> (<span class="variable">req</span>,
+        <span class="variable">res</span>) => {
+      </div>
+      <div class="code-line">&nbsp; <span class="keyword">try</span> {</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">user</span> = <span class="keyword">await</span>
+        <span class="type">User</span>.<span class="function">create</span
+        >(<span class="variable">req</span>.<span class="property">body</span>);
+      </div>
+      <div class="code-line">&nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="variable">res</span>.<span class="function"
+          >status</span
+        >(<span class="number">201</span>).<span class="function">json</span>({
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">success</span>:
+        <span class="constant">true</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">data</span>:
+        <span class="variable">user</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; });</div>
+      <div class="code-line">&nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; } <span class="keyword">catch</span> (<span class="variable"
+          >error</span
+        >) {
+      </div>
+      <div class="code-line">&nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        <span class="comment">&nbsp; &nbsp; // Handle validation errors</span>
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">if</span> (<span class="variable"
+          >error</span
+        >.<span class="property">name</span> ===
+        <span class="string">'ValidationError'</span>) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">const</span>
+        <span class="variable">errors</span> =
+        <span class="constant">Object</span>.<span class="function">values</span
+        >(<span class="variable">error</span>.<span class="property"
+          >errors</span
+        >).<span class="function">map</span>(<span class="variable">err</span>
+        => ({
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">field</span>:
+        <span class="variable">err</span>.<span class="property">path</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="variable">err</span>.<span class="property">message</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">value</span>:
+        <span class="variable">err</span>.<span class="property">value</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; }));</div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="variable">res</span>.<span class="function">status</span
+        >(<span class="number">400</span>).<span class="function">json</span>({
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">success</span>:
+        <span class="constant">false</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="string">'Validation failed'</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; &nbsp; <span class="object-key">errors</span>:
+        <span class="variable">errors</span>
+      </div>
+      <div class="code-line">&nbsp; &nbsp; &nbsp; });</div>
+      <div class="code-line">&nbsp; &nbsp; }</div>
+      <div class="code-line">&nbsp; &nbsp;&nbsp;</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="variable">res</span>.<span class="function"
+          >status</span
+        >(<span class="number">500</span>).<span class="function">json</span>({
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">success</span>:
+        <span class="constant">false</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; &nbsp; <span class="object-key">message</span>:
+        <span class="variable">error</span>.<span class="property"
+          >message</span
+        >
+      </div>
+      <div class="code-line">&nbsp; &nbsp; });</div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">};</div>
+    </div>
+
+    <h2>11. MANUAL VALIDATION</h2>
+    <div class="code-container">
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line">
+        <span class="comment">// 11. MANUAL VALIDATION</span>
+      </div>
+      <div class="code-line">
+        <span class="comment"
+          >// ============================================</span
+        >
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">testSchema</span> =
+        <span class="variable">new</span>
+        <span class="type">mongoose</span>.<span class="function">Schema</span
+        >({
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">name</span>:
+        <span class="type">String</span>,
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="object-key">age</span>:
+        <span class="type">Number</span>
+      </div>
+      <div class="code-line">});</div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="comment">// You can also validate manually</span>
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">validateUser</span> =
+        <span class="keyword">async</span> (<span class="variable"
+          >userData</span
+        >) => {
+      </div>
+      <div class="code-line">
+        &nbsp; <span class="keyword">const</span>
+        <span class="variable">user</span> = <span class="keyword">new</span>
+        <span class="type">User</span>(<span class="variable">userData</span>);
+      </div>
+      <div class="code-line">&nbsp;&nbsp;</div>
+      <div class="code-line">&nbsp; <span class="keyword">try</span> {</div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">await</span>
+        <span class="variable">user</span>.<span class="function">validate</span
+        >(); <span class="comment">// Runs all validators</span>
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="constant">console</span>.<span
+          class="function"
+          >log</span
+        >(<span class="string">'Validation passed'</span>);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="constant">true</span>;
+      </div>
+      <div class="code-line">
+        &nbsp; } <span class="keyword">catch</span> (<span class="variable"
+          >error</span
+        >) {
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="constant">console</span>.<span
+          class="function"
+          >log</span
+        >(<span class="string">'Validation failed:'</span>,
+        <span class="variable">error</span>.<span class="property">errors</span
+        >);
+      </div>
+      <div class="code-line">
+        &nbsp; &nbsp; <span class="keyword">return</span>
+        <span class="constant">false</span>;
+      </div>
+      <div class="code-line">&nbsp; }</div>
+      <div class="code-line">};</div>
+      <div class="code-line"></div>
+      <div class="code-line"></div>
+      <div class="code-line"><span class="comment">// Export models</span></div>
+      <div class="code-line">
+        <span class="keyword">const</span> <span class="variable">User</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'User'</span>,
+        <span class="variable">userSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">Product</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Product'</span>,
+        <span class="variable">productSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">Article</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Article'</span>,
+        <span class="variable">articleSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span> <span class="variable">Order</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Order'</span>,
+        <span class="variable">orderSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">Course</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Course'</span>,
+        <span class="variable">courseSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">Profile</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Profile'</span>,
+        <span class="variable">profileSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">PasswordUser</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'PasswordUser'</span>,
+        <span class="variable">passwordSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span> <span class="variable">Event</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Event'</span>,
+        <span class="variable">eventSchema</span>);
+      </div>
+      <div class="code-line">
+        <span class="keyword">const</span>
+        <span class="variable">Member</span> =
+        <span class="variable">mongoose</span>.<span class="function"
+          >model</span
+        >(<span class="string">'Member'</span>,
+        <span class="variable">memberSchema</span>);
+      </div>
+      <div class="code-line"></div>
+      <div class="code-line">
+        <span class="keyword">export</span> {
+        <span class="variable">User</span>,
+        <span class="variable">Product</span>,
+        <span class="variable">Article</span>,
+        <span class="variable">Order</span>,
+        <span class="variable">Course</span>,
+        <span class="variable">Profile</span>,
+        <span class="variable">PasswordUser</span>,
+        <span class="variable">Event</span>,
+        <span class="variable">Member</span> };
+      </div>
+    </div>
+
+    <div class="notes-section">
+      <h3>🎯 Key Concepts:</h3>
+      <ul class="key-concepts">
+        <li>
+          <strong>1. Basic Custom Validation:</strong> Use the
+          <code>validate</code> property with a validator function. Return
+          <code>true</code> if valid, <code>false</code> if invalid. Provide
+          custom error messages.
+        </li>
+        <li>
+          <strong>2. Access Document Fields:</strong> Use <code>this</code> to
+          access other fields in the document (only works with regular
+          functions). Validate one field based on another's value.
+        </li>
+        <li>
+          <strong>3. Async Validation:</strong> Use <code>async/await</code> for
+          database lookups. Check uniqueness or existence of related documents.
+          Great for checking if referenced IDs exist.
+        </li>
+        <li>
+          <strong>4. Conditional Validation:</strong> Make fields
+          <code>required</code> based on conditions (using a function). Apply
+          validation logic only when certain criteria are met.
+        </li>
+        <li>
+          <strong>5. Array Validation:</strong> Validate array length, check
+          each element in the array, and ensure uniqueness of array items.
+        </li>
+        <li>
+          <strong>6. Nested Object Validation:</strong> Validate individual
+          properties in nested objects, and validate the entire nested
+          structure.
+        </li>
+        <li>
+          <strong>7. Complex Password Validation:</strong> Check multiple
+          criteria (uppercase, lowercase, numbers, special chars). Compare
+          fields (password confirmation).
+        </li>
+        <li>
+          <strong>8. Schema-Level Validation:</strong> Use
+          <code>pre('save')</code> middleware for complex validations. Validate
+          relationships between multiple fields (e.g.,
+          <code>startDate</code> and <code>endDate</code>).
+        </li>
+        <li>
+          <strong>9. Reusable Validators:</strong> Create validator objects you
+          can reuse across schemas. Keep your code DRY (Don't Repeat Yourself).
+        </li>
+        <li>
+          <strong>10. Error Handling:</strong> Catch
+          <code>ValidationError</code> specifically. Extract and format error
+          messages nicely.
+        </li>
+      </ul>
+
+      <h3>💡 Important Notes:</h3>
+      <ul class="important-notes">
+        <li>
+          <strong><code>this</code> context:</strong> In validators,
+          <code>this</code> refers to the document being validated (only works
+          with **regular functions**, not arrow functions).
+        </li>
+        <li>
+          <strong>Async validators:</strong> Automatically detected - just use
+          <code>async</code> keyword.
+        </li>
+        <li>
+          <strong>Update operations:</strong> Use
+          <code>runValidators: true</code> option in
+          <code>findByIdAndUpdate()</code> to run validators on updates.
+        </li>
+        <li>
+          **Array of validators:** You can provide multiple validators for a
+          single field.
+        </li>
+      </ul>
+
+      <h3>🚀 Pro Tips:</h3>
+      <ul class="pro-tips">
+        <li>Keep validators pure and focused on one thing.</li>
+        <li>Use async validators sparingly (they're slower).</li>
+        <li>Create reusable validator functions for common patterns.</li>
+        <li>Provide clear, user-friendly error messages.</li>
+        <li>Test your validators thoroughly.</li>
+      </ul>
+    </div>
+  </body>
+</html>

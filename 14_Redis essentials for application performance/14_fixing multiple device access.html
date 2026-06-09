@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Session Management Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* --- Variable Definitions (VS Code Dark Theme) --- */
+      :root {
+        --bg-primary: #1e1e1e; /* Dark background */
+        --bg-secondary: #252526; /* Slightly lighter background for containers */
+        --text-primary: #d4d4d4; /* Light text */
+        --text-secondary: #9cdcfe; /* Light blue for headings/keywords */
+        --code-bg: #1f1f1f; /* VS Code terminal/code block background */
+        --code-text: #cccccc; /* Default code text */
+        --code-command: #c586c0; /* Purple for commands (keywords/functions) */
+        --code-string: #ce9178; /* Orange for strings/literals */
+        --code-tag: #569cd6; /* Blue for variables/types */
+        --code-comment: #6a9955; /* Green for comments */
+        --code-number: #b5cea8; /* Light green/mint for numbers */
+        --hr-color: #383838;
+      }
+
+      /* --- Base Styles --- */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--bg-secondary);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--text-secondary);
+        font-weight: 700;
+        border-bottom: 2px solid var(--hr-color);
+        padding-bottom: 8px;
+        margin-top: 25px;
+      }
+
+      p {
+        margin-bottom: 1em;
+      }
+
+      strong {
+        color: var(--text-secondary);
+        font-weight: 700;
+      }
+
+      /* --- Code Block Styles --- */
+      .code-block {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 20px 0;
+        border: 1px solid #3c3c3c;
+      }
+
+      .code-block pre {
+        margin: 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 14px;
+        color: var(--code-text);
+        white-space: pre-wrap; /* Allows long lines to wrap */
+      }
+
+      .command {
+        color: var(--code-command); /* Purple for key functions/commands */
+        font-weight: bold;
+      }
+
+      .tag {
+        color: var(--code-tag); /* Blue for variables/keywords */
+      }
+
+      .string {
+        color: var(--code-string); /* Orange for strings */
+      }
+
+      .comment {
+        color: var(--code-comment); /* Green for comments */
+      }
+
+      .number {
+        color: var(--code-number); /* Mint for numbers */
+      }
+
+      .hr-line {
+        border: none;
+        height: 1px;
+        background-color: var(--hr-color);
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        <span style="color: gold">🔑</span> Redis Session Management Logic
+      </h1>
+
+      <h2 id="identify-sessions">1. Identify Existing Sessions</h2>
+      <p>
+        The code uses the <span class="tag">ft.search</span> (Full-Text Search)
+        command to find all active sessions for the current user ID. This is the
+        key application of Redis Search/RediSearch:
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre><span class="tag">const</span> <span class="tag">sessions</span> = <span class="tag">await</span> <span class="tag">redisClient</span>.<span class="tag">ft</span>.<span class="command">search</span>(<span class="string">`@userId:{${</span><span class="tag">existingUser</span>.<span class="tag">_id</span><span class="string">}}`</span>)</pre>
+      </div>
+
+      <p>
+        <strong>Assumption:</strong> A RediSearch index must have been created
+        previously that indexes the <span class="tag">userId</span> field (which
+        is part of the JSON session object stored in Redis) as a
+        <span class="tag">TAG</span>.
+      </p>
+      <p>
+        <strong>Search Query:</strong> The query string
+        <strong
+          ><span class="string">@userId:{${existingUser._id}}</span></strong
+        >
+        performs an exact <span class="tag">TAG</span> match on the
+        <span class="tag">userId</span> field within all Redis keys covered by
+        the index.
+      </p>
+      <p>
+        <strong>Result:</strong> <span class="tag">sessions</span> contains the
+        list of all active session keys and their data for that user, along with
+        a <span class="tag">sessions.total</span> count.
+      </p>
+
+      <hr class="hr-line" />
+
+      <h2 id="enforce-limit">2. Enforce the 2-Session Limit</h2>
+      <p>
+        The logic checks the total number of active sessions. If the limit is
+        reached or exceeded (<span class="tag">>= 2</span>), the oldest session
+        is forcibly terminated.
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre><span class="tag">if</span> (<span class="tag">sessions</span>.<span class="tag">total</span> <span class="command">>=</span> <span class="number">2</span>) {
+    <span class="tag">await</span> <span class="tag">redisClient</span>.<span class="command">del</span>(<span class="tag">sessions</span>.<span class="tag">documents</span>[<span class="number">0</span>].<span class="tag">id</span>)
+}</pre>
+      </div>
+
+      <p>
+        <strong>Session Eviction:</strong> If the total count is $\ge 2$, the
+        key corresponding to the **first document** in the results array (<span
+          class="tag"
+          >sessions.documents[0].id</span
+        >) is deleted from Redis using
+        <span class="tag">redisClient.del()</span>.
+      </p>
+      <p>
+        <strong>"Oldest" Session Logic:</strong> RediSearch's
+        <span class="tag">FT.SEARCH</span> results are ordered by default based
+        on the index's internal score, but in this context, the order is likely
+        based on the insertion order or a simple key sort. For this logic to
+        reliably delete the oldest session, the index definition should include
+        a <span class="tag">SORTBY</span> clause, or the Redis keys must be
+        created in a specific format that ensures the oldest one is consistently
+        returned first (though this search command doesn't explicitly guarantee
+        chronological order without <span class="tag">SORTBY</span>). Assuming
+        the first result is the one to be evicted, this effectively makes space
+        for the new session.
+      </p>
+
+      <hr class="hr-line" />
+
+      <h2 id="create-session">3. Create New Session</h2>
+      <p>A new session is always created for the current login attempt.</p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre><span class="tag">const</span> <span class="tag">sessionId</span> = <span class="tag">crypto</span>.<span class="tag">randomUUID</span>()
+<span class="tag">const</span> <span class="tag">redisKey</span> = <span class="string">`session:${</span><span class="tag">sessionId</span><span class="string">}`</span>
+<span class="comment">// Session data stored in a JSON object with the user ID</span>
+<span class="tag">const</span> <span class="tag">session</span> = <span class="tag">await</span> <span class="tag">redisClient</span>.<span class="tag">json</span>.<span class="command">set</span>(<span class="tag">redisKey</span>, <span class="string">'$'</span>, { <span class="tag">userId</span>: <span class="tag">existingUser</span>.<span class="tag">_id</span> }) 
+<span class="tag">const</span> <span class="tag">sessionExpiryTime</span> = <span class="number">60</span> <span class="command">*</span> <span class="number">1000</span> <span class="command">*</span> <span class="number">60</span> <span class="command">*</span> <span class="number">24</span> <span class="command">*</span> <span class="number">7</span> <span class="comment">// 7 days in milliseconds</span>
+<span class="tag">redisClient</span>.<span class="command">expire</span>(<span class="tag">redisKey</span>, <span class="tag">sessionExpiryTime</span> <span class="command">/</span> <span class="number">1000</span>)</pre>
+      </div>
+
+      <p>
+        <strong>New Key:</strong> A unique <span class="tag">sessionId</span> is
+        generated, and the corresponding Redis key is
+        <span class="tag">session:&lt;UUID&gt;</span>.
+      </p>
+      <p>
+        <strong>JSON Storage:</strong> The session data, including the crucial
+        <span class="tag">userId</span>, is stored as a **Redis JSON** data
+        type. This is what the RediSearch index is targeting.
+      </p>
+      <p>
+        <strong>Expiration (TTL):</strong> The key is given a Time-To-Live
+        (<span class="tag">TTL</span>) of 7 days, after which it will
+        automatically be deleted by Redis.
+      </p>
+
+      <hr class="hr-line" />
+
+      <h2>
+        <span style="color: gold">💡</span> Importance of the RediSearch Index
+      </h2>
+      <p>
+        This entire mechanism relies on a previously configured **RediSearch
+        index**. If the index didn't exist, the code would throw an error on
+        <span class="tag">redisClient.ft.search</span>.
+      </p>
+      <p>The index must be defined to:</p>
+      <ul>
+        <li>
+          Target keys matching the session pattern (e.g.,
+          <span class="tag">session:</span>).
+        </li>
+        <li>Use the <span class="tag">JSON</span> data source type.</li>
+        <li>
+          Index the JSON path <span class="string">$.userId</span> as a **TAG**
+          type, enabling fast, exact-match lookup for session keys based on a
+          user ID.
+        </li>
+      </ul>
+
+      <h3>Example Index Creation (Conceptual)</h3>
+      <p>
+        The RediSearch command, likely run on application startup or during
+        deployment, would look something like this:
+      </p>
+      <div class="code-block">
+        <pre><span class="command">FT.CREATE</span> <span class="tag">idx:user_sessions</span> <span class="tag">ON</span> <span class="tag">JSON</span> <span class="tag">PREFIX</span> <span class="number">1</span> <span class="string">"session:"</span> <span class="tag">SCHEMA</span> <span class="string">$.userId</span> <span class="tag">AS</span> <span class="tag">userId</span> <span class="tag">TAG</span></pre>
+      </div>
+      <p>
+        This single index allows the system to instantly retrieve all sessions
+        for any user by querying the indexed
+        <span class="tag">userId</span> field.
+      </p>
+    </div>
+  </body>
+</html>

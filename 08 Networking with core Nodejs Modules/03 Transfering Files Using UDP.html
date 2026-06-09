@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UDP File Transfer Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #e0e0e0;
+        --header-color: #4a90e2;
+        --code-bg: #2b2b2b;
+        --code-text: #b0c4de;
+        --comment-text: #6a9955;
+        --keyword-color: #c586c0;
+        --variable-color: #9cdcfe;
+        --string-color: #ce9178;
+        --note-bg: #3c3c3c;
+        --note-text: #e0e0e0;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 20px;
+        background-color: #282828;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2 {
+        color: var(--header-color);
+        font-weight: 700;
+        border-bottom: 2px solid var(--header-color);
+        padding-bottom: 5px;
+        margin-top: 20px;
+      }
+
+      p,
+      li {
+        font-size: 1.1em;
+        margin-bottom: 15px;
+      }
+
+      .code-block {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 0.95em;
+        margin: 20px 0;
+        white-space: pre;
+      }
+
+      .code-block .keyword {
+        color: var(--keyword-color);
+      }
+      .code-block .variable {
+        color: var(--variable-color);
+      }
+      .code-block .string {
+        color: var(--string-color);
+      }
+      .code-block .comment {
+        color: var(--comment-text);
+      }
+      .code-block .number {
+        color: #b5cea8;
+      }
+
+      .note {
+        background-color: var(--note-bg);
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 5px solid var(--header-color);
+        margin: 20px 0;
+        font-style: italic;
+      }
+
+      .note p {
+        margin: 0;
+      }
+
+      .section-separator {
+        border: 0;
+        height: 1px;
+        background: linear-gradient(to right, #4a90e2, #282828);
+        margin: 40px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>File Transfer with UDP in Node.js</h1>
+      <p>
+        Transferring files using UDP in Node.js can be tricky because UDP is a
+        **connectionless protocol**, meaning it doesn't guarantee delivery,
+        order, or integrity of packets. This is unlike TCP, which handles these
+        concerns for you. To transfer a file, you need to implement a mechanism
+        to break the file into chunks, send them over UDP, and then reassemble
+        and verify them on the receiving end. Using readable and writable
+        streams simplifies this process.
+      </p>
+
+      <hr class="section-separator" />
+
+      <h2>Sender (Client)</h2>
+      <p>
+        On the sender side, you'll create a readable stream from the file you
+        want to send. You'll then listen for `data` events on this stream, and
+        for each chunk of data, you'll send it as a separate UDP packet to the
+        receiver.
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre>
+<span class="keyword">const</span> <span class="variable">dgram</span> = <span class="keyword">require</span>(<span class="string">'dgram'</span>);
+<span class="keyword">const</span> <span class="variable">fs</span> = <span class="keyword">require</span>(<span class="string">'fs'</span>);
+<span class="keyword">const</span> <span class="variable">path</span> = <span class="keyword">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> <span class="variable">client</span> = <span class="variable">dgram</span>.createSocket(<span class="string">'udp4'</span>);
+<span class="keyword">const</span> <span class="variable">receiverHost</span> = <span class="string">'127.0.0.1'</span>; <span class="comment">// The IP address of the receiver</span>
+<span class="keyword">const</span> <span class="variable">receiverPort</span> = <span class="number">41234</span>;     <span class="comment">// The port the receiver is listening on</span>
+<span class="keyword">const</span> <span class="variable">filePath</span> = <span class="string">'path/to/your/file.txt'</span>; <span class="comment">// Replace with your file path</span>
+<span class="keyword">const</span> <span class="variable">fileStream</span> = <span class="variable">fs</span>.createReadStream(<span class="variable">filePath</span>, { <span class="variable">highWaterMark</span>: <span class="number">1024</span> }); <span class="comment">// Read in 1KB chunks</span>
+
+<span class="variable">fileStream</span>.on(<span class="string">'data'</span>, (<span class="variable">chunk</span>) => {
+    <span class="comment">// Send each chunk as a UDP packet</span>
+    <span class="variable">client</span>.send(<span class="variable">chunk</span>, <span class="variable">receiverPort</span>, <span class="variable">receiverHost</span>, (<span class="variable">err</span>) => {
+        <span class="keyword">if</span> (<span class="variable">err</span>) {
+            <span class="variable">console</span>.error(<span class="string">'Error sending data:'</span>, <span class="variable">err</span>);
+            <span class="variable">client</span>.close();
+        }
+    });
+});
+
+<span class="variable">fileStream</span>.on(<span class="string">'end'</span>, () => {
+    <span class="variable">console</span>.log(<span class="string">'File transfer complete.'</span>);
+    <span class="comment">// It's good practice to send a small "end of file" signal</span>
+    <span class="variable">client</span>.send(Buffer.from(<span class="string">'EOF'</span>), <span class="variable">receiverPort</span>, <span class="variable">receiverHost</span>, () => {
+        <span class="variable">client</span>.close();
+    });
+});
+
+<span class="variable">fileStream</span>.on(<span class="string">'error'</span>, (<span class="variable">err</span>) => {
+    <span class="variable">console</span>.error(<span class="string">'Error reading file:'</span>, <span class="variable">err</span>);
+    <span class="variable">client</span>.close();
+});
+</pre>
+      </div>
+
+      <div class="note">
+        <p>
+          <strong>Note:</strong> This example is a basic implementation. A
+          robust solution would need to include packet numbering,
+          acknowledgments, and retransmission logic to handle dropped packets.
+          This is a form of implementing a reliable transfer protocol on top of
+          UDP.
+        </p>
+      </div>
+
+      <hr class="section-separator" />
+
+      <h2>Receiver (Server)</h2>
+      <p>
+        On the receiver side, you'll set up a UDP server to listen for incoming
+        packets. When a packet arrives, you'll write its content to a writable
+        stream connected to the destination file.
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre>
+<span class="keyword">const</span> <span class="variable">dgram</span> = <span class="keyword">require</span>(<span class="string">'dgram'</span>);
+<span class="keyword">const</span> <span class="variable">fs</span> = <span class="keyword">require</span>(<span class="string">'fs'</span>);
+<span class="keyword">const</span> <span class="variable">path</span> = <span class="keyword">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> <span class="variable">server</span> = <span class="variable">dgram</span>.createSocket(<span class="string">'udp4'</span>);
+<span class="keyword">const</span> <span class="variable">destinationFile</span> = <span class="string">'received_file.txt'</span>; <span class="comment">// Name of the file to save to</span>
+<span class="keyword">const</span> <span class="variable">writeStream</span> = <span class="variable">fs</span>.createWriteStream(<span class="variable">destinationFile</span>);
+
+<span class="variable">server</span>.on(<span class="string">'error'</span>, (<span class="variable">err</span>) => {
+    <span class="variable">console</span>.error(<span class="string">'Server error:'</span>, <span class="variable">err</span>);
+    <span class="variable">server</span>.close();
+});
+
+<span class="variable">server</span>.on(<span class="string">'message'</span>, (<span class="variable">msg</span>, <span class="variable">rinfo</span>) => {
+    <span class="comment">// Check for the "end of file" signal</span>
+    <span class="keyword">if</span> (<span class="variable">msg</span>.toString() === <span class="string">'EOF'</span>) {
+        <span class="variable">console</span>.log(<span class="string">'End of file signal received. Transfer complete.'</span>);
+        <span class="variable">writeStream</span>.end();
+        <span class="variable">server</span>.close();
+        <span class="keyword">return</span>;
+    }
+
+    <span class="comment">// Write the received chunk to the file</span>
+    <span class="variable">writeStream</span>.write(<span class="variable">msg</span>, (<span class="variable">err</span>) => {
+        <span class="keyword">if</span> (<span class="variable">err</span>) {
+            <span class="variable">console</span>.error(<span class="string">'Error writing to file:'</span>, <span class="variable">err</span>);
+            <span class="variable">writeStream</span>.end();
+            <span class="variable">server</span>.close();
+        }
+    });
+});
+
+<span class="variable">server</span>.on(<span class="string">'listening'</span>, () => {
+    <span class="keyword">const</span> <span class="variable">address</span> = <span class="variable">server</span>.address();
+    <span class="variable">console</span>.log(<span class="string">`UDP server listening on ${address.address}:${address.port}`</span>);
+});
+
+<span class="variable">server</span>.bind(<span class="number">41234</span>); <span class="comment">// The port to listen on</span>
+</pre>
+      </div>
+
+      <div class="note">
+        <p>
+          <strong>Note:</strong> The receiver needs to stay open until all
+          packets are received. The EOF signal is a simple way to indicate the
+          transfer is done. For large files, you'd want to handle multiple EOF
+          signals or a more sophisticated protocol to confirm file completion.
+          This simple method works best in a controlled environment where packet
+          loss is minimal.
+        </p>
+      </div>
+
+      <hr class="section-separator" />
+
+      <h2>Why `writeStream.end();` and `server.close();`?</h2>
+      <p>
+        That code snippet, `writeStream.end(); server.close();`, is crucial for
+        a complete and clean UDP file transfer. Here's a breakdown of why it's
+        included:
+      </p>
+
+      <h3>1. `writeStream.end()`</h3>
+      <p>
+        This method signals to the writable stream that no more data will be
+        written to it. It's a fundamental part of the Node.js stream API.
+        Calling `end()`:
+      </p>
+      <ul>
+        <li>
+          <strong>Finalizes the file write:</strong> It flushes any buffered
+          data to the disk. Without it, the last chunk of data might not be
+          fully written, resulting in a corrupted or incomplete file.
+        </li>
+        <li>
+          <strong>Emits the `finish` event:</strong> This is useful for other
+          parts of your program that might need to know when the file has been
+          successfully created and closed.
+        </li>
+      </ul>
+
+      <h3>2. `server.close()`</h3>
+      <p>
+        This method properly shuts down the UDP server. It's essential for
+        several reasons:
+      </p>
+      <ul>
+        <li>
+          <strong>Releases the port:</strong> It unbinds the server from the
+          port it was listening on. This allows other applications to use that
+          port or allows your program to restart and rebind to it without an
+          "address already in use" error.
+        </li>
+        <li>
+          <strong>Ends the process gracefully:</strong> It ensures that the
+          Node.js process can exit cleanly once all pending operations are
+          finished. If the server is not closed, the program might hang
+          indefinitely, waiting for more data that will never arrive.
+        </li>
+      </ul>
+      <p>
+        In the context of the UDP file transfer example, these two lines work
+        together to signal the end of the operation. Once the receiver detects
+        the EOF (End of File) message, it knows that it has received all the
+        data. It then finalizes the file with `writeStream.end()` and shuts down
+        the listening server with `server.close()`, completing the transfer and
+        cleaning up resources.
+      </p>
+
+      <hr class="section-separator" />
+
+      <h2>Displaying Percentage Progress</h2>
+      <p>
+        To show a percentage of file transfer progress, you need to track the
+        number of bytes sent against the total file size. You can't rely on a
+        simple time delay since the data transfer rate will fluctuate. Instead,
+        you'll update the progress after a specific number of chunks or a
+        specific amount of time has passed since the last update.
+      </p>
+
+      <h3>Sender (Client) with Progress Bar</h3>
+      <p>
+        On the sender side, you'll get the total file size and keep a running
+        total of the bytes sent. Then, inside the `data` event listener of the
+        readable stream, you'll calculate the percentage and display it. A
+        `setTimeout` or a simple counter can be used to control how often the
+        progress is updated to avoid spamming the console.
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre>
+<span class="keyword">const</span> <span class="variable">dgram</span> = <span class="keyword">require</span>(<span class="string">'dgram'</span>);
+<span class="keyword">const</span> <span class="variable">fs</span> = <span class="keyword">require</span>(<span class="string">'fs'</span>);
+<span class="keyword">const</span> <span class="variable">client</span> = <span class="variable">dgram</span>.createSocket(<span class="string">'udp4'</span>);
+<span class="keyword">const</span> <span class="variable">receiverHost</span> = <span class="string">'127.0.0.1'</span>;
+<span class="keyword">const</span> <span class="variable">receiverPort</span> = <span class="number">41234</span>;
+<span class="keyword">const</span> <span class="variable">filePath</span> = <span class="string">'path/to/your/file.txt'</span>;
+<span class="comment">// Get the total file size</span>
+<span class="keyword">const</span> <span class="variable">stats</span> = <span class="variable">fs</span>.statSync(<span class="variable">filePath</span>);
+<span class="keyword">const</span> <span class="variable">totalBytes</span> = <span class="variable">stats</span>.size;
+<span class="keyword">let</span> <span class="variable">bytesSent</span> = <span class="number">0</span>;
+<span class="keyword">let</span> <span class="variable">lastPercentage</span> = <span class="number">0</span>;
+<span class="keyword">const</span> <span class="variable">fileStream</span> = <span class="variable">fs</span>.createReadStream(<span class="variable">filePath</span>, { <span class="variable">highWaterMark</span>: <span class="number">1024</span> });
+
+<span class="variable">fileStream</span>.on(<span class="string">'data'</span>, (<span class="variable">chunk</span>) => {
+    <span class="comment">// Increment the counter for each chunk sent</span>
+    <span class="variable">bytesSent</span> += <span class="variable">chunk</span>.length;
+    <span class="keyword">const</span> <span class="variable">percentage</span> = <span class="variable">Math</span>.floor((<span class="variable">bytesSent</span> / <span class="variable">totalBytes</span>) * <span class="number">100</span>);
+    <span class="comment">// Only log the percentage if it's a new integer value</span>
+    <span class="keyword">if</span> (<span class="variable">percentage</span> > <span class="variable">lastPercentage</span>) {
+        <span class="variable">process</span>.stdout.write(<span class="string">`Sending: ${percentage}%... `</span>);
+        <span class="variable">lastPercentage</span> = <span class="variable">percentage</span>;
+    }
+    <span class="comment">// Send each chunk as a UDP packet</span>
+    <span class="variable">client</span>.send(<span class="variable">chunk</span>, <span class="variable">receiverPort</span>, <span class="variable">receiverHost</span>, (<span class="variable">err</span>) => {
+        <span class="keyword">if</span> (<span class="variable">err</span>) {
+            <span class="variable">console</span>.error(<span class="string">'\nError sending data:'</span>, <span class="variable">err</span>);
+            <span class="variable">client</span>.close();
+        }
+    });
+});
+
+<span class="variable">fileStream</span>.on(<span class="string">'end'</span>, () => {
+    <span class="comment">// When the stream ends, it's 100% complete</span>
+    <span class="variable">console</span>.log(<span class="string">'\nSending: 100% - File transfer complete!'</span>);
+    <span class="comment">// Send the "end of file" signal</span>
+    <span class="variable">client</span>.send(<span class="variable">Buffer</span>.from(<span class="string">'EOF'</span>), <span class="variable">receiverPort</span>, <span class="variable">receiverHost</span>, () => {
+        <span class="variable">client</span>.close();
+    });
+});
+
+<span class="variable">fileStream</span>.on(<span class="string">'error'</span>, (<span class="variable">err</span>) => {
+    <span class="variable">console</span>.error(<span class="string">'\nError reading file:'</span>, <span class="variable">err</span>);
+    <span class="variable">client</span>.close();
+});
+</pre>
+      </div>
+
+      <h3>Receiver (Server) with Progress Bar</h3>
+      <p>
+        The receiver needs to know the total file size to calculate the
+        percentage. This is a significant challenge with UDP. A simple solution
+        is to send the file size as the very first packet. The receiver then
+        uses this information to track its progress.
+      </p>
+
+      <h4>Sender (Client) Modification</h4>
+      <p>
+        First, the sender must be modified to send the file size before any data
+        chunks.
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre>
+<span class="comment">// ... previous code ...</span>
+<span class="keyword">const</span> <span class="variable">stats</span> = <span class="variable">fs</span>.statSync(<span class="variable">filePath</span>);
+<span class="keyword">const</span> <span class="variable">totalBytes</span> = <span class="variable">stats</span>.size;
+<span class="comment">// Send the file size as the first packet</span>
+<span class="variable">client</span>.send(<span class="variable">Buffer</span>.from(<span class="variable">totalBytes</span>.toString()), <span class="variable">receiverPort</span>, <span class="variable">receiverHost</span>, (<span class="variable">err</span>) => {
+    <span class="keyword">if</span> (<span class="variable">err</span>) {
+        <span class="variable">console</span>.error(<span class="string">'Error sending file size:'</span>, <span class="variable">err</span>);
+        <span class="variable">client</span>.close();
+        <span class="keyword">return</span>;
+    }
+    <span class="variable">console</span>.log(<span class="string">`Sending file of size ${totalBytes} bytes...`</span>);
+    <span class="comment">// Now, start streaming the file data</span>
+    <span class="keyword">const</span> <span class="variable">fileStream</span> = <span class="variable">fs</span>.createReadStream(<span class="variable">filePath</span>, { <span class="variable">highWaterMark</span>: <span class="number">1024</span> });
+    <span class="comment">// ... rest of the 'fileStream.on' listeners as before</span>
+});
+<span class="comment">// ... rest of the code ...</span>
+</pre>
+      </div>
+
+      <h4>Receiver (Server) Modification</h4>
+      <p>
+        The receiver will need a flag to differentiate the initial file size
+        message from the data chunks.
+      </p>
+
+      <h3>JavaScript</h3>
+      <div class="code-block">
+        <pre>
+<span class="keyword">const</span> <span class="variable">dgram</span> = <span class="keyword">require</span>(<span class="string">'dgram'</span>);
+<span class="keyword">const</span> <span class="variable">fs</span> = <span class="keyword">require</span>(<span class="string">'fs'</span>);
+<span class="keyword">const</span> <span class="variable">server</span> = <span class="variable">dgram</span>.createSocket(<span class="string">'udp4'</span>);
+<span class="keyword">const</span> <span class="variable">destinationFile</span> = <span class="string">'received_file.txt'</span>;
+<span class="keyword">const</span> <span class="variable">writeStream</span> = <span class="variable">fs</span>.createWriteStream(<span class="variable">destinationFile</span>);
+<span class="keyword">let</span> <span class="variable">totalBytes</span> = <span class="number">0</span>;
+<span class="keyword">let</span> <span class="variable">bytesReceived</span> = <span class="number">0</span>;
+<span class="keyword">let</span> <span class="variable">lastPercentage</span> = <span class="number">0</span>;
+<span class="keyword">let</span> <span class="variable">isFileSizeReceived</span> = <span class="keyword">false</span>;
+
+<span class="variable">server</span>.on(<span class="string">'message'</span>, (<span class="variable">msg</span>, <span class="variable">rinfo</span>) => {
+    <span class="comment">// The first message is the file size</span>
+    <span class="keyword">if</span> (!<span class="variable">isFileSizeReceived</span>) {
+        <span class="variable">totalBytes</span> = <span class="variable">parseInt</span>(<span class="variable">msg</span>.toString(), <span class="number">10</span>);
+        <span class="variable">console</span>.log(<span class="string">`Receiving a file of total size: ${totalBytes} bytes.`</span>);
+        <span class="variable">isFileSizeReceived</span> = <span class="keyword">true</span>;
+        <span class="keyword">return</span>; <span class="comment">// Wait for the next message which will be data</span>
+    }
+    <span class="comment">// Check for "end of file" signal</span>
+    <span class="keyword">if</span> (<span class="variable">msg</span>.toString() === <span class="string">'EOF'</span>) {
+        <span class="variable">console</span>.log(<span class="string">'\nReceiving: 100% - File transfer complete!'</span>);
+        <span class="variable">writeStream</span>.end();
+        <span class="variable">server</span>.close();
+        <span class="keyword">return</span>;
+    }
+    <span class="comment">// Write the received chunk and update progress</span>
+    <span class="variable">writeStream</span>.write(<span class="variable">msg</span>, (<span class="variable">err</span>) => {
+        <span class="keyword">if</span> (<span class="variable">err</span>) {
+            <span class="variable">console</span>.error(<span class="string">'Error writing to file:'</span>, <span class="variable">err</span>);
+            <span class="variable">writeStream</span>.end();
+            <span class="variable">server</span>.close();
+        }
+    });
+    <span class="variable">bytesReceived</span> += <span class="variable">msg</span>.length;
+    <span class="keyword">const</span> <span class="variable">percentage</span> = <span class="variable">Math</span>.floor((<span class="variable">bytesReceived</span> / <span class="variable">totalBytes</span>) * <span class="number">100</span>);
+    <span class="comment">// Only log the percentage if it's a new integer value</span>
+    <span class="keyword">if</span> (<span class="variable">percentage</span> > <span class="variable">lastPercentage</span>) {
+        <span class="variable">process</span>.stdout.write(<span class="string">`\rReceiving: ${percentage}%...`</span>); <span class="comment">// '\r' overwrites the current line</span>
+        <span class="variable">lastPercentage</span> = <span class="variable">percentage</span>;
+    }
+});
+
+<span class="variable">server</span>.on(<span class="string">'listening'</span>, () => {
+    <span class="keyword">const</span> <span class="variable">address</span> = <span class="variable">server</span>.address();
+    <span class="variable">console</span>.log(<span class="string">`UDP server listening on ${address.address}:${address.port}`</span>);
+});
+
+<span class="variable">server</span>.bind(<span class="number">41234</span>);
+</pre>
+      </div>
+
+      <hr class="section-separator" />
+
+      <h2>Key Concepts</h2>
+      <ul>
+        <li>
+          <strong>`fs.statSync()`:</strong> This is a synchronous function that
+          gets the status of a file, including its size in bytes. This is
+          essential for calculating the total size of the file to be sent.
+        </li>
+        <li>
+          <strong>`bytesSent` and `bytesReceived`:</strong> These variables act
+          as counters for the total number of bytes processed so far.
+        </li>
+        <li>
+          <strong>Percentage Calculation:</strong> The formula `(currentBytes /
+          totalBytes) * 100` gives you the progress. `Math.floor()` rounds it
+          down to a whole number percentage.
+        </li>
+        <li>
+          <strong>`process.stdout.write()`:</strong> This is used instead of
+          `console.log()` to print the output without a newline character,
+          allowing the progress to be updated on the same line. The `\r`
+          (carriage return) character at the start of the receiving message
+          overwrites the previous output on the line, creating a clean-looking
+          progress bar.
+        </li>
+        <li>
+          <strong>Protocol Enhancement:</strong> The file size is sent as part
+          of the application-level protocol. This is an example of how you build
+          a more robust system on top of a low-level protocol like UDP. Without
+          this, the receiver has no way of knowing how much data to expect.
+        </li>
+      </ul>
+
+      <hr class="section-separator" />
+
+      <h2>
+        Understanding `process.stdout.write(`\rSending:
+        ${currentPercentage}%`);`
+      </h2>
+      <p>
+        This is a core Node.js command used to display a progress bar on the
+        console. It works by using a special character called the **carriage
+        return** (`\r`).
+      </p>
+
+      <h3>How It Works</h3>
+      <ul>
+        <li>
+          <strong>`process.stdout.write()`:</strong> This is a fundamental
+          Node.js function for writing directly to the console's standard
+          output. Unlike `console.log()`, it **does not automatically add a new
+          line** (`\n`) at the end of the text. This is crucial because it
+          allows us to overwrite the text on the same line.
+        </li>
+        <li>
+          <strong>`\r` (Carriage Return):</strong> This is the magic part. The
+          `\r` character moves the cursor to the very beginning of the current
+          line in the console. It doesn't clear the text, it just repositions
+          the cursor.
+        </li>
+        <li>
+          <strong>The Overwriting Process:</strong> The first time the line runs
+          (e.g., at 1% progress), it prints "Sending: 1%". The next time it runs
+          (e.g., at 2%), the `\r` character moves the cursor back to the start
+          of the line. Then, it prints the new text, "Sending: 2%". This new
+          text overwrites the old text on the line.
+        </li>
+      </ul>
+      <p>
+        This process gives the **visual illusion of a single-line progress bar**
+        that updates in place, showing the percentage without cluttering the
+        console with a new line for every single update.
+      </p>
+    </div>
+  </body>
+</html>

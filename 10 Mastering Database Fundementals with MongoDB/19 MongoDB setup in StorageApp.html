@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Setup Guide for Node.js (Large App)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Setup and Nunito Font */
+      :root {
+        --bg-dark: #1e1e1e; /* VS Code dark background */
+        --bg-code: #161a1f; /* Slightly darker for code blocks */
+        --text-light: #d4d4d4; /* Main text color */
+        --primary-highlight: #569cd6; /* VS Code blue for keywords/functions */
+        --secondary-highlight: #4ec9b0; /* Green for strings/imports */
+        --comment-color: #6a9955; /* Green for comments */
+        --error-color: #f44747; /* Red for errors */
+        --header-color: #c586c0; /* Purple for headers */
+        --border-color: #383838;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background-color: #252526; /* Slightly lighter background for the content area */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: var(--header-color);
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 1.8em;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+
+      ul li:before {
+        content: '•';
+        color: var(--primary-highlight);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      .code-block {
+        background-color: var(--bg-code);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 10px 15px;
+        margin: 20px 0;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.95em;
+      }
+
+      .code-language {
+        color: var(--comment-color);
+        font-style: italic;
+        display: block;
+        margin-bottom: 5px;
+        font-family: 'Nunito', sans-serif;
+        font-size: 0.8em;
+      }
+
+      /* Syntax Highlighting Classes */
+      .keyword {
+        color: var(--primary-highlight);
+      } /* const, function, require, module */
+      .string {
+        color: var(--secondary-highlight);
+      } /* Text within quotes */
+      .comment {
+        color: var(--comment-color);
+      }
+      .type {
+        color: #808080;
+      } /* let, var, async */
+      .value {
+        color: #b5cea8;
+      } /* Numbers, boolean */
+      .operator {
+        color: #d4d4d4;
+      } /* =, +, - */
+      .method {
+        color: #ffd700;
+      } /* console.log, client.connect() */
+      .variable {
+        color: #9cdcfe;
+      } /* client, uri, dbName */
+      .tag {
+        color: #f990a8;
+      } /* e.g., for JSX or HTML, but using it for reserved words here */
+      .docblock {
+        color: var(--comment-color);
+        font-style: italic;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2c2c2c;
+        color: var(--text-light);
+      }
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #383838;
+        color: var(--header-color);
+        font-weight: bold;
+      }
+      tr:nth-child(even) {
+        background-color: #2f2f2f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Setup Guide for Node.js (Large App) ⚙️</h1>
+      <p>
+        That's a great question! For a large Node.js application, you absolutely
+        want a
+        <strong style="color: var(--primary-highlight)"
+          >centralized and reusable connection setup for MongoDB</strong
+        >
+        rather than initializing the client in every file. This improves
+        performance, manages connection pooling efficiently, and makes your code
+        cleaner and easier to maintain.
+      </p>
+      <p>
+        Here is a complete guide on how to set up and manage a MongoDB
+        connection efficiently in a large Node.js application using the official
+        **<code class="code-block" style="padding: 2px 5px; display: inline"
+          >mongodb</code
+        >
+        driver**.
+      </p>
+
+      <h2>1. Prerequisites</h2>
+      <p>Before you start, make sure you have the following:</p>
+      <ul>
+        <li>Node.js and npm installed.</li>
+        <li>A running MongoDB instance (local or hosted).</li>
+        <li>
+          A Node.js project initialized (<code
+            class="code-block"
+            style="padding: 2px 5px; display: inline"
+            >npm init</code
+          >).
+        </li>
+      </ul>
+
+      <h2>2. Project Setup & Installation</h2>
+      <p>First, install the MongoDB driver:</p>
+      <div class="code-block">
+        <span class="code-language">Bash</span>
+        <span class="keyword">npm</span> install
+        <span class="variable">mongodb</span>
+      </div>
+
+      <h2>
+        3. Centralized Connection File (<code
+          class="code-block"
+          style="padding: 2px 5px; display: inline"
+          >db.js</code
+        >)
+      </h2>
+      <p>
+        The core of this approach is creating a single module responsible for
+        connecting, maintaining the connection, and providing access to the
+        database object.
+      </p>
+      <p>
+        Create a file, let's call it
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >src/config/db.js</code
+        >
+        (or just
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >db.js</code
+        >):
+      </p>
+
+      <div class="code-block">
+        <span class="code-language">JavaScript</span>
+        <span class="comment">// src/config/db.js</span><br /><br />
+        <span class="keyword">const</span> {
+        <span class="variable">MongoClient</span> }
+        <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string">'mongodb'</span
+        >);<br /><br />
+        <span class="comment"
+          >// Get the connection string from environment variables for security
+          and flexibility</span
+        ><br />
+        <span class="keyword">const</span> <span class="variable">uri</span>
+        <span class="operator">=</span>
+        <span class="variable">process</span>.<span class="variable">env</span
+        >.<span class="variable">MONGO_URI</span>; <span class="comment"> </span
+        ><br /><br />
+        <span class="comment">// A variable to store the connected client</span
+        ><br />
+        <span class="type">let</span>
+        <span class="variable">client</span>;<br /><br />
+        <span class="comment"
+          >// A variable to store the database object after connection</span
+        ><br />
+        <span class="type">let</span>
+        <span class="variable">db</span>;<br /><br />
+        <span class="docblock">/**</span><br />
+        <span class="docblock"> * Initializes the connection to MongoDB.</span
+        ><br />
+        <span class="docblock">
+          * @returns {Promise&lt;MongoClient>} The connected MongoClient
+          instance.</span
+        ><br />
+        <span class="docblock"> */</span><br />
+        <span class="type">async</span> <span class="keyword">function</span>
+        <span class="method">connectDB</span>() {<br />
+        <span class="tag">    if</span> (<span class="variable">client</span>
+        <span class="operator">&&</span>
+        <span class="variable">client</span>.<span class="method"
+          >isConnected</span
+        >()) {<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">log</span
+        >(<span class="string"
+          >"MongoDB client already connected and reusing connection."</span
+        >);<br />
+        <span class="tag">        return</span>
+        <span class="variable">client</span>;<br />
+        <span class="tag">    </span>}<br /><br />
+        <span class="tag">    if</span> (<span class="operator">!</span
+        ><span class="variable">uri</span>) {<br />
+        <span class="tag">        throw new</span>
+        <span class="variable">Error</span>(<span class="string"
+          >"MONGO_URI environment variable is not set."</span
+        >);<br />
+        <span class="tag">    </span>}<br />
+        <span class="comment">       </span> <br />
+        <span class="comment">    // Create a new MongoClient instance</span
+        ><br />
+        <span class="tag">    client</span> <span class="operator">=</span>
+        <span class="keyword">new</span>
+        <span class="variable">MongoClient</span>(<span class="variable"
+          >uri</span
+        >, { <span class="comment"> </span><br />
+        <span class="comment"
+          >        // These are common modern options, but you might need to
+          adjust or remove them </span
+        ><br />
+        <span class="comment"
+          >        // depending on your specific MongoDB version and
+          deployment.</span
+        ><br />
+        <span class="comment">        // useNewUrlParser: true, </span><br />
+        <span class="comment">        // useUnifiedTopology: true </span><br />
+        <span class="tag">    </span>});<br /><br />
+        <span class="tag">    try</span> {<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">log</span
+        >(<span class="string">"Connecting to MongoDB..."</span>);<br />
+        <span class="tag">        await</span>
+        <span class="variable">client</span>.<span class="method">connect</span
+        >();<br />
+        <span class="comment">        </span><br />
+        <span class="comment">        // --- IMPORTANT STEP ---</span><br />
+        <span class="comment"
+          >        // Get the Database object once and store it.</span
+        ><br />
+        <span class="comment"
+          >        // Replace 'your_database_name' with your actual database
+          name.</span
+        ><br />
+        <span class="tag">        const</span>
+        <span class="variable">dbName</span> <span class="operator">=</span>
+        <span class="variable">process</span>.<span class="variable">env</span
+        >.<span class="variable">MONGO_DB_NAME</span>
+        <span class="operator">||</span>
+        <span class="string">'your_database_name'</span>;
+        <span class="comment"> </span><br />
+        <span class="tag">        db</span> <span class="operator">=</span>
+        <span class="variable">client</span>.<span class="method">db</span
+        >(<span class="variable">dbName</span>);<br /><br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">log</span
+        >(<span class="string">"Successfully connected to MongoDB!"</span
+        >);<br />
+        <span class="tag">        return</span>
+        <span class="variable">client</span>;<br />
+        <span class="tag">    </span>} <span class="tag">catch</span> (<span
+          class="variable"
+          >error</span
+        >) {<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">error</span
+        >(<span class="string">"Failed to connect to MongoDB:"</span>,
+        <span class="variable">error</span>);<br />
+        <span class="comment"
+          >        // It's crucial to exit or handle the application failure if
+          the database is unavailable</span
+        ><br />
+        <span class="tag">        throw</span>
+        <span class="variable">error</span>; <span class="comment"> </span
+        ><br />
+        <span class="tag">    </span>}<br />
+        }<br /><br />
+        <span class="docblock">/**</span><br />
+        <span class="docblock">
+          * Disconnects the MongoDB client (useful for application
+          shutdown).</span
+        ><br />
+        <span class="docblock"> */</span><br />
+        <span class="type">async</span> <span class="keyword">function</span>
+        <span class="method">closeDB</span>() {<br />
+        <span class="tag">    if</span> (<span class="variable">client</span>)
+        {<br />
+        <span class="tag">        await</span>
+        <span class="variable">client</span>.<span class="method">close</span
+        >();<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">log</span
+        >(<span class="string">"MongoDB connection closed."</span>);<br />
+        <span class="tag">        client</span> <span class="operator">=</span>
+        <span class="value">null</span>;<br />
+        <span class="tag">        db</span> <span class="operator">=</span>
+        <span class="value">null</span>;<br />
+        <span class="tag">    </span>}<br />
+        }<br /><br />
+        <span class="docblock">/**</span><br />
+        <span class="docblock">
+          * Provides the connected database instance.</span
+        ><br />
+        <span class="docblock">
+          * @returns {Db} The MongoDB database instance.</span
+        ><br />
+        <span class="docblock"> */</span><br />
+        <span class="keyword">function</span>
+        <span class="method">getDB</span>() {<br />
+        <span class="tag">    if</span> (<span class="operator">!</span
+        ><span class="variable">db</span>) {<br />
+        <span class="tag">        throw new</span>
+        <span class="variable">Error</span>(<span class="string"
+          >"Database not initialized! Call connectDB() first."</span
+        >);<br />
+        <span class="tag">    </span>}<br />
+        <span class="tag">    return</span>
+        <span class="variable">db</span>;<br />
+        }<br /><br />
+        <span class="method">module</span>.<span class="variable">exports</span>
+        <span class="operator">=</span> {<br />
+        <span class="tag">    connectDB</span>,<br />
+        <span class="tag">    closeDB</span>,<br />
+        <span class="tag">    getDB</span>,<br />
+        };
+      </div>
+
+      <h2>4. Application Integration (Entry Point)</h2>
+      <p>
+        You should call the
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >connectDB</code
+        >
+        function
+        <strong style="color: var(--primary-highlight)">once</strong> at your
+        application's entry point (usually
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >server.js</code
+        >
+        or
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >index.js</code
+        >).
+      </p>
+      <p>
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >index.js</code
+        >
+        (or your main server file):
+      </p>
+
+      <div class="code-block">
+        <span class="code-language">JavaScript</span>
+        <span class="comment">// index.js</span><br /><br />
+        <span class="method">require</span>(<span class="string">'dotenv'</span
+        >).<span class="method">config</span>();
+        <span class="comment"
+          >// Use dotenv for managing environment variables</span
+        ><br /><br />
+        <span class="keyword">const</span>
+        <span class="variable">express</span> <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string">'express'</span
+        >);<br />
+        <span class="keyword">const</span> {
+        <span class="variable">connectDB</span>,
+        <span class="variable">closeDB</span> } <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string"
+          >'./src/config/db'</span
+        >); <span class="comment">// Import our DB functions</span><br />
+        <span class="keyword">const</span>
+        <span class="variable">userRoutes</span>
+        <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string"
+          >'./src/routes/userRoutes'</span
+        >); <span class="comment">// Your application routes</span><br /><br />
+        <span class="keyword">const</span> <span class="variable">app</span>
+        <span class="operator">=</span>
+        <span class="method">express</span>();<br />
+        <span class="keyword">const</span> <span class="variable">PORT</span>
+        <span class="operator">=</span>
+        <span class="variable">process</span>.<span class="variable">env</span
+        >.<span class="variable">PORT</span> <span class="operator">||</span>
+        <span class="value">3000</span>;<br /><br />
+        <span class="comment">// Middleware setup (e.g., JSON body parser)</span
+        ><br />
+        <span class="variable">app</span>.<span class="method">use</span>(<span
+          class="variable"
+          >express</span
+        >.<span class="method">json</span>());<br /><br />
+        <span class="comment">// Register application routes</span><br />
+        <span class="variable">app</span>.<span class="method">use</span>(<span
+          class="string"
+          >'/api/users'</span
+        >, <span class="variable">userRoutes</span>);<br /><br />
+        <span class="comment">// A simple health check route</span><br />
+        <span class="variable">app</span>.<span class="method">get</span>(<span
+          class="string"
+          >'/health'</span
+        >, (<span class="variable">req</span>,
+        <span class="variable">res</span>)
+        <span class="operator">=></span> {<br />
+        <span class="tag">    </span><span class="variable">res</span>.<span
+          class="method"
+          >status</span
+        >(<span class="value">200</span>).<span class="method">send</span>(<span
+          class="string"
+          >'API is running'</span
+        >);<br />
+        });<br /><br />
+        <span class="comment">// --- Start the Application ---</span><br />
+        <span class="type">async</span> <span class="keyword">function</span>
+        <span class="method">startServer</span>() {<br />
+        <span class="tag">    try</span> {<br />
+        <span class="comment"
+          >        // 1. Establish the ONE-TIME MongoDB connection</span
+        ><br />
+        <span class="tag">        await</span>
+        <span class="method">connectDB</span>();<span class="comment"> </span
+        ><br /><br />
+        <span class="comment">        // 2. Start the Express server</span
+        ><br />
+        <span class="tag">        const</span>
+        <span class="variable">server</span> <span class="operator">=</span>
+        <span class="variable">app</span>.<span class="method">listen</span
+        >(<span class="variable">PORT</span>, ()
+        <span class="operator">=></span> {<br />
+        <span class="tag">            </span
+        ><span class="method">console</span>.<span class="method">log</span
+        >(<span class="string">`Server is running on port ${PORT}`</span
+        >);<br />
+        <span class="tag">        </span>});<br /><br />
+        <span class="comment"
+          >        // 3. Graceful Shutdown Handling (Best Practice)</span
+        ><br />
+        <span class="comment"
+          >        // This ensures the DB connection is closed when the app
+          shuts down</span
+        ><br />
+        <span class="tag">        process</span>.<span class="method">on</span
+        >(<span class="string">'SIGINT'</span>,
+        <span class="type">async</span> ()
+        <span class="operator">=></span> {<br />
+        <span class="tag">            </span
+        ><span class="method">console</span>.<span class="method">log</span
+        >(<span class="string">'SIGINT signal received: Closing server...'</span
+        >);<br />
+        <span class="tag">            </span
+        ><span class="variable">server</span>.<span class="method">close</span
+        >(<span class="type">async</span> ()
+        <span class="operator">=></span> {<br />
+        <span class="tag">                await</span>
+        <span class="method">closeDB</span>();<br />
+        <span class="tag">                </span
+        ><span class="method">console</span>.<span class="method">log</span
+        >(<span class="string"
+          >'Server and MongoDB connection closed. Exiting.'</span
+        >);<br />
+        <span class="tag">                process</span>.<span class="method"
+          >exit</span
+        >(<span class="value">0</span>);<br />
+        <span class="tag">            </span>});<br />
+        <span class="tag">        </span>});<br /><br />
+        <span class="tag">    </span>} <span class="tag">catch</span> (<span
+          class="variable"
+          >error</span
+        >) {<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">error</span
+        >(<span class="string"
+          >"Application failed to start due to a database error:"</span
+        >, <span class="variable">error</span>);<br />
+        <span class="tag">        process</span>.<span class="method">exit</span
+        >(<span class="value">1</span>);
+        <span class="comment">// Exit with a failure code</span><br />
+        <span class="tag">    </span>}<br />
+        }<br /><br />
+        <span class="method">startServer</span>();
+      </div>
+
+      <h2>5. Usage in Routes and Services</h2>
+      <p>
+        Now, in any route handler or service file, you can access the database
+        connection by simply calling
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >getDB()</code
+        >, which returns the singleton database object.
+      </p>
+
+      <h3>
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >src/services/userService.js</code
+        >
+      </h3>
+      <div class="code-block">
+        <span class="code-language">JavaScript</span>
+        <span class="comment">// src/services/userService.js</span><br /><br />
+        <span class="keyword">const</span> {
+        <span class="variable">getDB</span> } <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string"
+          >'../config/db'</span
+        >);<br /><br />
+        <span class="docblock">/**</span><br />
+        <span class="docblock">
+          * Finds all users in the 'users' collection.</span
+        ><br />
+        <span class="docblock"> */</span><br />
+        <span class="type">async</span> <span class="keyword">function</span>
+        <span class="method">findAllUsers</span>() {<br />
+        <span class="comment">    // Get the connected DB instance</span><br />
+        <span class="tag">    const</span> <span class="variable">db</span>
+        <span class="operator">=</span>
+        <span class="method">getDB</span>();<span class="comment"> </span><br />
+        <span class="comment">    </span><br />
+        <span class="comment"
+          >    // Access the collection and perform the operation</span
+        ><br />
+        <span class="tag">    return</span>
+        <span class="variable">db</span>.<span class="method">collection</span
+        >(<span class="string">'users'</span>).<span class="method">find</span
+        >({}).<span class="method">toArray</span>();<br />
+        }<br /><br />
+        <span class="docblock">/**</span><br />
+        <span class="docblock"> * Creates a new user.</span><br />
+        <span class="docblock"> */</span><br />
+        <span class="type">async</span> <span class="keyword">function</span>
+        <span class="method">createUser</span>(<span class="variable"
+          >userData</span
+        >) {<br />
+        <span class="tag">    const</span> <span class="variable">db</span>
+        <span class="operator">=</span>
+        <span class="method">getDB</span>();<br />
+        <span class="tag">    const</span> <span class="variable">result</span>
+        <span class="operator">=</span> <span class="variable">db</span>.<span
+          class="method"
+          >collection</span
+        >(<span class="string">'users'</span>).<span class="method"
+          >insertOne</span
+        >(<span class="variable">userData</span>);<br />
+        <span class="tag">    return</span>
+        <span class="variable">result</span>.<span class="variable"
+          >insertedId</span
+        >;<br />
+        }<br /><br />
+        <span class="method">module</span>.<span class="variable">exports</span>
+        <span class="operator">=</span> {<br />
+        <span class="tag">    findAllUsers</span>,<br />
+        <span class="tag">    createUser</span><br />
+        };
+      </div>
+
+      <h3>
+        <code class="code-block" style="padding: 2px 5px; display: inline"
+          >src/routes/userRoutes.js</code
+        >
+      </h3>
+      <div class="code-block">
+        <span class="code-language">JavaScript</span>
+        <span class="comment">// src/routes/userRoutes.js</span><br /><br />
+        <span class="keyword">const</span>
+        <span class="variable">express</span> <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string">'express'</span
+        >);<br />
+        <span class="keyword">const</span> <span class="variable">router</span>
+        <span class="operator">=</span>
+        <span class="variable">express</span>.<span class="method">Router</span
+        >();<br />
+        <span class="keyword">const</span>
+        <span class="variable">userService</span>
+        <span class="operator">=</span>
+        <span class="method">require</span>(<span class="string"
+          >'../services/userService'</span
+        >);<br /><br />
+        <span class="comment">// GET /api/users</span><br />
+        <span class="variable">router</span>.<span class="method">get</span
+        >(<span class="string">'/'</span>,
+        <span class="type">async</span> (<span class="variable">req</span>,
+        <span class="variable">res</span>)
+        <span class="operator">=></span> {<br />
+        <span class="tag">    try</span> {<br />
+        <span class="tag">        const</span>
+        <span class="variable">users</span> <span class="operator">=</span>
+        <span class="type">await</span>
+        <span class="variable">userService</span>.<span class="method"
+          >findAllUsers</span
+        >();<br />
+        <span class="tag">        </span><span class="variable">res</span>.<span
+          class="method"
+          >status</span
+        >(<span class="value">200</span>).<span class="method">json</span>(<span
+          class="variable"
+          >users</span
+        >);<br />
+        <span class="tag">    </span>} <span class="tag">catch</span> (<span
+          class="variable"
+          >error</span
+        >) {<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">error</span
+        >(<span class="string">"Error fetching users:"</span>,
+        <span class="variable">error</span>);<br />
+        <span class="tag">        </span><span class="variable">res</span>.<span
+          class="method"
+          >status</span
+        >(<span class="value">500</span>).<span class="method">json</span>({
+        <span class="variable">error</span>:
+        <span class="string">"Failed to retrieve users."</span> });<br />
+        <span class="tag">    </span>}<br />
+        });<br /><br />
+        <span class="comment">// POST /api/users</span><br />
+        <span class="variable">router</span>.<span class="method">post</span
+        >(<span class="string">'/'</span>,
+        <span class="type">async</span> (<span class="variable">req</span>,
+        <span class="variable">res</span>)
+        <span class="operator">=></span> {<br />
+        <span class="tag">    try</span> {<br />
+        <span class="tag">        const</span>
+        <span class="variable">userData</span> <span class="operator">=</span>
+        <span class="variable">req</span>.<span class="variable">body</span
+        >;<br />
+        <span class="tag">        const</span>
+        <span class="variable">newUserId</span> <span class="operator">=</span>
+        <span class="type">await</span>
+        <span class="variable">userService</span>.<span class="method"
+          >createUser</span
+        >(<span class="variable">userData</span>);<br />
+        <span class="tag">        </span><span class="variable">res</span>.<span
+          class="method"
+          >status</span
+        >(<span class="value">201</span>).<span class="method">json</span>({
+        <span class="variable">id</span>:
+        <span class="variable">newUserId</span>,
+        <span class="variable">message</span>:
+        <span class="string">"User created successfully."</span> });<br />
+        <span class="tag">    </span>} <span class="tag">catch</span> (<span
+          class="variable"
+          >error</span
+        >) {<br />
+        <span class="tag">       </span>
+        <span class="method">console</span>.<span class="method">error</span
+        >(<span class="string">"Error creating user:"</span>,
+        <span class="variable">error</span>);<br />
+        <span class="tag">        </span><span class="variable">res</span>.<span
+          class="method"
+          >status</span
+        >(<span class="value">500</span>).<span class="method">json</span>({
+        <span class="variable">error</span>:
+        <span class="string">"Failed to create user."</span> });<br />
+        <span class="tag">    </span>}<br />
+        });<br /><br />
+        <span class="method">module</span>.<span class="variable">exports</span>
+        <span class="operator">=</span> <span class="variable">router</span>;
+      </div>
+
+      <h2>Key Benefits of this Setup ✨</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Benefit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="color: var(--primary-highlight)">Centralized Logic</td>
+            <td>
+              The connection, disconnection, and error handling are all in one
+              place (<code
+                class="code-block"
+                style="padding: 2px 5px; display: inline"
+                >db.js</code
+              >).
+            </td>
+          </tr>
+          <tr>
+            <td style="color: var(--primary-highlight)">
+              Connection Reusability
+            </td>
+            <td>
+              The
+              <strong style="color: var(--secondary-highlight)"
+                >Singleton Pattern</strong
+              >
+              is used (only one
+              <code class="code-block" style="padding: 2px 5px; display: inline"
+                >client</code
+              >
+              is created). This reuses the same connection pool across your
+              entire application, which is crucial for high performance.
+            </td>
+          </tr>
+          <tr>
+            <td style="color: var(--primary-highlight)">Clean Routes</td>
+            <td>
+              Your route and service files are cleaner. They don't worry about
+              <code class="code-block" style="padding: 2px 5px; display: inline"
+                >try...catch</code
+              >
+              blocks for connection or creating a new client. They just call
+              <code class="code-block" style="padding: 2px 5px; display: inline"
+                >getDB()</code
+              >.
+            </td>
+          </tr>
+          <tr>
+            <td style="color: var(--primary-highlight)">Graceful Shutdown</td>
+            <td>
+              Using
+              <code class="code-block" style="padding: 2px 5px; display: inline"
+                >closeDB()</code
+              >
+              on server exit prevents orphaned connections, freeing up resources
+              on your MongoDB server.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        This pattern provides a robust and scalable foundation for managing your
+        MongoDB connection in any large-scale Node.js application. Let me know
+        if you'd like to dive into using **Mongoose** (an ODM) with this same
+        centralized pattern!
+      </p>
+      <p
+        style="text-align: right; font-size: 0.9em; color: var(--comment-color)"
+      >
+        Export to Sheets
+      </p>
+    </div>
+  </body>
+</html>

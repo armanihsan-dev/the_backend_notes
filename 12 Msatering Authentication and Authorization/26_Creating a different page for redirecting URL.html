@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAuth 2.0 & OIDC Popup Flow Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* CSS for Stunning Blakish Notes */
+      :root {
+        --color-bg-dark: #1e1e1e;
+        --color-bg-card: #252526;
+        --color-text-light: #d4d4d4;
+        --color-heading: #569cd6; /* VS Code Blue for headings */
+        --color-code-bg: #1e1e1e; /* VS Code Editor background */
+        --color-code-text: #d4d4d4;
+        --color-code-keyword: #569cd6; /* VS Code keyword blue */
+        --color-code-string: #ce9178; /* VS Code string orange */
+        --color-code-comment: #6a9955; /* VS Code comment green */
+        --color-accent: #608b4e;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg-dark);
+        color: var(--color-text-light);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0 auto;
+        max-width: 900px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-bg-card);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      p,
+      ul {
+        margin-bottom: 20px;
+      }
+
+      /* Key Note Styling */
+      .key-concept {
+        background-color: var(--color-bg-card);
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        border-left: 4px solid var(--color-accent);
+      }
+
+      /* Code Block Styling (VS Code Blakish Theme) */
+      pre {
+        background-color: var(--color-code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: Consolas, 'Courier New', monospace;
+        font-size: 0.9em;
+        border: 1px solid #333;
+      }
+
+      code {
+        color: var(--color-code-text);
+      }
+
+      /* Specific Code Syntax Highlighting (Manual) */
+      .code-keyword {
+        color: var(--color-code-keyword);
+      }
+      .code-string {
+        color: var(--color-code-string);
+      }
+      .code-comment {
+        color: var(--color-code-comment);
+      }
+      .code-const {
+        color: #b5cea8;
+      } /* Light green/yellow for constant variables */
+      .code-function {
+        color: #dcdcaa;
+      } /* Yellow for functions */
+      .code-prop {
+        color: #9cdcfe;
+      } /* Light blue for properties */
+      .code-op {
+        color: #c586c0;
+      } /* Purple for operators */
+      .code-tag {
+        color: #569cd6;
+      } /* Blue for HTML/element tags */
+
+      /* List Styling */
+      ul {
+        list-style: disc;
+        padding-left: 25px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🔐 OAuth 2.0 & OpenID Connect (OIDC) Flow</h1>
+      <p>Specifically using the **popup window flow**.</p>
+    </header>
+
+    <div class="key-concept">
+      The core communication mechanism between the popup and the main window is
+      the <span class="code-keyword">postMessage API</span>.
+    </div>
+
+    <h2>💻 JavaScript Code Breakdown</h2>
+    <p>
+      The <code>script.js</code> file handles four main parts of the OpenID
+      Connect flow:
+    </p>
+    <ul>
+      <li>**Initiating the Flow** (Opening the popup).</li>
+      <li>
+        **Parent Window Communication** (Receiving the authorization code).
+      </li>
+      <li>
+        **Popup Logic** (Sending the authorization code back to the parent).
+      </li>
+      <li>**Token Exchange** (Fetching the ID Token).</li>
+    </ul>
+
+    <hr />
+
+    <h3>1. Variables and Authorization URL Setup</h3>
+    <p><code>JavaScript</code></p>
+    <pre>
+<span class="code-const">const</span> <span class="code-prop">button</span> <span class="code-op">=</span> <span class="code-function">document</span>.<span class="code-prop">querySelector</span>(<span class="code-string">'button'</span>)
+<span class="code-const">const</span> <span class="code-prop">clientSecret</span> <span class="code-op">=</span> <span class="code-string">'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'</span> <span class="code-comment">// Should be kept on a secure server!</span>
+<span class="code-const">const</span> <span class="code-prop">clientId</span> <span class="code-op">=</span> <span class="code-string">'1096232866015-ogbl3p6r6drdpunegnjjn3jf7v9j3rjn.apps.googleusercontent.com'</span>
+<span class="code-const">const</span> <span class="code-prop">redirect_uri</span> <span class="code-op">=</span> <span class="code-string">'http://localhost:5500'</span> <span class="code-comment">// The URL Google redirects to</span>
+<span class="code-const">const</span> <span class="code-prop">authURL</span> <span class="code-op">=</span> <span class="code-string">`https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=${clientId}&scope=openid email profile&redirect_uri=${redirect_uri}`</span>
+    </pre>
+    <ul>
+      <li>
+        **<span class="code-prop">clientSecret</span>**: This is a **sensitive
+        secret** that should **never be exposed in client-side code** (like a
+        static JS file). In a real application, this should be stored and used
+        only on your **secure backend server**.
+      </li>
+      <li>
+        **<span class="code-prop">clientId</span>**: Public identifier for your
+        application.
+      </li>
+      <li>
+        **<span class="code-prop">redirect_uri</span>**: The URI Google will
+        send the user back to after they sign in and grant permission.
+      </li>
+      <li>
+        **<span class="code-prop">authURL</span>**: The complete URL used to
+        start the OAuth/OIDC process.
+        <ul>
+          <li>
+            <code>response_type=code</code>: Specifies the **Authorization Code
+            flow**.
+          </li>
+          <li>
+            <code>scope=openid email profile</code>: Requests access to the
+            user's basic profile, email, and asserts the request is for OIDC
+            (openid).
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h3>2. Open Popup (Parent Window)</h3>
+    <p><code>JavaScript</code></p>
+    <pre>
+<span class="code-comment">// 1️⃣ Open popup</span>
+<span class="code-prop">button</span>.<span class="code-prop">addEventListener</span>(<span class="code-string">'click'</span>, () <span class="code-op">=></span> {
+    <span class="code-function">window</span>.<span class="code-prop">open</span>(<span class="code-prop">authURL</span>, <span class="code-string">'auth-popup'</span>, <span class="code-string">'left=100,top=100,width=500,height=600'</span>)
+})
+    </pre>
+    <ul>
+      <li>
+        When the "Sign in with Google" button is clicked, the parent window
+        calls <span class="code-function">window.open()</span>.
+      </li>
+      <li>
+        It opens a new, small browser window (the **popup**) and immediately
+        navigates it to the <span class="code-prop">authURL</span> (Google's
+        login/consent page).
+      </li>
+    </ul>
+
+    <hr />
+
+    <h3>3. Parent Listens for Message (Parent Window)</h3>
+    <p><code>JavaScript</code></p>
+    <pre>
+<span class="code-comment">// 2️⃣ Parent listens for message</span>
+<span class="code-function">window</span>.<span class="code-prop">addEventListener</span>(<span class="code-string">'message'</span>, (<span class="code-prop">event</span>) <span class="code-op">=></span> {
+    <span class="code-comment">// allow localhost in dev</span>
+    <span class="code-keyword">if</span> (!<span class="code-prop">event</span>.<span class="code-prop">origin</span>.<span class="code-prop">includes</span>(<span class="code-string">'localhost'</span>)) <span class="code-keyword">return</span>
+    <span class="code-keyword">if</span> (!<span class="code-prop">event</span>.<span class="code-prop">data</span><span class="code-prop">?</span>.<span class="code-prop">code</span>) <span class="code-keyword">return</span>
+
+    <span class="code-function">fetchIdToken</span>(<span class="code-prop">event</span>.<span class="code-prop">data</span>.<span class="code-prop">code</span>)
+})
+    </pre>
+    <ul>
+      <li>
+        The parent window sets up an **event listener** for the
+        <span class="code-string">'message'</span> event. This is the **crucial
+        part for communication**.
+      </li>
+      <li>
+        It's waiting for a message sent from a different window (in this case,
+        the popup).
+      </li>
+      <li>
+        **<span class="code-prop">event.origin</span>**: Checks the origin
+        (domain) of the sender to prevent Cross-Site Scripting (XSS) attacks. It
+        only accepts messages from the expected origin (<code>localhost</code>).
+      </li>
+      <li>
+        **<span class="code-prop">event.data?.code</span>**: Checks if the
+        message contains the expected **authorization
+        <span class="code-prop">code</span>**.
+      </li>
+      <li>
+        If valid, it calls the
+        <span class="code-function">fetchIdToken</span> function with the
+        received code.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h3>4. Code Detection and Message Sending (Popup Window)</h3>
+    <p><code>JavaScript</code></p>
+    <pre>
+<span class="code-comment">// 3️⃣ This runs inside popup after redirect</span>
+<span class="code-function">window</span>.<span class="code-prop">addEventListener</span>(<span class="code-string">'DOMContentLoaded'</span>, () <span class="code-op">=></span> {
+    <span class="code-comment">// detect if popup contains code</span>
+    <span class="code-const">const</span> <span class="code-prop">code</span> <span class="code-op">=</span> <span class="code-keyword">new</span> <span class="code-function">URLSearchParams</span>(<span class="code-prop">location</span>.<span class="code-prop">search</span>).<span class="code-prop">get</span>(<span class="code-string">'code'</span>)
+    <span class="code-keyword">if</span> (<span class="code-prop">code</span> <span class="code-op">&amp;&amp;</span> <span class="code-function">window</span>.<span class="code-prop">opener</span>) {
+        <span class="code-function">window</span>.<span class="code-prop">opener</span>.<span class="code-prop">postMessage</span>({ <span class="code-prop">code</span> }, <span class="code-function">window</span>.<span class="code-prop">location</span>.<span class="code-prop">origin</span>)
+        <span class="code-function">window</span>.<span class="code-prop">close</span>()
+    }
+})
+    </pre>
+    <ul>
+      <li>
+        This logic executes **inside the popup window** after Google redirects
+        it to the configured
+        <span class="code-prop">redirect_uri</span>
+        (<code>http://localhost:5500</code>), appending the authorization code
+        in the URL query string:
+        <code>http://localhost:5500?code=4/0AX....</code>.
+      </li>
+      <li>
+        **<span class="code-const">const code</span> = ...**: This extracts the
+        authorization <span class="code-prop">code</span> from the URL after the
+        redirect.
+      </li>
+      <li>
+        **<span class="code-keyword">if</span> (<span class="code-prop"
+          >code</span
+        >
+        <span class="code-op">&amp;&amp;</span>
+        <span class="code-function">window</span>.<span class="code-prop"
+          >opener</span
+        >)**: Checks if the code exists and if the popup was opened by a parent
+        window (<span class="code-function">window</span>.<span
+          class="code-prop"
+          >opener</span
+        >).
+      </li>
+      <li>
+        **<span class="code-function">window.opener.postMessage</span>({
+        <span class="code-prop">code</span> },
+        <span class="code-function">window</span>.<span class="code-prop"
+          >location</span
+        >.<span class="code-prop">origin</span>)**: **This is the actual
+        communication.**
+        <ul>
+          <li>
+            <span class="code-function">window.opener</span>: Refers to the main
+            window that opened the popup.
+          </li>
+          <li>
+            <span class="code-prop">postMessage</span>: Sends a message (the
+            object <span class="code-prop">{ code }</span>) to the parent.
+          </li>
+          <li>
+            <span class="code-function">window.location.origin</span>: Specifies
+            the **target origin** for security. The parent window must have the
+            same origin to receive the message (a security measure to prevent
+            data leaks).
+          </li>
+        </ul>
+      </li>
+      <li>
+        **<span class="code-function">window.close()</span>**: Once the code is
+        sent, the popup closes itself.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h3>5. Fetch ID Token (Parent Window)</h3>
+    <p><code>JavaScript</code></p>
+    <pre>
+<span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-function">fetchIdToken</span>(<span class="code-prop">code</span>) {
+    <span class="code-comment">// ... body content ...</span>
+    <span class="code-const">const</span> <span class="code-prop">payload</span> <span class="code-op">=</span> <span class="code-string">`code=${code}&client_id=${clientId}&client_secret=${clientSecret}&redirect_uri=${redirect_uri}&grant_type=authorization_code`</span>;
+    <span class="code-comment">// ... rest of the fetch call to Google's token endpoint ...</span>
+    <span class="code-const">const</span> <span class="code-prop">data</span> <span class="code-op">=</span> <span class="code-keyword">await</span> <span class="code-prop">response</span>.<span class="code-function">json</span>()
+    <span class="code-comment">// ...</span>
+    <span class="code-const">const</span> <span class="code-prop">userToken</span> <span class="code-op">=</span> <span class="code-prop">data</span>.<span class="code-prop">id_token</span>.<span class="code-function">split</span>(<span class="code-string">'.'</span>)[1]
+    <span class="code-const">const</span> <span class="code-prop">userDetailsInString</span> <span class="code-op">=</span> <span class="code-function">JSON</span>.<span class="code-prop">parse</span>(<span class="code-function">atob</span>(<span class="code-prop">userToken</span>))
+    <span class="code-function">console</span>.<span class="code-function">log</span>(<span class="code-prop">userDetailsInString</span>); <span class="code-comment">// Logs the decoded user profile information</span>
+    <span class="code-comment">// ...</span>
+}
+    </pre>
+    <ul>
+      <li>This function executes back in the **parent window**.</li>
+      <li>
+        It performs the second step of the **Authorization Code flow**:
+        exchanging the short-lived <span class="code-prop">code</span> for an
+        **ID Token** (and potentially an Access Token/Refresh Token) by making a
+        **server-to-server** request to Google's
+        <code>https://oauth2.googleapis.com/token</code> endpoint.
+      </li>
+      <li>
+        It **must** include the
+        <span class="code-prop">client_secret</span> (another reason this should
+        be on a backend server).
+      </li>
+      <li>
+        It receives a JSON response containing the
+        <span class="code-prop">id_token</span>, which is a **JSON Web Token
+        (JWT)**.
+      </li>
+      <li>
+        The code then **decodes the JWT's payload** (the second part of the
+        token) to extract the user's profile information (<span
+          class="code-prop"
+          >userDetailsInString</span
+        >) for demonstration purposes.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>🗣️ How Popup Communication Works</h2>
+    <p>
+      The communication between the parent window and the popup (and vice-versa)
+      is achieved using the
+      <span class="code-function">window.postMessage()</span> API.
+    </p>
+
+    <div class="key-concept">
+      <p>
+        The **<span class="code-function">postMessage()</span> API** provides a
+        secure, controlled way for windows/frames with different origins to
+        communicate with each other.
+      </p>
+    </div>
+
+    <ul>
+      <li>
+        **Parent opens Popup**: The parent window uses
+        <span class="code-function">window.open()</span> to create the popup and
+        holds a reference to it (implicitly, as the popup's opener).
+      </li>
+      <li>
+        **Popup Redirects**: The popup navigates to Google, authenticates the
+        user, and is redirected back to your
+        <span class="code-prop">redirect_uri</span> with the authorization code.
+      </li>
+      <li>
+        **Popup Sends Message**: Now that the popup is back on your domain and
+        has the code, it uses the
+        <span class="code-function">window.opener</span> property to reference
+        the original parent window and calls:
+        <pre>
+<span class="code-function">window</span>.<span class="code-prop">opener</span>.<span class="code-prop">postMessage</span>({ <span class="code-prop">code</span>: <span class="code-string">'...'</span> }, <span class="code-string">'http://localhost:5500'</span>)
+            </pre>
+      </li>
+      <li>
+        **Parent Receives Message**: The parent window's
+        <span class="code-string">'message'</span> event listener catches this
+        message, verifies the sender's origin, and extracts the code to continue
+        the authentication process.
+      </li>
+    </ul>
+    <p>
+      This pattern is a robust way to implement OAuth/OIDC when you need a
+      smooth, non-redirecting experience on the main page.
+    </p>
+  </body>
+</html>

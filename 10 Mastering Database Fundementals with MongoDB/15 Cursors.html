@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Async Iterators & MongoDB Cursors</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles */
+      body {
+        background-color: #1e1e1e; /* Dark background like VS Code */
+        color: #d4d4d4; /* Light text for contrast */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Container for content */
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background-color: #252526; /* Slightly lighter background for the content area */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Headings */
+      h2 {
+        color: #569cd6; /* VS Code blue for main headings */
+        border-bottom: 2px solid #569cd6;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+      h3 {
+        color: #c586c0; /* VS Code pink/purple for subheadings */
+        margin-top: 20px;
+      }
+
+      /* Code Block (VS Code Blackish Theme) */
+      .code-block {
+        background-color: #1f1f1f; /* Darkest black for the code block */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 20px 0;
+      }
+      .code-block pre {
+        margin: 0;
+        font-family: 'Consolas', 'Courier New', monospace; /* Monospace font for code */
+        font-size: 0.9em;
+      }
+
+      /* Code Syntax Highlighting (Simulated) */
+      .keyword {
+        color: #c586c0;
+      } /* Purple */
+      .type {
+        color: #4ec9b0;
+      } /* Teal */
+      .string {
+        color: #ce9178;
+      } /* Orange/Brown */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .function {
+        color: #dcdcaa;
+      } /* Yellow/Grey */
+      .property {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .operator {
+        color: #d4d4d4;
+      } /* White */
+      .number {
+        color: #b5cea8;
+      } /* Light Green */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .symbol {
+        color: #569cd6;
+      } /* Blue */
+
+      /* Lists and Paragraphs */
+      p,
+      li {
+        font-size: 1.05em;
+        color: #d4d4d4;
+      }
+      ul {
+        padding-left: 25px;
+      }
+      li strong {
+        color: #4ec9b0; /* Highlighted text */
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        border: 1px solid #3e3e3e;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #3c3c3c;
+        color: #ffc66d; /* VS Code yellow/orange for table headers */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2 style="text-align: center">JS Async Iterators & MongoDB Cursors</h2>
+      <p>
+        An **async iterator** in JavaScript is an object that conforms to the
+        **asynchronous iteration protocol** by having a
+        <span class="function">next()</span> method that returns a promise
+        resolving to an object with <span class="property">value</span> and
+        <span class="property">done</span> properties. This allows iterating
+        over data that is received asynchronously, such as streams or delayed
+        data, using the <span class="keyword">for await...of</span> loop syntax.
+        Async iterators are implemented by defining a method under the
+        well-known symbol <span class="symbol">Symbol.asyncIterator</span>,
+        which returns the async iterator itself. or An async iterator in
+        JavaScript is an object that implements the
+        <span class="symbol">[Symbol.asyncIterator]</span> method. This method
+        allows the object to be consumed by a
+        <span class="keyword">for-await-of</span> loop, enabling iteration over
+        asynchronously produced values.
+      </p>
+
+      <hr />
+      <h3>Key Characteristics of Async Iterators</h3>
+      <ul>
+        <li>
+          The method <span class="symbol">Symbol.asyncIterator</span> returns an
+          **async iterator object**.
+        </li>
+        <li>
+          The async iterator object has a
+          <span class="function">next()</span> method that returns a
+          **promise**.
+        </li>
+        <li>
+          Each call to <span class="function">next()</span> resolves to an
+          object <span class="property">{ value, done }</span>, where
+          <span class="property">value</span> is the current element and
+          <span class="property">done</span> indicates if the iteration is
+          complete.
+        </li>
+        <li>
+          Async iteration is useful when elements are produced asynchronously,
+          for instance, fetching data from APIs or handling streams with delays.
+        </li>
+        <li>
+          Iteration is done using the
+          <span class="keyword">for await...of</span> loop, which waits for each
+          promise to resolve before continuing with the next element.
+        </li>
+      </ul>
+
+      <h3>Example Usage</h3>
+      <div class="code-block">
+        <pre><span class="type">javascript</span>
+<span class="keyword">let</span> <span class="variable">asyncIterable</span> <span class="operator">=</span> {
+  <span class="property">data</span>: [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>],
+  [<span class="symbol">Symbol.asyncIterator</span>]: <span class="keyword">async</span> <span class="keyword">function</span>* () {
+    <span class="keyword">for</span> (<span class="keyword">let</span> <span class="variable">i</span> <span class="operator">=</span> <span class="number">0</span>; <span class="variable">i</span> <span class="operator"><</span> <span class="keyword">this</span>.<span class="property">data</span>.<span class="property">length</span>; <span class="variable">i</span>++) {
+      <span class="keyword">await</span> <span class="keyword">new</span> <span class="type">Promise</span>(<span class="function">resolve</span> <span class="operator">=></span> <span class="function">setTimeout</span>(<span class="function">resolve</span>, <span class="number">1000</span>)); <span class="comment">// simulate async delay</span>
+      <span class="keyword">yield</span> <span class="keyword">this</span>.<span class="property">data</span>[<span class="variable">i</span>];
+    }
+  }
+};
+(<span class="keyword">async</span> () <span class="operator">=></span> {
+  <span class="keyword">for await</span> (<span class="keyword">let</span> <span class="variable">item</span> <span class="keyword">of</span> <span class="variable">asyncIterable</span>) {
+    <span class="function">console</span>.<span class="function">log</span>(<span class="variable">item</span>);
+  }
+})();</pre>
+      </div>
+      <p>
+        This example asynchronously yields values 1, 2, and 3 with a delay
+        between each, demonstrating async iteration.
+      </p>
+
+      <hr />
+      <h3>
+        What is meant by "that conforms to the asynchronous iteration protocol"?
+      </h3>
+      <p>
+        In JavaScript, saying an object **"conforms to the asynchronous
+        iteration protocol"** means the object follows a specific set of rules
+        defined by this protocol that allows it to be iterated asynchronously.
+        Specifically, the object must have a method keyed by the special symbol
+        <span class="symbol">Symbol.asyncIterator</span> which returns an async
+        iterator. This async iterator must have a
+        <span class="function">next()</span> method that returns a **promise**
+        resolving to an object with two properties:
+        <span class="property">value</span> (the next data item) and
+        <span class="property">done</span> (a boolean indicating if the
+        iteration is complete).
+      </p>
+      <p>
+        This protocol enables asynchronous iteration, where
+        <span class="function">next()</span> can perform asynchronous operations
+        (like awaiting data from a server) before producing the next value, and
+        the consumer uses <span class="keyword">for await...of</span> to handle
+        this asynchronous process seamlessly. The main difference from
+        synchronous iteration is that the
+        <span class="function">next()</span> method returns a promise rather
+        than a direct result, allowing the iteration to wait for asynchronous
+        events before continuing.
+      </p>
+
+      <hr />
+      <h2>MongoDB Cursors</h2>
+      <p>
+        Cursors in MongoDB are **pointers to the result set of a query**. They
+        allow a MongoDB client to iterate through the documents returned by an
+        operation (like <span class="function">find()</span>) in a controlled,
+        **memory-efficient** manner, often retrieving the documents in
+        **batches** instead of all at once.
+      </p>
+
+      <h3>What is a Cursor?</h3>
+      <p>
+        When you execute a query in MongoDB, such as
+        <span class="property">db.collection.find({ ... })</span>, the database
+        doesn't immediately send every matching document back to the client.
+        Instead, it returns a **cursor object**.
+      </p>
+      <p>The cursor handles the mechanics of retrieving the data:</p>
+      <ul>
+        <li>
+          <strong>Lazy Loading:</strong> The cursor only fetches a small batch
+          of documents from the server initially (e.g., 101 documents or 1
+          megabyte of data).
+        </li>
+        <li>
+          <strong>Iteration:</strong> As you iterate through the cursor on the
+          client side, it requests the next batch of documents from the server
+          only when the current batch is exhausted.
+        </li>
+        <li>
+          <strong>State Management:</strong> The cursor maintains its state,
+          knowing which documents have been returned and where to resume the
+          next fetch.
+        </li>
+      </ul>
+      <p>
+        The cursor is an **iterable object** in the language driver (e.g.,
+        Node.js, Python), allowing you to use methods like
+        <span class="function">next()</span>,
+        <span class="function">hasNext()</span>, or language-specific loops
+        (<span class="function">forEach</span>,
+        <span class="keyword">while</span>).
+      </p>
+
+      <h3>Need for Cursors</h3>
+      <p>
+        Cursors are essential for several reasons, primarily related to
+        **performance** and **resource management**:
+      </p>
+      <ol>
+        <li>
+          <strong>Memory Efficiency (The Primary Need)</strong>
+          <p>
+            If a query matches millions of documents, fetching them all into the
+            client's memory at once would cause significant issues:
+          </p>
+          <ul>
+            <li>
+              **Client Crash:** The application might run out of memory (OOM
+              error) and crash.
+            </li>
+            <li>
+              **Performance Hit:** Even if it doesn't crash, processing and
+              transferring massive amounts of data is slow and
+              resource-intensive.
+            </li>
+          </ul>
+          <p>
+            <strong>Cursors solve this</strong> by providing documents in
+            smaller, manageable chunks (batches), requiring only a small
+            fraction of the total result set to be held in memory at any given
+            time.
+          </p>
+        </li>
+        <li>
+          <strong>Handling Large Data Sets</strong>
+          <p>
+            Cursors are critical for operations involving large collections,
+            such as:
+          </p>
+          <ul>
+            <li>Data Migration: Moving data between databases.</li>
+            <li>Reporting: Generating reports from comprehensive data sets.</li>
+            <li>
+              Batch Processing: Running complex updates or transformations
+              across many documents.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Asynchronous Processing</strong>
+          <p>
+            In modern programming environments (like Node.js), database
+            operations are typically asynchronous. Cursors often integrate well
+            with **Async Iterators** or **Streams** in the client language,
+            allowing for non-blocking, continuous data processing as documents
+            arrive from the server.
+          </p>
+        </li>
+        <li>
+          <strong>Query Control and Transformation</strong>
+          <p>
+            Cursors offer methods that allow you to modify or control the data
+            retrieved:
+          </p>
+          <ul>
+            <li>
+              <span class="function">sort()</span>: Define the order of the
+              results.
+            </li>
+            <li>
+              <span class="function">limit()</span> and
+              <span class="function">skip()</span>: Control the maximum number
+              of documents returned and the starting point.
+            </li>
+            <li>
+              <span class="function">projection()</span>: Selectively choose
+              which fields to include or exclude.
+            </li>
+            <li>
+              <span class="function">batchSize()</span>: Tune the size of the
+              batches sent from the server to optimize network traffic and
+              processing speed.
+            </li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>Cursor Lifetime</h3>
+      <p>
+        A key aspect of cursors is that they exist on the **server** as well as
+        the client.
+      </p>
+      <p>
+        A cursor remains open on the MongoDB server until one of the following
+        occurs:
+      </p>
+      <ul>
+        <li>
+          The client exhausts the result set (i.e., iterates over all
+          documents).
+        </li>
+        <li>
+          The client explicitly closes the cursor (e.g., by calling
+          <span class="function">cursor.close()</span>).
+        </li>
+        <li>
+          The cursor **times out** (usually after 10 minutes of inactivity,
+          after which MongoDB automatically closes it to free up server
+          resources).
+        </li>
+      </ul>
+
+      <hr />
+      <h2>How to work with Cursors in Node.js</h2>
+      <p>
+        Working with cursors in **Node.js** involves using the official MongoDB
+        driver (usually the <span class="property">mongodb</span> package or a
+        wrapper like Mongoose) to execute a query, which returns a cursor
+        object. You then use methods on that object to iterate through the
+        results.
+      </p>
+
+      <h3>1. Executing a Query to Get a Cursor</h3>
+      <p>
+        When using the <span class="function">find()</span> method without
+        converting the results to an array (i.e., without calling
+        <span class="function">.toArray()</span>), the driver returns a cursor.
+      </p>
+      <div class="code-block">
+        <pre><span class="type">JavaScript</span>
+<span class="comment">// Assuming 'collection' is a reference to a MongoDB collection</span>
+<span class="keyword">const</span> <span class="variable">cursor</span> <span class="operator">=</span> <span class="variable">collection</span>.<span class="function">find</span>({ <span class="property">status</span>: <span class="string">'A'</span> }).<span class="function">sort</span>({ <span class="property">created</span>: <span class="number">-1</span> });
+
+<span class="comment">// 'cursor' is now an object that points to the result set on the server</span></pre>
+      </div>
+
+      <h3>2. Reading Documents from the Cursor</h3>
+      <p>
+        There are three primary ways to process the documents returned by the
+        cursor:
+      </p>
+
+      <h4>
+        A. Using <span class="function">next()</span> and
+        <span class="function">hasNext()</span> (Classic Iteration)
+      </h4>
+      <p>This method gives you explicit control using a traditional loop.</p>
+      <div class="code-block">
+        <pre><span class="type">JavaScript</span>
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function">processClassic</span>(<span class="variable">cursor</span>) {
+  <span class="keyword">let</span> <span class="variable">docCount</span> <span class="operator">=</span> <span class="number">0</span>;
+  
+  <span class="comment">// Use hasNext() to check if there are more documents to fetch</span>
+  <span class="keyword">while</span> (<span class="keyword">await</span> <span class="variable">cursor</span>.<span class="function">hasNext</span>()) {
+    <span class="comment">// Use next() to asynchronously fetch the next document</span>
+    <span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">cursor</span>.<span class="function">next</span>(); 
+    
+    <span class="keyword">if</span> (<span class="variable">doc</span>) {
+      <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Processing document ID: ${</span><span class="variable">doc</span>.<span class="property">_id</span><span class="string">}`</span>);
+      <span class="variable">docCount</span><span class="operator">++</span>;
+    }
+  }
+  
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Processed ${</span><span class="variable">docCount</span><span class="string">} documents.`</span>);
+  <span class="comment">// Note: The cursor is automatically closed when it's exhausted.</span>
+}</pre>
+      </div>
+
+      <h4>
+        B. Using <span class="function">forEach()</span> (Convenient Iteration)
+      </h4>
+      <p>
+        The cursor's built-in <span class="function">forEach()</span> method
+        processes all results and is often cleaner for simpler tasks. It also
+        handles the batching and iteration internally.
+      </p>
+      <div class="code-block">
+        <pre><span class="type">JavaScript</span>
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function">processForEach</span>(<span class="variable">cursor</span>) {
+  <span class="keyword">let</span> <span class="variable">docCount</span> <span class="operator">=</span> <span class="number">0</span>;
+  
+  <span class="keyword">await</span> <span class="variable">cursor</span>.<span class="function">forEach</span>((<span class="variable">doc</span>) <span class="operator">=></span> {
+    <span class="comment">// This callback function is executed for every document</span>
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Processing document name: ${</span><span class="variable">doc</span>.<span class="property">name</span><span class="string">}`</span>);
+    <span class="variable">docCount</span><span class="operator">++</span>;
+  });
+  
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Processed ${</span><span class="variable">docCount</span><span class="string">} documents using forEach.`</span>);
+}</pre>
+      </div>
+
+      <h4>
+        C. Using <span class="keyword">for-await-of</span> (Async Iteration -
+        Recommended)
+      </h4>
+      <p>
+        The most modern and often cleanest approach in Node.js is to leverage
+        the cursor's support for the **Async Iterator Protocol**. This is the
+        Node.js equivalent of the <span class="keyword">for...of</span> loop for
+        asynchronous data streams.
+      </p>
+      <div class="code-block">
+        <pre><span class="type">JavaScript</span>
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function">processAsyncIterator</span>(<span class="variable">cursor</span>) {
+  <span class="keyword">let</span> <span class="variable">docCount</span> <span class="operator">=</span> <span class="number">0</span>;
+  
+  <span class="comment">// The for-await-of loop automatically calls await cursor.next()</span>
+  <span class="keyword">for await</span> (<span class="keyword">const</span> <span class="variable">doc</span> <span class="keyword">of</span> <span class="variable">cursor</span>) {
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Processing document created on: ${</span><span class="variable">doc</span>.<span class="property">created</span><span class="string">}`</span>);
+    <span class="variable">docCount</span><span class="operator">++</span>;
+  }
+  
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Processed ${</span><span class="variable">docCount</span><span class="string">} documents using for-await-of.`</span>);
+}</pre>
+      </div>
+
+      <h3>3. Cursor Management and Closing</h3>
+      <p>
+        It's good practice to explicitly close the cursor, especially if you
+        exit the loop early or if an error occurs, to free up resources on the
+        MongoDB server.
+      </p>
+
+      <h4>Explicit Closing</h4>
+      <p>
+        Use a <span class="keyword">try...finally</span> block to ensure the
+        cursor is closed:
+      </p>
+      <div class="code-block">
+        <pre><span class="type">JavaScript</span>
+<span class="keyword">const</span> <span class="variable">cursor</span> <span class="operator">=</span> <span class="variable">collection</span>.<span class="function">find</span>({ <span class="comment">/* ... */</span> });
+<span class="keyword">try</span> {
+  <span class="comment">// Process documents...</span>
+  <span class="keyword">for await</span> (<span class="keyword">const</span> <span class="variable">doc</span> <span class="keyword">of</span> <span class="variable">cursor</span>) {
+    <span class="keyword">if</span> (<span class="comment">/* early exit condition */</span>) {
+      <span class="keyword">break</span>; 
+    }
+  }
+} <span class="keyword">catch</span> (<span class="variable">error</span>) {
+  <span class="function">console</span>.<span class="function">error</span>(<span class="string">"An error occurred during iteration:"</span>, <span class="variable">error</span>);
+} <span class="keyword">finally</span> {
+  <span class="comment">// Always close the cursor</span>
+  <span class="keyword">await</span> <span class="variable">cursor</span>.<span class="function">close</span>(); 
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">"Cursor closed."</span>);
+}</pre>
+      </div>
+
+      <h4>When is Closing Necessary?</h4>
+      <ul>
+        <li>
+          **Not Exhausted:** If you break out of the iteration (e.g., using
+          <span class="keyword">break</span> or
+          <span class="keyword">return</span>) before all documents are fetched,
+          you must explicitly call
+          <span class="keyword">await cursor.close()</span>.
+        </li>
+        <li>
+          **Exhausted:** If the cursor iterates through all matching documents,
+          the MongoDB driver automatically closes the server-side cursor, so an
+          explicit call to <span class="function">close()</span> is optional but
+          harmless.
+        </li>
+      </ul>
+
+      <h3>4. Configuring the Cursor</h3>
+      <p>You can modify the cursor to control how data is returned:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="function">.limit(n)</span></td>
+            <td>Limits the number of documents returned.</td>
+            <td>
+              <span class="function">find({})</span>.<span class="function"
+                >limit(100)</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td><span class="function">.sort(spec)</span></td>
+            <td>Orders the documents by a field.</td>
+            <td>
+              <span class="function">find({})</span>.<span class="function"
+                >sort({ score: -1 })</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td><span class="function">.project(spec)</span></td>
+            <td>Selects specific fields to return.</td>
+            <td>
+              <span class="function">find({})</span>.<span class="function"
+                >project({ name: 1, _id: 0 })</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td><span class="function">.batchSize(n)</span></td>
+            <td>
+              Controls how many documents are fetched in a single request from
+              the server (default is driver-dependent, often 101 or 4MB).
+            </td>
+            <td>
+              <span class="function">find({})</span>.<span class="function"
+                >batchSize(500)</span
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+      <h2>What is the connection between Cursor and AsyncIterator</h2>
+      <p>
+        The connection between a **MongoDB Cursor** and a JavaScript **Async
+        Iterator** is that the modern Node.js MongoDB driver **implements the
+        Async Iterator Protocol** on its **Cursor object**.
+      </p>
+      <p>
+        This means the Cursor is an **Async Iterable** object, allowing it to be
+        consumed efficiently using the JavaScript
+        <span class="keyword">for-await-of</span> loop.
+      </p>
+
+      <h3>1. The Async Iterator Protocol</h3>
+      <p>
+        The **Async Iterator Protocol** is a standardized interface in
+        JavaScript (ES2018) for iterating over sequences of values that are
+        produced **asynchronously** (over time or from I/O operations). Any
+        object that adheres to this protocol (by providing a
+        <span class="symbol">[Symbol.asyncIterator]()</span> method) is called
+        an **Async Iterable**.
+      </p>
+
+      <h3>2. MongoDB Cursor Implementation</h3>
+      <p>
+        MongoDB cursors are fundamentally asynchronous because they retrieve
+        documents in batches over a network connection.
+      </p>
+      <p>
+        Instead of requiring developers to manually call the asynchronous
+        methods like <span class="function">cursor.next()</span> and
+        <span class="keyword">await</span> the result in a
+        <span class="keyword">while</span> loop, the Node.js MongoDB driver
+        makes the **Cursor object** an **Async Iterable**.
+      </p>
+      <p>This implementation achieves two major goals:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Async Iterator Benefit</th>
+            <th>Cursor Advantage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Simplicity</td>
+            <td>
+              Enables the clean, synchronous-looking
+              <span class="keyword">for-await-of</span> syntax.
+            </td>
+            <td>
+              Makes processing large datasets intuitive and less error-prone.
+            </td>
+          </tr>
+          <tr>
+            <td>Efficiency</td>
+            <td>
+              The loop automatically handles
+              <span class="keyword">await</span>ing of the next value (or
+              batch).
+            </td>
+            <td>
+              Ensures documents are fetched lazily and processed as soon as they
+              arrive, maintaining non-blocking I/O.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3. The Practical Connection</h3>
+      <p>
+        The core connection is demonstrated by the ability to use the following
+        syntax in an <span class="keyword">async</span> function:
+      </p>
+      <div class="code-block">
+        <pre><span class="type">JavaScript</span>
+<span class="comment">// The MongoDB query returns a Cursor object</span>
+<span class="keyword">const</span> <span class="variable">cursor</span> <span class="operator">=</span> <span class="variable">collection</span>.<span class="function">find</span>({ <span class="comment">...</span> }); 
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function">processData</span>() {
+    <span class="comment">// The for-await-of loop works because the 'cursor' </span>
+    <span class="comment">// implements the Async Iterator protocol.</span>
+    <span class="keyword">for await</span> (<span class="keyword">const</span> <span class="variable">document</span> <span class="keyword">of</span> <span class="variable">cursor</span>) {
+        <span class="comment">// This code executes asynchronously for each document </span>
+        <span class="comment">// as it arrives in batches from the server.</span>
+        <span class="function">console</span>.<span class="function">log</span>(<span class="variable">document</span>);
+    }
+}</pre>
+      </div>
+      <p>
+        In short, the **Async Iterator** is the standard JavaScript mechanism
+        that the **MongoDB Cursor** uses to expose its asynchronous, batched
+        data stream in a developer-friendly way.
+      </p>
+    </div>
+  </body>
+</html>

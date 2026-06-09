@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ID Token Verification Notes (OIDC)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Theme Styles */
+      body {
+        background-color: #1e1e1e; /* VS Code dark background */
+        color: #d4d4d4; /* Light text color */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code Blue for titles */
+        font-weight: 700;
+        margin-top: 1.5em;
+      }
+
+      /* Icons/Emtion */
+      .icon {
+        font-size: 1.5em;
+        margin-right: 10px;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 0.7em;
+        font-weight: 300;
+      }
+
+      /* Emphasis */
+      strong {
+        color: #9cdcfe;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      pre {
+        background-color: #1f1f1f;
+        border: 1px solid #333;
+        padding: 15px;
+        overflow-x: auto;
+        border-radius: 4px;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+        margin-bottom: 15px;
+      }
+
+      /* Inline Code */
+      code {
+        background-color: #2d2d2d;
+        color: #c586c0; /* Purple for inline code/variables */
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+
+      /* Syntax Highlighting Emulation */
+      .comment {
+        color: #6a9955;
+      }
+      .keyword {
+        color: #c586c0;
+      }
+      .string {
+        color: #ce9178;
+      }
+      .variable {
+        color: #9cdcfe;
+      }
+      .property {
+        color: #dcdcaa;
+      }
+      .punctuation {
+        color: #d4d4d4;
+      }
+      .js-function {
+        color: #dcdcaa;
+      }
+      .js-import {
+        color: #4ec9b0;
+      }
+      .js-const {
+        color: #569cd6;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5em 0;
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid #333;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3c3c3c;
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      td {
+        background-color: #2d2d2d;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>OIDC ID Token Verification</h1>
+
+    <p>
+      Verifying the <strong>ID Token</strong> is the crucial security step that
+      validates the user's identity within the
+      <strong>OpenID Connect (OIDC)</strong> flow. It ensures that the token is
+      genuine, hasn't been tampered with, and was issued by the legitimate
+      identity provider (Google).
+    </p>
+
+    <p>
+      The verification process is performed by your
+      <strong>server (the Relying Party)</strong> after receiving the ID Token.
+    </p>
+
+    <h2><span class="icon">🔒</span> What is ID Token Verification?</h2>
+
+    <p>
+      The ID Token is a <strong>JSON Web Token (JWT)</strong>. Verification is
+      the process of cryptographically validating the JWT's integrity and
+      payload claims against a set of known rules.
+    </p>
+
+    <p>Verification involves three primary checks:</p>
+
+    <ol>
+      <li>
+        <h3>Signature Verification (Integrity Check)</h3>
+        <p>
+          The most important step is ensuring the token hasn't been modified in
+          transit. This is done using <strong>asymmetric cryptography</strong>:
+        </p>
+        <ul>
+          <li>
+            The ID Token contains a <strong>Signature</strong> (the third part
+            of the JWT). This signature was created by Google using its
+            <strong>Private Key</strong>.
+          </li>
+          <li>
+            Your server must obtain Google's corresponding
+            <strong>Public Key</strong> to decrypt or verify this signature.
+          </li>
+          <li>If the signature verifies successfully, it proves two things:</li>
+          <ul>
+            <li>
+              The token was signed by the holder of the private key (Google).
+            </li>
+            <li>
+              The <strong>Header</strong> and <strong>Payload</strong> (the
+              first two parts) have not been altered since they were signed.
+            </li>
+          </ul>
+        </ul>
+      </li>
+
+      <li>
+        <h3>Standard Claim Validation (Payload Check)</h3>
+        <p>
+          Once the signature is verified, your server checks the contents
+          (claims) of the token's payload:
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Claim</th>
+              <th>Check</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>iss</code> (Issuer)</td>
+              <td>Must be exactly <code>https://accounts.google.com</code>.</td>
+              <td>Confirms the token came from Google.</td>
+            </tr>
+            <tr>
+              <td><code>aud</code> (Audience)</td>
+              <td>Must match your application's <strong>Client ID</strong>.</td>
+              <td>
+                Confirms the token was specifically intended for your
+                application.
+              </td>
+            </tr>
+            <tr>
+              <td><code>exp</code> (Expiration Time)</td>
+              <td>Must be in the future (not expired).</td>
+              <td>Ensures the token is still valid for use.</td>
+            </tr>
+            <tr>
+              <td><code>iat</code> (Issued At)</td>
+              <td>Checks the time the token was issued.</td>
+              <td>Used for security auditing.</td>
+            </tr>
+          </tbody>
+        </table>
+      </li>
+
+      <li>
+        <h3>Nonce/State Validation (Replay Attack Check)</h3>
+        <p>
+          If you used a <code>nonce</code> parameter in the initial
+          authorization request (or the <code>state</code> parameter is used to
+          link the token to the original request):
+        </p>
+        <ul>
+          <li>
+            The <code>nonce</code> value in the ID Token must match the unique
+            <code>nonce</code> value your application sent in the first step.
+          </li>
+          <li>
+            This prevents an attacker from reusing an intercepted token in a
+            <strong>replay attack</strong>.
+          </li>
+        </ul>
+      </li>
+    </ol>
+
+    <h2><span class="icon">🔑</span> Key Formats: JWK and PEM</h2>
+
+    <p>
+      Your server needs Google's public key to verify the signature, but these
+      keys come in different formats.
+    </p>
+
+    <h3>1. JWK (JSON Web Key)</h3>
+    <p>
+      The <strong>JWK</strong> format is a standard way to represent
+      cryptographic keys using <strong>JSON</strong> data structures. It is the
+      format most commonly used when transferring public keys over the web, as
+      it is easily consumed by web services.
+    </p>
+    <ul>
+      <li>
+        <strong>Structure:</strong> It's a JSON object that specifies the key
+        type (<code>kty</code>), the algorithm (<code>alg</code>), the modulus
+        (<code>n</code>), and the exponent (<code>e</code>) for RSA keys.
+      </li>
+      <li>
+        <strong>Google's Use:</strong> Google publishes its public keys for
+        verification in a <strong>JWKS (JSON Web Key Set)</strong> endpoint
+        (e.g., <code>https://www.googleapis.com/oauth2/v3/certs</code>). Your
+        server fetches this JSON file to get the keys.
+      </li>
+    </ul>
+
+    <h3>2. PEM (Privacy-Enhanced Mail)</h3>
+    <p>
+      The <strong>PEM</strong> format is an older, widely recognized standard
+      for storing cryptographic keys and certificates.
+    </p>
+    <ul>
+      <li>
+        <strong>Structure:</strong> A text file containing Base64-encoded data,
+        enclosed by boundary markers like
+        <code>-----BEGIN PUBLIC KEY-----</code> and
+        <code>-----END PUBLIC KEY-----</code>.
+      </li>
+      <li>
+        <strong>Use:</strong> This format is common in backend languages and
+        tools (like OpenSSL) that need to load keys from disk.
+      </li>
+    </ul>
+    <p>
+      <strong>Conversion:</strong> Verification libraries often take a JWK from
+      Google's endpoint and automatically convert it internally to a format like
+      PEM (or its binary equivalent) to perform the cryptographic checks.
+    </p>
+
+    <h2><span class="icon">💻</span> How We Verify the Token Only Using JWT</h2>
+
+    <p>
+      The term "only using JWT" essentially means using a
+      <strong>JWT library</strong> (or JWT Verifier) tailored to your backend
+      language (e.g., <code>node-jose</code> in Node.js,
+      <code>python-jose</code> in Python, or various libraries in Java/C#).
+    </p>
+
+    <p>A robust JWT library automates the entire verification process:</p>
+    <ul>
+      <li>
+        <strong>Parse the Header:</strong> The library reads the token's header
+        to determine the key ID (<code>kid</code>) and the signing algorithm
+        (<code>alg</code>).
+      </li>
+      <li>
+        <strong>Fetch the Public Key:</strong> Using the <code>kid</code>, the
+        library searches the Google JWKS endpoint (or cached keys) and selects
+        the matching public key.
+      </li>
+      <li>
+        <strong>Validate the Signature:</strong> The library uses the selected
+        public key and the specified algorithm to cryptographically check if the
+        signature matches the hash of the Header + Payload.
+      </li>
+      <li>
+        <strong>Validate Claims:</strong> The library automatically checks all
+        required standard claims against the rules you provide (e.g., it ensures
+        <code>aud</code> matches your Client ID and <code>exp</code> is in the
+        future).
+      </li>
+    </ul>
+
+    <pre><span class="js-import">import</span> <span class="variable">jwt</span> <span class="js-import">from</span> <span class="string">'jsonwebtoken'</span>
+<span class="keyword">const</span> <span class="variable">clientId</span> <span class="punctuation">=</span> <span class="string">'1096232866015-ogbl3p6r6drdpunegnjjn3jf7v9j3rjn.apps.googleusercontent.com'</span>
+<span class="keyword">const</span> <span class="variable">token</span> <span class="punctuation">=</span> <span class="string">'eyJhbGciOiJSUzI1NiIsImtpZCI6ImI1ZTQ0MGFlOTQxZTk5ODFlZTJmYTEzNzZkNDJjNDZkNzMxZGVlM2YiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiIxMDk2MjMyODY2MDE1LW9nYmwzcDZyNmRyZHB1bmVnbmpqbjNqZjd2OWozcmpuLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMTA5NjIzMjg2NjAxNS1vZ2JsM3A2cjZkcmRwdW5lZ25qam4zamY3djlqM3Jqbi5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsInN1YiI6IjExNTI5MTYwMjk2MTIyMzEyMjUxNCIsImVtYWlsIjoiYXJtYW5paHNhbjIyNEBnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiYXRfaGFzaCI6InFfWXlLTDhaeTBtWkc1SzBMRGVXeXciLCJuYW1lIjoiQXJtYW4gSWhzYW4iLCJwaWN0dXJlIjoiaHR0cHM6Ly9saDMuZ29vZ2xldXNlcmNvbnRlbnQuY29tL2EvQUNnOG9jSnJZNnMybGZ0N1NfcXk5SDF5YlUwTGdNVEpEcXVheUF5Z25hRjVqNzNvRExxWDl0WlM9czk2LWMiLCJnaXZlbl9uYW1lIjoiQXJtYW4iLCJmYW1pbHlfbmFtZSI6Ikloc2FuIiwiaWF0IjoxNzYyNjcwOTk2LCJleHAiOjE3NjI2NzQ1OTZ9.E7AgXEaeN41EDoBOw_hjy7LRAZIgk-wPr3kwAMCWgQPHLM8O_bq_ezv64CrBNLrl-ea7vQHG5yXIiAuTu1R7ZGYGMqWfW0_EKyR33YMdT4oj4dbjS9nkksbPhYUpEWqR5FHKQAybAgAd0rXaYMBq_Qg7FOzlg7cLWnliOyy-YuVGqeToozwoAGYPdupNYHsmKh64vrxvlhhOU7Kr0GxxxTpX8ayttkNDcUzDtmucJO7dvk_lCzUVNuqBxMNISLV0rbn2XfxAqgCUC2Wi5JUr8Wx_rzbd7Rpb2pYi653Rz0zfsdInjCDBheDXLS7LOLQuG4jycteqHRHPc-3gIIF-9g'</span>
+<span class="keyword">const</span> <span class="variable">publicKey</span> <span class="punctuation">=</span> <span class="string">`-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApZXMN1HbBD2H5iDDuaQM
+/1gx/B3uIStAT1qAPN6oxKID6Rp8ybt8/SdfuGNonoazOQ4OHiP3Prckr+WuEFIS
+fjzWJkT15lBQ/hc9Wq5+eZBSuTas9yEd3a1AtT+ms/E5Re3CsuFJoO9A5g0UYcZW
+Wbp27f06FUDo3qYvLN2JJcJTIR4Ivi6pWj2Yrm6ShtaW4Jnz5XyIr3lKzJh3uNR7
+9081/9rfvzV5mVdvKY1mPuXJM4Bhev4f1PSAxSyAaP/c3/fUPP7rQHf0re+RT8U4
+nsDbIRoiGhTE3UeLC2dzMQm8s23ex0Q2EsG+cSKXTXL5Ts9rleqryYqOrEJOTxzC
+qwIDAQAB
+-----END PUBLIC KEY-----`</span>
+
+<span class="keyword">const</span> <span class="variable">data</span> <span class="punctuation">=</span> <span class="variable">jwt</span><span class="punctuation">.</span><span class="js-function">verify</span>(<span class="variable">token</span><span class="punctuation">,</span> <span class="variable">publicKey</span><span class="punctuation">,</span> <span class="punctuation">{</span>
+    <span class="property">algorithms</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">'RS256'</span><span class="punctuation">]</span>
+<span class="punctuation">}</span>)
+
+<span class="variable">console</span><span class="punctuation">.</span><span class="js-function">log</span>(<span class="variable">clientId</span> <span class="punctuation">===</span> <span class="variable">data</span><span class="punctuation">.</span><span class="property">aud</span>)<span class="punctuation">;</span>
+<span class="variable">console</span><span class="punctuation">.</span><span class="js-function">log</span>(<span class="variable">data</span>)<span class="punctuation">;</span>
+</pre>
+  </body>
+</html>

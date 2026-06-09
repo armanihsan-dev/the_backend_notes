@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced Security Topics</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1>🛡️ Network & Transport Attacks</h1>
+
+    <h2>Man-in-the-Middle (MitM) Attacks</h2>
+    <p>
+      MitM attacks are primarily defeated by your previous work on
+      <strong class="prop">HTTPS/TLS</strong> (<code class="str"
+        >17_HTTPS server in nodejs.html</code
+      >).
+    </p>
+
+    <h3>How it works:</h3>
+    <p>
+      An attacker secretly relays and possibly alters the communication between
+      two parties who believe they are directly communicating.
+    </p>
+
+    <h3>MERN Defense:</h3>
+    <p>
+      When you serve your MERN API via <strong class="prop">HTTPS</strong>, you
+      enforce <strong class="prop">encryption in transit</strong>. This means
+      even if an attacker sniffs the packet (<strong class="prop"
+        >Packet Sniffing</strong
+      >), the content (like session tokens or user data) will be unreadable
+      (encrypted).
+    </p>
+
+    <hr />
+
+    <h1>🔐 Application-Layer Vulnerabilities</h1>
+
+    <h2>SSRF (Server-Side Request Forgery)</h2>
+    <p>
+      This is a <strong class="prop">critical vulnerability</strong> for backend
+      developers.
+    </p>
+
+    <h3>The Flaw:</h3>
+    <p>
+      An attacker manipulates your server-side application (<code class="prop"
+        >Node.js</code
+      >) to make HTTP requests to an
+      <strong class="prop">arbitrary domain</strong> of their choosing.
+    </p>
+
+    <h3>The Impact:</h3>
+    <p>
+      The attacker can potentially scan your
+      <strong class="prop">internal network</strong> (e.g., accessing an
+      internal database or cloud metadata service like
+      <code class="prop">AWS IAM keys</code>) which is normally inaccessible
+      from the public internet.
+    </p>
+
+    <h3>MERN Defense:</h3>
+    <p>
+      When your <code class="prop">Node.js</code> server needs to fetch a
+      <strong class="prop">URL provided by a user</strong> (e.g., fetching a
+      profile picture from an external link), you must rigorously
+      <strong class="prop">validate the destination IP address</strong>. Use a
+      library to ensure the resolved IP is
+      <strong class="prop">not a private IP</strong> (e.g.,
+      <code class="lit">10.x.x.x</code>, <code class="lit">172.16.x.x</code>,
+      <code class="lit">192.168.x.x</code>) or a local host IP (<code
+        class="lit"
+        >127.0.0.1</code
+      >).
+    </p>
+
+    <h2>ReDoS (Regular Expression Denial of Service)</h2>
+    <p>
+      This relates directly to your previous notes on
+      <strong class="prop">Dependency Vulnerabilities</strong>.
+    </p>
+
+    <h3>The Flaw:</h3>
+    <p>
+      Using poorly constructed regular expressions that can cause
+      <strong class="prop">excessive back-tracking</strong> when processing
+      specific, malicious input strings (often called
+      <strong class="prop">"catastrophic backtracking"</strong>).
+    </p>
+
+    <h3>The Impact:</h3>
+    <p>
+      A single malicious request can cause the
+      <code class="prop">Node.js event loop</code> to
+      <strong class="prop">block</strong>, spiking the
+      <code class="prop">CPU to 100%</code> and leading to a
+      <strong class="prop">Denial of Service (DoS)</strong> for all users.
+    </p>
+
+    <h3>MERN Defense:</h3>
+    <ul>
+      <li>
+        Use <strong class="prop">safe regex libraries</strong> that
+        automatically prevent catastrophic backtracking.
+      </li>
+      <li>
+        Use <strong class="prop">static analysis tools</strong> (like the
+        Linters and <code class="prop">Semgrep</code> you listed) to flag
+        vulnerable regex patterns during development.
+      </li>
+    </ul>
+
+    <h2>Session Fixation</h2>
+    <p>
+      This is a risk when a
+      <strong class="prop"
+        >session is created before a user authenticates</strong
+      >.
+    </p>
+
+    <h3>The Flaw:</h3>
+    <p>
+      An attacker tricks a user into logging in using a
+      <strong class="prop">session ID that the attacker already knows</strong>
+      (and possibly controlled).
+    </p>
+
+    <h3>The Impact:</h3>
+    <p>
+      Once the user logs in, the known session ID is now authenticated, allowing
+      the attacker to immediately use it to
+      <strong class="prop">impersonate the user</strong>.
+    </p>
+
+    <h3>MERN Defense:</h3>
+    <p>
+      The standard fix is to
+      <strong class="prop">always regenerate the session ID</strong> after a
+      successful login. When using libraries like
+      <code class="prop">express-session</code> in
+      <code class="prop">Node.js</code>, ensure you call the relevant function
+      (e.g., <code class="dir">session.regenerate()</code>) upon successful
+      authentication.
+    </p>
+
+    <hr />
+
+    <h1>🧠 Security Architecture & Design</h1>
+
+    <h2>Defense in Depth</h2>
+    <p>This is a <strong class="prop">foundational concept</strong>.</p>
+
+    <h3>The Principle:</h3>
+    <p>
+      Do not rely on a single security mechanism to protect an asset. Apply
+      <strong class="prop">multiple, overlapping security controls</strong> so
+      that if one fails, others are still in place.
+    </p>
+
+    <h3>MERN Examples:</h3>
+    <ul>
+      <li>
+        Protecting an API route with
+        <strong class="prop">Authentication</strong> (<code class="prop"
+          >JWT</code
+        >
+        check).
+      </li>
+      <li>
+        Adding <strong class="prop">Authorization</strong> (<code class="prop"
+          >Role check</code
+        >) inside the route handler.
+      </li>
+      <li>
+        Adding <strong class="prop">Input Validation</strong> (<code
+          class="prop"
+          >Zod</code
+        >) on the request body.
+      </li>
+      <li>
+        Adding <strong class="prop">Rate Limiting</strong> (<code class="prop"
+          >Express Rate Limit</code
+        >) before the route.
+      </li>
+      <li>
+        Adding a <strong class="prop">WAF</strong> (<code class="prop"
+          >Cloudflare/AWS</code
+        >) before the entire server.
+      </li>
+    </ul>
+
+    <h2>Replay Attack Protection</h2>
+    <p>
+      This is <strong class="prop">crucial for securing actions</strong> that
+      should only happen once, like transferring funds.
+    </p>
+
+    <h3>The Flaw:</h3>
+    <p>
+      An attacker captures a valid request (e.g.,
+      <code class="str">"transfer $100"</code>) and attempts to
+      <strong class="prop">replay</strong> the exact same request to execute the
+      action multiple times.
+    </p>
+
+    <h3>MERN Defense:</h3>
+    <p>
+      Use a <strong class="prop">unique, single-use token</strong> for sensitive
+      operations, often called a <strong class="prop">nonce</strong> (<code
+        class="prop"
+        >Number used once</code
+      >) or a <strong class="prop">unique transaction ID</strong>. The server
+      must track and ensure that any given nonce/ID is accepted only a single
+      time.
+    </p>
+
+    <hr />
+
+    <h1>🔍 Input Constraints & Hardening</h1>
+
+    <h2>Secure File Uploads - Storing Outside Web Root</h2>
+    <p>
+      This is a
+      <strong class="prop"
+        >crucial detail for mitigating web shell attacks</strong
+      >.
+    </p>
+
+    <h3>The Concept:</h3>
+    <p>
+      The <strong class="prop">"web root"</strong> is the directory where the
+      web server (e.g., <code class="prop">Nginx</code>,
+      <code class="prop">Express static middleware</code>) serves files directly
+      to the public internet.
+    </p>
+
+    <h3>The Risk:</h3>
+    <p>
+      If an attacker uploads a <strong class="prop">malicious file</strong> that
+      the server executes (like a <code class="prop">PHP</code> script, or a
+      poorly configured image that runs <code class="prop">JS</code>), and it's
+      placed in the web root, the attacker can execute code by simply browsing
+      to the file's URL.
+    </p>
+
+    <h3>The Fix:</h3>
+    <p>
+      Store uploaded files in a separate,
+      <strong class="prop">non-public directory</strong> or, ideally, in an
+      <strong class="prop">object storage service</strong> (like
+      <code class="prop">AWS S3</code>). The web server should only provide
+      access to these files through a dedicated,
+      <strong class="prop">authorized endpoint</strong> that streams the
+      content, checking permissions first.
+    </p>
+
+    <hr />
+
+    <h1>🌐 Infrastructural Defenses</h1>
+
+    <h2>Web Application Firewall (WAF)</h2>
+    <h3>Function:</h3>
+    <p>
+      A <strong class="prop">WAF</strong> sits in front of your web server
+      (<code class="prop">Node.js</code>) and inspects incoming
+      <code class="prop">HTTP</code> traffic for common attack patterns before
+      it reaches your application code.
+    </p>
+
+    <h3>Value for MERN:</h3>
+    <p>
+      <strong class="prop">WAFs</strong> can automatically block high-volume
+      <strong class="prop">DDoS</strong> attempts and filter patterns typical of
+      <strong class="prop">SQL Injection</strong> (which also helps with
+      <strong class="prop">NoSQL Injection</strong>),
+      <strong class="prop">XSS</strong>, and
+      <strong class="prop">Directory Traversal</strong> before they ever hit
+      your code.
+    </p>
+
+    <h2>Security Testing Tools</h2>
+    <ul>
+      <li>
+        <strong class="prop">OWASP ZAP (Zed Attack Proxy):</strong> This tool is
+        essential. You can run it manually or integrate it into your CI/CD
+        pipeline (<strong class="prop"
+          >DAST - Dynamic Application Security Testing</strong
+        >). It actively attacks your running MERN application and reports the
+        findings.
+      </li>
+      <li>
+        <strong class="prop">Burp Suite:</strong> The industry-standard tool for
+        professional security testing, often used for manual penetration
+        testing.
+      </li>
+    </ul>
+
+    <p>
+      Learning these topics will
+      <strong class="prop">elevate your skills</strong> from a secure coder to a
+      <strong class="prop">security-aware application architect</strong>.
+    </p>
+  </body>
+</html>

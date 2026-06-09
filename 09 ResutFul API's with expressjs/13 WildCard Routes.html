@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wildcard Routes in Express.js</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 900px;
+        margin: auto;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #fff;
+        border-bottom: 2px solid #555;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      p {
+        margin-bottom: 1rem;
+      }
+
+      .code-block {
+        background-color: #1e1e1e;
+        border-radius: 5px;
+        padding: 1rem;
+        overflow-x: auto;
+        border: 1px solid #333;
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0;
+        font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco',
+          monospace;
+        font-size: 0.9em;
+      }
+
+      .keyword {
+        color: #569cd6;
+      } /* var, const, let, function */
+      .string {
+        color: #ce9178;
+      } /* "string", 'string' */
+      .comment {
+        color: #6a9955;
+      } /* // comment */
+      .number {
+        color: #b5cea8;
+      } /* numbers */
+      .property {
+        color: #9cdcfe;
+      } /* .property */
+      .function-call {
+        color: #dcdcaa;
+      } /* function() */
+      .parameter {
+        color: #c080ff;
+      }
+      .operator {
+        color: #ff80bf;
+      }
+      .brace {
+        color: #ffd700;
+      }
+      .semicolon {
+        color: #e0e0e0;
+      }
+      .special-char {
+        color: #ffd700;
+      }
+
+      ul {
+        list-style-type: disc;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 0.5rem;
+      }
+
+      strong {
+        color: #dcdcaa;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Wildcard Routes in Express.js</h1>
+    <p>
+      Wildcard routes in Express.js are a type of route that can match a variety
+      of paths. They are also known as <strong>catch-all routes</strong> because
+      they "catch" requests that haven't been matched by other, more specific
+      routes. They are primarily used for handling routes that follow a certain
+      pattern or for creating a fallback for 404 "Not Found" errors.
+    </p>
+
+    <h2>How Wildcard Routes Work</h2>
+    <p>
+      Wildcard routes work by using a special symbol, the asterisk
+      <span class="string">*</span>, in the path string. The asterisk acts as a
+      wildcard that matches any sequence of characters.
+    </p>
+
+    <p>Here's the basic syntax:</p>
+    <div class="code-block">
+      <pre>
+<span class="keyword">app</span>.<span class="function-call">get</span>(<span class="string">'<span class="string">/path/*</span>'</span>, <span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="comment">// This route will match /path/something, /path/another/thing, etc.</span>
+  <span class="keyword">res</span>.<span class="function-call">send</span>(<span class="string">'This is a wildcard route.'</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+        </pre>
+    </div>
+    <p>
+      A common use case for a wildcard is as the last route in your
+      application's middleware chain. If a request reaches this route, it means
+      no other, more specific route has matched it.
+    </p>
+
+    <p>Here's a good example:</p>
+    <div class="code-block">
+      <pre>
+<span class="keyword">app</span>.<span class="function-call">get</span>(<span class="string">'<span class="string">/users/:id</span>'</span>, <span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="keyword">res</span>.<span class="function-call">send</span>(<span class="string">'This is a specific user route.'</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+
+<span class="comment">// Wildcard route for 404 errors</span>
+<span class="keyword">app</span>.<span class="function-call">use</span>(<span class="string">'<span class="string">*</span>'</span>, <span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="keyword">res</span>.<span class="function-call">status</span>(<span class="number">404</span>).<span class="function-call">send</span>(<span class="string">'Sorry, that page cannot be found.'</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+        </pre>
+    </div>
+    <p>
+      In this example, a request to /users/123 will be handled by the first
+      route. A request to /about or any other non-existent route will fall
+      through to the wildcard route and return a 404 status. This is because
+      <strong>Express processes routes in the order they are defined</strong>.
+    </p>
+
+    <h2>Practical Nested Example: Reading and Writing Files</h2>
+    <p>
+      Let's look at a practical, nested example of using wildcard routes to
+      handle file operations. In this scenario, we'll create a system where a
+      user can request to read or write to a file within a specific directory,
+      and the wildcard will help us handle the different file paths.
+    </p>
+    <p>
+      We'll use Node.js's built-in
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >fs</span
+      >
+      module for file system operations.
+    </p>
+
+    <h3>Server-side Code</h3>
+    <div class="code-block">
+      <pre>
+<span class="keyword">const</span> <span class="property">express</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'<span class="string">express</span>'</span>)<span class="semicolon">;</span>
+<span class="keyword">const</span> <span class="property">fs</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'<span class="string">fs</span>'</span>)<span class="semicolon">;</span>
+<span class="keyword">const</span> <span class="property">path</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'<span class="string">path</span>'</span>)<span class="semicolon">;</span>
+
+<span class="keyword">const</span> <span class="property">app</span> <span class="operator">=</span> <span class="function-call">express</span>()<span class="semicolon">;</span>
+<span class="keyword">const</span> <span class="property">PORT</span> <span class="operator">=</span> <span class="number">3000</span><span class="semicolon">;</span>
+
+<span class="keyword">app</span>.<span class="function-call">use</span>(<span class="keyword">express</span>.<span class="function-call">json</span>())<span class="semicolon">;</span> <span class="comment">// Middleware to parse JSON request bodies</span>
+<span class="keyword">app</span>.<span class="function-call">use</span>(<span class="keyword">express</span>.<span class="function-call">text</span>())<span class="semicolon">;</span> <span class="comment">// Middleware to parse text request bodies</span>
+
+<span class="comment">// Define the base directory for our files</span>
+<span class="keyword">const</span> <span class="property">dataDir</span> <span class="operator">=</span> <span class="keyword">path</span>.<span class="function-call">join</span>(<span class="string">__dirname</span>, <span class="string">'<span class="string">data</span>'</span>)<span class="semicolon">;</span>
+
+<span class="comment">// Create the data directory if it doesn't exist</span>
+<span class="keyword">if</span> <span class="special-char">(</span><span class="operator">!</span><span class="keyword">fs</span>.<span class="function-call">existsSync</span>(<span class="property">dataDir</span>)<span class="special-char">)</span> <span class="brace">{</span>
+  <span class="keyword">fs</span>.<span class="function-call">mkdirSync</span>(<span class="property">dataDir</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>
+
+<span class="comment">// ----------------------</span>
+<span class="comment">// READ Wildcard Route</span>
+<span class="comment">// ----------------------</span>
+<span class="comment">// This route will handle GET requests for any file within the '/read' path.</span>
+<span class="keyword">app</span>.<span class="function-call">get</span>(<span class="string">'<span class="string">/read/*</span>'</span>, <span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="comment">// The wildcard part of the URL is captured in req.params[0]</span>
+  <span class="keyword">const</span> <span class="property">filePath</span> <span class="operator">=</span> <span class="keyword">path</span>.<span class="function-call">join</span>(<span class="property">dataDir</span>, <span class="keyword">req</span>.<span class="property">params</span>[<span class="number">0</span>])<span class="semicolon">;</span>
+
+  <span class="comment">// Check if the file exists</span>
+  <span class="keyword">if</span> <span class="special-char">(</span><span class="operator">!</span><span class="keyword">fs</span>.<span class="function-call">existsSync</span>(<span class="property">filePath</span>)<span class="special-char">)</span> <span class="brace">{</span>
+    <span class="keyword">return</span> <span class="keyword">res</span>.<span class="function-call">status</span>(<span class="number">404</span>).<span class="function-call">send</span>(<span class="string">'File not found.'</span>)<span class="semicolon">;</span>
+  <span class="brace">}</span>
+
+  <span class="comment">// Read the file and send its content</span>
+  <span class="keyword">fs</span>.<span class="function-call">readFile</span>(<span class="property">filePath</span>, <span class="string">'<span class="string">utf8</span>'</span>, <span class="special-char">(</span><span class="parameter">err</span>, <span class="parameter">data</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+    <span class="keyword">if</span> <span class="special-char">(</span><span class="parameter">err</span><span class="special-char">)</span> <span class="brace">{</span>
+      <span class="keyword">return</span> <span class="keyword">res</span>.<span class="function-call">status</span>(<span class="number">500</span>).<span class="function-call">send</span>(<span class="string">'Error reading file.'</span>)<span class="semicolon">;</span>
+    <span class="brace">}</span>
+    <span class="keyword">res</span>.<span class="function-call">send</span>(<span class="parameter">data</span>)<span class="semicolon">;</span>
+  <span class="brace">}</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+
+<span class="comment">// ----------------------</span>
+<span class="comment">// WRITE Wildcard Route</span>
+<span class="comment">// ----------------------</span>
+<span class="comment">// This route will handle POST requests to write to any file within the '/write' path.</span>
+<span class="keyword">app</span>.<span class="function-call">post</span>(<span class="string">'<span class="string">/write/*</span>'</span>, <span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="comment">// The wildcard part of the URL is captured in req.params[0]</span>
+  <span class="keyword">const</span> <span class="property">filePath</span> <span class="operator">=</span> <span class="keyword">path</span>.<span class="function-call">join</span>(<span class="property">dataDir</span>, <span class="keyword">req</span>.<span class="property">params</span>[<span class="number">0</span>])<span class="semicolon">;</span>
+
+  <span class="comment">// The content to write comes from the request body</span>
+  <span class="keyword">const</span> <span class="property">content</span> <span class="operator">=</span> <span class="keyword">req</span>.<span class="property">body</span><span class="semicolon">;</span>
+
+  <span class="comment">// Write the content to the file</span>
+  <span class="keyword">fs</span>.<span class="function-call">writeFile</span>(<span class="property">filePath</span>, <span class="property">content</span>, <span class="string">'<span class="string">utf8</span>'</span>, <span class="special-char">(</span><span class="parameter">err</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+    <span class="keyword">if</span> <span class="special-char">(</span><span class="parameter">err</span><span class="special-char">)</span> <span class="brace">{</span>
+      <span class="keyword">return</span> <span class="keyword">res</span>.<span class="function-call">status</span>(<span class="number">500</span>).<span class="function-call">send</span>(<span class="string">'Error writing file.'</span>)<span class="semicolon">;</span>
+    <span class="brace">}</span>
+    <span class="keyword">res</span>.<span class="function-call">status</span>(<span class="number">200</span>).<span class="function-call">send</span>(<span class="string">`File saved successfully to ${req.params[0]}`</span>)<span class="semicolon">;</span>
+  <span class="brace">}</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+
+<span class="comment">// Fallback 404 Route</span>
+<span class="keyword">app</span>.<span class="function-call">use</span>(<span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="keyword">res</span>.<span class="function-call">status</span>(<span class="number">404</span>).<span class="function-call">send</span>(<span class="string">'The requested URL was not found.'</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+
+<span class="comment">// Start the server</span>
+<span class="keyword">app</span>.<span class="function-call">listen</span>(<span class="property">PORT</span>, <span class="special-char">()</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="keyword">console</span>.<span class="function-call">log</span>(<span class="string">`Server is running on http://localhost:${PORT}`</span>)<span class="semicolon">;</span>
+  <span class="keyword">console</span>.<span class="function-call">log</span>(<span class="string">'To read a file: GET /read/your-filename.txt'</span>)<span class="semicolon">;</span>
+  <span class="keyword">console</span>.<span class="function-call">log</span>(<span class="string">'To write a file: POST /write/your-filename.txt with text in the body'</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+        </pre>
+    </div>
+
+    <h2>How the Code Works</h2>
+    <ul>
+      <li>
+        <strong>app.get('/read/*', ...):</strong>
+        <ul>
+          <li>
+            This is our read wildcard route. It will match any
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >GET</span
+            >
+            request to
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >/read/</span
+            >
+            followed by anything. For example,
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >/read/documents/report.txt</span
+            >.
+          </li>
+          <li>
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >req.params[0]</span
+            >
+            is a special property that holds the value matched by the wildcard
+            <span class="string">*</span>. In
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >/read/documents/report.txt</span
+            >,
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >req.params[0]</span
+            >
+            will be <span class="string">'documents/report.txt'</span>.
+          </li>
+          <li>
+            We use
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >path.join()</span
+            >
+            to safely construct the full file path, preventing directory
+            traversal attacks.
+          </li>
+          <li>
+            We then check if the file exists and, if so, read and send its
+            contents.
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>app.post('/write/*', ...):</strong>
+        <ul>
+          <li>
+            This is our write wildcard route. It will match any
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >POST</span
+            >
+            request to
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >/write/</span
+            >
+            followed by anything, like
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >/write/notes/my-notes.md</span
+            >.
+          </li>
+          <li>
+            Again,
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >req.params[0]</span
+            >
+            is used to get the desired file path.
+          </li>
+          <li>
+            We get the file content from the
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >req.body</span
+            >
+            and use
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >fs.writeFile()</span
+            >
+            to save it.
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>Order of Operations:</strong>
+        <ul>
+          <li>
+            Because the read and write routes are defined
+            <strong>before</strong> the final 404 route, they will be matched
+            first. This ensures our file operations are handled correctly.
+          </li>
+          <li>
+            If a request doesn't match either of these, it "falls through" to
+            the
+            <span
+              class="code-block"
+              style="
+                background-color: #2a2a2a;
+                color: #e0e0e0;
+                padding: 2px 5px;
+                border-radius: 3px;
+              "
+              >app.use((req, res) => ...)</span
+            >
+            middleware, which sends the 404 message.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2>Example Usage with cURL</h2>
+    <h3>Writing a File</h3>
+    <p>
+      To write the file
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >hello.txt</span
+      >
+      inside a new
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >files</span
+      >
+      directory:
+    </p>
+    <div class="code-block">
+      <pre>
+<span class="function-call">curl</span> <span class="operator">-X</span> POST <span class="operator">-H</span> <span class="string">"Content-Type: text/plain"</span> <span class="operator">-d</span> <span class="string">"Hello, this is a test file."</span> <span class="string">http://localhost:3000/write/files/hello.txt</span>
+        </pre>
+    </div>
+    <p>
+      This will create the directory
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >data/files</span
+      >
+      and a file named
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >hello.txt</span
+      >
+      inside it with the specified content.
+    </p>
+
+    <h3>Reading a File</h3>
+    <p>To read the file you just wrote:</p>
+    <div class="code-block">
+      <pre>
+<span class="function-call">curl</span> <span class="string">http://localhost:3000/read/files/hello.txt</span>
+        </pre>
+    </div>
+    <p>
+      The server will respond with the content: "Hello, this is a test file."
+      You can get the route that is inside a wildcard by using
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >req.params[0]</span
+      >. This property in Express.js contains the matched substring from the
+      route's URL.
+    </p>
+
+    <h2>How it Works</h2>
+    <p>
+      When you define a route with a wildcard <span class="string">*</span>,
+      Express captures the part of the URL that matches the wildcard and stores
+      it in an array attached to the request object. The first element of this
+      array,
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >req.params[0]</span
+      >, holds the entire path segment that was matched by the
+      <span class="string">*</span>.
+    </p>
+
+    <h2>Example</h2>
+    <p>Let's say you have the following wildcard route:</p>
+    <div class="code-block">
+      <pre>
+<span class="keyword">app</span>.<span class="function-call">get</span>(<span class="string">'<span class="string">/files/*</span>'</span>, <span class="special-char">(</span><span class="parameter">req</span>, <span class="parameter">res</span><span class="special-char">)</span> <span class="special-char">=></span> <span class="brace">{</span>
+  <span class="comment">// `req.params[0]` will contain the part of the URL after `/files/`</span>
+  <span class="keyword">const</span> <span class="property">filePath</span> <span class="operator">=</span> <span class="keyword">req</span>.<span class="property">params</span>[<span class="number">0</span>]<span class="semicolon">;</span>
+  <span class="keyword">console</span>.<span class="function-call">log</span>(<span class="string">'Requested file path:'</span>, <span class="property">filePath</span>)<span class="semicolon">;</span>
+  <span class="keyword">res</span>.<span class="function-call">send</span>(<span class="string">`You requested the file located at: ${filePath}`</span>)<span class="semicolon">;</span>
+<span class="brace">}</span>)<span class="semicolon">;</span>
+        </pre>
+    </div>
+    <p>
+      If a user navigates to
+      <span
+        class="code-block"
+        style="
+          background-color: #2a2a2a;
+          color: #e0e0e0;
+          padding: 2px 5px;
+          border-radius: 3px;
+        "
+        >http://localhost:3000/files/documents/report.pdf</span
+      >, here's what happens:
+    </p>
+    <ul>
+      <li>
+        The request URL is
+        <span
+          class="code-block"
+          style="
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+          "
+          >/files/documents/report.pdf</span
+        >.
+      </li>
+      <li>
+        The route definition is
+        <span
+          class="code-block"
+          style="
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+          "
+          >/files/*</span
+        >.
+      </li>
+      <li>
+        The part of the URL that matches the <span class="string">*</span> is
+        <span
+          class="code-block"
+          style="
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+          "
+          >documents/report.pdf</span
+        >.
+      </li>
+      <li>
+        Express stores this value in
+        <span
+          class="code-block"
+          style="
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+          "
+          >req.params[0]</span
+        >.
+      </li>
+      <li>
+        The
+        <span
+          class="code-block"
+          style="
+            background-color: #2a2a2a;
+            color: #e0e0e0;
+            padding: 2px 5px;
+            border-radius: 3px;
+          "
+          >filePath</span
+        >
+        variable will be assigned the string
+        <span class="string">'documents/report.pdf'</span>, allowing you to use
+        it for further logic, such as reading a file from a directory.
+      </li>
+    </ul>
+    <img
+      src="./images/wild card route.png"
+      width="100%"
+      height="500px"
+      alt=""
+    />
+  </body>
+</html>

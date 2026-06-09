@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rainbow Tables & Attacks - Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling */
+      body {
+        background-color: #121212; /* Darker background */
+        color: #e0e0e0; /* Light text for contrast */
+        font-family: 'Nunito', sans-serif;
+        margin: 20px;
+        line-height: 1.6;
+      }
+
+      /* Headings */
+      h1 {
+        color: #bb86fc; /* Light purple for main headings */
+        border-bottom: 2px solid #333333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+      h2 {
+        color: #03dac6; /* Teal for subheadings */
+        margin-top: 20px;
+      }
+
+      /* Typography */
+      p,
+      li {
+        font-size: 16px;
+      }
+
+      /* Lists */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+      ul li::before {
+        content: '•';
+        color: #bb86fc;
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Code Block (VS Code Dark Theme Emulation) */
+      .code-block,
+      table {
+        background-color: #1e1e1e; /* VS Code background */
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+        overflow-x: auto;
+        border: 1px solid #333333;
+      }
+
+      /* Tables for Data Presentation */
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        padding: 0;
+      }
+      th,
+      td {
+        border: 1px solid #333333;
+        padding: 10px;
+        text-align: left;
+        white-space: nowrap; /* Prevent hashes from wrapping */
+      }
+      th {
+        background-color: #333333;
+        color: #4ec9b0; /* Teal for table headers */
+      }
+
+      /* Styling for Specific Sections (like icons/emojis) */
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      /* Conclusion Styling */
+      .conclusion {
+        border-top: 4px solid #bb86fc;
+        padding-top: 15px;
+        margin-top: 30px;
+        font-weight: bold;
+        color: #e0e0e0;
+      }
+
+      /* Links/Emphasis */
+      a {
+        color: #569cd6; /* Blue for links */
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      strong {
+        color: #9cdcfe; /* Light blue for key emphasis */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <span class="emoji">🌈</span> Rainbow Tables and Rainbow Table Attacks
+    </h1>
+
+    <h2><span class="emoji">🔍</span> What is a Rainbow Table?</h2>
+    <p>
+      A **Rainbow Table** is a **precomputed lookup table** used to **reverse
+      cryptographic hash functions** — primarily to crack password hashes.
+    </p>
+    <ul>
+      <li>
+        It contains a large list of **plaintext inputs** (like common passwords)
+        and their corresponding **hash outputs**.
+      </li>
+      <li>
+        Instead of hashing each guess during an attack, the attacker just
+        **searches the table** — making the process very **fast**.
+      </li>
+    </ul>
+
+    <h2><span class="emoji">⚠️</span> What is a Rainbow Table Attack?</h2>
+    <p>
+      A **Rainbow Table Attack** is when an attacker uses a rainbow table to:
+    </p>
+    <ul>
+      <li>
+        Look up the **hash of a stolen password** (e.g., from a database
+        breach).
+      </li>
+      <li>Match it against known hash entries in the table.</li>
+      <li>Retrieve the original **plaintext password**.</li>
+    </ul>
+    <p>This works **only** if:</p>
+    <ul>
+      <li>The hash function used is known (e.g., **SHA-1, SHA-256**).</li>
+      <li>**No salt** was used during hashing.</li>
+    </ul>
+
+    <h2><span class="emoji">🛡️</span> How to Prevent Rainbow Table Attacks</h2>
+    <ul>
+      <li>
+        **Always use a salt:** A **unique random salt per password** ensures
+        that even the same password has a different hash.
+      </li>
+      <li>
+        **Use KDFs:** Functions like **PBKDF2, bcrypt, scrypt, and Argon2** make
+        hashing **slow**, which makes precomputation expensive.
+      </li>
+      <li>
+        **Avoid plain SHA-256/MD5** for password storage — they are fast and
+        vulnerable to brute-force + rainbow tables.
+      </li>
+    </ul>
+
+    <h2><span class="emoji">🧪</span> Rainbow Table Example (SHA-256)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Plaintext</th>
+          <th>SHA-256 Hash</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>password</td>
+          <td>
+            5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+          </td>
+        </tr>
+        <tr>
+          <td>1234</td>
+          <td>
+            03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4
+          </td>
+        </tr>
+        <tr>
+          <td>qwerty</td>
+          <td>
+            65e84be33532fb784c48129675f9eff3a682b27168c0ea744b2cf58ee02337c5
+          </td>
+        </tr>
+        <tr>
+          <td>letmein</td>
+          <td>
+            1c8bfe8f801d79745c4631d09fff36c82aa37fc4cce4fc946683d7b336b63032
+          </td>
+        </tr>
+        <tr>
+          <td>admin</td>
+          <td>
+            8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+          </td>
+        </tr>
+        <tr>
+          <td>welcome</td>
+          <td>
+            280d44ab1e9f79b5cce2dd4f58f5fe91f0fbacdac9f7447dffc318ceb79f2d02
+          </td>
+        </tr>
+        <tr>
+          <td>ninja</td>
+          <td>
+            54482595177116e6103b076dbf30648e5d0537dd1ed9cf5ae4562fa8a700d47b
+          </td>
+        </tr>
+        <tr>
+          <td>abc123</td>
+          <td>
+            6ca13d52ca70c883e0f0bb101e425a89e8624de51db2d2392593af6a84118090
+          </td>
+        </tr>
+        <tr>
+          <td>iloveyou</td>
+          <td>
+            e4ad93ca07acb8d908a3aa41e920ea4f4ef4f26e7f86cf8291c5db289780a5ae
+          </td>
+        </tr>
+        <tr>
+          <td>football</td>
+          <td>
+            6382deaf1f5dc6e792b76db4a4a7bf2ba468884e000b25e7928e621e27fb23cb
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2><span class="emoji">🌐</span> Popular Websites to Crack Hashes</h2>
+    <p>Here are three popular websites that can help crack hash values:</p>
+    <ul>
+      <li>
+        <a href="#">**CrackStation**</a> — A powerful online hash cracker with a
+        large lookup table (15GB+). Supports **MD5, SHA1, SHA256**. Easy to use
+        and fast for common hashes.
+      </li>
+      <li>
+        <a href="#">**Hashes.com**</a> — A **community-driven** hash cracking
+        service. You can upload hash lists, and it will try cracking using a
+        massive collection of known hashes.
+      </li>
+    </ul>
+
+    <div class="conclusion">
+      <p><span class="emoji">🔚</span> **Conclusion**</p>
+      <p>
+        Rainbow tables are powerful tools for attackers — but they’re only
+        effective if the hash is **unsalted** and predictable.
+      </p>
+      <p>
+        Best defense: **salt** + **slow hash** + **strong password policy**.
+      </p>
+    </div>
+
+    <p>
+      Want to see how to generate your own hashes or simulate an attack in
+      **Node.js or Python**? Let me know!
+    </p>
+  </body>
+</html>

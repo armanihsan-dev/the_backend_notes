@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FileHandle in fs/promises (Streams)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Nunito', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        h1, h2, h3 {
+            color: #bb86fc;
+            border-bottom: 2px solid #373737;
+            padding-bottom: 5px;
+        }
+        h2 {
+            margin-top: 25px;
+        }
+        pre {
+            background: #2d2d2d;
+            border: 1px solid #373737;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        code {
+            font-family: 'Fira Code', 'Monaco', 'Consolas', 'Courier New', monospace;
+            background-color: #2d2d2d;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .correct-import {
+            color: #00e676;
+            font-weight: bold;
+        }
+        .incorrect-import {
+            color: #ff5252;
+            font-weight: bold;
+            text-decoration: line-through;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>What is a FileHandle in <code>fs/promises</code>?</h1>
+
+    <p>A <code>FileHandle</code> is an object representing an open file descriptor, returned by <code>fs.promises.open()</code>. It acts as a handle to the file, allowing you to perform operations on it until you explicitly close it.</p>
+
+    <h2>Using FileHandle with Streams</h2>
+
+    <p>Using <code>FileHandle</code> with streams is the recommended approach for handling large files efficiently. A <code>FileHandle</code> object provides methods to create readable or writable streams directly from the opened file.</p>
+
+    <h3>Key Methods</h3>
+    <ul>
+        <li><code>fileHandle.createReadStream()</code>: Creates a <a href="https://nodejs.org/api/stream.html#readable-streams"><code>Readable Stream</code></a> to read data from the file.</li>
+        <li><code>fileHandle.createWriteStream()</code>: Creates a <a href="https://nodejs.org/api/stream.html#writable-streams"><code>Writable Stream</code></a> to write data to the file.</li>
+        <li><code>fileHandle.close()</code>: Asynchronously closes the file, freeing up system resources. This is crucial and must always be called.</li>
+    </ul>
+
+    <h3>Example: Reading a File with FileHandle + Stream</h3>
+    <p>This example demonstrates how to open a file, create a readable stream from the handle, and read its contents.</p>
+    <pre><code>import { open } from 'fs/promises';
+import { finished } from <span class="correct-import">'stream/promises'</span>; // Correct for async/await
+
+async function readFileWithStream() {
+  let fileHandle;
+  try {
+    fileHandle = await open('input.txt', 'r');
+    const readStream = fileHandle.createReadStream({ encoding: 'utf-8' });
+
+    readStream.on('data', chunk => {
+      console.log('Chunk:', chunk);
+    });
+
+    await finished(readStream); // Await the promise from finished()
+    console.log('Reading completed!');
+  } catch (error) {
+    console.error('An error occurred:', error);
+  } finally {
+    if (fileHandle) {
+      await fileHandle.close();
+      console.log('File closed.');
+    }
+  }
+}
+readFileWithStream().catch(console.error);</code></pre>
+
+    <h3>Example: Writing to a File with FileHandle + Stream</h3>
+    <p>This example shows how to open a file in write mode, create a writable stream, and write data to it.</p>
+    <pre><code>import { open } from 'fs/promises';
+import { finished } from <span class="correct-import">'stream/promises'</span>;
+
+async function writeFileWithStream() {
+  let fileHandle;
+  try {
+    fileHandle = await open('output.txt', 'w');
+    const writeStream = fileHandle.createWriteStream();
+
+    writeStream.write('Hello, world!\n');
+    writeStream.write('This is written using a stream from FileHandle.\n');
+
+    writeStream.end(); // Signal that no more data will be written
+    await finished(writeStream);
+    console.log('Writing completed!');
+  } catch (error) {
+    console.error('An error occurred:', error);
+  } finally {
+    if (fileHandle) {
+      await fileHandle.close();
+      console.log('File closed.');
+    }
+  }
+}
+writeFileWithStream().catch(console.error);</code></pre>
+
+    <h3>Example: Copying a File with FileHandle + Streams</h3>
+    <p>This is a powerful use case, using <code>pipeline</code> from <code>stream/promises</code> to copy a file efficiently without loading its entire content into memory.</p>
+    <pre><code>import { open } from 'fs/promises';
+import { pipeline } from <span class="correct-import">'stream/promises'</span>;
+
+async function copyFile() {
+  let srcHandle, destHandle;
+  try {
+    srcHandle = await open('input.txt', 'r');
+    destHandle = await open('output.txt', 'w');
+
+    await pipeline(
+      srcHandle.createReadStream(),
+      destHandle.createWriteStream()
+    );
+    console.log('File copied successfully!');
+  } catch (error) {
+    console.error('An error occurred:', error);
+  } finally {
+    if (srcHandle) await srcHandle.close();
+    if (destHandle) await destHandle.close();
+    console.log('Both files closed.');
+  }
+}
+copyFile().catch(console.error);</code></pre>
+
+    <h3>Important Note on Imports</h3>
+    <p>Using <code>await finished(readStream)</code> requires importing <code>finished</code> from <code><span class="correct-import">stream/promises</span></code>, not <code><span class="incorrect-import">stream</span></code>. The latter is for the callback-based API, which does not return a promise.</p>
+</div>
+
+</body>
+</html>

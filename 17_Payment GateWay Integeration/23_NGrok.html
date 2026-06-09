@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Complete Guide to ngrok: Webhook Testing Mastery</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b; /* Zinc 950 */
+        --bg-secondary: #18181b; /* Zinc 900 */
+        --bg-tertiary: #27272a; /* Zinc 800 */
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399; /* Emerald 400 */
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --danger-dim: rgba(239, 68, 68, 0.1);
+        --border: #27272a;
+        --code-bg: #1e1e20;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+
+      th {
+        background: var(--bg-tertiary);
+        color: var(--accent);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code,
+      td code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-network-wired"></i> NGROK GUIDES
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Overview</div>
+        <a href="#what-is-ngrok" class="nav-link">What is ngrok?</a>
+        <a href="#how-it-works" class="nav-link">How ngrok Works</a>
+        <a href="#why-essential" class="nav-link">Why it's Essential</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Setup</div>
+        <a href="#alternatives" class="nav-link">ngrok vs Alternatives</a>
+        <a href="#installation" class="nav-link">Installation & Setup</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Implementation</div>
+        <a href="#testing-webhooks" class="nav-link">Testing with Express.js</a>
+        <a href="#package-setup" class="nav-link">Package.json & .env</a>
+        <a href="#testing-process" class="nav-link">Step-by-Step Testing</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Advanced</div>
+        <a href="#advanced-features" class="nav-link">Advanced Features</a>
+        <a href="#programmatic" class="nav-link">Programmatic Usage</a>
+        <a href="#security" class="nav-link">Security Considerations</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">V. Workflow</div>
+        <a href="#real-workflow" class="nav-link">Real Testing Workflow</a>
+        <a href="#cheat-sheet" class="nav-link">Quick Start Cheat Sheet</a>
+        <a href="#key-takeaways" class="nav-link">Key Takeaways</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="what-is-ngrok">
+        <span class="badge">Webhook Testing Mastery</span>
+        <h1>Complete Guide to ngrok</h1>
+
+        <h2>1. 🔍 What is ngrok?</h2>
+        <h3>Simple Definition</h3>
+        <p>
+          ngrok is a reverse proxy tool that creates a secure tunnel from a
+          public endpoint to your local development server.
+        </p>
+
+        <h3>In Plain English</h3>
+        <p>
+          Imagine your local computer (localhost) is a private island, and the
+          internet is the ocean. ngrok builds a bridge/tunnel that lets boats
+          (internet traffic) reach your island without you having to deploy it
+          to a public cloud server.
+        </p>
+
+        <h3>Visual Representation</h3>
+        <pre><code class="language-text">┌─────────────────────────────────────────────────────────────┐
+│                    PUBLIC INTERNET                          │
+│                                                             │
+│    https://abc123.ngrok.io  ←── Public URL anyone can access│
+│             │                                               │
+│             ▼                                               │
+│    ┌────────────────────┐                                   │
+│    │   ngrok Cloud      │ ←── Manages the tunnel           │
+│    │    Infrastructure  │                                   │
+│    └────────────────────┘                                   │
+│             │                                               │
+│             ▼                                               │
+│    ┌────────────────────┐                                   │
+│    │   Secure Tunnel    │ ←── Encrypted connection         │
+│    └────────────────────┘                                   │
+│             │                                               │
+│             ▼                                               │
+│    ┌────────────────────┐                                   │
+│    │  Your Local Machine│ ←── Your computer                │
+│    │  http://localhost:3000 │                               │
+│    └────────────────────┘                                   │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+
+        <h3>Key Features</h3>
+        <ul>
+          <li>Creates public URLs for local servers</li>
+          <li>HTTPS support even for HTTP local servers</li>
+          <li>Request inspection (see incoming/outgoing traffic)</li>
+          <li>Authentication options</li>
+          <li>Traffic replay capabilities</li>
+          <li>Web interface for monitoring</li>
+        </ul>
+      </section>
+
+      <section id="how-it-works">
+        <h2>2. ⚙️ How ngrok Works</h2>
+        <h3>Technical Architecture</h3>
+        <pre><code class="language-javascript">// How data flows through ngrok:
+1. User visits → https://your-subdomain.ngrok.io
+   ↓
+2. Request goes to → ngrok's cloud servers
+   ↓
+3. ngrok forwards to → Secure tunnel → Your computer
+   ↓
+4. Your app processes → http://localhost:3000
+   ↓
+5. Response goes back through → Same tunnel in reverse</code></pre>
+
+        <h3>The Tunnel Mechanism</h3>
+        <pre><code class="language-bash"># 1. You run local server
+node server.js  # Listening on http://localhost:3000
+
+# 2. You start ngrok
+ngrok http 3000
+
+# 3. ngrok creates this tunnel:
+Local: http://localhost:3000  ←→  Public: https://abc123.ngrok.io</code></pre>
+
+        <h3>Why It's Special</h3>
+        <ul>
+          <li>No firewall configuration needed</li>
+          <li>No port forwarding required</li>
+          <li>Works behind NAT (home/office networks)</li>
+          <li>SSL certificates automatically provided</li>
+          <li>Subdomains automatically assigned</li>
+        </ul>
+      </section>
+
+      <section id="why-essential">
+        <h2>3. 🎯 Why ngrok is Essential for Webhook Testing</h2>
+        <h3>The Webhook Testing Problem</h3>
+        <pre><code class="language-javascript">// PROBLEM: Webhooks need a PUBLIC HTTPS endpoint
+LemonSqueezy.configureWebhook({
+  url: "https://your-public-url.com/webhooks", // Must be HTTPS!
+  secret: "your_secret"
+});
+
+// But you're developing locally:
+const app = express();
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000'); // HTTP only!
+});</code></pre>
+
+        <h3>The ngrok Solution</h3>
+        <pre><code class="language-javascript">// With ngrok, you get:
+Local: http://localhost:3000/webhooks
+     ↓ (ngrok tunnel)
+Public: https://abc123.ngrok.io/webhooks  ← HTTPS!
+
+// Now Lemon Squeezy can send webhooks to your local machine!</code></pre>
+
+        <h3>Key Benefits for Webhook Testing</h3>
+        <ul>
+          <li>
+            <strong>HTTPS for free</strong> - Even though your local server is
+            HTTP
+          </li>
+          <li><strong>Public URL</strong> - External services can reach you</li>
+          <li>
+            <strong>No deployment needed</strong> - Test locally, receive
+            webhooks globally
+          </li>
+          <li>
+            <strong>See all traffic</strong> - Inspect incoming webhook payloads
+          </li>
+          <li><strong>Easy debugging</strong> - Capture and replay webhooks</li>
+        </ul>
+      </section>
+
+      <section id="alternatives">
+        <h2>4. ⚖️ ngrok vs Alternatives</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>ngrok</th>
+              <th>localtunnel</th>
+              <th>serveo</th>
+              <th>Cloudflare Tunnel</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Free Tier</td>
+              <td>✓ (limited)</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>HTTPS</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Custom Domains</td>
+              <td>Paid</td>
+              <td>✗</td>
+              <td>✗</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Request Inspection</td>
+              <td>✓</td>
+              <td>✗</td>
+              <td>✗</td>
+              <td>✗</td>
+            </tr>
+            <tr>
+              <td>Authentication</td>
+              <td>✓</td>
+              <td>✗</td>
+              <td>✗</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Persistence</td>
+              <td>Paid</td>
+              <td>✗</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Bandwidth Limits</td>
+              <td>40MB/min (free)</td>
+              <td>Limited</td>
+              <td>Unlimited</td>
+              <td>Unlimited</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p><strong>Why ngrok wins for webhook testing:</strong></p>
+        <ul>
+          <li>Best request inspection tools</li>
+          <li>Most reliable tunnel</li>
+          <li>Excellent documentation</li>
+          <li>Web interface for debugging</li>
+          <li>Specifically designed for dev testing</li>
+        </ul>
+      </section>
+
+      <section id="installation">
+        <h2>5. 🚀 Installation & Setup</h2>
+        <h3>5.1 Installation Methods</h3>
+        <p><strong>Option A: npm (Quick for Node.js developers)</strong></p>
+        <pre><code class="language-bash">npm install -g ngrok</code></pre>
+
+        <p><strong>Option B: Direct Download</strong></p>
+        <pre><code class="language-bash"># Mac with Homebrew
+brew install ngrok/ngrok/ngrok
+
+# Linux
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update && sudo apt install ngrok
+
+# Windows (via Chocolatey)
+choco install ngrok
+
+# Or download from: https://ngrok.com/download</code></pre>
+
+        <p><strong>Option C: Using Docker</strong></p>
+        <pre><code class="language-bash">docker run --rm -it ngrok/ngrok http 3000</code></pre>
+
+        <h3>5.2 Authentication (Required for custom domains)</h3>
+        <pre><code class="language-bash"># 1. Sign up at https://ngrok.com
+# 2. Get your authtoken from dashboard
+# 3. Authenticate ngrok
+ngrok config add-authtoken YOUR_AUTH_TOKEN
+
+# Verify it worked
+ngrok config check</code></pre>
+
+        <h3>5.3 Basic Usage</h3>
+        <pre><code class="language-bash"># Start a tunnel to port 3000
+ngrok http 3000
+
+# Output:
+# Forwarding https://abc123.ngrok.io -> http://localhost:3000
+# Forwarding http://abc123.ngrok.io  -> http://localhost:3000</code></pre>
+      </section>
+
+      <section id="testing-webhooks">
+        <h2>6. 🧪 Testing Webhooks with Express.js</h2>
+        <h3>6.1 Complete Express.js Webhook Server</h3>
+        <pre><code class="language-javascript">// server.js - Complete webhook server for testing
+const express = require('express');
+const crypto = require('crypto');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// Webhook signature verification middleware
+const verifyWebhookSignature = (req, res, next) => {
+  try {
+    const signature = req.headers['x-signature'];
+    const secret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
+    
+    if (!signature || !secret) {
+      console.warn('⚠️ Missing signature or secret');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    
+    // Create HMAC signature
+    const hmac = crypto.createHmac('sha256', secret);
+    const digest = hmac.update(JSON.stringify(req.body)).digest('hex');
+    
+    // Compare signatures
+    if (signature !== digest) {
+      console.error('❌ Invalid webhook signature');
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    
+    console.log('✅ Webhook signature verified');
+    next();
+  } catch (error) {
+    console.error('❌ Signature verification error:', error);
+    res.status(500).json({ error: 'Verification failed' });
+  }
+};
+
+// Webhook endpoint
+app.post('/api/webhooks/lemon', verifyWebhookSignature, (req, res) => {
+  try {
+    const event = req.body;
+    const eventName = event.meta.event_name;
+    
+    console.log('='.repeat(50));
+    console.log(`📨 WEBHOOK RECEIVED: ${eventName}`);
+    console.log('='.repeat(50));
+    
+    // Log full event for inspection
+    console.log('📋 Event Details:');
+    console.log(JSON.stringify(event, null, 2));
+    
+    // Process different event types
+    switch (eventName) {
+      case 'order_created':
+        console.log('🛒 New order created!');
+        console.log(`Order ID: ${event.data.id}`);
+        console.log(`Customer: ${event.data.attributes.user_email}`);
+        console.log(`Amount: $${event.data.attributes.total / 100}`);
+        break;
+        
+      case 'subscription_created':
+        console.log('🔔 New subscription created!');
+        console.log(`Subscription ID: ${event.data.id}`);
+        console.log(`Plan: ${event.data.attributes.variant_name}`);
+        console.log(`Status: ${event.data.attributes.status}`);
+        break;
+        
+      case 'subscription_cancelled':
+        console.log('🚫 Subscription cancelled');
+        console.log(`Customer: ${event.data.attributes.user_email}`);
+        console.log(`Cancelled at: ${event.data.attributes.ends_at}`);
+        break;
+        
+      default:
+        console.log(`⚠️ Unhandled event type: ${eventName}`);
+    }
+    
+    // ALWAYS return 200 immediately
+    console.log('✅ Webhook processed successfully');
+    res.status(200).json({ received: true });
+    
+  } catch (error) {
+    console.error('❌ Webhook processing error:', error);
+    // Still return 200 to prevent retries
+    res.status(200).json({ received: true, error: error.message });
+  }
+});
+
+// Test endpoint to verify server is running
+app.get('/api/test', (req, res) => {
+  res.json({
+    message: 'Webhook server is running!',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      webhook: 'POST /api/webhooks/lemon',
+      test: 'GET /api/test'
+    }
+  });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <head><title>Webhook Test Server</title></head>
+      <body>
+        <h1>🎯 Webhook Test Server</h1>
+        <p>Server is running on port ${PORT}</p>
+        <p>Endpoints:</p>
+        <ul>
+          <li><strong>Webhook:</strong> POST /api/webhooks/lemon</li>
+          <li><strong>Test:</strong> GET /api/test</li>
+        </ul>
+        <p>Use ngrok to get a public URL for webhook testing!</p>
+      </body>
+    </html>
+  `);
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log('='.repeat(50));
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📬 Webhook endpoint: http://localhost:${PORT}/api/webhooks/lemon`);
+  console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
+  console.log('='.repeat(50));
+  console.log('\n💡 To make it public, run: ngrok http ' + PORT);
+});</code></pre>
+      </section>
+
+      <section id="package-setup">
+        <h3>6.2 Package.json Setup</h3>
+        <pre><code class="language-json">{
+  "name": "webhook-test-server",
+  "version": "1.0.0",
+  "description": "Express server for testing Lemon Squeezy webhooks",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "ngrok": "ngrok http 3000",
+    "test": "echo \"No tests specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22",
+    "ngrok": "^4.3.3"
+  }
+}</code></pre>
+
+        <h3>6.3 Environment Variables (.env file)</h3>
+        <pre><code class="language-env"># Webhook Configuration
+LEMON_SQUEEZY_WEBHOOK_SECRET=your_webhook_signing_secret_here
+PORT=3000
+
+# Ngrok Configuration (optional)
+NGROK_AUTHTOKEN=your_ngrok_authtoken
+NGROK_SUBDOMAIN=your-custom-subdomain</code></pre>
+      </section>
+
+      <section id="testing-process">
+        <h3>6.4 Step-by-Step Testing Process</h3>
+        <p><strong>Step 1: Start your Express server</strong></p>
+        <pre><code class="language-bash"># Install dependencies
+npm install
+
+# Start server
+npm run dev
+# Output: Server running on http://localhost:3000</code></pre>
+
+        <p><strong>Step 2: Start ngrok in a new terminal</strong></p>
+        <pre><code class="language-bash"># Basic tunnel
+ngrok http 3000
+
+# Or with specific options
+ngrok http 3000 --subdomain=mywebhooktest --region=us</code></pre>
+
+        <p><strong>Step 3: Ngrok output will show</strong></p>
+        <pre><code class="language-bash">ngrok by @inconshreveable                                                                 (Ctrl+C to quit)
+
+Session Status                online
+Account                       Your Name (Plan: Free)
+Version                       3.0.6
+Region                        United States (us)
+Latency                       45ms
+Web Interface                 http://127.0.0.1:4040
+Forwarding                    https://abc123.ngrok.io -> http://localhost:3000
+Forwarding                    http://abc123.ngrok.io -> http://localhost:3000
+
+Connections                   ttl     opn     rt1     rt5     p50     p90
+                              0       0       0.00    0.00    0.00    0.00</code></pre>
+
+        <p><strong>Step 4: Test your public URL</strong></p>
+        <pre><code class="language-bash"># Test that ngrok is working
+curl https://abc123.ngrok.io/api/test
+
+# Should return:
+# {
+#   "message": "Webhook server is running!",
+#   "timestamp": "2024-01-15T10:30:00.000Z"
+# }</code></pre>
+
+        <p><strong>Step 5: Configure Lemon Squeezy Webhook</strong></p>
+        <ul>
+          <li>Go to Lemon Squeezy Dashboard → Settings → Webhooks</li>
+          <li>Click "Add Endpoint"</li>
+          <li>
+            Enter your ngrok URL:
+            <code>https://abc123.ngrok.io/api/webhooks/lemon</code>
+          </li>
+          <li>Add your webhook signing secret (same as in .env file)</li>
+          <li>Select events to test (start with "order_created")</li>
+          <li>Save and test!</li>
+        </ul>
+
+        <p><strong>Step 6: Trigger a test webhook</strong></p>
+        <pre><code class="language-bash"># Manually test with curl
+curl -X POST https://abc123.ngrok.io/api/webhooks/lemon \
+  -H "Content-Type: application/json" \
+  -H "x-signature: test_signature" \
+  -d '{
+    "meta": {
+      "event_name": "order_created",
+      "test_mode": true
+    },
+    "data": {
+      "id": "test_123",
+      "type": "orders",
+      "attributes": {
+        "user_email": "test@example.com",
+        "total": 2900,
+        "currency": "USD",
+        "status": "paid"
+      }
+    }
+  }'</code></pre>
+      </section>
+
+      <section id="advanced-features">
+        <h2>7. 🚀 Advanced ngrok Features</h2>
+        <h3>7.1 ngrok Configuration File</h3>
+        <pre><code class="language-yaml"># ngrok.yml (in your project root)
+version: "2"
+authtoken: YOUR_AUTH_TOKEN
+tunnels:
+  webhook:
+    proto: http
+    addr: 3000
+    host_header: "localhost:3000"
+    bind_tls: true
+    subdomain: mywebhooktest
+    inspect: true
+    request_header:
+      "x-custom-header": "ngrok-test"</code></pre>
+        <p>Run with config:</p>
+        <pre><code class="language-bash">ngrok start --config ngrok.yml --all</code></pre>
+      </section>
+
+      <section id="programmatic">
+        <h3>7.2 Using ngrok Programmatically (Node.js)</h3>
+        <pre><code class="language-javascript">// ngrok-programmatic.js
+const ngrok = require('ngrok');
+const express = require('express');
+
+async function startServerWithNgrok() {
+  const app = express();
+  const PORT = 3000;
+  
+  app.use(express.json());
+  
+  app.post('/webhook', (req, res) => {
+    console.log('Webhook received:', req.body);
+    res.sendStatus(200);
+  });
+  
+  // Start Express server
+  const server = app.listen(PORT, () => {
+    console.log(`✅ Local server started on port ${PORT}`);
+  });
+  
+  // Start ngrok tunnel
+  try {
+    const url = await ngrok.connect({
+      addr: PORT,
+      subdomain: 'mywebhooktest', // Optional custom subdomain
+      authtoken: process.env.NGROK_AUTHTOKEN,
+      region: 'us', // us, eu, ap, au, sa, jp, in
+      onStatusChange: (status) => {
+        console.log(`📡 Ngrok status: ${status}`);
+      },
+      onLogEvent: (data) => {
+        console.log('📝 Ngrok log:', data);
+      }
+    });
+    
+    console.log('='.repeat(50));
+    console.log(`🚀 PUBLIC URL: ${url}`);
+    console.log(`📬 Webhook endpoint: ${url}/webhook`);
+    console.log('='.repeat(50));
+    console.log('\n💡 Add this URL to Lemon Squeezy webhook configuration');
+    
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      console.log('\n👋 Shutting down...');
+      await ngrok.disconnect();
+      await ngrok.kill();
+      server.close();
+      process.exit(0);
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to start ngrok:', error);
+    server.close();
+  }
+}
+
+startServerWithNgrok();</code></pre>
+
+        <h3>7.3 ngrok Dashboard & Inspection</h3>
+        <pre><code class="language-bash"># Ngrok provides a web interface at http://localhost:4040
+# When you run ngrok, open this URL to see:
+
+1. **HTTP Requests** - All incoming requests
+2. **Request Details** - Headers, body, timing
+3. **Replay Requests** - Re-send any request
+4. **Response Details** - See what your server returned
+5. **Raw Data** - View raw HTTP traffic
+
+# This is GOLD for debugging webhooks!</code></pre>
+
+        <h3>7.4 Authentication & Security</h3>
+        <pre><code class="language-bash"># Add basic auth to your tunnel
+ngrok http 3000 --basic-auth="username:password"
+
+# Now webhook URL becomes:
+# https://username:password@abc123.ngrok.io
+
+# Lemon Squeezy supports basic auth in webhook URLs!</code></pre>
+
+        <h3>7.5 Region Selection</h3>
+        <pre><code class="language-bash"># Choose region for lower latency
+ngrok http 3000 --region=eu    # Europe
+ngrok http 3000 --region=us    # United States (default)
+ngrok http 3000 --region=ap    # Asia Pacific
+ngrok http 3000 --region=au    # Australia
+ngrok http 3000 --region=sa    # South America
+ngrok http 3000 --region=jp    # Japan
+ngrok http 3000 --region=in    # India</code></pre>
+      </section>
+
+      <section id="security">
+        <h2>8. 🔒 Security Considerations</h2>
+        <h3>8.1 Is ngrok Secure for Webhook Testing?</h3>
+        <p>YES, with proper configuration:</p>
+        <pre><code class="language-javascript">// SECURE PRACTICES:
+
+// 1. Always verify webhook signatures
+const verifySignature = (signature, payload, secret) => {
+  const hmac = crypto.createHmac('sha256', secret);
+  return signature === hmac.update(JSON.stringify(payload)).digest('hex');
+};
+
+// 2. Use environment variables for secrets
+// NEVER hardcode in your code
+
+// 3. ngrok provides HTTPS automatically
+// Even though your local server is HTTP, ngrok tunnel is HTTPS
+
+// 4. Free ngrok URLs are random and hard to guess
+// https://abc123-def456.ngrok.io</code></pre>
+
+        <h3>8.2 Security Risks & Mitigation</h3>
+        <pre><code class="language-yaml"># Potential risks:
+1. **Temporary public exposure** - Your local server is public
+2. **Random subdomains** - Could be guessed (low probability)
+3. **No authentication** - Anyone with the URL can access
+
+# Mitigations:
+1. **Use webhook signatures** - Mandatory for Lemon Squeezy
+2. **Add basic auth** - ngrok --basic-auth flag
+3. **Custom subdomains** - Paid feature, harder to guess
+4. **Whitelist IPs** - If your local app supports it
+5. **Short-lived testing** - Don't leave ngrok running indefinitely</code></pre>
+
+        <h3>8.3 Production vs Development</h3>
+        <pre><code class="language-javascript">// 🚫 NEVER use ngrok in production
+// Production should use:
+// 1. Real domain with SSL certificate
+// 2. Proper hosting (AWS, DigitalOcean, Heroku, etc.)
+// 3. Production-grade security
+// 4. Monitoring and logging
+
+// ✅ DO use ngrok for:
+// 1. Local development
+// 2. Testing webhooks
+// 3. Demo purposes
+// 4. Temporary sharing</code></pre>
+      </section>
+
+      <section id="real-workflow">
+        <h2>9. 🎯 Real Webhook Testing Workflow</h2>
+        <h3>Complete Testing Script</h3>
+        <pre><code class="language-javascript">// test-webhook-workflow.js
+const axios = require('axios');
+const crypto = require('crypto');
+
+class WebhookTester {
+  constructor(ngrokUrl, webhookSecret) {
+    this.ngrokUrl = ngrokUrl;
+    this.secret = webhookSecret;
+    this.endpoint = `${ngrokUrl}/api/webhooks/lemon`;
+  }
+  
+  // Generate valid signature for testing
+  generateSignature(payload) {
+    const hmac = crypto.createHmac('sha256', this.secret);
+    return hmac.update(JSON.stringify(payload)).digest('hex');
+  }
+  
+  // Test different webhook events
+  async testOrderCreated() {
+    const payload = {
+      meta: {
+        event_name: "order_created",
+        custom_data: { user_id: "test_123" },
+        test_mode: true
+      },
+      data: {
+        type: "orders",
+        id: `test_order_${Date.now()}`,
+        attributes: {
+          store_id: 1,
+          user_email: "test.customer@example.com",
+          identifier: `order_${Date.now()}`,
+          total: 2900, // $29.00 in cents
+          currency: "USD",
+          status: "paid",
+          created_at: new Date().toISOString(),
+          urls: {
+            receipt: "https://app.lemonsqueezy.com/my-orders/..."
+          }
+        }
+      }
+    };
+    
+    const signature = this.generateSignature(payload);
+    
+    try {
+      const response = await axios.post(this.endpoint, payload, {
+        headers: {
+          'x-signature': signature,
+          'content-type': 'application/json'
+        }
+      });
+      
+      console.log('✅ Test order_created: SUCCESS');
+      console.log('Response:', response.data);
+      return true;
+    } catch (error) {
+      console.error('❌ Test order_created: FAILED');
+      console.error('Error:', error.response?.data || error.message);
+      return false;
+    }
+  }
+  
+  async testSubscriptionCreated() {
+    const payload = {
+      meta: {
+        event_name: "subscription_created",
+        test_mode: true
+      },
+      data: {
+        type: "subscriptions",
+        id: `test_sub_${Date.now()}`,
+        attributes: {
+          store_id: 1,
+          customer_id: 123,
+          order_id: 456,
+          product_id: 789,
+          variant_id: 101112,
+          product_name: "Pro Plan",
+          variant_name: "Pro Monthly",
+          user_name: "Test Customer",
+          user_email: "test.customer@example.com",
+          status: "active",
+          status_formatted: "Active",
+          renews_at: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+          ends_at: null,
+          trial_ends_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      }
+    };
+    
+    const signature = this.generateSignature(payload);
+    
+    try {
+      const response = await axios.post(this.endpoint, payload, {
+        headers: {
+          'x-signature': signature,
+          'content-type': 'application/json'
+        }
+      });
+      
+      console.log('✅ Test subscription_created: SUCCESS');
+      return true;
+    } catch (error) {
+      console.error('❌ Test subscription_created: FAILED');
+      console.error('Error:', error.response?.data || error.message);
+      return false;
+    }
+  }
+  
+  // Run all tests
+  async runAllTests() {
+    console.log('🧪 Starting webhook tests...');
+    console.log(`📡 Testing endpoint: ${this.endpoint}`);
+    console.log('='.repeat(50));
+    
+    const tests = [
+      { name: 'Order Created', fn: () => this.testOrderCreated() },
+      { name: 'Subscription Created', fn: () => this.testSubscriptionCreated() }
+    ];
+    
+    let passed = 0;
+    let failed = 0;
+    
+    for (const test of tests) {
+      console.log(`\n🔍 Testing: ${test.name}`);
+      const success = await test.fn();
+      
+      if (success) {
+        passed++;
+      } else {
+        failed++;
+      }
+      
+      // Small delay between tests
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    console.log('\n' + '='.repeat(50));
+    console.log('📊 TEST SUMMARY');
+    console.log('='.repeat(50));
+    console.log(`✅ Passed: ${passed}`);
+    console.log(`❌ Failed: ${failed}`);
+    console.log(`📈 Success Rate: ${Math.round((passed/tests.length)*100)}%`);
+    
+    return failed === 0;
+  }
+}
+
+// Usage
+const tester = new WebhookTester(
+  'https://abc123.ngrok.io',
+  process.env.LEMON_SQUEEZY_WEBHOOK_SECRET
+);
+
+tester.runAllTests().then(success => {
+  process.exit(success ? 0 : 1);
+});</code></pre>
+
+        <h3>Automated Testing Setup</h3>
+        <pre><code class="language-json">{
+  "scripts": {
+    "start": "node server.js",
+    "ngrok": "ngrok http 3000",
+    "test:webhooks": "node test-webhook-workflow.js",
+    "dev:full": "concurrently \"npm start\" \"npm run ngrok\" \"npm run test:webhooks\""
+  }
+}</code></pre>
+      </section>
+
+      <section id="cheat-sheet">
+        <h2>📋 Quick Start Cheat Sheet</h2>
+        <h3>1. One-Liner Setup</h3>
+        <pre><code class="language-bash"># Install everything
+npm init -y && npm install express dotenv ngrok && npm install -D nodemon
+
+# Create server.js with the code above
+# Create .env file with your secrets
+
+# Start everything
+npx nodemon server.js & npx ngrok http 3000</code></pre>
+
+        <h3>2. Most Common Commands</h3>
+        <pre><code class="language-bash"># Start basic tunnel
+ngrok http 3000
+
+# With custom subdomain (requires auth)
+ngrok http 3000 --subdomain=mywebhooks
+
+# With basic auth
+ngrok http 3000 --basic-auth="admin:password123"
+
+# With region
+ngrok http 3000 --region=eu
+
+# View tunnel info
+curl http://localhost:4040/api/tunnels
+
+# Kill all tunnels
+ngrok kill</code></pre>
+
+        <h3>3. Debugging Tips</h3>
+        <pre><code class="language-bash"># 1. Check ngrok is running
+curl http://localhost:4040/status
+
+# 2. See all requests
+# Open browser to: http://localhost:4040
+
+# 3. Get public URL
+curl -s http://localhost:4040/api/tunnels | python3 -m json.tool
+
+# 4. Test webhook manually
+curl -X POST https://your-subdomain.ngrok.io/api/webhooks/lemon \
+  -H "Content-Type: application/json" \
+  -d '{"test": "data"}'</code></pre>
+      </section>
+
+      <section id="key-takeaways">
+        <h2>🎯 Key Takeaways</h2>
+        <ul>
+          <li>ngrok makes local servers public via secure tunnels</li>
+          <li>
+            Essential for webhook testing - External services need HTTPS URLs
+          </li>
+          <li>Free for basic use - Perfect for development</li>
+          <li>HTTPS automatically - Even though local is HTTP</li>
+          <li>Great debugging tools - Web interface at localhost:4040</li>
+          <li>Temporary URLs - Not for production</li>
+          <li>Always verify signatures - Security first!</li>
+        </ul>
+
+        <h3>🚨 Common Issues & Solutions</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Problem</th>
+              <th>Solution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ngrok URL changes each time</td>
+              <td>Use custom subdomain (paid) or update webhook config</td>
+            </tr>
+            <tr>
+              <td>Webhook not reaching server</td>
+              <td>Check CORS, firewall, and ngrok status</td>
+            </tr>
+            <tr>
+              <td>SSL certificate errors</td>
+              <td>Use ngrok's HTTPS URL, not HTTP</td>
+            </tr>
+            <tr>
+              <td>"Tunnel session expired"</td>
+              <td>Free tier limit, upgrade or restart</td>
+            </tr>
+            <tr>
+              <td>Can't install ngrok</td>
+              <td>Use <code>npm install -g ngrok</code> or Docker</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>Now you're ready to test webhooks like a pro! 🚀</p>
+      </section>
+
+      <footer>
+        <p>Complete ngrok & Webhook Guide</p>
+        <p>Generated for <strong>Secure Integration Protocols</strong></p>
+        <p>
+          Built with 💝 by Arman Ihsan Khan 1/1/2026
+          <strong>Thursday 12:9:00 PM</strong>
+        </p>
+
+        <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a"
+            target="_blank"
+          >
+            <i
+              class="fa-brands fa-linkedin"
+              style="font-size: 32px; color: #6366f1"
+            ></i>
+          </a>
+
+          <a href="https://github.com/armanihsan-dev" target="_blank">
+            <i
+              class="fa-brands fa-github"
+              style="font-size: 32px; color: #ebeef0"
+            ></i>
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+  </body>
+</html>

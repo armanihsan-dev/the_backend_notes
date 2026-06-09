@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS SDK v3 and Profile Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Consolas:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>AWS S3 SDK for Node.js (v3) Deep Dive</h1>
+
+    <h2 id="setup">💻 Setup and Configuration (AWS SDK v3)</h2>
+    <p>
+      The <strong class="prop">AWS SDK for JavaScript v3</strong> uses a
+      <strong class="kw">modular approach</strong>, where you only install the
+      client for the service you need (e.g., S3).
+    </p>
+
+    <h3>Step 1: Initialize Project and Install Dependencies</h3>
+    <p>Initialize your Node.js project:</p>
+    <pre><code><span class="kw">npm init</span> <span class="op">-y</span></code></pre>
+    <p>
+      Install the S3 Client package: The modern package for S3 operations is
+      <code class="str">@aws-sdk/client-s3</code>.
+    </p>
+    <pre><code><span class="kw">npm install</span> <span class="str">@aws-sdk/client-s3</span></code></pre>
+
+    <h3>Step 2: Configure AWS Credentials</h3>
+    <p>
+      The SDK automatically looks for credentials in several places, but the
+      most common and recommended ways for a Node.js application are:
+    </p>
+
+    <h4>Shared Credentials File (Recommended for local development):</h4>
+    <p>
+      Create a file at <code class="prop">~/.aws/credentials</code> (or
+      <code class="prop">%USERPROFILE%\.aws\credentials</code> on Windows) and
+      add your access keys:
+    </p>
+    <pre><code>[<span class="prop">default</span>]
+<span class="prop">aws_access_key_id</span> = <span class="str">YOUR_ACCESS_KEY_ID</span>
+<span class="prop">aws_secret_access_key</span> = <span class="str">YOUR_SECRET_ACCESS_KEY</span></code></pre>
+
+    <h4>
+      Environment Variables (Recommended for CI/CD and certain deployments):
+    </h4>
+    <p>Set the following environment variables:</p>
+    <pre><code><span class="kw">export</span> <span class="prop">AWS_ACCESS_KEY_ID</span>=<span class="str">YOUR_ACCESS_KEY_ID</span>
+<span class="kw">export</span> <span class="prop">AWS_SECRET_ACCESS_KEY</span>=<span class="str">YOUR_SECRET_ACCESS_KEY</span>
+<span class="kw">export</span> <span class="prop">AWS_REGION</span>=<span class="str">your-region-code</span> <span class="cmt">(e.g., us-east-1)</span></code></pre>
+
+    <h3>Step 3: Instantiate the S3 Client</h3>
+    <p>
+      In your Node.js code, you
+      <strong class="kw">import the client</strong> and
+      <strong class="kw">instantiate</strong> it. If you have your credentials
+      configured via the methods above, the SDK will automatically load them.
+    </p>
+    <pre><code><span class="kw">import</span> { <span class="prop">S3Client</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+
+<span class="cmt">// Create an S3 client instance.</span>
+<span class="cmt">// If you don't pass configuration, it will automatically look for</span>
+<span class="cmt">// credentials and region in environment variables or the shared config file.</span>
+<span class="kw">const</span> <span class="prop">s3Client</span> = <span class="kw">new</span> <span class="dir">S3Client</span>({
+  <span class="cmt">// You can optionally specify the region here if not using environment variables:</span>
+  <span class="cmt">// region: "us-west-2",</span>
+});</code></pre>
+
+    <h2>📝 Basic Example: Listing S3 Buckets</h2>
+    <p>
+      To perform an action like listing buckets, you need to import the specific
+      <strong class="prop">Command</strong> for that action, create an instance
+      of the command, and pass it to the client's
+      <code class="dir">send()</code> method. This modern approach uses
+      <strong class="prop">Promises</strong> and
+      <strong class="prop">async/await</strong>.
+    </p>
+
+    <h3>listBuckets.js Example</h3>
+    <pre><code><span class="cmt">// listBuckets.js (Using modern ESM syntax with 'type': 'module' in package.json)</span>
+<span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">ListBucketsCommand</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+
+<span class="cmt">// Initialize the S3 client (loads credentials/region from environment or shared config)</span>
+<span class="kw">const</span> <span class="prop">s3Client</span> = <span class="kw">new</span> <span class="dir">S3Client</span>({});
+
+<span class="cmt">/**</span>
+<span class="cmt"> * Lists all S3 buckets in the AWS account.</span>
+<span class="cmt"> */</span>
+<span class="kw">async function</span> <span class="dir">listAllBuckets</span>() {
+  <span class="kw">try</span> {
+    <span class="cmt">// 1. Create the command object (no parameters needed for ListBuckets)</span>
+    <span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="dir">ListBucketsCommand</span>({});
+
+    <span class="cmt">// 2. Send the command to the S3 client</span>
+    <span class="kw">const</span> <span class="prop">data</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+
+    <span class="cmt">// 3. Process the response</span>
+    <span class="kw">if</span> (<span class="prop">data</span>.<span class="prop">Buckets</span>) {
+      <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"✅ Successfully retrieved the list of S3 buckets:"</span>);
+      <span class="prop">data</span>.<span class="prop">Buckets</span>.<span class="dir">forEach</span>((<span class="prop">bucket</span>) => {
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`- ${bucket.Name} (Created: ${bucket.CreationDate.toLocaleDateString()})`</span>);
+      });
+    } <span class="kw">else</span> {
+      <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"No buckets found."</span>);
+    }
+
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">"❌ Error listing buckets:"</span>, <span class="prop">error</span>);
+  }
+}
+
+<span class="dir">listAllBuckets</span>();</code></pre>
+
+    <h3>To Run the Example:</h3>
+    <ul>
+      <li>
+        Ensure you have completed **Steps 1 and 2** (project initialization,
+        package installation, and credentials configured).
+      </li>
+      <li>Save the code above as <code class="prop">listBuckets.js</code>.</li>
+      <li>
+        Add <code class="str">"type": "module"</code> to your
+        <code class="prop">package.json</code> file to enable the
+        <code class="kw">import</code> syntax.
+      </li>
+      <li>
+        Run the script:
+        <pre><code><span class="kw">node</span> <span class="prop">listBuckets.js</span></code></pre>
+      </li>
+    </ul>
+
+    <h2 id="profiles">🔑 Understanding AWS Credentials File Profiles</h2>
+    <p>
+      AWS <strong class="kw">profiles</strong> are a mechanism to organize and
+      manage multiple sets of credentials and configuration settings for
+      different AWS users, roles, or accounts on your local machine. They are
+      stored in two plaintext files located in the
+      <code class="prop">~/.aws/</code> directory (or
+      <code class="prop">%USERPROFILE%\.aws\</code> on Windows):
+    </p>
+
+    <ul>
+      <li>
+        <strong class="prop">~/.aws/credentials:</strong> Stores the **long-term
+        credentials** (Access Key ID and Secret Access Key).
+        <ul>
+          <li>
+            Profile names here are enclosed in brackets, e.g.,
+            <code class="prop">[my-dev-user]</code>. The default profile is
+            named <code class="prop">[default]</code>.
+          </li>
+          <li>
+            **Crucially, it does NOT use the
+            <code class="kw">profile</code> prefix** in the section name (e.g.,
+            <code class="prop">[my-dev-user]</code>, not
+            <code class="op">[profile my-dev-user]</code>).
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong class="prop">~/.aws/config:</strong> Stores **configuration
+        settings** like the default region, output format, and complex settings
+        like **role assumption** (IAM Roles via
+        <code class="prop">source_profile</code>).
+        <ul>
+          <li>
+            Named profiles here
+            <strong class="kw"
+              >must use the <code class="kw">profile</code> prefix</strong
+            >, e.g., <code class="prop">[profile my-dev-user]</code>. The
+            default profile is named <code class="prop">[default]</code>.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>The [default] Profile</h3>
+    <p>
+      By default, any AWS tool (CLI or SDK) will look for a profile named
+      <code class="prop">[default]</code>. This is the core profile unless you
+      explicitly specify another one.
+    </p>
+
+    <h2>🛠️ How to Create a Second Profile</h2>
+    <p>
+      You can create additional profiles either manually by editing the files or
+      using the AWS Command Line Interface (CLI).
+    </p>
+
+    <h3>
+      Option 1: Using the AWS CLI (<code class="dir">aws configure</code>)
+    </h3>
+    <p>
+      This is the recommended and easiest method, as the CLI manages both the
+      <code class="prop">config</code> and
+      <code class="prop">credentials</code> files for you.
+    </p>
+    <p>Run the command with the <code class="op">--profile</code> flag:</p>
+    <pre><code><span class="kw">aws configure</span> <span class="op">--profile</span> <span class="prop">my-second-profile</span></code></pre>
+    <p>You will be prompted to enter the details for this new profile:</p>
+    <pre><code><span class="prop">AWS Access Key ID</span> [<span class="type">None</span>]: <span class="str">AKIAIOSFODNN7EXAMPLE</span>
+<span class="prop">AWS Secret Access Key</span> [<span class="type">None</span>]: <span class="str">wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY</span>
+<span class="prop">Default region name</span> [<span class="type">None</span>]: <span class="str">us-west-2</span>
+<span class="prop">Default output format</span> [<span class="type">None</span>]: <span class="str">json</span></code></pre>
+    <p>This will automatically update both files.</p>
+
+    <h3>Option 2: Manually Editing the Files</h3>
+    <p>
+      You must ensure the profile name matches in both files (with the required
+      prefix difference).
+    </p>
+
+    <h4>Edit <code class="prop">~/.aws/credentials</code>:</h4>
+    <pre><code>[<span class="prop">default</span>]
+<span class="prop">aws_access_key_id</span> = <span class="str">AKIA-DEFAULT-KEY</span>
+<span class="prop">aws_secret_access_key</span> = <span class="str">DEFAULT_SECRET_KEY</span>
+
+[<span class="prop">my-second-profile</span>]  <span class="cmt">&lt;-- NO 'profile' prefix here</span>
+<span class="prop">aws_access_key_id</span> = <span class="str">AKIA-SECOND-KEY</span>
+<span class="prop">aws_secret_access_key</span> = <span class="str">SECOND_SECRET_KEY</span></code></pre>
+
+    <h4>Edit <code class="prop">~/.aws/config</code>:</h4>
+    <pre><code>[<span class="prop">default</span>]
+<span class="prop">region</span> = <span class="str">us-east-1</span>
+<span class="prop">output</span> = <span class="str">json</span>
+
+[<span class="kw">profile</span> <span class="prop">my-second-profile</span>] <span class="cmt">&lt;-- MUST have 'profile' prefix here</span>
+<span class="prop">region</span> = <span class="str">us-west-2</span></code></pre>
+
+    <h2>⚙️ Using the Named Profile in Node.js (AWS SDK v3)</h2>
+    <p>
+      The AWS SDK for JavaScript v3 makes using a named profile very
+      straightforward by passing the profile name in the client's constructor
+      configuration object.
+    </p>
+
+    <h3>Clear Node.js Syntax Example</h3>
+    <p>
+      You can pass the profile name to the
+      <code class="prop">S3Client</code> constructor (or any other AWS client).
+    </p>
+    <pre><code><span class="cmt">// import the S3 Client and Command from the modular package</span>
+<span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">ListBucketsCommand</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+
+<span class="cmt">// The name of the profile you want to use from ~/.aws/credentials and ~/.aws/config</span>
+<span class="kw">const</span> <span class="prop">PROFILE_NAME</span> = <span class="str">"my-second-profile"</span>;
+
+<span class="cmt">// Initialize the S3 client with the specific profile</span>
+<span class="kw">const</span> <span class="prop">s3Client</span> = <span class="kw">new</span> <span class="dir">S3Client</span>({
+  <span class="cmt">// Pass the name of the profile you want the SDK to load</span>
+  <span class="prop">profile</span>: <span class="prop">PROFILE_NAME</span>, 
+  <span class="cmt">// You can also explicitly set the region if you want to override the config file:</span>
+  <span class="cmt">// region: "eu-central-1", </span>
+});
+
+<span class="cmt">/**</span>
+<span class="cmt"> * Lists S3 buckets using the specified profile's credentials/config.</span>
+<span class="cmt"> */</span>
+<span class="kw">async function</span> <span class="dir">listBucketsWithProfile</span>() {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">data</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="kw">new</span> <span class="dir">ListBucketsCommand</span>({}));
+
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`✅ Successfully listed buckets using the '${PROFILE_NAME}' profile.`</span>);
+    <span class="prop">data</span>.<span class="prop">Buckets</span>.<span class="dir">forEach</span>((<span class="prop">bucket</span>) => {
+      <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`- ${bucket.Name}`</span>);
+    });
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">`❌ Error listing buckets with profile '${PROFILE_NAME}':`</span>, <span class="prop">error</span>.<span class="prop">message</span>);
+  }
+}
+
+<span class="dir">listBucketsWithProfile</span>();</code></pre>
+  </body>
+</html>

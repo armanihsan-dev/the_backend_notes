@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis SCAN Command Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styling and Blackish Theme */
+      :root {
+        --color-bg-main: #1e1e1e; /* Darkest background */
+        --color-bg-card: #252526; /* Slightly lighter card/section background */
+        --color-text-main: #d4d4d4; /* Light text for readability */
+        --color-text-heading: #569cd6; /* VS Code blue for main headings */
+        --color-accent-key: #ce9178; /* Light brown/orange for key parts */
+        --color-divider: #333333;
+        --color-code-bg: #1f1f1f; /* VS Code dark theme code background */
+        --color-code-keyword: #569cd6; /* Blue for keywords */
+        --color-code-string: #ce9178; /* Orange for strings */
+        --color-code-number: #b5cea8; /* Green for numbers */
+        --color-code-comment: #6a9955; /* Gray/green for comments */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg-main);
+        color: var(--color-text-main);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background-color: var(--color-bg-card);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--color-text-heading);
+        border-bottom: 2px solid var(--color-divider);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2::before {
+        content: attr(data-icon) ' ';
+        margin-right: 10px;
+        font-size: 1.2em;
+        color: var(--color-accent-key);
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--color-accent-key);
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        background-color: var(--color-bg-main);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--color-divider);
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--color-bg-card);
+        color: var(--color-text-heading);
+        font-weight: 700;
+      }
+
+      /* VS Code Themed Code Block Styling */
+      .code-block {
+        background-color: var(--color-code-bg);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        margin: 15px 0;
+        color: var(--color-text-main);
+        white-space: pre; /* Ensure lines wrap only when needed */
+      }
+
+      .code-block pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .code-block .comment {
+        color: var(--color-code-comment);
+      }
+
+      .code-block .keyword {
+        color: var(--color-code-keyword);
+        font-weight: bold;
+      }
+
+      .code-block .string {
+        color: var(--color-code-string);
+      }
+
+      .code-block .number {
+        color: var(--color-code-number);
+      }
+
+      .code-block .redis-command {
+        color: #c586c0; /* Purple for Redis command names */
+        font-weight: bold;
+      }
+
+      .code-block .cli-prompt {
+        color: #d7ba7d; /* Yellow/tan for CLI prompt */
+      }
+
+      .code-block .output {
+        color: #cccccc;
+      }
+
+      .code-block .js-var {
+        color: #9cdcfe; /* Light blue for variables */
+      }
+
+      .code-block .js-func {
+        color: #dcdcaa; /* Light yellow for function names */
+      }
+
+      .code-block .js-method {
+        color: #4ec9b0; /* Teal for object methods */
+      }
+
+      .note {
+        background-color: #3a3a3a;
+        border-left: 5px solid var(--color-accent-key);
+        padding: 10px 15px;
+        margin: 15px 0;
+        border-radius: 4px;
+        font-size: 0.95em;
+      }
+
+      ul {
+        padding-left: 25px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Redis SCAN Command: Incremental Iteration</h1>
+
+      <p>
+        The <strong>SCAN command</strong> in Redis is used to
+        <strong>incrementally iterate</strong> over keys in the current
+        database. It's a <strong>cursor-based iteration</strong> that avoids the
+        performance issues of commands like <code>KEYS</code> when dealing with
+        large datasets, as it returns a small number of elements at a time.
+      </p>
+
+      <p>
+        Here's a breakdown of the command, its syntax, and examples in
+        <code>redis-cli</code> and Node.js.
+      </p>
+
+      <hr />
+
+      <h2 data-icon="🔑">SCAN Command Definition</h2>
+
+      <p>
+        <code>SCAN</code> is designed to be used in a **loop** by the client,
+        where the previous call's **cursor** is passed as an argument to the
+        next call.
+      </p>
+
+      <ul>
+        <li>It starts with a cursor of <span class="number">0</span>.</li>
+        <li>
+          Each call returns a **new cursor value** and a batch of elements.
+        </li>
+        <li>
+          The iteration is complete when the returned cursor is
+          <span class="number">0</span>.
+        </li>
+        <li>
+          It provides **best-effort guarantees**—meaning an element might be
+          returned multiple times, or not at all, during the entire iteration if
+          the dataset is constantly changing. However, under stable conditions,
+          it guarantees all elements are iterated over.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 data-icon="🛠️">SCAN Syntax</h2>
+
+      <p>The basic syntax for the <code>SCAN</code> command is:</p>
+
+      <div class="code-block">
+        <pre><span class="redis-command">SCAN</span> <span class="js-var">cursor</span> [<span class="keyword">MATCH</span> <span class="js-var">pattern</span>] [<span class="keyword">COUNT</span> <span class="js-var">count</span>] [<span class="keyword">TYPE</span> <span class="js-var">type</span>]</pre>
+      </div>
+
+      <h3>Arguments</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Argument</th>
+            <th>Description</th>
+            <th>Required</th>
+            <th>Default</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>cursor</strong></td>
+            <td>
+              The cursor returned by the previous call. Start with
+              <span class="number">0</span> for the first call.
+            </td>
+            <td>Yes</td>
+            <td>-</td>
+          </tr>
+          <tr>
+            <td><strong>MATCH pattern</strong></td>
+            <td>
+              Only return keys matching the specified glob-style pattern (e.g.,
+              <span class="string">user:*</span>).
+            </td>
+            <td>No</td>
+            <td>No filtering</td>
+          </tr>
+          <tr>
+            <td><strong>COUNT count</strong></td>
+            <td>
+              A hint for the number of elements to return in one go (Redis might
+              return more or less).
+            </td>
+            <td>No</td>
+            <td><span class="number">10</span></td>
+          </tr>
+          <tr>
+            <td><strong>TYPE type</strong></td>
+            <td>
+              Only return keys of the specified Redis data type (e.g.,
+              <span class="string">string</span>,
+              <span class="string">hash</span>,
+              <span class="string">list</span>).
+            </td>
+            <td>No</td>
+            <td>All types</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2 data-icon="💻">redis-cli Example</h2>
+
+      <p>Let's assume we have a few keys in Redis:</p>
+
+      <div class="code-block">
+        <pre><span class="redis-command">SET</span> <span class="js-var">user:1</span> <span class="string">"Alice"</span>
+<span class="redis-command">SET</span> <span class="js-var">product:101</span> <span class="string">"Laptop"</span>
+<span class="redis-command">SET</span> <span class="js-var">user:2</span> <span class="string">"Bob"</span>
+<span class="redis-command">SET</span> <span class="js-var">order:500</span> <span class="string">"Pending"</span></pre>
+      </div>
+
+      <h3>1. Initial Call (Cursor 0)</h3>
+      <p>
+        To start the iteration, we use a cursor of
+        <span class="number">0</span>.
+      </p>
+
+      <div class="code-block">
+        <pre><span class="cli-prompt">127.0.0.1:6379></span> <span class="redis-command">SCAN</span> <span class="number">0</span></pre>
+      </div>
+
+      <p><strong>Example Output:</strong></p>
+      <div class="code-block">
+        <pre><span class="output">1) "4"  <span class="comment">// This is the new cursor value</span>
+2) 1) "user:1"
+   2) "product:101"</span></pre>
+      </div>
+
+      <div class="note">
+        <p>
+          <span class="string">"4"</span> is the **new cursor**. We must use
+          this in the next call.
+        </p>
+        <p>The array contains the keys found in this batch.</p>
+      </div>
+
+      <h3>2. Next Call (Using the new cursor)</h3>
+      <p>
+        Now, we use the returned cursor (<span class="number">4</span>) for the
+        next iteration.
+      </p>
+
+      <div class="code-block">
+        <pre><span class="cli-prompt">127.0.0.1:6379></span> <span class="redis-command">SCAN</span> <span class="number">4</span></pre>
+      </div>
+
+      <p><strong>Example Output:</strong></p>
+      <div class="code-block">
+        <pre><span class="output">1) "0"  <span class="comment">// The iteration is complete!</span>
+2) 1) "user:2"
+   2) "order:500"</span></pre>
+      </div>
+
+      <div class="note">
+        <p>
+          The new cursor is <span class="string">"0"</span>, indicating that the
+          iteration is **complete**.
+        </p>
+      </div>
+
+      <h3>3. Using MATCH and COUNT</h3>
+      <p>
+        To find only keys starting with <span class="string">user:</span> and
+        suggesting a batch size of <span class="number">2</span>:
+      </p>
+
+      <div class="code-block">
+        <pre><span class="cli-prompt">127.0.0.1:6379></span> <span class="redis-command">SCAN</span> <span class="number">0</span> <span class="keyword">MATCH</span> <span class="string">user:*</span> <span class="keyword">COUNT</span> <span class="number">2</span></pre>
+      </div>
+
+      <p><strong>Example Output (Iteration 1):</strong></p>
+      <div class="code-block">
+        <pre><span class="output">1) "4"
+2) 1) "user:1"</span></pre>
+      </div>
+
+      <p><strong>Next Call:</strong></p>
+      <div class="code-block">
+        <pre><span class="cli-prompt">127.0.0.1:6379></span> <span class="redis-command">SCAN</span> <span class="number">4</span> <span class="keyword">MATCH</span> <span class="string">user:*</span> <span class="keyword">COUNT</span> <span class="number">2</span></pre>
+      </div>
+
+      <p><strong>Example Output (Iteration 2 - Complete):</strong></p>
+      <div class="code-block">
+        <pre><span class="output">1) "0"
+2) 1) "user:2"</span></pre>
+      </div>
+
+      <hr />
+
+      <h2 data-icon="🌐">Node.js (JavaScript) Example</h2>
+
+      <p>
+        In a Node.js environment, you typically use a library like **<span
+          class="js-var"
+          >ioredis</span
+        >** or **<span class="js-var">node-redis</span>**. The logic involves a
+        <span class="keyword">while loop</span> to continuously call
+        <span class="redis-command">SCAN</span> until the cursor returns to
+        <span class="number">0</span>.
+      </p>
+
+      <h3>Using ioredis</h3>
+      <div class="code-block">
+        <pre><span class="keyword">const</span> <span class="js-var">Redis</span> <span class="keyword">=</span> <span class="js-var">require</span>(<span class="string">'ioredis'</span>);
+<span class="keyword">const</span> <span class="js-var">redis</span> <span class="keyword">=</span> <span class="keyword">new</span> <span class="js-var">Redis</span>();
+
+<span class="comment">/**
+ * Iterates over all keys matching a pattern using SCAN
+ * @param {string} pattern - The key pattern (e.g., 'user:*')
+ */</span>
+<span class="keyword">async function</span> <span class="js-func">scanKeys</span>(<span class="js-var">pattern</span>) {
+    <span class="keyword">let</span> <span class="js-var">cursor</span> <span class="keyword">=</span> <span class="string">'0'</span>;
+    <span class="keyword">const</span> <span class="js-var">keys</span> <span class="keyword">=</span> [];
+
+    <span class="js-var">console</span>.<span class="js-method">log</span>(<span class="string">`Starting SCAN for pattern: ${pattern}`</span>);
+    
+    <span class="keyword">do</span> {
+        <span class="comment">// [cursor, array_of_keys]</span>
+        <span class="keyword">const</span> <span class="js-var">reply</span> <span class="keyword">=</span> <span class="keyword">await</span> <span class="js-var">redis</span>.<span class="js-method">scan</span>(
+            <span class="js-var">cursor</span>, 
+            <span class="string">'MATCH'</span>, <span class="js-var">pattern</span>, 
+            <span class="string">'COUNT'</span>, <span class="number">100</span> <span class="comment">// Adjust COUNT as a hint for batch size</span>
+        );
+
+        <span class="js-var">cursor</span> <span class="keyword">=</span> <span class="js-var">reply</span>[<span class="number">0</span>]; <span class="comment">// Get the new cursor</span>
+        <span class="keyword">const</span> <span class="js-var">batchKeys</span> <span class="keyword">=</span> <span class="js-var">reply</span>[<span class="number">1</span>]; <span class="comment">// Get the array of keys</span>
+
+        <span class="js-var">keys</span>.<span class="js-method">push</span>(...<span class="js-var">batchKeys</span>);
+        <span class="js-var">console</span>.<span class="js-method">log</span>(<span class="string">`Keys found in batch (cursor ${cursor !== '0' ? cursor : 'end'}): ${batchKeys.length}`</span>);
+
+    } <span class="keyword">while</span> (<span class="js-var">cursor</span> <span class="keyword">!==</span> <span class="string">'0'</span>); <span class="comment">// Loop until the cursor is '0'</span>
+
+    <span class="js-var">console</span>.<span class="js-method">log</span>(<span class="string">'\n--- SCAN Complete ---'</span>);
+    <span class="js-var">console</span>.<span class="js-method">log</span>(<span class="string">`Total keys found: ${keys.length}`</span>);
+    <span class="comment">// console.log(keys); </span>
+    
+    <span class="js-var">redis</span>.<span class="js-method">quit</span>(); <span class="comment">// Close the connection</span>
+}
+
+<span class="comment">// Example usage: Scan all keys</span>
+<span class="js-func">scanKeys</span>(<span class="string">'*'</span>);</pre>
+        <h2>Using recursion</h2>
+        <div>
+          <code>
+            <pre>
+const fetchKeys = async (cursor = "0") => {
+const { cursor: nextCursor, keys } = await redisClient.scan(cursor);
+console.log("Fetched keys:", keys);
+if (nextCursor === "0") {
+  console.log("Scan completed");
+  return;
+}
+await fetchKeys(nextCursor); // recursion with updated cursor
+};
+
+await fetchKeys();
+    </pre
+            >
+          </code>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

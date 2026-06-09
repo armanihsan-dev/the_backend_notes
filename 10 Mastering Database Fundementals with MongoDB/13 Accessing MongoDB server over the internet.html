@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB IPv6 Configuration Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blackish Theme */
+      :root {
+        --color-bg-primary: #1e1e1e; /* VS Code dark background */
+        --color-bg-secondary: #252526; /* VS Code panel background */
+        --color-text-primary: #d4d4d4; /* Light grey text */
+        --color-text-heading: #569cd6; /* VS Code blue for headings/keywords */
+        --color-code-bg: #1e1e1e; /* Code block background */
+        --color-code-comment: #6a9955; /* VS Code green for comments */
+        --color-code-string: #ce9178; /* VS Code orange for strings */
+        --color-code-keyword: #c586c0; /* VS Code purple for keywords */
+        --color-code-tag: #569cd6; /* VS Code blue for tags */
+        --color-code-var: #9cdcfe; /* VS Code light blue for variables */
+        --color-code-number: #b5cea8; /* VS Code light green for numbers */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: var(--color-bg-secondary);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      h1 {
+        color: var(--color-text-heading);
+        border-bottom: 2px solid var(--color-bg-primary);
+        padding-bottom: 10px;
+        margin-top: 0;
+        font-weight: 700;
+      }
+
+      h2 {
+        color: var(--color-text-heading);
+        margin-top: 25px;
+        font-weight: 700;
+      }
+
+      h3 {
+        color: var(--color-code-var);
+        margin-top: 20px;
+        font-weight: 700;
+      }
+
+      p,
+      li {
+        font-weight: 400;
+      }
+
+      /* Code Section Styling (VS Code Blakish Theme) */
+      .code-block {
+        background-color: var(--color-code-bg);
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 15px;
+        overflow-x: auto;
+        margin: 15px 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0;
+        color: var(--color-text-primary);
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace; /* Monospace for code */
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      /* Syntax Highlighting Mimicry */
+      .keyword {
+        color: var(--color-code-keyword);
+        font-weight: bold;
+      }
+      .comment {
+        color: var(--color-code-comment);
+      }
+      .string {
+        color: var(--color-code-string);
+      }
+      .variable {
+        color: var(--color-code-var);
+      }
+      .number {
+        color: var(--color-code-number);
+      }
+      .tag {
+        color: var(--color-code-tag);
+      }
+      .type {
+        color: #4ec9b0;
+      } /* VS Code light blue-green for types/config keys */
+      .bash-prompt {
+        color: var(--color-code-tag);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Query successful</h1>
+      <p>Try again without apps</p>
+
+      <p>
+        Setting up your **MongoDB** server to run on **IPv6** and be accessible
+        over the internet involves two main steps: **configuring MongoDB to
+        listen on IPv6 addresses** and **configuring your network and firewall**
+        for external access.
+      </p>
+
+      <h2>1. Configure MongoDB for IPv6</h2>
+      <p>
+        By default, MongoDB often binds only to the IPv4 loopback address (<span
+          class="string"
+          >'127.0.0.1'</span
+        >). To enable IPv6 listening, you need to modify your MongoDB
+        configuration file, typically named
+        <span class="string">mongod.conf</span>.
+      </p>
+
+      <h3>Locate the Configuration File:</h3>
+      <ul>
+        <li>
+          On **Linux**, this is usually
+          <span class="string">/etc/mongod.conf</span> or similar.
+        </li>
+        <li>
+          On **Windows**, it's often in the installation directory (e.g.,
+          <span class="string">&lt;install directory&gt;\bin\mongod.cfg</span>).
+        </li>
+      </ul>
+
+      <h3>Edit the <span class="type">net.bindIp</span> Setting:</h3>
+      <p>
+        Find the <span class="type">net:</span> section and the
+        <span class="type">bindIp:</span> setting.
+      </p>
+      <p>
+        To make MongoDB listen on **all** available IPv4 and IPv6 interfaces,
+        change the <span class="type">bindIp</span> value:
+      </p>
+
+      <div class="code-block">
+        <pre><span class="comment">YAML</span>
+<br><span class="type">net:</span>
+  <span class="type">port:</span> <span class="number">27017</span>
+  <span class="type">bindIp:</span> <span class="number">0.0.0.0</span>,<span class="variable">::</span></pre>
+      </div>
+      <p>
+        <span class="number">0.0.0.0</span> binds to all IPv4 addresses.<br /><span
+          class="variable"
+          >::</span
+        >
+        (or <span class="variable">::/0</span>) binds to all IPv6 addresses.
+      </p>
+
+      <p>
+        Alternatively, you can use the
+        <span class="type">net.bindIpAll</span> setting for a simpler
+        configuration to bind to all interfaces:
+      </p>
+
+      <div class="code-block">
+        <pre><span class="comment">YAML</span>
+<br><span class="type">net:</span>
+  <span class="type">port:</span> <span class="number">27017</span>
+  <span class="type">bindIpAll:</span> <span class="keyword">true</span></pre>
+      </div>
+
+      <h3>Enable IPv6 (Older/Specific Versions):</h3>
+      <p>
+        For some older versions or specific setups, you might also need to
+        explicitly enable IPv6 support. Check if your configuration file has an
+        <span class="type">ipv6</span> setting under
+        <span class="type">net:</span> (though this is often deprecated or
+        unneeded in recent versions):
+      </p>
+
+      <div class="code-block">
+        <pre><span class="comment">YAML</span>
+<br><span class="comment"># For older versions, you might need this:</span>
+<span class="type">net:</span>
+  <span class="type">ipv6:</span> <span class="keyword">true</span></pre>
+      </div>
+
+      <h3>Restart MongoDB:</h3>
+      <p>
+        After saving the configuration file, you must **restart the MongoDB
+        service** for the changes to take effect.
+      </p>
+      <p>Example on Linux (using systemd):</p>
+
+      <div class="code-block">
+        <pre><span class="comment">Bash</span>
+<br><span class="bash-prompt">sudo systemctl restart mongod</span></pre>
+      </div>
+
+      <h2>2. Enable Remote Access Over the Internet (IPv6)</h2>
+      <p>
+        This step involves opening your laptop's port to the public internet,
+        which requires **careful security consideration**.
+      </p>
+
+      <h3>A. Security Configuration</h3>
+      <p>
+        **Enable Authentication:** Never expose a MongoDB instance to the public
+        internet without **enabling authentication** (username/password).
+      </p>
+      <p>
+        In your <span class="string">mongod.conf</span>, ensure the
+        <span class="type">security</span> section is configured:
+      </p>
+
+      <div class="code-block">
+        <pre><span class="comment">YAML</span>
+<br><span class="type">security:</span>
+  <span class="type">authorization:</span> <span class="keyword">enabled</span></pre>
+      </div>
+      <p>
+        You must then **create an administrative user** to be able to access the
+        database.
+      </p>
+      <p>
+        **Restrict IP Access (Recommended):** Instead of binding to all
+        interfaces (<span class="variable">::</span>), a more secure approach is
+        to bind only to your **specific public IPv6 address** or your network's
+        IPv6 range, if possible, although this can be **complex with dynamic
+        IPs**.
+      </p>
+
+      <h3>B. Firewall and Router Configuration</h3>
+      <p>**Local Firewall (on your laptop):**</p>
+      <p>
+        You must configure your laptop's operating system firewall (like
+        **Windows Firewall**, <span class="string">ufw</span> on **Linux**, or
+        **macOS Firewall**) to **allow incoming connections** on the MongoDB
+        port (default is <span class="number">27017</span>) from external IPv6
+        addresses.
+      </p>
+      <p>Example on Linux (<span class="string">ufw</span>):</p>
+
+      <div class="code-block">
+        <pre><span class="comment">Bash</span>
+<br><span class="bash-prompt">sudo ufw allow 27017/tcp</span>
+<span class="comment"># Or, to only allow a specific remote IPv6 address:</span>
+<span class="comment"># sudo ufw allow from [2001:db8::1] to any port 27017</span></pre>
+      </div>
+
+      <p>**Router/Gateway Configuration (Port Forwarding):**</p>
+      <p>
+        Since you're using **IPv6**, you usually don't need traditional **Port
+        Forwarding (NAT)** as every device has its own globally unique address.
+      </p>
+      <p>
+        However, your **router's IPv6 firewall** is the main barrier. You need
+        to configure the router to **allow incoming connections** on port
+        <span class="number">27017</span> to the specific **Global IPv6
+        address** of your laptop. The exact steps vary widely by router model
+        (look for <span class="string">"Firewall Rules," "Services,"</span> or
+        <span class="string">"Port Filtering"</span> for IPv6).
+      </p>
+
+      <h3>C. Connection</h3>
+      <p>
+        **Determine Your Public IPv6 Address:** Find the global IPv6 address
+        assigned to your laptop's network interface.
+      </p>
+      <p>
+        **Connect:** From a remote machine, you would connect using that public
+        IPv6 address. Remember to **enclose the IPv6 address in square
+        brackets** in the connection string:
+      </p>
+
+      <div class="code-block">
+        <pre><span class="tag">mongodb://</span><span class="variable">&lt;username&gt;</span>:<span class="variable">&lt;password&gt;</span>@[<span class="variable">&lt;Your_Public_IPv6_Address&gt;</span>]:<span class="number">27017</span>/<span class="variable">&lt;database_name&gt;</span>?authSource=<span class="variable">admin</span></pre>
+      </div>
+    </div>
+  </body>
+</html>

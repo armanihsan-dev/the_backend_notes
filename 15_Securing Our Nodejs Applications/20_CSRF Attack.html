@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSRF Attack: Deep Dive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styles for Blackish Theme */
+      :root {
+        --color-background: #1e1e1e; /* VS Code Dark background */
+        --color-foreground: #d4d4d4; /* Text color */
+        --color-primary: #569cd6; /* Keyword blue */
+        --color-secondary: #c586c0; /* String/Tag color */
+        --color-comment: #6a9955; /* Comment green */
+        --color-number: #b5cea8; /* Number/Boolean green */
+        --color-key-point: #ffeaa7; /* Highlight yellow/orange */
+        --color-header-bg: #252526; /* Slightly darker header/code block */
+        --color-border: #333333; /* Subtle border */
+        --font-primary: 'Nunito', sans-serif;
+        --font-code: 'Fira Code', monospace; /* VS Code's font or similar mono */
+      }
+
+      body {
+        background-color: var(--color-background);
+        color: var(--color-foreground);
+        font-family: var(--font-primary);
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+        background-color: var(--color-header-bg); /* Dark container for notes */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-primary);
+        font-weight: 700;
+        border-bottom: 1px solid var(--color-border);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+        border-bottom: 2px solid var(--color-primary);
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+
+      h3 {
+        font-size: 1.4em;
+        border-bottom: none;
+        color: var(--color-foreground);
+        margin-top: 20px;
+      }
+
+      /* Text and Lists */
+      p {
+        margin: 15px 0;
+      }
+
+      strong {
+        color: var(--color-key-point);
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        position: relative;
+        padding-left: 15px;
+      }
+
+      li::before {
+        content: '•';
+        color: var(--color-primary);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      .key-point {
+        background-color: rgba(86, 156, 214, 0.1); /* Light blue highlight */
+        border-left: 4px solid var(--color-primary);
+        padding: 10px 15px;
+        border-radius: 4px;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      .code-block {
+        margin: 20px 0;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      }
+
+      .code-header {
+        background-color: #3e3e42; /* Tab/header color */
+        color: var(--color-foreground);
+        padding: 8px 15px;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      pre {
+        background-color: #2e2e2e; /* Code area background */
+        padding: 15px;
+        margin: 0;
+        overflow-x: auto;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+        color: var(--color-foreground);
+      }
+
+      /* Code Syntax Highlighting (Mimicking VS Code) */
+      .comment {
+        color: var(--color-comment);
+      }
+
+      .keyword {
+        color: var(--color-primary);
+      }
+
+      .string {
+        color: var(--color-secondary);
+      }
+
+      .number,
+      .boolean {
+        color: var(--color-number);
+      }
+
+      /* HTML specific colors */
+      .tag {
+        color: #808080; /* Gray for tags */
+      }
+
+      .attr {
+        color: #9cdcfe; /* Light blue for attributes */
+      }
+
+      /* Other elements */
+      code {
+        background-color: #3a3a3a;
+        color: var(--color-key-point);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: var(--font-code);
+      }
+
+      a {
+        color: #4ec9b0; /* Link/Green color */
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      .filename {
+        color: #dcdcaa; /* Yellowish color for filenames */
+        font-family: var(--font-code);
+      }
+
+      .run-info {
+        margin-top: 15px;
+        padding: 15px;
+        background-color: #333333;
+        border-radius: 4px;
+        border-left: 3px solid #f99056; /* Orange border for important info */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>
+          <span class="emoji">🛡️</span> CSRF Attack: Definition and Mechanism
+        </h1>
+      </header>
+
+      <section>
+        <h2>Definition</h2>
+        <p>
+          <strong>Cross-Site Request Forgery (CSRF)</strong>, sometimes
+          pronounced "sea-surf," is an attack that forces an end-user to execute
+          unwanted actions on a web application in which they are currently
+          authenticated.
+        </p>
+        <p class="key-point">
+          The key: The attack exploits the <strong>trust</strong> a web
+          application has in a user's browser. If a user is logged into an
+          application (like a bank), the browser sends the session cookie
+          automatically with every request to that application's domain. The
+          attacker doesn't need to steal the cookie; they just need to trick the
+          user's browser into sending a request containing it.
+        </p>
+      </section>
+
+      <section>
+        <h2>Mechanism: How it Works</h2>
+        <p>
+          The CSRF attack relies on an authenticated user visiting a malicious
+          site while their session cookie for the vulnerable application is
+          active.
+        </p>
+        <ul>
+          <li>
+            <strong>Authentication:</strong> The user logs into a
+            <strong>Vulnerable Web App</strong> (e.g., bank.com). The browser
+            stores the session cookie.
+          </li>
+          <li>
+            <strong>Luring:</strong> The attacker sends the user a link, email,
+            or message (e.g., "Check out this funny meme!") which leads to a
+            <strong>Malicious Site</strong> (e.g., attacker.com).
+          </li>
+          <li>
+            <strong>The Forge:</strong> The malicious site contains hidden code
+            designed to submit a request to the vulnerable app (e.g., bank.com).
+            This is typically done using an invisible form or an
+            <code>&lt;img&gt;</code> tag that attempts to load a sensitive URL.
+          </li>
+          <li>
+            <strong>Execution:</strong> When the user's browser loads the
+            malicious site, it executes the hidden code. Because the request is
+            targeted at bank.com, the browser automatically attaches the user's
+            valid session cookie for bank.com.
+          </li>
+          <li>
+            <strong>Success:</strong> The bank.com server receives the request,
+            sees a valid session cookie, assumes the request came from the
+            legitimate, logged-in user, and executes the forged action (e.g.,
+            transferring money).
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>
+          <span class="emoji">💻</span> Practical Example: The Express.js Bank
+          App
+        </h2>
+        <p>
+          Let's illustrate this with a simplified Express.js bank application
+          and an attacker's site.
+        </p>
+
+        <h3>
+          1. The Vulnerable Bank Application (<span class="filename"
+            >bank-app.js</span
+          >)
+        </h3>
+        <p>
+          This application is vulnerable because it only checks for a valid
+          session and uses a simple GET or POST request to handle a money
+          transfer.
+        </p>
+
+        <div class="code-block language-javascript">
+          <div class="code-header">JavaScript</div>
+          <pre>
+<span class="comment">// A very basic Express setup for a bank application</span>
+<span class="keyword">const</span> express = require(<span class="string">'express'</span>);
+<span class="keyword">const</span> cookieParser = require(<span class="string">'cookie-parser'</span>);
+<span class="keyword">const</span> session = require(<span class="string">'express-session'</span>);
+<span class="keyword">const</span> app = express();
+<span class="keyword">const</span> port = <span class="number">3000</span>;
+
+app.use(express.urlencoded({ extended: <span class="boolean">true</span> }));
+app.use(cookieParser());
+app.use(session({ 
+    secret: <span class="string">'super-secret-key'</span>, 
+    resave: <span class="boolean">false</span>, 
+    saveUninitialized: <span class="boolean">true</span> 
+}));
+
+<span class="comment">// --- Middleware to simulate a user login (Simplistic) ---</span>
+<span class="comment">// If not logged in, 'user' will be undefined.</span>
+<span class="keyword">const</span> requireLogin = (req, res, next) => {
+    <span class="keyword">if</span> (!req.session.userId) {
+        <span class="keyword">return</span> res.status(<span class="number">401</span>).send(<span class="string">'Please log in first.'</span>);
+    }
+    next();
+};
+
+<span class="comment">// --- SIMULATED LOGIN ROUTE ---</span>
+app.get(<span class="string">'/login'</span>, (req, res) => {
+    <span class="comment">// In a real app, this would check username/password</span>
+    req.session.userId = <span class="string">'alice'</span>;
+    res.send(<span class="string">'You are now logged in as Alice. &lt;a href="/transfer"&gt;Go to Transfer&lt;/a&gt;'</span>);
+});
+
+<span class="comment">// --- VULNERABLE TRANSFER ROUTE ---</span>
+app.post(<span class="string">'/transfer'</span>, requireLogin, (req, res) => {
+    <span class="keyword">const</span> { amount, targetAccount } = req.body;
+    
+    <span class="comment">// In a real app, this is where the money transfer logic goes</span>
+    console.log(<span class="string">`[BANK] User ${req.session.userId} successfully transferred ${amount} to account ${targetAccount}.`</span>);
+    res.send(<span class="string">`SUCCESS: Transferred $${amount} to account ${targetAccount}.`</span>);
+});
+
+<span class="comment">// --- TRANSFER FORM (User-facing) ---</span>
+app.get(<span class="string">'/transfer'</span>, requireLogin, (req, res) => {
+    res.send(<span class="string">`
+        &lt;h1&gt;Transfer Money&lt;/h1&gt;
+        &lt;p&gt;You are logged in as ${req.session.userId}.&lt;/p&gt;
+        &lt;form action="/transfer" method="POST"&gt;
+            &lt;label for="targetAccount"&gt;Target Account:&lt;/label&gt;
+            &lt;input type="text" id="targetAccount" name="targetAccount" value="Bob" required&gt;&lt;br&gt;&lt;br&gt;
+            &lt;label for="amount"&gt;Amount ($):&lt;/label&gt;
+            &lt;input type="number" id="amount" name="amount" value="1000" required&gt;&lt;br&gt;&lt;br&gt;
+            &lt;button type="submit"&gt;Transfer&lt;/button&gt;
+        &lt;/form&gt;
+    `</span>);
+});
+
+app.listen(port, () => {
+    console.log(<span class="string">`Bank app listening at http://localhost:${port}`</span>);
+});</pre>
+        </div>
+        <div class="run-info">
+          <p><strong>To run this:</strong></p>
+          <ol>
+            <li>Run the bank app: <code>node bank-app.js</code></li>
+            <li>
+              In a browser, visit
+              <a href="http://localhost:3000/login"
+                >http://localhost:3000/login</a
+              >
+              to log in (this sets the session cookie).
+            </li>
+            <li>The user is now authenticated.</li>
+          </ol>
+        </div>
+
+        <h3>
+          2. The Malicious Attack Site (<span class="filename"
+            >attacker-site.html</span
+          >)
+        </h3>
+        <p>
+          The attacker hosts this simple HTML page on a completely different
+          domain (or port, e.g., 8080).
+        </p>
+
+        <div class="code-block language-html">
+          <div class="code-header">HTML</div>
+          <pre>
+&lt;<span class="tag">html</span>&gt;
+&lt;<span class="tag">head</span>&gt;
+    &lt;<span class="tag">title</span>&gt;<span class="string">You Won a Prize!</span>&lt;/<span class="tag">title</span>&gt;
+&lt;/<span class="tag">head</span>&gt;
+&lt;<span class="tag">body</span>&gt;
+    &lt;<span class="tag">h1</span>&gt;<span class="string">Congratulations! You've won a new car!</span>&lt;/<span class="tag">h1</span>&gt;
+    &lt;<span class="tag">p</span>&gt;<span class="string">Loading your prize information...</span>&lt;/<span class="tag">p</span>&gt;
+
+    &lt;<span class="tag">form</span> <span class="attr">id</span>=<span class="string">"csrfForm"</span> <span class="attr">action</span>=<span class="string">"http://localhost:3000/transfer"</span> <span class="attr">method</span>=<span class="string">"POST"</span>&gt;
+        &lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="string">"hidden"</span> <span class="attr">name</span>=<span class="string">"targetAccount"</span> <span class="attr">value</span>=<span class="string">"AttackerAccount99"</span>&gt;
+        &lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="string">"hidden"</span> <span class="attr">name</span>=<span class="string">"amount"</span> <span class="attr">value</span>=<span class="string">"5000"</span>&gt; 
+    &lt;/<span class="tag">form</span>&gt;
+
+    &lt;<span class="tag">script</span>&gt;
+        <span class="comment">// Automatically submit the form as soon as the page loads</span>
+        document.getElementById(<span class="string">'csrfForm'</span>).submit();
+    &lt;/<span class="tag">script</span>&gt;
+&lt;/<span class="tag">body</span>&gt;
+&lt;/<span class="tag">html</span>&gt;</pre>
+        </div>
+      </section>
+
+      <section>
+        <h2>The Attack Flow</h2>
+        <ul>
+          <li>
+            <strong>Victim Logs In:</strong> Alice visits
+            <a href="http://localhost:3000/login">http://localhost:3000/login</a
+            >. She is logged in, and her browser has a valid session cookie for
+            <code>localhost:3000</code>.
+          </li>
+          <li>
+            <strong>Victim Visits Malicious Site:</strong> Alice receives an
+            email and clicks the link to
+            <a href="http://localhost:8080/attacker-site.html"
+              >http://localhost:8080/attacker-site.html</a
+            >.
+          </li>
+          <li>
+            <strong>The Forge:</strong> As the malicious page loads, the
+            JavaScript instantly submits the hidden form to
+            <code>http://localhost:3000/transfer</code>.
+          </li>
+          <li>
+            <strong>Browser Compliance:</strong> Crucially, the browser sees the
+            request going to <code>localhost:3000</code> and automatically
+            attaches Alice's session cookie.
+          </li>
+          <li>
+            <strong>Bank Execution:</strong> The Express server at
+            <code>localhost:3000</code> receives the POST request. It sees a
+            valid session ID for **Alice**, processes the
+            <code>targetAccount=AttackerAccount99</code> and
+            <code>amount=5000</code> from the forged request body, and executes
+            the transfer **without Alice's permission**.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2><span class="emoji">🔐</span> How to Prevent CSRF</h2>
+
+        <h3>1. SameSite Cookies</h3>
+        <p>
+          Setting the <code>SameSite</code> attribute on cookies tells browsers
+          **when to include cookies in cross-site requests**.
+        </p>
+        <div class="code-block language-http">
+          <div class="code-header">HTTP Header</div>
+          <pre>
+<span class="keyword">Set-Cookie:</span> sessionId=abc123; <span class="property">SameSite</span>=Lax; <span class="property">Secure</span>; <span class="property">HttpOnly</span>
+</pre>
+        </div>
+        <ul>
+          <li>
+            <code>SameSite=Lax</code> blocks cookies on most cross-origin POSTs,
+            but allows them on top-level navigations.
+          </li>
+          <li><code>SameSite=Strict</code> is even more restrictive.</li>
+        </ul>
+
+        <h3>2. CSRF Tokens (also called Anti-CSRF Tokens)</h3>
+        <ul>
+          <li>Server generates a **unique token** per user/session.</li>
+          <li>The token is embedded in each HTML form or request.</li>
+          <li>
+            The server **verifies the token** with each modifying request (like
+            POST, PUT, DELETE).
+          </li>
+          <li>
+            This works because **attackers can’t read the token** from the page
+            if same-origin policies are enforced.
+          </li>
+        </ul>
+
+        <h3>3. Custom Headers + CORS</h3>
+        <ul>
+          <li>Require a **custom header** like <code>X-CSRF-Token</code>.</li>
+          <li>
+            Browsers **block custom headers on cross-origin requests** unless
+            allowed via CORS.
+          </li>
+          <li>
+            This adds a layer of protection, as attackers using HTML forms can't
+            set these headers.
+          </li>
+        </ul>
+      </section>
+    </div>
+  </body>
+</html>

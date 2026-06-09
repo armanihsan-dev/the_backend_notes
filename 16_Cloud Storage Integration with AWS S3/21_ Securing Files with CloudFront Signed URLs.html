@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudFront Signed URLs Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>CloudFront Signed URLs</h1>
+
+    <p>
+      CloudFront Signed URLs are a **critical security feature** used to
+      **restrict access to private content** delivered through an Amazon
+      CloudFront distribution. They ensure that only authorized users can view
+      or download your files, typically for a limited time.
+    </p>
+    <p>
+      This guide will explain what Signed URLs are, the role of public and
+      private keys in their creation, and how to use the
+      <code class="str">@aws-sdk/cloudfront-signer</code> package in Node.js to
+      generate them.
+    </p>
+
+    <h2>1. What are CloudFront Signed URLs?</h2>
+
+    <h3>Definition</h3>
+    <p>
+      A **CloudFront Signed URL** is a standard URL with three security
+      parameters appended to the end:
+    </p>
+    <ul>
+      <li>
+        <code class="prop">Expires</code>: The time after which the URL becomes
+        invalid.
+      </li>
+      <li>
+        <code class="prop">Key-Pair-Id</code>: The public key ID of the trusted
+        signer (your AWS account) that CloudFront uses to verify the signature.
+      </li>
+      <li>
+        <code class="prop">Signature</code>: A hash of the access policy,
+        digitally signed using your **private key**. This signature guarantees
+        the authenticity and integrity of the policy parameters.
+      </li>
+    </ul>
+
+    <h3>How They Work</h3>
+    <ul>
+      <li>
+        <strong>Authorization Check:</strong> Your backend application (e.g.,
+        Node.js server) verifies if the user is authorized (e.g., they are a
+        paid subscriber or have purchased the content).
+      </li>
+      <li>
+        <strong>URL Signing:</strong> If authorized, your application generates
+        a unique URL with an expiration time and digitally signs it using your
+        **private key** and the CloudFront signer utility.
+      </li>
+      <li>
+        <strong>Client Request:</strong> The client (user's browser) attempts to
+        access the resource using the Signed URL.
+      </li>
+      <li>
+        <strong>CloudFront Validation:</strong> The CloudFront Edge Location
+        inspects the URL, finds the <code class="prop">Key-Pair-Id</code>, and
+        uses the corresponding **Public Key** (which you uploaded to CloudFront)
+        to decrypt and validate the <code class="prop">Signature</code>.
+      </li>
+      <li>
+        <strong>Access Granted/Denied:</strong> If the signature is valid and
+        the URL has not expired, CloudFront serves the content. Otherwise,
+        access is denied (<code class="op">HTTP 403 Forbidden</code>).
+      </li>
+    </ul>
+
+    <h2>2. Public and Private Keys</h2>
+
+    <p>
+      The creation and validation of Signed URLs rely entirely on **Asymmetric
+      Cryptography** (Public-Key Cryptography).
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Purpose</th>
+          <th>Storage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Private Key</strong></td>
+          <td>
+            **Signs** the URL policy. It is used exclusively by your secure
+            backend application to generate the unique signature.
+          </td>
+          <td>
+            **MUST be kept secret.** Store in a secure vault like AWS Secrets
+            Manager or an environment variable.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Public Key</strong></td>
+          <td>
+            **Verifies** the signature. It is uploaded to CloudFront (via a
+            **Public Key** and **Key Group**) and used by the CDN to confirm
+            that the signature was created by the corresponding private key.
+          </td>
+          <td>
+            Stored publicly within the AWS CloudFront service configuration.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>How to Create Keys</h3>
+
+    <p>
+      You generate the RSA public-private key pair locally using a tool like
+      **OpenSSL**.
+    </p>
+
+    <h4>
+      Generate the Private Key (<code class="prop">private_key.pem</code>):
+    </h4>
+    <pre>
+        <code class="bash">
+<span class="kw">openssl genrsa</span> <span class="prop">-out</span> <span class="str">private_key.pem</span> <span class="lit">2048</span>
+        </code>
+    </pre>
+    <p>This file contains your secret **private key**.</p>
+
+    <h4>Extract the Public Key (<code class="prop">public_key.pem</code>):</h4>
+    <pre>
+        <code class="bash">
+<span class="kw">openssl rsa</span> <span class="prop">-pubout</span> <span class="prop">-in</span> <span class="str">private_key.pem</span> <span class="prop">-out</span> <span class="str">public_key.pem</span>
+        </code>
+    </pre>
+    <p>This file contains the key you will **upload to AWS**.</p>
+
+    <h3>Configure in AWS:</h3>
+    <ul>
+      <li>
+        In the CloudFront console, navigate to **Key Management** > **Public
+        Keys**.
+      </li>
+      <li>
+        Create a new public key, paste the content of
+        <code class="prop">public_key.pem</code>. Note the generated **Key ID**
+        (e.g., <code class="str">K1D2E3X4Y5Z6</code>).
+      </li>
+      <li>Add this public key to a **Key Group**.</li>
+      <li>
+        In your CloudFront Distribution's **Cache Behavior**, enable **Restrict
+        Viewer Access** and select your created **Key Group** as the **Trusted
+        Signers**.
+      </li>
+    </ul>
+
+    <h2>3. Creating Signed URLs with Node.js SDK</h2>
+
+    <p>
+      The <code class="str">@aws-sdk/cloudfront-signer</code> package simplifies
+      the signing process in Node.js.
+    </p>
+
+    <h3>📦 Installation</h3>
+    <pre>
+        <code class="bash">
+<span class="kw">npm install</span> @aws-sdk/cloudfront-signer
+        </code>
+    </pre>
+
+    <h3>⚙️ Key Definitions</h3>
+    <p>
+      The core utility function is
+      <code class="dir">getSignedUrl(options)</code>.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Option Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="prop">url</code></td>
+          <td><code class="type">string</code></td>
+          <td>
+            The full URL of the content to be signed (e.g.,
+            <code class="mono"
+              >https://d123.cloudfront.net/videos/movie.mp4</code
+            >).
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">keyPairId</code></td>
+          <td><code class="type">string</code></td>
+          <td>
+            The **Key ID** (<code class="str">K1D2E...</code>) you noted when
+            uploading the public key to CloudFront.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">privateKey</code></td>
+          <td><code class="type">string</code></td>
+          <td>
+            The **private key content** loaded directly from your secure storage
+            (the content of <code class="prop">private_key.pem</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">dateLessThan</code></td>
+          <td><code class="type">Date</code></td>
+          <td>
+            **(Required)** The expiration time for the URL. CloudFront will
+            reject the request if the current time is later than this value.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">dateGreaterThan</code></td>
+          <td><code class="type">Date</code></td>
+          <td>
+            *(Optional)* The time when the URL becomes valid (start time).
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">ipAddress</code></td>
+          <td><code class="type">string</code></td>
+          <td>
+            *(Optional)* A CIDR IP block to restrict access to a specific IP
+            range.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>💻 Node.js Example</h3>
+    <p>
+      This example demonstrates how to create a signed URL that expires in 15
+      minutes.
+    </p>
+
+    <pre>
+        <code class="javascript">
+<span class="kw">import</span> { <span class="prop">getSignedUrl</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/cloudfront-signer"</span>;
+<span class="kw">import</span> * <span class="kw">as</span> <span class="prop">fs</span> <span class="kw">from</span> <span class="str">'fs'</span>;
+<span class="kw">import</span> * <span class="kw">as</span> <span class="prop">path</span> <span class="kw">from</span> <span class="str">'path'</span>;
+
+<span class="cmt">// --- Configuration ---</span>
+
+<span class="cmt">// 1. CloudFront Distribution Domain (e.g., the URL that points to your private content)</span>
+<span class="kw">const</span> <span class="prop">CLOUDFRONT_DOMAIN</span> = <span class="str">"https://d12345abcdefg.cloudfront.net"</span>;
+
+<span class="cmt">// 2. The Key Pair ID (from AWS console after uploading public key)</span>
+<span class="kw">const</span> <span class="prop">CLOUDFRONT_KEYPAIR_ID</span> = <span class="str">"K1D2E3X4Y5Z6"</span>;
+
+<span class="cmt">// 3. Load the private key content (Ensure this is loaded securely in production!)</span>
+<span class="cmt">// NOTE: Use environment variables or Secrets Manager in production, not reading a file.</span>
+<span class="kw">const</span> <span class="prop">PRIVATE_KEY_PATH</span> = <span class="prop">path</span>.<span class="dir">join</span>(<span class="prop">process</span>.<span class="prop">cwd</span>(), <span class="str">'private_key.pem'</span>); 
+<span class="kw">const</span> <span class="prop">PRIVATE_KEY</span> = <span class="prop">fs</span>.<span class="dir">readFileSync</span>(<span class="prop">PRIVATE_KEY_PATH</span>, <span class="str">'utf8'</span>);
+
+<span class="cmt">// The file path on your distribution you want to grant access to</span>
+<span class="kw">const</span> <span class="prop">RESOURCE_PATH</span> = <span class="str">"/private-content/document-101.pdf"</span>; 
+<span class="kw">const</span> <span class="prop">URL_TO_SIGN</span> = <span class="str">`${CLOUDFRONT_DOMAIN}${RESOURCE_PATH}`</span>;
+
+/**
+ * Generates a CloudFront Signed URL with a Canned Policy (expiration time only).
+ * <span class="type">@param</span> <span class="prop">url</span> The resource URL to sign.
+ * <span class="type">@returns</span> The fully signed URL string.
+ */
+<span class="kw">function</span> <span class="dir">createSignedUrl</span>(): <span class="type">string</span> {
+  <span class="cmt">// Set the expiration time to 15 minutes from now</span>
+  <span class="kw">const</span> <span class="prop">expiryTime</span> = <span class="kw">new</span> <span class="type">Date</span>(<span class="dir">Date</span>.<span class="dir">now</span>() + <span class="lit">15</span> * <span class="lit">60</span> * <span class="lit">1000</span>); 
+
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">signedUrl</span> = <span class="dir">getSignedUrl</span>({
+      <span class="prop">url</span>: <span class="prop">URL_TO_SIGN</span>,
+      <span class="prop">keyPairId</span>: <span class="prop">CLOUDFRONT_KEYPAIR_ID</span>,
+      <span class="prop">privateKey</span>: <span class="prop">PRIVATE_KEY</span>,
+      <span class="prop">dateLessThan</span>: <span class="prop">expiryTime</span>,
+    });
+
+    <span class="kw">return</span> <span class="prop">signedUrl</span>;
+
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">"Failed to generate Signed URL:"</span>, <span class="prop">error</span>);
+    <span class="kw">throw</span> <span class="kw">new</span> <span class="type">Error</span>(<span class="str">"Signing failed."</span>);
+  }
+}
+
+<span class="cmt">// --- Execution ---</span>
+<span class="kw">const</span> <span class="prop">finalSignedUrl</span> = <span class="dir">createSignedUrl</span>();
+
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Resource URL: ${URL_TO_SIGN}`</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Expiration: ${new Date(new Date().getTime() + 15 * 60 * 1000).toLocaleString()}`</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"\n--- GENERATED SIGNED URL ---"</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="prop">finalSignedUrl</span>);
+
+<span class="cmt">// Example of the final URL structure:</span>
+<span class="cmt">// https://d12345abcdefg.cloudfront.net/private-content/document-101.pdf?Expires=1678881600&Key-Pair-Id=K1D2E3X4Y5Z6&Signature=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</span>
+        </code>
+    </pre>
+  </body>
+</html>

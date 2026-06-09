@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typed Arrays in JavaScript - Notes</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3 {
+            color: #0056b3;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 40px;
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style-type: disc;
+            margin-left: 25px;
+            margin-bottom: 15px;
+        }
+
+        ol {
+            margin-left: 25px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        strong {
+            color: #0056b3;
+        }
+
+        code {
+            background-color: #e9ecef;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: #d63384;
+        }
+
+        pre {
+            background-color: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+            border-radius: 0;
+        }
+
+        .note {
+            background-color: #e7f5ff;
+            border-left: 5px solid #007bff;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .property-list dt {
+            font-weight: bold;
+            color: #0056b3;
+            margin-top: 10px;
+        }
+
+        .property-list dd {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Typed Arrays in JavaScript</h1>
+
+        <section>
+            <h2>What are Typed Arrays?</h2>
+            <p>
+                <strong>Typed Arrays</strong> are array-like objects in JavaScript designed for accessing and manipulating <strong>raw binary data</strong>.
+                Unlike regular JavaScript arrays (which are dynamic and can hold any data type), Typed Arrays:
+            </p>
+            <ul>
+                <li>Store elements of a <strong>single, specified numeric type</strong> (e.g., 8-bit integers, 32-bit floating-point numbers).</li>
+                <li>Have a <strong>fixed size</strong>.</li>
+                <li>Are significantly more <strong>efficient</strong> for binary data (images, audio, video, network data).</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Why Use Typed Arrays?</h2>
+            <p>Traditional JavaScript arrays have overhead due to object-based elements. Typed Arrays offer: </p>
+            <ul>
+                <li><strong>Improved Performance:</strong> Faster read/write operations due to direct memory access (no boxing/unboxing).</li>
+                <li><strong>Reduced Memory Consumption:</strong> No per-element overhead for type information.</li>
+                <li><strong>Interoperability:</strong> Seamless integration with binary data from various sources (WebSockets, File API, WebGL, WebAssembly).</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>How to Work with Typed Arrays</h2>
+            <p>Involves two primary components:</p>
+            <ul>
+                <li><strong><code>ArrayBuffer</code>:</strong> A generic, fixed-length raw binary data buffer. Cannot be directly manipulated; it's a container for bytes.</li>
+                <li><strong>Typed Array Views:</strong> Objects that provide a "view" into an <code>ArrayBuffer</code>, allowing data to be read/written in a specific format.</li>
+            </ul>
+
+            <h3>Creating an <code>ArrayBuffer</code></h3>
+            <p>Specify its length in bytes:</p>
+            <pre><code>const buffer = new ArrayBuffer(16); // Creates a 16-byte buffer
+console.log(buffer.byteLength); // Output: 16</code></pre>
+
+            <h3>Creating Typed Array Views</h3>
+            <p>Constructors represent different data types:</p>
+            <ul>
+                <li><code>Int8Array</code>: 8-bit signed integers</li>
+                <li><code>Uint8Array</code>: 8-bit unsigned integers</li>
+                <li><code>Int16Array</code>: 16-bit signed integers</li>
+                <li><code>Uint16Array</code>: 16-bit unsigned integers</li>
+                <li><code>Int32Array</code>: 32-bit signed integers</li>
+                <li><code>Uint32Array</code>: 32-bit unsigned integers</li>
+                <li><code>Float32Array</code>: 32-bit floating-point numbers</li>
+                <li><code>Float64Array</code>: 64-bit floating-point numbers (double-precision)</li>
+                <li><code>BigInt64Array</code>: 64-bit signed big integers</li>
+                <li><code>BigUint64Array</code>: 64-bit unsigned big integers</li>
+                <li><code>Uint8ClampedArray</code>: 8-bit unsigned integers, clamping values to 0-255</li>
+            </ul>
+
+            <p>Methods to create views:</p>
+            <ol>
+                <li>
+                    <strong>From an <code>ArrayBuffer</code>:</strong>
+                    <pre><code>const buffer = new ArrayBuffer(16); // 16 bytes
+const int32View = new Int32Array(buffer); // View of 4 32-bit integers
+const uint8View = new Uint8Array(buffer);   // View of 16 8-bit unsigned integers</code></pre>
+                </li>
+                <li>
+                    <strong>With a specified length (creates its own <code>ArrayBuffer</code>):</strong>
+                    <pre><code>const myUint8Array = new Uint8Array(8); // Creates an 8-byte buffer and a Uint8Array view
+console.log(myUint8Array.byteLength); // Output: 8
+console.log(myUint8Array.length);     // Output: 8 (number of elements)</code></pre>
+                </li>
+                <li>
+                    <strong>From another Typed Array or an iterable:</strong>
+                    <pre><code>const sourceArray = new Uint8Array([1, 2, 3, 4]);
+const newUint8Array = new Uint8Array(sourceArray); // Creates a new Uint8Array with the same values
+
+const fromRegularArray = new Int16Array([10, 20, 30]);</code></pre>
+                </li>
+            </ol>
+
+            <h3>Read and Write Operations</h3>
+            <p>Use array-like syntax:</p>
+            <pre><code>const buffer = new ArrayBuffer(16);
+const int32View = new Int32Array(buffer); // 4 elements (16 bytes / 4 bytes per Int32)
+
+// Write operations
+int32View[0] = 10;
+int32View[1] = 20;
+int32View[2] = -30;
+int32View[3] = 40;
+console.log(int32View); // Output: Int32Array [ 10, 20, -30, 40 ]
+
+// Read operations
+console.log(int32View[0]); // Output: 10
+console.log(int32View[2]); // Output: -30
+
+// Multiple views on the same ArrayBuffer
+const uint8View = new Uint8Array(buffer);
+console.log(uint8View);
+// Output depends on endianness. e.g., for int32View[0]=10, uint8View might show [10, 0, 0, 0, ...]</code></pre>
+
+            <div class="note">
+                <h4>Important Note on Endianness:</h4>
+                <p>Order of bytes in memory (Little-endian vs. Big-endian). JavaScript's Typed Arrays use the platform's native endianness. For guaranteed endianness (e.g., network protocols), use <code>DataView</code>.</p>
+                <ul>
+                    <li><strong>Little-endian:</strong> Least significant byte (LSB) comes first.</li>
+                    <li><strong>Big-endian:</strong> Most significant byte (MSB) comes first.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section>
+            <h2>Properties of Typed Arrays</h2>
+            <p>All Typed Array objects inherit common properties from <code>TypedArray.prototype</code>:</p>
+            <dl class="property-list">
+                <dt><code>buffer</code></dt>
+                <dd>Read-only. Returns the <code>ArrayBuffer</code> the Typed Array view references.</dd>
+                <pre><code>const myUint8Array = new Uint8Array(8);
+console.log(myUint8Array.buffer); // Returns the underlying ArrayBuffer</code></pre>
+
+                <dt><code>byteLength</code></dt>
+                <dd>Read-only. Returns the length of the Typed Array in bytes (total bytes occupied by elements).</dd>
+                <pre><code>const myInt32Array = new Int32Array(4); // 4 elements * 4 bytes/element = 16 bytes
+console.log(myInt32Array.byteLength); // Output: 16</code></pre>
+
+                <dt><code>byteOffset</code></dt>
+                <dd>Read-only. Returns the offset in bytes from the start of its <code>ArrayBuffer</code> where the view begins. Useful for views over a portion of a buffer.</dd>
+                <pre><code>const buffer = new ArrayBuffer(16);
+const partialView = new Uint8Array(buffer, 4, 8); // View starting at byte offset 4, covering 8 bytes
+console.log(partialView.byteOffset); // Output: 4
+console.log(partialView.byteLength); // Output: 8</code></pre>
+
+                <dt><code>length</code></dt>
+                <dd>Read-only. Returns the number of <strong>elements</strong> in the Typed Array (not the byte length).</dd>
+                <pre><code>const myFloat32Array = new Float32Array(10); // 10 elements
+console.log(myFloat32Array.length);     // Output: 10
+console.log(myFloat32Array.byteLength); // Output: 40 (10 elements * 4 bytes/element)</code></pre>
+
+                <dt><code>BYTES_PER_ELEMENT</code></dt>
+                <dd>Static read-only property on the Typed Array constructor. Indicates the size in bytes of each element.</dd>
+                <pre><code>console.log(Int8Array.BYTES_PER_ELEMENT);   // Output: 1
+console.log(Float32Array.BYTES_PER_ELEMENT); // Output: 4</code></pre>
+
+                <dt><code>constructor</code></dt>
+                <dd>A reference to the constructor function that created the instance.</dd>
+                <pre><code>const myArr = new Uint8Array(5);
+console.log(myArr.constructor === Uint8Array); // Output: true</code></pre>
+            </dl>
+
+            <h3>Key Typed Array Methods</h3>
+            <p>Typed Arrays inherit many methods from <code>Array.prototype</code> (e.g., <code>forEach()</code>, <code>map()</code>, <code>slice()</code>, <code>sort()</code>). Key specific methods include:</p>
+            <ul>
+                <li>
+                    <strong><code>set(array [, offset])</code>:</strong> Writes contents of an array or another Typed Array into the current one.
+                    <pre><code>const target = new Uint8Array(10);
+const source = new Uint8Array([1, 2, 3]);
+target.set(source, 2); // Copies source into target starting at index 2
+console.log(target); // Uint8Array [ 0, 0, 1, 2, 3, 0, 0, 0, 0, 0 ]</code></pre>
+                </li>
+                <li>
+                    <strong><code>subarray([begin [, end]])</code>:</strong> Returns a new Typed Array view on the same <code>ArrayBuffer</code> for a specified range.
+                    <pre><code>const original = new Uint8Array([10, 20, 30, 40, 50]);
+const sub = original.subarray(1, 4); // Elements from index 1 to 3
+console.log(sub); // Uint8Array [ 20, 30, 40 ]
+
+// Modifying the subarray modifies the original buffer
+sub[0] = 25;
+console.log(original); // Uint8Array [ 10, 25, 30, 40, 50 ]</code></pre>
+                </li>
+            </ul>
+        </section>
+
+        <section>
+            <h2><code>DataView</code> for Granular Byte Control and Endianness</h2>
+            <p>For reading/writing different data types at arbitrary byte offsets or controlling endianness explicitly, use <code>DataView</code>.</p>
+            <p>Provides methods like <code>getUint8()</code>, <code>getInt16()</code>, <code>setFloat32()</code>, etc., with optional endianness flags.</p>
+            <pre><code>const buffer = new ArrayBuffer(8); // 8 bytes
+const dataView = new DataView(buffer);
+
+// Write a 32-bit integer at offset 0 (little-endian)
+dataView.setInt32(0, 12345678, true); // true for little-endian
+
+// Write a 16-bit float at offset 4 (big-endian)
+dataView.setFloat32(4, 3.14, false); // false for big-endian (or omit)
+
+console.log(dataView.getInt32(0, true)); // Read back with little-endian
+console.log(dataView.getFloat32(4, false)); // Read back with big-endian</code></pre>
+        </section>
+
+        <section>
+            <h2>Use Cases for Typed Arrays</h2>
+            <ul>
+                <li>WebSockets and Network Communication (efficient binary data transfer)</li>
+                <li>File API (reading/writing binary file contents)</li>
+                <li>WebGL and Canvas API (pixel data manipulation)</li>
+                <li>WebAudio API (raw audio sample manipulation)</li>
+                <li>WebAssembly (Wasm) (data exchange between JS and Wasm)</li>
+                <li>Image Processing</li>
+                <li>Data Serialization/Deserialization</li>
+            </ul>
+            <p class="note">
+                <strong>Summary:</strong> Typed Arrays are powerful for high-performance manipulation of raw binary data, bridging JavaScript's high-level nature with low-level data requirements.
+            </p>
+        </section>
+
+        <section>
+            <h2>Which Number System Does TypedArray Use?</h2>
+            <p>Typed Arrays do not use a "number system" like decimal or hexadecimal for storage. Instead, they <strong>interpret raw binary data</strong> (sequences of 0s and 1s) within an <code>ArrayBuffer</code> based on their specified numeric type.</p>
+            <ul>
+                <li><strong><code>ArrayBuffer</code> is Raw Binary:</strong> It's just a contiguous block of memory (bytes).</li>
+                <li><strong>Typed Array Interprets the Binary:</strong> The Typed Array view (e.g., <code>Int32Array</code>) dictates how these binary sequences are read as numbers.
+                    <ul>
+                        <li><strong>Integer Types:</strong> Use <strong>binary representation</strong>. Signed integers use <strong>two's complement</strong>.</li>
+                        <li><strong>Floating-Point Types:</strong> Use the <strong>IEEE 754 standard</strong> for floating-point representation.</li>
+                        <li><strong>BigInt Types:</strong> Also use <strong>binary representation</strong> and <strong>two's complement</strong> for signed BigInts, but with 64 bits.</li>
+                    </ul>
+                </li>
+            </ul>
+            <pre><code>const buffer = new ArrayBuffer(4); // 4 bytes
+const int32View = new Int32Array(buffer);
+int32View[0] = 10; // Stores decimal 10 as 32-bit binary (0000...00001010)
+
+const uint8View = new Uint8Array(buffer);
+console.log(uint8View); // On little-endian: Uint8Array [ 10, 0, 0, 0 ]</code></pre>
+            <p>In essence: Typed Arrays store raw binary data, and the view defines how that binary data is interpreted as a numeric value according to standard binary encodings.</p>
+        </section>
+
+        <section>
+            <h2>Properties of `ArrayBuffer`</h2>
+            <p>These properties provide crucial information about the underlying raw binary data storage of an <code>ArrayBuffer</code>:</p>
+            <dl class="property-list">
+                <dt><code>byteLength</code></dt>
+                <dd>
+                    <strong>Value (example):</strong> <code>4</code><br>
+                    <strong>Description:</strong> Read-only. The total length of the <code>ArrayBuffer</code> in bytes. Determines the allocated memory.
+                </dd>
+
+                <dt><code>detached</code></dt>
+                <dd>
+                    <strong>Value (example):</strong> <code>false</code><br>
+                    <strong>Description:</strong> Read-only boolean. Indicates if the <code>ArrayBuffer</code>'s underlying memory has been released (e.g., after transfer via <code>postMessage()</code>). <code>false</code> means it's still accessible.
+                </dd>
+
+                <dt><code>maxByteLength</code></dt>
+                <dd>
+                    <strong>Value (example):</strong> <code>4</code><br>
+                    <strong>Description:</strong> Read-only. The maximum size (in bytes) a resizable <code>ArrayBuffer</code> can grow to. If not resizable, it's equal to <code>byteLength</code>.
+                </dd>
+
+                <dt><code>resizable</code></dt>
+                <dd>
+                    <strong>Value (example):</strong> <code>false</code><br>
+                    <strong>Description:</strong> Read-only boolean. Indicates if the <code>ArrayBuffer</code> can be resized using <code>ArrayBuffer.prototype.resize()</code>. <code>false</code> means fixed size.
+                </dd>
+            </dl>
+
+            <h3>Example of Resizable <code>ArrayBuffer</code>:</h3>
+            <pre><code>// Create a resizable ArrayBuffer
+const resizableBuffer = new ArrayBuffer(16, { maxByteLength: 32 });
+
+console.log(resizableBuffer.byteLength);     // Output: 16
+console.log(resizableBuffer.maxByteLength);  // Output: 32
+console.log(resizableBuffer.resizable);      // Output: true
+
+// Resize the buffer
+resizableBuffer.resize(24);
+console.log(resizableBuffer.byteLength);     // Output: 24
+
+// Attempt to resize beyond maxByteLength will throw an error
+try {
+    resizableBuffer.resize(40);
+} catch (e) {
+    console.error(e); // RangeError: byteLength is out of range.
+}</code></pre>
+            <p>These properties offer a clear view of an <code>ArrayBuffer</code>'s size, resize capabilities, and memory validity.</p>
+        </section>
+    </div>
+</body>
+</html>

@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Three Pillars of Observability | Complete Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-columns"></i> 3 PILLARS
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. The Pillars</div>
+        <a href="#metrics" class="nav-link">Metrics</a>
+        <a href="#logs" class="nav-link">Logs</a>
+        <a href="#traces" class="nav-link">Traces</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Integration</div>
+        <a href="#combining" class="nav-link">Combining Pillars</a>
+        <a href="#events" class="nav-link">Events in Context</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Practice</div>
+        <a href="#implementation" class="nav-link">Implementation Tips</a>
+        <a href="#goal" class="nav-link">Ultimate Goal</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability Fundamentals</span>
+        <h1>THREE PILLARS OF OBSERVABILITY</h1>
+        <p>METRICS, LOGS, AND TRACES EXPLAINED</p>
+      </section>
+
+      <section id="metrics">
+        <h2>📊 METRICS: THE SYSTEM'S VITAL SIGNS</h2>
+        
+        <p>
+          Metrics are numerical measurements collected over time. They're like
+          the dashboard in a car - speed, RPM, fuel level, temperature.
+        </p>
+
+        <h3>Key Characteristics</h3>
+        <ul>
+          <li><strong>Aggregated</strong> - They summarize many events into single numbers</li>
+          <li><strong>Time-series</strong> - Values with timestamps allow trend analysis</li>
+          <li><strong>Lightweight</strong> - Minimal storage and processing overhead</li>
+        </ul>
+
+        <h3>Common Metric Types</h3>
+        <div class="comparison-grid">
+          <div>
+            <h4>Counters</h4>
+            <p>Request count, error count (always increase)</p>
+          </div>
+          <div>
+            <h4>Gauges</h4>
+            <p>Current memory usage, active connections (go up and down)</p>
+          </div>
+          <div>
+            <h4>Histograms</h4>
+            <p>Request latency distribution (p50, p95, p99)</p>
+          </div>
+          <div>
+            <h4>Rates</h4>
+            <p>Requests per second, error rate percentage</p>
+          </div>
+        </div>
+
+        <h3>Real-world Example</h3>
+        <pre><code class="language-yaml">metric: http_requests_total
+value: 15432
+labels: 
+  endpoint: /api/users
+  method: GET
+  status: 200
+timestamp: 2024-01-15T10:30:00Z</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-exclamation-triangle"></i> When Metrics Alone Fail
+          </span>
+          <p>
+            They tell you that latency is spiking, but not why. A p99 of 5
+            seconds could mean:
+          </p>
+          <ul>
+            <li>One slow database query affecting everyone</li>
+            <li>A few users with huge data sets</li>
+            <li>Network congestion to a specific region</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="logs">
+        <h2>🪵 LOGS: THE SYSTEM'S DIARY</h2>
+        
+        <p>
+          Logs are discrete events with timestamps and structured (or
+          unstructured) data. They're like security camera footage - detailed
+          but bulky.
+        </p>
+
+        <h3>Key Characteristics</h3>
+        <ul>
+          <li><strong>Event-based</strong> - Each log represents something that happened</li>
+          <li><strong>Context-rich</strong> - Can contain variable data, stack traces, user IDs</li>
+          <li><strong>High volume</strong> - Can generate terabytes of data</li>
+        </ul>
+
+        <h3>Log Levels and Their Meaning</h3>
+        <pre><code class="language-text">DEBUG - "Entering payment processing function"
+INFO  - "User 12345 completed checkout"
+WARN  - "Database query took 2 seconds (threshold: 1s)"
+ERROR - "Failed to charge credit card: insufficient funds"
+FATAL - "Payment service crashed, restarting"</code></pre>
+
+        <h3>Structured Logging Example</h3>
+        <pre><code class="language-json">{
+  "timestamp": "2024-01-15T10:30:01.123Z",
+  "level": "ERROR",
+  "service": "payment-processor",
+  "trace_id": "abc-123-def",
+  "user_id": 12345,
+  "message": "Credit card declined",
+  "error_code": "card_declined",
+  "provider": "stripe",
+  "amount": 99.99
+}</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-exclamation-triangle"></i> When Logs Alone Fail
+          </span>
+          <p>
+            Searching through millions of log lines to understand a slow request
+            is like finding a needle in a haystack. You see individual events
+            but lose the causal chain.
+          </p>
+        </div>
+      </section>
+
+      <section id="traces">
+        <h2>🧵 TRACES: THE SYSTEM'S STORYBOARD</h2>
+        
+        <p>
+          Traces follow a single request through every service and component.
+          They're like a GPS track of your journey through a city.
+        </p>
+
+        <h3>Key Concepts</h3>
+        <ul>
+          <li><strong>Trace</strong> - The complete journey of a request</li>
+          <li><strong>Span</strong> - A single unit of work within the trace</li>
+          <li><strong>Parent-child relationships</strong> - Shows which calls triggered which</li>
+        </ul>
+
+        <h3>Trace Structure Example</h3>
+        <pre><code class="language-text">Trace ID: request-789
+Total time: 2.3s
+
+Span A: /api/order [2.3s] (entire request)
+  ├─ Span B: authenticate() [50ms]
+  ├─ Span C: validate_order() [100ms]
+  ├─ Span D: check_inventory() [800ms]
+  │    └─ Span E: database query [750ms] ← bottleneck!
+  └─ Span F: process_payment() [1.3s]
+       └─ Span G: external payment API [1.2s]</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-exclamation-triangle"></i> When Traces Alone Fail
+          </span>
+          <p>
+            They show you where time was spent but not what happened during that
+            time. The database query took 750ms - was it locked? Missing index?
+            Network issue?
+          </p>
+        </div>
+      </section>
+
+      <section id="combining">
+        <h2>THE POWER OF COMBINING PILLARS</h2>
+        
+        <h3>🔍 Debugging Scenario: Slow User Login</h3>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-chart-line"></i> Step 1 - Metrics Detect the Problem
+          </span>
+          <pre><code class="language-text">Graph shows: login_latency_p99 spiked from 200ms to 5s at 10:30 AM</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top: 1rem">
+          <span class="note-title">
+            <i class="fa-solid fa-route"></i> Step 2 - Traces Localize the Bottleneck
+          </span>
+          <pre><code class="language-text">Trace for a slow login shows:
+- auth service: 4.8s total
+  - password check: 50ms
+  - user profile fetch: 4.7s ← problem area
+    - database query: 4.6s</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top: 1rem">
+          <span class="note-title">
+            <i class="fa-solid fa-file-lines"></i> Step 3 - Logs Provide Context
+          </span>
+          <pre><code class="language-json">Search logs with trace_id from the slow query:
+{
+  "timestamp": "10:30:01",
+  "query": "SELECT * FROM users WHERE id = 12345",
+  "execution_time": "4.6s",
+  "rows_returned": 1,
+  "index_used": "none"  // ← Ah! Missing index!
+}</code></pre>
+        </div>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+            margin-top: 2rem;
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            ✅ Resolution
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Add an index on the users table. Metrics confirm latency drops back
+            to normal.
+          </p>
+        </div>
+      </section>
+
+      <section id="events">
+        <h2>UNDERSTANDING EVENTS IN CONTEXT</h2>
+
+        <h3>📊 Events from Metrics (Alerting)</h3>
+        <p>When a metric crosses a threshold, it generates an event:</p>
+        <pre><code class="language-text">Metric: cpu_usage > 80% for 5 minutes
+    ↓
+Event: "High CPU alert" created
+    ↓
+Alert sent to on-call engineer
+    ↓
+Timeline annotated in dashboard</code></pre>
+
+        <h3>🪵 Logs as Events (Audit Trail)</h3>
+        <p>Every significant state change should be logged:</p>
+        <pre><code class="language-json">{
+  "event": "deployment_started",
+  "version": "2.1.0",
+  "timestamp": "2024-01-15T10:00:00Z"
+}
+{
+  "event": "deployment_completed",
+  "version": "2.1.0",
+  "result": "success",
+  "duration_seconds": 45
+}</code></pre>
+
+        <h3>🧵 Trace Annotations as Events</h3>
+        <p>Marking important moments within traces:</p>
+        <pre><code class="language-python">with tracer.start_span("process_payment") as span:
+    span.set_tag("payment_method", "credit_card")
+    span.set_tag("amount", 99.99)
+    
+    result = payment_service.charge()
+    
+    if result.failed:
+        span.set_tag("error", True)
+        span.log_kv({"event": "payment_failed", 
+                     "reason": result.error_message})</code></pre>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-lightbulb"></i> The MELT Acronym Reality Check
+          </span>
+          <p>
+            While MELT (Metrics, Events, Logs, Traces) is memorable, it's
+            important to understand:
+          </p>
+          <p>
+            <strong>Events are not a separate data type</strong> - they're a use
+            case applied to the three pillars:
+          </p>
+          <ul>
+            <li>Metrics + threshold = Alert event</li>
+            <li>Log entry = Debug/audit event</li>
+            <li>Trace annotation = Request lifecycle event</li>
+          </ul>
+        </div>
+
+        <h3>Think of it This Way</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Pillar</th>
+              <th>Question Answered</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Metrics</strong></td>
+              <td>What's happening?</td>
+            </tr>
+            <tr>
+              <td><strong>Logs</strong></td>
+              <td>What happened?</td>
+            </tr>
+            <tr>
+              <td><strong>Traces</strong></td>
+              <td>How did it happen?</td>
+            </tr>
+            <tr>
+              <td><strong>Events</strong></td>
+              <td>What should I care about?</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="implementation">
+        <h2>PRACTICAL IMPLEMENTATION TIPS</h2>
+
+        <h3>1. Correlation is King</h3>
+        <p>Always include correlation IDs across pillars:</p>
+        <pre><code class="language-yaml">Request Headers:
+  X-Trace-ID: trace-789
+    
+Metrics:
+  http_requests_total{trace_id="trace-789"}
+  
+Logs:
+  {"trace_id": "trace-789", "message": "..."}
+  
+Traces:
+  Trace ID: trace-789</code></pre>
+
+        <h3>2. Sampling Strategies</h3>
+        <p>You can't trace everything in high-volume systems:</p>
+        <ul>
+          <li>
+            <strong>Head-based sampling:</strong> Decide at request start (e.g.,
+            trace 1% of requests)
+          </li>
+          <li>
+            <strong>Tail-based sampling:</strong> Keep interesting traces
+            (slow/error) after they complete
+          </li>
+          <li>
+            <strong>Structural sampling:</strong> Trace specific endpoints or
+            user types
+          </li>
+        </ul>
+
+        <h3>3. Log Levels in Production</h3>
+        <pre><code class="language-text">ERROR   → Always, with full context
+WARN    → Always, but may be sampled if high volume
+INFO    → Critical business events only
+DEBUG   → Never in production (unless temporarily enabled for specific users)</code></pre>
+
+        <h3>4. Metrics Cardinality Warning</h3>
+        <p>Be careful with label combinations:</p>
+        <pre><code class="language-yaml">Bad:  http_requests_total{user_id="12345"}  ← Millions of unique users
+Good: http_requests_total{user_tier="premium"}  ← Small set of values</code></pre>
+      </section>
+
+      <section id="goal">
+        <h2>THE ULTIMATE GOAL</h2>
+        
+        <p>
+          The three pillars aren't just about collecting data - they're about
+          answering three fundamental questions during an incident:
+        </p>
+
+        <div class="comparison-grid">
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--accent);
+            "
+          >
+            <h4 style="color: var(--accent); margin-top: 0">
+              <i class="fa-solid fa-chart-line"></i> Metrics
+            </h4>
+            <p><strong>"Is there really a problem?"</strong></p>
+            <p style="margin-bottom: 0">(Detection)</p>
+          </div>
+
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--accent);
+            "
+          >
+            <h4 style="color: var(--accent); margin-top: 0">
+              <i class="fa-solid fa-route"></i> Traces
+            </h4>
+            <p><strong>"Where in the system is it happening?"</strong></p>
+            <p style="margin-bottom: 0">(Localization)</p>
+          </div>
+
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--accent);
+            "
+          >
+            <h4 style="color: var(--accent); margin-top: 0">
+              <i class="fa-solid fa-file-lines"></i> Logs
+            </h4>
+            <p><strong>"What exactly went wrong there?"</strong></p>
+            <p style="margin-bottom: 0">(Diagnosis)</p>
+          </div>
+        </div>
+
+        <div class="note-box danger" style="margin-top: 3rem">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Without All Three, You're Flying Blind
+          </span>
+          <ul style="margin-bottom: 0">
+            <li><strong>Metrics only:</strong> You know it's broken but not why</li>
+            <li><strong>Logs only:</strong> You have details but no context or trends</li>
+            <li><strong>Traces only:</strong> You have the path but miss the big picture</li>
+          </ul>
+        </div>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+            margin-top: 3rem;
+          "
+        >
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">
+            💡 The Golden Rule
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Observability is not about having all the data. It's about having
+            the right data, in the right format, at the right time, with the
+            right connections between the three pillars.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Three Pillars of Observability Guide</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+
+    <!-- Active Section Highlighter -->
+    <script src="script.js"></script>
+  </body>
+</html>

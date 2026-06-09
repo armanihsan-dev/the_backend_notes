@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Understanding Default Metrics in Prometheus | Complete Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-brands fa-node-js"></i> DEFAULT METRICS</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. CPU & Process</div>
+        <a href="#cpu" class="nav-link">CPU Seconds Total</a>
+        <a href="#start-time" class="nav-link">Start Time</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Memory</div>
+        <a href="#rss" class="nav-link">Resident Memory (RSS)</a>
+        <a href="#heap" class="nav-link">Heap Size Used</a>
+        <a href="#external" class="nav-link">External Memory</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Event Loop</div>
+        <a href="#eventloop" class="nav-link">Event Loop Lag</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Summary</div>
+        <a href="#big-picture" class="nav-link">Big Picture</a>
+        <a href="#summary-table" class="nav-link">Summary Table</a>
+        <a href="#helper" class="nav-link">Helper Function</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Node.js + Prometheus</span>
+        <h1>DEFAULT METRICS IN PROMETHEUS</h1>
+        <p>WHAT THEY MEASURE, WHY THEY MATTER & HOW TO READ THEM</p>
+      </section>
+
+      <!-- ─── 1. CPU ─────────────────────────────────────────── -->
+      <section id="cpu">
+        <h2>1️⃣ process_cpu_seconds_total</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Easy Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            A running total of how many seconds your app has actually used the
+            CPU since it started. Like a car's <strong>odometer for CPU time</strong>.
+          </p>
+        </div>
+
+        <h3>Purpose</h3>
+        <p>
+          Find out if your app is doing heavy computation. Use
+          <code>rate()</code> to see CPU usage per second.
+        </p>
+
+        <h3>Get the Value in Node.js</h3>
+        <pre><code class="language-javascript">const cpuSeconds = (process.cpuUsage().user + process.cpuUsage().system) / 1000000;</code></pre>
+
+        <h3>What the Numbers Mean</h3>
+        <table>
+          <thead>
+            <tr><th>Scenario</th><th>CPU Seconds</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>App running 1 hour</td>
+              <td><code>600s</code></td>
+              <td>Used 10 min of CPU — idle most of the time ✅</td>
+            </tr>
+            <tr>
+              <td>App running 1 hour</td>
+              <td><code>3600s</code></td>
+              <td>Used full 1 hour of CPU — always busy ⚠️</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── 2. START TIME ──────────────────────────────────── -->
+      <section id="start-time">
+        <h2>2️⃣ process_start_time_seconds</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Easy Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            The exact Unix timestamp (in seconds) when your app
+            <strong>was born / started</strong>.
+          </p>
+        </div>
+
+        <h3>Purpose</h3>
+        <p>Calculate uptime, detect unexpected restarts, know when counters reset to zero.</p>
+
+        <h3>Get the Value in Node.js</h3>
+        <pre><code class="language-javascript">const startTime = Math.floor(performance.timeOrigin / 1000);</code></pre>
+
+        <h3>What It Tells You</h3>
+        <ul>
+          <li><code>1743878400</code> means your app started at that exact Unix timestamp</li>
+          <li><strong>Current time − this value</strong> = how many seconds your app has been running</li>
+          <li>If this value suddenly changes → your app <strong>restarted unexpectedly</strong></li>
+        </ul>
+      </section>
+
+      <!-- ─── 3. RSS ──────────────────────────────────────────── -->
+      <section id="rss">
+        <h2>3️⃣ process_resident_memory_bytes</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Easy Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            How much <strong>physical RAM</strong> your app is actually using
+            right now. The real memory cost the OS sees.
+          </p>
+        </div>
+
+        <h3>Purpose</h3>
+        <p>Predict when your app might crash from Out Of Memory (OOM).</p>
+
+        <h3>Get the Value in Node.js</h3>
+        <pre><code class="language-javascript">const rssBytes = process.memoryUsage().rss;</code></pre>
+
+        <h3>What It Tells You</h3>
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--accent)">
+            <h4 style="color:var(--accent);margin-top:0">✅ Healthy</h4>
+            <p style="margin-bottom:0">500 MB RSS on a 1 GB server → using half the RAM</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--danger)">
+            <h4 style="color:var(--danger);margin-top:0">⚠️ Warning</h4>
+            <p style="margin-bottom:0">RSS keeps growing over time → potential memory leak</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── 4. EVENT LOOP ──────────────────────────────────── -->
+      <section id="eventloop">
+        <h2>4️⃣ nodejs_eventloop_lag_max_seconds</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Easy Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            The <strong>worst delay</strong> in your event loop. Shows how long
+            your app froze and couldn't handle new requests.
+          </p>
+        </div>
+
+        <h3>Purpose</h3>
+        <p>
+          Detect blocking code like synchronous file reads, heavy loops, or
+          large JSON parsing that freezes your app.
+        </p>
+
+        <h3>Get the Value in Node.js</h3>
+        <pre><code class="language-javascript">const { monitorEventLoopDelay } = require('perf_hooks');
+const lagMonitor = monitorEventLoopDelay({ resolution: 10 });
+lagMonitor.enable();
+
+// Later, get the max lag
+const maxLagSeconds = lagMonitor.max / 1e9;
+lagMonitor.reset(); // Reset to measure next interval</code></pre>
+
+        <h3>What the Numbers Mean</h3>
+        <table>
+          <thead>
+            <tr><th>Value</th><th>Status</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>0.01s (10ms)</code></td><td>✅ Healthy</td><td>Normal, responsive app</td></tr>
+            <tr><td><code>0.5s (500ms)</code></td><td>⚠️ Warning</td><td>Users notice slowness</td></tr>
+            <tr><td><code>3s+</code></td><td>❌ Critical</td><td>App appears completely frozen</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box danger" style="margin-top:1.5rem">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Common Causes of High Lag
+          </span>
+          <ul style="margin-bottom:0">
+            <li>Synchronous file reads (<code>fs.readFileSync</code>)</li>
+            <li>Heavy <code>JSON.parse()</code> on large payloads</li>
+            <li>Long-running <code>for</code> loops</li>
+            <li>Blocking crypto operations</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ─── 5. HEAP ────────────────────────────────────────── -->
+      <section id="heap">
+        <h2>5️⃣ nodejs_heap_size_used_bytes</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Easy Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Memory currently used by your <strong>JavaScript objects</strong>
+            — arrays, objects, strings, functions, closures.
+          </p>
+        </div>
+
+        <h3>Purpose</h3>
+        <p>Track JS memory growth and detect JavaScript memory leaks.</p>
+
+        <h3>Get the Value in Node.js</h3>
+        <pre><code class="language-javascript">const heapUsed = process.memoryUsage().heapUsed;</code></pre>
+
+        <h3>What It Tells You</h3>
+        <ul>
+          <li><strong>Heap keeps growing but never goes down</strong> → likely a memory leak</li>
+          <li><strong>Sudden spike then drop</strong> → garbage collection happened (normal)</li>
+          <li><strong>Approaches heap limit</strong> → <code>JavaScript heap out of memory</code> crash coming</li>
+        </ul>
+      </section>
+
+      <!-- ─── 6. EXTERNAL ───────────────────────────────────── -->
+      <section id="external">
+        <h2>6️⃣ nodejs_external_memory_bytes</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Easy Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Memory used by <strong>Buffers, native addons, and data outside
+            JavaScript's main heap</strong>.
+          </p>
+        </div>
+
+        <h3>Purpose</h3>
+        <p>Explain why total RAM (RSS) is high even when <code>heapUsed</code> looks normal.</p>
+
+        <h3>Get the Value in Node.js</h3>
+        <pre><code class="language-javascript">const external = process.memoryUsage().external;</code></pre>
+
+        <h3>What It Tells You</h3>
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--accent)">
+            <h4 style="color:var(--accent);margin-top:0">High external + Low heap</h4>
+            <p style="margin-bottom:0">Your app uses lots of Buffers — file uploads, streams, database results</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--danger)">
+            <h4 style="color:var(--danger);margin-top:0">External grows, never shrinks</h4>
+            <p style="margin-bottom:0">Native memory leak — investigate Buffer usage</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── BIG PICTURE ───────────────────────────────────── -->
+      <section id="big-picture">
+        <h2>THE BIG PICTURE: HOW THESE METRICS WORK TOGETHER</h2>
+
+        <pre><code class="language-text">Total RAM (RSS) = heapUsed + external + Node.js internals + code</code></pre>
+
+        <h3>Example Scenario</h3>
+        <div style="background:var(--bg-secondary);padding:2rem;border-radius:8px;border:1px solid var(--border);margin-top:1rem">
+          <div style="display:flex;flex-direction:column;gap:0.75rem">
+            <div style="display:flex;align-items:center;gap:1rem">
+              <span style="width:180px;color:var(--text-secondary);font-size:0.9rem">RSS (Total)</span>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;height:28px;position:relative">
+                <div style="width:100%;background:#3b82f6;height:100%;border-radius:4px;display:flex;align-items:center;padding-left:0.75rem">
+                  <span style="font-size:0.85rem;font-weight:600">500 MB — what the OS sees</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem">
+              <span style="width:180px;color:var(--text-secondary);font-size:0.9rem">heapUsed (JS objects)</span>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;height:28px;position:relative">
+                <div style="width:20%;background:var(--accent);height:100%;border-radius:4px;display:flex;align-items:center;padding-left:0.75rem">
+                  <span style="font-size:0.85rem;font-weight:600">100 MB</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem">
+              <span style="width:180px;color:var(--text-secondary);font-size:0.9rem">external (Buffers)</span>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;height:28px;position:relative">
+                <div style="width:60%;background:#f59e0b;height:100%;border-radius:4px;display:flex;align-items:center;padding-left:0.75rem">
+                  <span style="font-size:0.85rem;font-weight:600">300 MB</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem">
+              <span style="width:180px;color:var(--text-secondary);font-size:0.9rem">Node.js overhead</span>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;height:28px;position:relative">
+                <div style="width:20%;background:#6b7280;height:100%;border-radius:4px;display:flex;align-items:center;padding-left:0.75rem">
+                  <span style="font-size:0.85rem;font-weight:600">100 MB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note-box" style="margin-top:1.5rem">
+          <span class="note-title"><i class="fa-solid fa-circle-info"></i> Key Insight</span>
+          <p style="margin-bottom:0">
+            Without <code>nodejs_external_memory_bytes</code>, you'd wonder
+            "Where's the other 400 MB going?" — it's in Buffers from file
+            uploads and streams.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── SUMMARY TABLE ─────────────────────────────────── -->
+      <section id="summary-table">
+        <h2>QUICK SUMMARY TABLE</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>What It Measures</th>
+              <th>Warning Sign</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>process_cpu_seconds_total</code></td>
+              <td>CPU time used</td>
+              <td>Rate &gt; 80% of cores</td>
+            </tr>
+            <tr>
+              <td><code>process_start_time_seconds</code></td>
+              <td>App birth time</td>
+              <td>Unexpected reset</td>
+            </tr>
+            <tr>
+              <td><code>process_resident_memory_bytes</code></td>
+              <td>Real RAM usage</td>
+              <td>Approaching server limit</td>
+            </tr>
+            <tr>
+              <td><code>nodejs_eventloop_lag_max_seconds</code></td>
+              <td>App freezing</td>
+              <td>&gt; 0.1 seconds</td>
+            </tr>
+            <tr>
+              <td><code>nodejs_heap_size_used_bytes</code></td>
+              <td>JS object memory</td>
+              <td>Constantly growing</td>
+            </tr>
+            <tr>
+              <td><code>nodejs_external_memory_bytes</code></td>
+              <td>Buffer memory</td>
+              <td>High without release</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── HELPER FUNCTION ───────────────────────────────── -->
+      <section id="helper">
+        <h2>ONE HELPER FUNCTION TO GET ALL METRICS</h2>
+
+        <pre><code class="language-javascript">function getAllMetrics() {
+  const cpu = process.cpuUsage();
+  const mem = process.memoryUsage();
+
+  return {
+    cpu_seconds:       (cpu.user + cpu.system) / 1e6,
+    start_time:        Math.floor(performance.timeOrigin / 1000),
+    rss_bytes:         mem.rss,
+    heap_used_bytes:   mem.heapUsed,
+    external_bytes:    mem.external
+  };
+}
+
+console.log(getAllMetrics());</code></pre>
+
+        <div
+          class="note-box"
+          style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem"
+        >
+          <span class="note-title" style="color:var(--accent);font-size:1rem">
+            💡 Golden Rule
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            You now understand what each default metric means, why it matters,
+            and how to get it in Node.js. Start by watching RSS and event loop
+            lag — they're the first to reveal problems in production.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Understanding Default Metrics in Prometheus</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

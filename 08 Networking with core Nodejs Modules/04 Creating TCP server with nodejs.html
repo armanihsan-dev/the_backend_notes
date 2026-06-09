@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TCP Server & Client Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #1e1e1e;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc;
+        font-weight: 700;
+      }
+      p {
+        margin-bottom: 1.5rem;
+      }
+      .code-block {
+        background-color: #2b2b2b;
+        border-left: 4px solid #03dac6;
+        padding: 1rem;
+        margin-top: 1rem;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        border-radius: 4px;
+      }
+      pre {
+        margin: 0;
+        font-family: 'Courier New', Courier, monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      code {
+        font-family: 'Courier New', Courier, monospace;
+        background-color: #333333;
+        padding: 2px 5px;
+        border-radius: 3px;
+        color: #fff;
+      }
+      ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+      li {
+        margin-bottom: 1rem;
+      }
+      .list-item-title {
+        color: #03dac6;
+        font-weight: 700;
+      }
+      .javascript-label {
+        display: inline-block;
+        background-color: #f7df1e;
+        color: #000;
+        font-size: 0.8rem;
+        padding: 3px 6px;
+        border-radius: 3px;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>TCP Server in Nodejs</h1>
+      <p>
+        A **TCP server** is a program that listens for incoming connection
+        requests from clients, while a **TCP client** is a program that
+        initiates a connection to a server. They are fundamental components of a
+        client-server architecture, enabling reliable, ordered, and
+        error-checked communication over a network.
+      </p>
+
+      <hr />
+
+      <h2>TCP Request and Response</h2>
+      <p>
+        In the context of TCP, the terms "request" and "response" refer to the
+        data exchanged between the client and server. A **TCP request** is a
+        message sent by the client to the server, and a **TCP response** is the
+        message sent back by the server to the client. Unlike HTTP, which has a
+        well-defined request-response structure, TCP is a stream-oriented
+        protocol. This means data is sent as a continuous stream of bytes, and
+        the application layer protocol (like HTTP or FTP) is responsible for
+        defining how a request or a response is structured within that stream.
+      </p>
+
+      <hr />
+
+      <h2>Creating a TCP Server in Node.js</h2>
+      <p>
+        Node.js has a built-in <code>net</code> module that makes it easy to
+        create TCP servers and clients. Here's how to create a basic TCP server:
+      </p>
+
+      <ul>
+        <li>
+          <div class="list-item-title">1. Server Creation</div>
+          <p>
+            First, you'll need to import the <code>net</code> module and create
+            a server instance using <code>net.createServer()</code>. This method
+            takes a callback function that executes whenever a client connects.
+            The callback receives a <code>socket</code> object, which represents
+            the connection to the client.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>const net = require('net');
+const server = net.createServer((socket) => {
+  // This code runs when a client connects
+  console.log('Client connected!');
+});</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="list-item-title">2. Listening for Connections</div>
+          <p>
+            Once the server is created, you must tell it to listen on a specific
+            port and, optionally, on a specific IP address (e.g.,
+            <code>localhost</code> or <code>0.0.0.0</code>). The
+            <code>server.listen()</code> method does this.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>const port = 3000;
+
+server.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+});</code></pre>
+          </div>
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Handling Communication</h2>
+      <p>
+        The <code>socket</code> object provided in the connection callback is
+        the key to communication. It's an <code>EventEmitter</code> that emits
+        events for various connection states and data transmissions.
+      </p>
+
+      <ul>
+        <li>
+          <div class="list-item-title">1. Data Reception</div>
+          <p>
+            To receive data from a client, listen for the
+            <code>'data'</code> event on the socket. The callback for this event
+            receives the data as a <code>Buffer</code> object.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>socket.on('data', (data) => {
+  console.log(`Received data from client: ${data.toString()}`);
+});</code></pre>
+          </div>
+          <p>
+            The <code>toString()</code> method is used to convert the
+            <code>Buffer</code> (a low-level representation of a sequence of
+            bytes) into a readable string.
+          </p>
+        </li>
+        <li>
+          <div class="list-item-title">2. Sending Data</div>
+          <p>
+            To send data back to the client, use the
+            <code>socket.write()</code> method. It takes a string or a
+            <code>Buffer</code> as an argument.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>socket.write('Hello, client!');</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="list-item-title">3. Handling Disconnection</div>
+          <p>
+            When a client disconnects, the <code>'end'</code> event is emitted.
+            You can listen for this event to perform cleanup or log the
+            disconnection.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>socket.on('end', () => {
+  console.log('Client disconnected.');
+});</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="list-item-title">4. Handling Errors</div>
+          <p>
+            Errors can occur during the connection. It's good practice to listen
+            for the <code>'error'</code> event.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>socket.on('error', (err) => {
+  console.error(`Socket error: ${err.message}`);
+});</code></pre>
+          </div>
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Full Server Example</h2>
+      <p>
+        Here is a complete, working example of a simple TCP server in Node.js
+        that echoes back any data it receives from a client.
+      </p>
+      <span class="javascript-label">JavaScript</span>
+      <div class="code-block">
+        <pre><code>const net = require('net');
+const server = net.createServer((socket) => {
+  console.log('Client connected!');
+
+  // Handle incoming data
+  socket.on('data', (data) => {
+    const receivedData = data.toString();
+    console.log(`Received from client: ${receivedData}`);
+    
+    // Echo back the received data
+    socket.write(`Server received: ${receivedData}`);
+  });
+
+  // Handle client disconnection
+  socket.on('end', () => {
+    console.log('Client disconnected.');
+  });
+
+  // Handle errors
+  socket.on('error', (err) => {
+    console.error(`Socket error: ${err.message}`);
+  });
+});
+
+const port = 3000;
+server.listen(port, () => {
+  console.log(`TCP server listening on port ${port}`);
+});</code></pre>
+      </div>
+      <p>
+        To run this server, save the code as a file (e.g.,
+        <code>server.js</code>) and run <code>node server.js</code> in your
+        terminal. You can then connect to it using a TCP client or a tool like
+        <code>netcat</code>.
+      </p>
+
+      <img src="./images/TCP Server.png" width="100%" height="600px" alt="" />
+      <ol>
+        <li>
+          <strong>Listening</strong>: The TCP server starts by creating a
+          <strong class="list-item-title">Listening Socket</strong> that waits
+          for incoming connection requests. This is the server's passive state,
+          where it's ready to accept new clients.
+        </li>
+        <li>
+          <strong>Connection</strong>: A
+          <strong class="list-item-title">TCP Client</strong> initiates a
+          connection by sending a
+          <span class="javascript-label">Connect()</span> request to the
+          server's listening socket.
+        </li>
+        <li>
+          <strong>Accepting:</strong> Upon receiving a connection request, the
+          server's <span class="javascript-label">Accept()</span> block creates
+          a brand <strong class="list-item-title">New Client Socket</strong>.
+          This new socket is dedicated solely to communication with that
+          specific client, allowing the listening socket to remain open and
+          ready to accept other incoming connections.
+        </li>
+        <li>
+          <strong>Data Transfer</strong>: Once the new socket is established,
+          the client and server can begin
+          <strong class="list-item-title">Data Transfer</strong>. This is a
+          <strong class="list-item-title">duplex (Read/Write)</strong> process
+          where data flows bi-directionally between the client and its dedicated
+          new socket on the server.
+        </li>
+      </ol>
+      <div class="">
+        <h1>Node.js Socket Object</h1>
+        <p>
+          The <code>socket</code> object is a crucial element in Node.js TCP
+          programming. It represents the connection between the server and a
+          client. When a client successfully connects to your server, the
+          <code>net.createServer()</code> callback is executed, and Node.js
+          automatically creates a new <code>socket</code> object specifically
+          for that connection.
+        </p>
+        <p>
+          Think of the socket as a **duplex stream**—a two-way communication
+          channel. It allows your server to both read data from the client and
+          write data to the client over the same connection.
+        </p>
+
+        <hr />
+
+        <h2>Most Important Built-in Methods</h2>
+
+        <h3>Basic Communication Methods</h3>
+        <ul>
+          <li>
+            <div class="list-item-title"><code>socket.write(data)</code></div>
+            <p>
+              This is a fundamental method for sending data to the client. The
+              data can be a string or a <code>Buffer</code>.
+            </p>
+            <span class="javascript-label">JavaScript</span>
+            <div class="code-block">
+              <pre><code>socket.write('Hello from the server!');</code></pre>
+            </div>
+          </li>
+          <li>
+            <div class="list-item-title"><code>socket.end([data])</code></div>
+            <p>
+              This method ends the write half of the connection. You can
+              optionally pass data to be sent before the connection is
+              terminated. The client will still be able to send data until its
+              own connection is closed.
+            </p>
+            <span class="javascript-label">JavaScript</span>
+            <div class="code-block">
+              <pre><code>socket.end('Goodbye!');</code></pre>
+            </div>
+          </li>
+          <li>
+            <div class="list-item-title">
+              <code>socket.destroy([error])</code>
+            </div>
+            <p>
+              This method ensures that no more I/O activity happens on this
+              socket. It is the definitive way to forcefully close the
+              connection immediately, regardless of what's happening.
+            </p>
+          </li>
+        </ul>
+
+        <hr />
+
+        <h2>Event Emitters</h2>
+        <p>
+          The <code>socket</code> object is an <code>EventEmitter</code>, which
+          means you can listen for various events to handle communication and
+          connection states. The most common events are:
+        </p>
+        <ul>
+          <li>
+            <div class="list-item-title">'data'</div>
+            <p>
+              Emitted when data is received from the client. The data is passed
+              to the callback as a <code>Buffer</code> object.
+            </p>
+            <span class="javascript-label">JavaScript</span>
+            <div class="code-block">
+              <pre><code>socket.on('data', (data) => {
+  console.log(`Received: ${data.toString()}`);
+});</code></pre>
+            </div>
+          </li>
+          <li>
+            <div class="list-item-title">'end'</div>
+            <p>
+              Emitted when the client has closed its side of the connection.
+              This signals that no more data will be sent from the client.
+            </p>
+            <span class="javascript-label">JavaScript</span>
+            <div class="code-block">
+              <pre><code>socket.on('end', () => {
+  console.log('Client disconnected gracefully.');
+});</code></pre>
+            </div>
+          </li>
+          <li>
+            <div class="list-item-title">'error'</div>
+            <p>
+              Emitted when an error occurs during the connection. This is
+              essential for handling network failures or other issues.
+            </p>
+            <span class="javascript-label">JavaScript</span>
+            <div class="code-block">
+              <pre><code>socket.on('error', (err) => {
+  console.error(`Socket error: ${err.message}`);
+});</code></pre>
+            </div>
+          </li>
+          <li>
+            <div class="list-item-title">'close'</div>
+            <p>
+              Emitted when the socket is fully closed. This event is fired after
+              the end or error events, indicating the connection is completely
+              terminated.
+            </p>
+            <span class="javascript-label">JavaScript</span>
+            <div class="code-block">
+              <pre><code>socket.on('close', () => {
+  console.log('Connection closed.');
+});</code></pre>
+            </div>
+          </li>
+        </ul>
+
+        <hr />
+
+        <h2>Other Useful Properties and Methods</h2>
+        <ul>
+          <li>
+            <div class="list-item-title"><code>socket.remoteAddress</code></div>
+            <p>A string representing the IP address of the client.</p>
+          </li>
+          <li>
+            <div class="list-item-title"><code>socket.remotePort</code></div>
+            <p>The port number of the client.</p>
+          </li>
+          <li>
+            <div class="list-item-title"><code>socket.pause()</code></div>
+            <p>
+              Pauses the reading of data from the socket. This is useful for
+              flow control if your application is overwhelmed.
+            </p>
+          </li>
+          <li>
+            <div class="list-item-title"><code>socket.resume()</code></div>
+            <p>Resumes the reading of data from the socket.</p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>S3 Signed URLs: Comprehensive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <h1>🔑 What is an S3 Signed URL?</h1>
+
+    <p>
+      A **Signed URL** (or **Pre-Signed URL**) is a standard HTTP URL that is
+      temporarily granted permission to access a private Amazon S3 object.
+    </p>
+    <p>
+      Instead of requiring the user to have permanent AWS credentials (like an
+      IAM user), the URL itself contains all the authentication information
+      needed for a temporary, specific action.
+    </p>
+
+    <h2>What a Signed URL Allows</h2>
+    <p>
+      A Signed URL allows anyone who possesses it to perform a specific S3
+      operation on a specified object for a limited time, without needing your
+      permanent AWS security credentials.
+    </p>
+    <ul>
+      <li>
+        **Temporary Access:** The URL has a built-in expiration timestamp, after
+        which it is no longer valid.
+      </li>
+      <li>
+        **Specific Action:** It authorizes a single type of action, such as:
+        <ul>
+          <li>
+            **<code class="dir">GET</code>** (<span class="prop"
+              >Download/Read</span
+            >): To retrieve an object. (Most common)
+          </li>
+          <li>
+            **<code class="dir">PUT</code>** (<span class="prop">Upload</span>):
+            To upload a new object or replace an existing one.
+          </li>
+          <li>**<code class="dir">DELETE</code>**: To delete an object.</li>
+        </ul>
+      </li>
+      <li>
+        **Security:** It keeps your S3 bucket and objects **private** by
+        default, only granting temporary access for the one file.
+      </li>
+    </ul>
+
+    <h1>🗓️ When to Use Signed URLs</h1>
+    <p>
+      You use Signed URLs anytime you need to grant **temporary, limited
+      access** to a private S3 object to a third party (like a web browser user)
+      who does not have or should not have permanent AWS credentials.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Use Case</th>
+          <th>Operation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Secure Downloads</strong></td>
+          <td>
+            You have a private file (e.g., a software installer, a confidential
+            report, or a paid e-book) that you only want authenticated users of
+            your application to download for a short time.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Direct User Uploads</strong></td>
+          <td>
+            You want to allow a user on your website (e.g., uploading a profile
+            picture or a document) to upload a file directly to your private S3
+            bucket without routing the large file through your own application
+            server first.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Controlled Access</strong></td>
+          <td>
+            You want to prevent a download link from being shared indefinitely
+            or indexed by search engines.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h1>⚙️ Key Properties of a GET Signed URL</h1>
+    <p>
+      A <code class="dir">GET</code> Signed URL is specifically for
+      **retrieving** an object. Its key properties are embedded as query
+      parameters in the URL:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Object and Bucket</strong></td>
+          <td>
+            Specifies the exact S3 bucket and object key (file path) being
+            requested.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">X-Amz-Algorithm</code></td>
+          <td>
+            The signing algorithm used (usually
+            <code class="str">AWS4-HMAC-SHA256</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">X-Amz-Credential</code></td>
+          <td>
+            The AWS Access Key ID used to create the signature, along with the
+            scope (date, region, service). The **Secret Access Key is never
+            included**.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">X-Amz-Date</code></td>
+          <td>The timestamp when the URL was generated.</td>
+        </tr>
+        <tr>
+          <td><code class="prop">X-Amz-Expires</code></td>
+          <td>
+            The duration (in seconds) the URL is valid, starting from the
+            <code class="prop">X-Amz-Date</code>. The **default is 3600 seconds
+            (1 hour)** for the AWS CLI.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">X-Amz-Signature</code></td>
+          <td>
+            The cryptographic hash (signature) generated using the signing
+            credentials, the request details, and the expiry time. This proves
+            the URL's authenticity.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h1>🔬 Components of a Signed URL</h1>
+    <p>
+      A signed URL is a standard S3 endpoint URL with additional query
+      parameters for authentication, which is based on the **AWS Signature
+      Version 4 (<span class="prop">SigV4</span>)** signing process.
+    </p>
+    <p>An example structure of a Signed URL looks like this:</p>
+
+    <pre><code><span class="mono">https://&lt;bucket-name&gt;.s3.&lt;region&gt;.amazonaws.com/&lt;object-key&gt;</span><span class="op">?</span>
+<span class="prop">X-Amz-Algorithm</span><span class="op">=</span><span class="str">AWS4-HMAC-SHA256</span>
+<span class="op">&amp;</span><span class="prop">X-Amz-Credential</span><span class="op">=</span><span class="str">&lt;AccessKeyID&gt;%2F&lt;Date&gt;%2F&lt;Region&gt;%2Fs3%2Faws4_request</span>
+<span class="op">&amp;</span><span class="prop">X-Amz-Date</span><span class="op">=</span><span class="lit">&lt;Timestamp&gt;</span>
+<span class="op">&amp;</span><span class="prop">X-Amz-Expires</span><span class="op">=</span><span class="lit">&lt;Seconds&gt;</span>
+<span class="op">&amp;</span><span class="prop">X-Amz-SignedHeaders</span><span class="op">=</span><span class="str">host</span>
+<span class="op">&amp;</span><span class="prop">X-Amz-Signature</span><span class="op">=</span><span class="str">&lt;CryptographicSignature&gt;</span></code></pre>
+
+    <h3>The components are:</h3>
+    <ul>
+      <li>
+        **Base S3 URL:**
+        <code class="mono"
+          >https://&lt;bucket-name&gt;.s3.&lt;region&gt;.amazonaws.com/&lt;object-key&gt;</code
+        >
+        <ul>
+          <li>Identifies the target object's location.</li>
+        </ul>
+      </li>
+      <li>
+        **Query Parameters (Authentication Data):** These are the key properties
+        listed above, which replace the need for an
+        <code class="prop">Authorization</code> HTTP header. The most critical
+        are:
+        <ul>
+          <li><code class="prop">X-Amz-Expires</code>: The validity window.</li>
+          <li>
+            <code class="prop">X-Amz-Signature</code>: The proof of
+            authenticity, generated using a hash of the request details (bucket,
+            object, date, expiry, HTTP method) and the **Secret Access Key** of
+            the user/role generating the URL (which is **never** included in the
+            URL itself).
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h1>💻 How to Generate a GET Signed URL using AWS CLI</h1>
+    <p>
+      You can easily generate a <code class="dir">GET</code> Signed URL using
+      the <code class="kw">aws s3 presign</code> command.
+    </p>
+
+    <h2>Prerequisites</h2>
+    <ul>
+      <li>AWS CLI installed and configured.</li>
+      <li>
+        Your configured AWS credentials must have the
+        <code class="prop">s3:GetObject</code> permission for the specified
+        bucket and object.
+      </li>
+    </ul>
+
+    <h2>Command Syntax</h2>
+    <p>
+      Use the <code class="kw">aws s3 presign</code> command, specifying the S3
+      URI (<code class="str">s3://&lt;bucket-name&gt;/&lt;object-key&gt;</code>)
+      and the desired expiration time in seconds.
+    </p>
+
+    <h3>Example: Default 1-Hour Expiration</h3>
+    <p>
+      The default expiration is <code class="lit">3600</code> seconds (<code
+        class="lit"
+        >1</code
+      >
+      hour).
+    </p>
+    <pre><code><span class="kw">aws s3 presign</span> <span class="str">s3://my-private-bucket-001/documents/my-secret-file.pdf</span></code></pre>
+
+    <h3>Example: Custom 5-Minute Expiration</h3>
+    <p>
+      You can use the <code class="prop">--expires-in</code> flag for a custom
+      duration (e.g., <code class="lit">300</code> seconds for
+      <code class="lit">5</code> minutes).
+    </p>
+    <pre><code><span class="kw">aws s3 presign</span> <span class="str">s3://my-private-bucket-001/images/temporary-image.jpg</span> <span class="prop">--expires-in</span> <span class="lit">300</span></code></pre>
+    <p>The output will be the complete, signed URL string.</p>
+
+    <h1>✅ What AWS Checks When You Use the URL</h1>
+    <p>
+      When a user tries to access the Signed URL, Amazon S3 performs several
+      critical checks:
+    </p>
+
+    <ol>
+      <li>
+        <h3>Signature Validation:</h3>
+        <p>
+          S3 takes the parameters embedded in the URL (Access Key ID, date,
+          object key, expiry, etc.) and attempts to re-create the signature
+          (<code class="prop">X-Amz-Signature</code>) using the **Secret Access
+          Key** associated with the provided
+          <code class="prop">X-Amz-Credential</code>.
+        </p>
+        <p>
+          <strong>Result:</strong> If the generated signature matches the
+          signature in the URL, S3 knows the URL is authentic and has not been
+          tampered with. If it doesn't match, access is denied (<code class="op"
+            >403 Forbidden</code
+          >).
+        </p>
+      </li>
+      <li>
+        <h3>Expiration Check:</h3>
+        <p>
+          S3 checks the <code class="prop">X-Amz-Date</code> and
+          <code class="prop">X-Amz-Expires</code> to ensure the current time is
+          within the specified validity window.
+        </p>
+        <p>
+          <strong>Result:</strong> If the URL has expired, access is denied
+          (<code class="op">403 Forbidden</code>).
+        </p>
+      </li>
+      <li>
+        <h3>Signer's Permissions:</h3>
+        <p>
+          S3 checks the permissions of the IAM user or role whose credentials
+          were used to generate the URL. This check is performed **at the time
+          of the request**.
+        </p>
+        <p>
+          **Crucial Point:** If the signing user's
+          <code class="prop">s3:GetObject</code> permission is **revoked**
+          *after* the URL was generated, the URL becomes invalid immediately,
+          even if the expiration time has not passed.
+        </p>
+      </li>
+    </ol>
+    <p>
+      This multi-layered validation ensures that the URL is legitimate,
+      temporary, and that the signing authority still has the required
+      permissions.
+    </p>
+  </body>
+</html>

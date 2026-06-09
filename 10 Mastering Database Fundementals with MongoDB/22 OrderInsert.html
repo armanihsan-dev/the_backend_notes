@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Ordered Insert Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Blackish Theme */
+        body {
+            background-color: #121212; /* Dark background */
+            color: #D4D4D4; /* Light text for contrast */
+            font-family: 'Nunito', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #1E1E1E; /* VSCode Editor Background */
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #569CD6; /* VSCode Blue for main title */
+            border-bottom: 2px solid #333333;
+            padding-bottom: 5px;
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            color: #C586C0; /* VSCode Purple for sections */
+            margin-top: 25px;
+            padding-top: 10px;
+        }
+
+        h3 {
+            color: #9CDCFE; /* VSCode Light Blue for sub-sections */
+            margin-top: 15px;
+        }
+
+        p, ul, li {
+            font-size: 16px;
+        }
+
+        strong {
+            color: #FFC66D; /* VSCode Yellow/Orange for emphasis */
+        }
+
+        /* Code Block Styling (VSCode Blackish Theme) */
+        .code-section {
+            background-color: #1E1E1E;
+            border: 1px solid #3C3C3C;
+            border-left: 5px solid #007ACC;
+            padding: 15px;
+            margin: 20px 0;
+            overflow-x: auto;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .code-section pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .code-section .keyword {
+            color: #569CD6; /* Blue */
+        }
+
+        .code-section .comment {
+            color: #6A9955; /* Green */
+        }
+
+        .code-section .string {
+            color: #CE9178; /* Orange */
+        }
+
+        .code-section .number {
+            color: #B5CEA8; /* Light Green */
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #2D2D2D;
+            font-size: 15px;
+        }
+
+        th, td {
+            border: 1px solid #444444;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3C3C3C;
+            color: #FFC66D;
+            font-weight: 600;
+        }
+        
+        /* Specific text emphasis */
+        .error-handling {
+            color: #F44747; /* Red for errors */
+            font-weight: 700;
+        }
+        .default-behavior {
+            color: #4EC9B0; /* Teal for default */
+            font-weight: 600;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Ordered Insert in MongoDB with Node.js</h1>
+
+        <p><strong>Ordered insert</strong> in MongoDB, typically using the <code>collection.insertMany()</code> method in Node.js, ensures that documents are processed and inserted in the <strong>exact order</strong> they appear in the input array. The key characteristic is that the operation will <span class="error-handling">stop immediately</span> if an error occurs while inserting any document.</p>
+
+        <hr>
+
+        <h2>1. What is an Ordered Insert?</h2>
+        <p>An ordered insert is the <span class="default-behavior">default behavior</span> for the <code>insertMany()</code> and <code>bulkWrite()</code> methods in MongoDB.</p>
+        <ul>
+            <li><strong>Execution Order:</strong> Documents are inserted one by one, <strong>serially</strong>, in the sequence they are provided in the array.</li>
+            <li><strong>Error Handling (Crucial):</strong> If an error occurs during the insertion of a document (e.g., a duplicate <code>_id</code> violation or a schema validation error), the entire batch operation is <span class="error-handling">aborted</span>. Any documents <strong>after</strong> the failing document in the array will <strong>not be inserted</strong>. Documents before the failing one will have already been successfully inserted.</li>
+            <li><strong>Performance:</strong> Generally <strong>slower</strong> than unordered inserts, especially in a sharded cluster, because each operation must wait for the previous one to complete before starting.</li>
+        </ul>
+
+        <hr>
+
+        <h2>2. Node.js Implementation with insertMany()</h2>
+        <p>The <code>insertMany()</code> method in the official MongoDB Node.js driver accepts an array of documents and an optional options object. Since ordered is the default, you often don't need to specify any options.</p>
+
+        <h3>A. Syntax (Default - Ordered is true)</h3>
+        <p>In the Node.js driver, you call <code>insertMany()</code> on your collection object.</p>
+        <p class="code-section">
+<pre>
+<span class="keyword">const</span> documents = [
+  { <span class="string">_id</span>: <span class="number">1</span>, <span class="string">item</span>: <span class="string">"A"</span> },
+  { <span class="string">_id</span>: <span class="number">2</span>, <span class="string">item</span>: <span class="string">"B"</span> },
+  { <span class="string">_id</span>: <span class="number">3</span>, <span class="string">item</span>: <span class="string">"C"</span> }
+];
+<span class="comment">// Ordered is the default behavior, so no options are needed, </span>
+<span class="comment">// but you can explicitly set it to true.</span>
+<span class="keyword">const</span> options = { <span class="string">ordered</span>: <span class="keyword">true</span> }; 
+
+<span class="keyword">try</span> {
+  <span class="keyword">const</span> result = <span class="keyword">await</span> collection.<span class="keyword">insertMany</span>(documents, options);
+  console.<span class="keyword">log</span>(<span class="string">`${result.insertedCount} documents inserted successfully.`</span>);
+} <span class="keyword">catch</span> (error) {
+  <span class="comment">// Catches the error and aborts the entire batch</span>
+  console.<span class="keyword">error</span>(<span class="string">"Ordered insert failed:"</span>, error);
+  <span class="comment">// Documents before the error were inserted.</span>
+}
+</pre>
+        </p>
+
+        <h3>B. Example Scenario (Ordered)</h3>
+        <p>Assume the collection already contains a document with <code>_id: 2</code>.</p>
+        <p class="code-section">
+<pre>
+<span class="keyword">const</span> documents = [
+  { <span class="string">_id</span>: <span class="number">1</span>, <span class="string">name</span>: <span class="string">"First"</span> },     <span class="comment">// Document 1: Success</span>
+  { <span class="string">_id</span>: <span class="number">2</span>, <span class="string">name</span>: <span class="string">"Duplicate"</span> }, <span class="comment">// Document 2: Fails (Duplicate Key Error)</span>
+  { <span class="string">_id</span>: <span class="number">3</span>, <span class="string">name</span>: <span class="string">"Third"</span> }      <span class="comment">// Document 3: NOT attempted</span>
+];
+
+<span class="keyword">try</span> {
+  <span class="keyword">await</span> collection.<span class="keyword">insertMany</span>(documents, { <span class="string">ordered</span>: <span class="keyword">true</span> });
+} <span class="keyword">catch</span> (error) {
+  <span class="comment">// A BulkWriteError is thrown</span>
+  console.<span class="keyword">log</span>(<span class="string">"Error caught. Documents not inserted after the duplicate."</span>); 
+}
+</pre>
+        </p>
+
+        <p><strong>Result in Database:</strong></p>
+        <ul>
+            <li><code>{ _id: 1, name: "First" }</code> is inserted.</li>
+            <li><code>{ _id: 2, name: "Duplicate" }</code> fails, and the operation stops.</li>
+            <li><code>{ _id: 3, name: "Third" }</code> <span class="error-handling">is not inserted</span>.</li>
+        </ul>
+
+        <hr>
+
+        <h2>3. Comparison to Unordered Insert</h2>
+        <p>An ordered insert is best understood in contrast to its alternative: <strong>unordered insert</strong>.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Ordered Insert (<code>ordered: true</code>, default)</th>
+                    <th>Unordered Insert (<code>ordered: false</code>)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Execution</td>
+                    <td>Serially (one after another).</td>
+                    <td>In parallel (can be reordered by the server).</td>
+                </tr>
+                <tr>
+                    <td>Error Handling</td>
+                    <td class="error-handling">Stops at the first error.</td>
+                    <td class="default-behavior">Continues processing remaining documents after an error.</td>
+                </tr>
+                <tr>
+                    <td>Atomicity</td>
+                    <td>Provides a checkpoint. Data integrity is maintained up to the point of failure.</td>
+                    <td>Sacrifices strict ordering for higher throughput.</td>
+                </tr>
+                <tr>
+                    <td>Performance</td>
+                    <td>Slower (waits for each to complete).</td>
+                    <td>Faster (can run operations concurrently).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Unordered Example (for Contrast)</h3>
+        <p>If you ran the same documents with <code>ordered: false</code>:</p>
+        <p class="code-section">
+<pre>
+<span class="keyword">const</span> documents = [
+  { <span class="string">_id</span>: <span class="number">1</span>, <span class="string">name</span>: <span class="string">"First"</span> },     
+  { <span class="string">_id</span>: <span class="number">2</span>, <span class="string">name</span>: <span class="string">"Duplicate"</span> }, <span class="comment">// Document 2: Fails (Duplicate Key Error)</span>
+  { <span class="string">_id</span>: <span class="number">3</span>, <span class="string">name</span>: <span class="string">"Third"</span> }      
+];
+
+<span class="keyword">try</span> {
+  <span class="keyword">await</span> collection.<span class="keyword">insertMany</span>(documents, { <span class="string">ordered</span>: <span class="keyword">false</span> });
+} <span class="keyword">catch</span> (error) {
+  <span class="comment">// A BulkWriteError is still thrown, but with an array of all errors.</span>
+  console.<span class="keyword">log</span>(<span class="string">"Error caught. The batch is finished, but some documents failed."</span>); 
+}
+</pre>
+        </p>
+
+        <p><strong>Result in Database (Unordered):</strong></p>
+        <ul>
+            <li><code>{ _id: 1, name: "First" }</code> is inserted.</li>
+            <li><code>{ _id: 2, name: "Duplicate" }</code> fails.</li>
+            <li><code>{ _id: 3, name: "Third" }</code> <span class="default-behavior">is still inserted</span> (because the operation continued).</li>
+        </ul>
+
+        <hr>
+
+        <h2>4. When to Use Ordered Insert</h2>
+        <p>Use an ordered insert when the <strong>order of operations is critical</strong> or when you need a <strong>guaranteed state</strong> up to the point of failure.</p>
+        <ul>
+            <li><strong>Sequential Logic:</strong> When document A <span class="error-handling">must exist</span> before document B is inserted. For example, inserting parent records before child records.</li>
+            <li><strong>Data Integrity Check:</strong> When you want the entire batch to fail if even a single document violates a unique constraint or schema rule, to prevent a partial, inconsistent state.</li>
+            <li><strong>Transactions:</strong> When using <code>insertMany()</code> within a multi-document transaction, the first error will <span class="error-handling">always cause the transaction to abort</span>, regardless of the <code>ordered</code> setting.</li>
+        </ul>
+    </div>
+</body>
+</html>

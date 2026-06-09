@@ -1,0 +1,1718 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSL/TLS Deep Dive | Complete Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b; /* Zinc 950 */
+        --bg-secondary: #18181b; /* Zinc 900 */
+        --bg-tertiary: #27272a; /* Zinc 800 */
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399; /* Emerald 400 */
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --danger-dim: rgba(239, 68, 68, 0.1);
+        --border: #27272a;
+        --code-bg: #1e1e20;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+
+      th {
+        background: var(--bg-tertiary);
+        color: var(--accent);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code,
+      td code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        } 
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-lock"></i> SSL GUIDE</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Fundamentals</div>
+        <a href="#fundamentals" class="nav-link">Why SSL Exists</a>
+        <a href="#encryption" class="nav-link">Encryption Types</a>
+        <a href="#certificates" class="nav-link">Digital Certificates</a>
+        <a href="#certificate-types" class="nav-link">Certificate Types</a>
+        <a href="#ca-trust" class="nav-link">CA & Trust Chain</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Technical Deep Dive</div>
+        <a href="#handshake" class="nav-link">TLS Handshake</a>
+        <a href="#cipher-suites" class="nav-link">Cipher Suites</a>
+        <a href="#session-keys" class="nav-link">Session Keys & PFS</a>
+        <a href="#certificate-validation" class="nav-link">Certificate Validation</a>
+        <a href="#revocation" class="nav-link">Certificate Revocation</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Implementation</div>
+        <a href="#practice" class="nav-link">Hands-on Practice</a>
+        <a href="#nodejs" class="nav-link">Node.js HTTPS</a>
+        <a href="#nginx" class="nav-link">Nginx Configuration</a>
+        <a href="#letsencrypt" class="nav-link">Let's Encrypt</a>
+        <a href="#certificate-management" class="nav-link">Certificate Management</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Production & Advanced</div>
+        <a href="#production" class="nav-link">Production Setup</a>
+        <a href="#advanced-topics" class="nav-link">Advanced Topics</a>
+        <a href="#security" class="nav-link">Security Awareness</a>
+        <a href="#tools" class="nav-link">Tools & Testing</a>
+        <a href="#checklist" class="nav-link">Quick Reference</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Complete Guide</span>
+        <h1>SSL/TLS DEEP DIVE</h1>
+        <p>FROM FUNDAMENTALS TO PRODUCTION</p>
+      </section>
+
+      <section id="fundamentals">
+        <h2>FUNDAMENTALS - WHY SSL EXISTS</h2>
+        
+        <h3>🔓 HTTP vs HTTPS</h3>
+        
+        <h4>HTTP (Hypertext Transfer Protocol):</h4>
+        <ul>
+          <li>Unencrypted protocol for transferring web pages</li>
+          <li>Data travels in plain text - readable by anyone intercepting</li>
+          <li>Port 80</li>
+          <li>Vulnerable to eavesdropping, man-in-the-middle attacks</li>
+        </ul>
+
+        <h4>HTTPS (HTTP Secure):</h4>
+        <ul>
+          <li>HTTP + SSL/TLS encryption layer</li>
+          <li>Encrypts all communication between client and server</li>
+          <li>Port 443</li>
+          <li>Provides: <strong>Confidentiality</strong> (encryption), <strong>Integrity</strong> (data tamper-proof), <strong>Authentication</strong> (server identity verification)</li>
+        </ul>
+      </section>
+
+      <section id="encryption">
+        <h2>ENCRYPTION TYPES</h2>
+
+        <h3>🔐 Symmetric vs Asymmetric Encryption</h3>
+        
+        <h4>Symmetric Encryption:</h4>
+        <pre><code class="language-javascript">// Same key for encryption and decryption
+const key = 'shared-secret-key';
+const encrypted = encrypt(data, key);
+const decrypted = decrypt(encrypted, key);</code></pre>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Pros</th>
+              <th>Cons</th>
+              <th>Examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Fast, efficient for large data</td>
+              <td>Key distribution problem - how to securely share the key?</td>
+              <td>AES, DES, ChaCha20</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>Asymmetric Encryption (Public-key cryptography):</h4>
+        <pre><code class="language-javascript">// Key pair: Public (shared) + Private (secret)
+const {publicKey, privateKey} = generateKeyPair();
+
+// Encrypt with public key, decrypt with private key
+const encrypted = encrypt(data, publicKey);
+const decrypted = decrypt(encrypted, privateKey);</code></pre>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Pros</th>
+              <th>Cons</th>
+              <th>Examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Solves key distribution problem</td>
+              <td>100-1000x slower than symmetric</td>
+              <td>RSA, ECC, DH</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🔑 Public Key vs Private Key</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div>
+                <h4>Public Key:</h4>
+                <ul>
+                    <li>Can be freely distributed</li>
+                    <li>Used to encrypt data (only matching private key can decrypt)</li>
+                    <li>Used to verify digital signatures</li>
+                    <li>Stored in certificates</li>
+                </ul>
+            </div>
+            <div>
+                <h4>Private Key:</h4>
+                <ul>
+                    <li>MUST be kept secret</li>
+                    <li>Used to decrypt data encrypted with matching public key</li>
+                    <li>Used to create digital signatures</li>
+                    <li>Never shared, protected by server</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-lightbulb"></i> Analogy</span>
+            <p>Think of a lockbox:</p>
+            <p><strong>Public key</strong> = open lockbox (anyone can put messages in)</p>
+            <p><strong>Private key</strong> = key to open lockbox (only you can read messages)</p>
+        </div>
+      </section>
+
+      <section id="certificates">
+        <h2>DIGITAL CERTIFICATES</h2>
+
+        <h3>📜 What is a Digital Certificate?</h3>
+        <p>A digital certificate is an electronic document that uses a digital signature to bind a public key with an identity. It's like a digital passport that proves the authenticity of a website, organization, or individual.</p>
+
+        <h4>Certificate Structure (X.509 Standard):</h4>
+        <pre><code class="language-text">Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 12:34:56:78:90:ab:cd:ef
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN=DigiCert SHA2 Secure Server CA
+        Validity:
+            Not Before: Jan  1 00:00:00 2024 GMT
+            Not After : Jan  1 23:59:59 2025 GMT
+        Subject: CN=example.com, O=Example Corp, C=US
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                RSA Public-Key: (2048 bit)
+        X509v3 extensions:
+            X509v3 Subject Alternative Name:
+                DNS:example.com, DNS:www.example.com
+            X509v3 Key Usage:
+                Digital Signature, Key Encipherment
+            X509v3 Extended Key Usage:
+                TLS Web Server Authentication
+    Signature Algorithm: sha256WithRSAEncryption</code></pre>
+
+        <h3>🔍 Certificate Fields Explained</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Purpose</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Subject (CN)</td>
+              <td>Domain/entity the certificate is issued to</td>
+              <td>CN=example.com</td>
+            </tr>
+            <tr>
+              <td>Issuer</td>
+              <td>Certificate Authority that signed it</td>
+              <td>CN=Let's Encrypt Authority X3</td>
+            </tr>
+            <tr>
+              <td>Serial Number</td>
+              <td>Unique identifier for the certificate</td>
+              <td>03:77:21:8A:B2:C4:D5:E6</td>
+            </tr>
+            <tr>
+              <td>Validity Period</td>
+              <td>When certificate is valid (Not Before/After)</td>
+              <td>90 days for Let's Encrypt</td>
+            </tr>
+            <tr>
+              <td>Public Key</td>
+              <td>The actual public key for encryption</td>
+              <td>2048-bit RSA key</td>
+            </tr>
+            <tr>
+              <td>Signature</td>
+              <td>CA's digital signature proving authenticity</td>
+              <td>SHA256withRSA signature</td>
+            </tr>
+            <tr>
+              <td>SAN (Subject Alternative Names)</td>
+              <td>Additional domains covered by certificate</td>
+              <td>www.example.com, api.example.com</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🔐 How Certificates Work</h3>
+        <ol>
+          <li><strong>Key Generation:</strong> Server generates public/private key pair</li>
+          <li><strong>CSR Creation:</strong> Certificate Signing Request with public key + domain info</li>
+          <li><strong>CA Validation:</strong> CA verifies domain ownership and identity</li>
+          <li><strong>Certificate Issuance:</strong> CA signs the certificate with their private key</li>
+          <li><strong>Installation:</strong> Certificate installed on server with private key</li>
+          <li><strong>Client Verification:</strong> Browser validates certificate chain and signature</li>
+        </ol>
+      </section>
+
+      <section id="certificate-types">
+        <h2>CERTIFICATE TYPES</h2>
+
+        <h3>🏷️ By Validation Level</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Validation</th>
+              <th>Time to Issue</th>
+              <th>Cost</th>
+              <th>Use Case</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Domain Validated (DV)</td>
+              <td>Domain ownership only</td>
+              <td>Minutes</td>
+              <td>Free - $50/year</td>
+              <td>Personal sites, blogs</td>
+            </tr>
+            <tr>
+              <td>Organization Validated (OV)</td>
+              <td>Domain + organization identity</td>
+              <td>1-3 days</td>
+              <td>$50 - $200/year</td>
+              <td>Business websites</td>
+            </tr>
+            <tr>
+              <td>Extended Validation (EV)</td>
+              <td>Rigorous organization verification</td>
+              <td>1-2 weeks</td>
+              <td>$200 - $1000/year</td>
+              <td>E-commerce, banking</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🌐 By Coverage</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Coverage</th>
+              <th>Example</th>
+              <th>Cost Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Single Domain</td>
+              <td>One specific domain</td>
+              <td>example.com only</td>
+              <td>Lowest</td>
+            </tr>
+            <tr>
+              <td>Multi-Domain (SAN)</td>
+              <td>Multiple specific domains</td>
+              <td>example.com, api.example.com, blog.example.com</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td>Wildcard</td>
+              <td>Domain and all subdomains</td>
+              <td>*.example.com (covers any.example.com)</td>
+              <td>Higher</td>
+            </tr>
+            <tr>
+              <td>Multi-Domain Wildcard</td>
+              <td>Multiple domains with wildcards</td>
+              <td>*.example.com, *.api.example.com</td>
+              <td>Highest</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🎯 By Purpose</h3>
+        <ul>
+          <li><strong>SSL/TLS Certificates:</strong> Web server authentication and encryption</li>
+          <li><strong>Code Signing Certificates:</strong> Sign software and applications</li>
+          <li><strong>Email Certificates (S/MIME):</strong> Encrypt and sign emails</li>
+          <li><strong>Client Certificates:</strong> Authenticate users to servers</li>
+          <li><strong>Document Signing Certificates:</strong> Digital document signatures</li>
+        </ul>
+      </section>
+
+      <section id="ca-trust">
+        <h2>CERTIFICATE AUTHORITY & TRUST CHAIN</h2>
+
+        <h3>🏛️ Certificate Authority (CA)</h3>
+        <p>A Certificate Authority is a trusted third-party organization that issues digital certificates after validating the identity of the certificate requester.</p>
+
+        <h4>Major Certificate Authorities:</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>CA</th>
+              <th>Type</th>
+              <th>Market Share</th>
+              <th>Notable Features</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Let's Encrypt</td>
+              <td>Free, Automated</td>
+              <td>~25%</td>
+              <td>90-day certificates, ACME protocol</td>
+            </tr>
+            <tr>
+              <td>DigiCert</td>
+              <td>Commercial</td>
+              <td>~20%</td>
+              <td>Enterprise features, high assurance</td>
+            </tr>
+            <tr>
+              <td>Sectigo (Comodo)</td>
+              <td>Commercial</td>
+              <td>~15%</td>
+              <td>Wide range of products</td>
+            </tr>
+            <tr>
+              <td>GlobalSign</td>
+              <td>Commercial</td>
+              <td>~10%</td>
+              <td>IoT and enterprise solutions</td>
+            </tr>
+            <tr>
+              <td>GoDaddy</td>
+              <td>Commercial</td>
+              <td>~8%</td>
+              <td>Domain registrar integration</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🔗 Trust Chain (Certificate Chain)</h3>
+        <pre><code class="language-text">Root CA Certificate (Self-signed, embedded in browsers/OS)
+      ↓ Signs
+Intermediate CA Certificate (Issued by Root CA)
+      ↓ Signs  
+Server Certificate (Issued to your domain)
+
+Example Chain:
+┌─────────────────────────────────────┐
+│ DigiCert Global Root CA             │ ← Root (in browser trust store)
+│ Self-signed, 2048-bit RSA           │
+└─────────────────┬───────────────────┘
+                  │ Signs
+┌─────────────────▼───────────────────┐
+│ DigiCert SHA2 Secure Server CA      │ ← Intermediate
+│ Signed by Root CA                   │
+└─────────────────┬───────────────────┘
+                  │ Signs
+┌─────────────────▼───────────────────┐
+│ example.com                         │ ← End-entity (your certificate)
+│ Signed by Intermediate CA           │
+└─────────────────────────────────────┘</code></pre>
+
+        <h4>Why Chain of Trust Works:</h4>
+        <ol>
+          <li><strong>Root Trust:</strong> Browsers/OS come with pre-installed Root CA certificates</li>
+          <li><strong>Chain Validation:</strong> Each certificate in chain is verified against its parent</li>
+          <li><strong>Signature Verification:</strong> Digital signatures prove authenticity</li>
+          <li><strong>Validity Checks:</strong> Expiration dates and revocation status checked</li>
+        </ol>
+
+        <h3>🔍 Certificate Validation Process</h3>
+        <pre><code class="language-text">Browser Certificate Validation:
+
+1. Certificate Chain Building
+   ├── Start with server certificate
+   ├── Find intermediate certificates
+   └── Trace to trusted root CA
+
+2. Signature Verification
+   ├── Verify each certificate signature
+   ├── Use parent's public key
+   └── Ensure chain integrity
+
+3. Validity Checks
+   ├── Check expiration dates
+   ├── Verify domain name matches
+   └── Check certificate purpose
+
+4. Revocation Checking
+   ├── OCSP (Online Certificate Status Protocol)
+   ├── CRL (Certificate Revocation List)
+   └── OCSP Stapling (if available)
+
+5. Trust Decision
+   ├── All checks pass → Trusted
+   └── Any check fails → Warning/Error</code></pre>
+      </section>
+
+      <section id="handshake">
+        <h2>TLS HANDSHAKE</h2>
+
+        <h3>🤝 TLS 1.3 Handshake Process</h3>
+        <pre><code class="language-text">Client                                      Server
+------                                      ------
+ClientHello
+(Random, Cipher Suites)  --------------->
+                                            ServerHello
+                                            (Random, Chosen Cipher Suite)
+                         <---------------
+                                            Certificate*
+                                            CertificateVerify*
+                         <---------------
+                                            Finished
+                         <---------------
+Client Key Exchange*     ---------------->
+Finished                 ---------------->
+                         <---------------
+[Application Data]       <---------------> [Application Data]</code></pre>
+
+        <h3>🔄 Key Exchange Methods</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Description</th>
+              <th>Security</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>RSA</td>
+              <td>Client encrypts pre-master secret with server's public key (TLS 1.2, deprecated in 1.3)</td>
+              <td>No PFS</td>
+            </tr>
+            <tr>
+              <td>DHE</td>
+              <td>Diffie-Hellman Ephemeral - New key for each session</td>
+              <td>Perfect Forward Secrecy</td>
+            </tr>
+            <tr>
+              <td>ECDHE</td>
+              <td>Elliptic Curve DHE - Same but with smaller keys</td>
+              <td>Perfect Forward Secrecy</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="cipher-suites">
+        <h2>CIPHER SUITES</h2>
+
+        <h3>🔧 Cipher Suite Format</h3>
+        <p>Format: <code>TLS_KeyExchange_Auth_Encryption_MAC</code></p>
+        <p>Example: <code>TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</code></p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Example</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Key Exchange</td>
+              <td>ECDHE</td>
+              <td>Elliptic Curve Diffie-Hellman Ephemeral</td>
+            </tr>
+            <tr>
+              <td>Authentication</td>
+              <td>RSA</td>
+              <td>Server proves identity</td>
+            </tr>
+            <tr>
+              <td>Encryption</td>
+              <td>AES-128-GCM</td>
+              <td>Symmetric encryption</td>
+            </tr>
+            <tr>
+              <td>MAC</td>
+              <td>SHA256</td>
+              <td>Message integrity</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>Modern cipher suites prioritize:</h4>
+        <ul>
+          <li>Perfect Forward Secrecy</li>
+          <li>Authenticated encryption (AEAD)</li>
+          <li>Strong algorithms (avoid RC4, 3DES, MD5)</li>
+        </ul>
+      </section>
+
+      <section id="certificate-validation">
+        <h2>CERTIFICATE VALIDATION</h2>
+
+        <h3>🔍 Domain Validation Methods</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>How it Works</th>
+              <th>Pros</th>
+              <th>Cons</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>HTTP File Validation</td>
+              <td>Place specific file at /.well-known/acme-challenge/</td>
+              <td>Simple, automated</td>
+              <td>Requires web server access</td>
+            </tr>
+            <tr>
+              <td>DNS TXT Record</td>
+              <td>Add TXT record to domain's DNS</td>
+              <td>Works without web server</td>
+              <td>Manual DNS management</td>
+            </tr>
+            <tr>
+              <td>Email Validation</td>
+              <td>Send validation email to admin@domain.com</td>
+              <td>No server access needed</td>
+              <td>Manual process, security risk</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🏢 Organization Validation Process</h3>
+        <ol>
+          <li><strong>Domain Validation:</strong> Prove domain ownership (as above)</li>
+          <li><strong>Organization Verification:</strong>
+            <ul>
+              <li>Legal existence verification</li>
+              <li>Business registration documents</li>
+              <li>Phone verification</li>
+              <li>Physical address confirmation</li>
+            </ul>
+          </li>
+          <li><strong>Authorized Representative:</strong> Verify person requesting certificate has authority</li>
+          <li><strong>Final Validation:</strong> CA performs final checks before issuance</li>
+        </ol>
+
+        <h3>🏆 Extended Validation (EV) Requirements</h3>
+        <ul>
+          <li><strong>Legal Entity Verification:</strong> Government database checks</li>
+          <li><strong>Physical Presence:</strong> Verified business address</li>
+          <li><strong>Operational Existence:</strong> Active business operations</li>
+          <li><strong>Exclusive Control:</strong> Applicant controls domain and organization</li>
+          <li><strong>Final Cross-Reference:</strong> All information cross-verified</li>
+        </ul>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-info-circle"></i> EV Certificate Benefits</span>
+            <p>EV certificates display the organization name in the browser address bar (green bar in older browsers), providing highest visual trust indicator to users.</p>
+        </div>
+      </section>
+
+      <section id="revocation">
+        <h2>CERTIFICATE REVOCATION</h2>
+
+        <h3>❌ Why Certificates Get Revoked</h3>
+        <ul>
+          <li><strong>Private Key Compromise:</strong> Private key stolen or exposed</li>
+          <li><strong>CA Compromise:</strong> Certificate Authority's systems breached</li>
+          <li><strong>Affiliation Change:</strong> Organization no longer owns domain</li>
+          <li><strong>Superseded:</strong> Certificate replaced by newer one</li>
+          <li><strong>Cessation of Operation:</strong> Organization stops using certificate</li>
+          <li><strong>Certificate Hold:</strong> Temporary suspension</li>
+        </ul>
+
+        <h3>📋 Certificate Revocation List (CRL)</h3>
+        <p>A CRL is a list of revoked certificates published by the CA. Browsers download and check this list periodically.</p>
+
+        <pre><code class="language-text">CRL Structure:
+-----BEGIN X509 CRL-----
+MIICjTCCAXUCAQEwDQYJKoZIhvcNAQELBQAwXjELMAkGA1UEBhMCVVMxCzAJBgNV
+BAgMAlVTMQswCQYDVQQHDAJVUzELMAkGA1UECgwCVVMxCzAJBgNV...
+
+Revoked Certificates:
+- Serial: 1234567890ABCDEF, Revocation Date: 2024-01-15
+- Serial: FEDCBA0987654321, Revocation Date: 2024-01-20
+-----END X509 CRL-----</code></pre>
+
+        <h4>CRL Limitations:</h4>
+        <ul>
+          <li>Large file size (can be MBs)</li>
+          <li>Infrequent updates (daily/weekly)</li>
+          <li>Privacy concerns (reveals all revoked certificates)</li>
+          <li>Performance impact on browsers</li>
+        </ul>
+
+        <h3>⚡ Online Certificate Status Protocol (OCSP)</h3>
+        <p>OCSP allows real-time checking of certificate revocation status without downloading entire CRL.</p>
+
+        <pre><code class="language-text">OCSP Request/Response Flow:
+
+1. Browser → OCSP Responder: "Is certificate X revoked?"
+   POST /ocsp HTTP/1.1
+   Host: ocsp.digicert.com
+   Content-Type: application/ocsp-request
+   
+2. OCSP Responder → Browser: "Certificate status"
+   HTTP/1.1 200 OK
+   Content-Type: application/ocsp-response
+   
+   Response: Good | Revoked | Unknown</code></pre>
+
+        <h3>📎 OCSP Stapling</h3>
+        <p>Server fetches OCSP response and "staples" it to the TLS handshake, eliminating need for browser to contact OCSP responder.</p>
+
+        <h4>Benefits of OCSP Stapling:</h4>
+        <ul>
+          <li><strong>Performance:</strong> Faster handshake (no additional OCSP request)</li>
+          <li><strong>Privacy:</strong> Browser doesn't contact OCSP responder</li>
+          <li><strong>Reliability:</strong> Works even if OCSP responder is down</li>
+          <li><strong>Scalability:</strong> Reduces load on OCSP responders</li>
+        </ul>
+
+        <pre><code class="language-nginx"># Enable OCSP Stapling in Nginx
+server {
+    ssl_stapling on;
+    ssl_stapling_verify on;
+    ssl_trusted_certificate /path/to/chain.pem;
+    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver_timeout 5s;
+}</code></pre>
+      </section>
+
+      <section id="session-keys">
+        <h2>SESSION KEYS & PERFECT FORWARD SECRECY</h2>
+
+        <h3>🔐 Session Key Derivation Process</h3>
+        <ol>
+          <li><strong>Pre-master secret:</strong> Generated via key exchange</li>
+          <li><strong>Master secret:</strong> Derived from pre-master + client/server randoms</li>
+          <li><strong>Session keys:</strong> Derived from master secret (multiple keys for encryption/MAC in each direction)</li>
+        </ol>
+
+        <pre><code class="language-python"># Simplified key derivation
+master_secret = PRF(pre_master_secret, "master secret", client_random + server_random)
+client_write_key = PRF(master_secret, "client write key", client_random + server_random)
+server_write_key = PRF(master_secret, "server write key", client_random + server_random)</code></pre>
+
+        <h3>🛡️ Perfect Forward Secrecy (PFS)</h3>
+        <p><strong>Definition:</strong> Compromising long-term private key doesn't compromise past session keys</p>
+
+        <h4>How it works:</h4>
+        <ul>
+          <li>Each session uses unique, temporary key pairs (ephemeral keys)</li>
+          <li>Session keys derived from temporary keys, not server's permanent private key</li>
+          <li>Old sessions cannot be decrypted even if server key is compromised</li>
+          <li><strong>Implementation:</strong> Use ECDHE or DHE key exchange</li>
+        </ul>
+      </section>
+
+      <section id="practice">
+        <h2>HANDS-ON PRACTICE</h2>
+
+        <h3>🔨 1. Generate Self-signed Certificate</h3>
+        <pre><code class="language-bash"># Generate private key
+openssl genrsa -out private.key 2048
+
+# Generate CSR (Certificate Signing Request)
+openssl req -new -key private.key -out csr.csr
+# Fill in: Country, State, Locality, Organization, Common Name (domain)
+
+# Generate self-signed certificate
+openssl x509 -req -days 365 -in csr.csr -signkey private.key -out certificate.crt
+
+# Or in one command:
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes</code></pre>
+      </section>
+
+      <section id="nodejs">
+        <h2>NODE.JS HTTPS IMPLEMENTATION</h2>
+
+        <h3>⚡ Enable HTTPS in Node.js</h3>
+        <pre><code class="language-javascript">// https-server.js
+const https = require('https');
+const fs = require('fs');
+
+const options = {
+  key: fs.readFileSync('private.key'),
+  cert: fs.readFileSync('certificate.crt'),
+  // Optional: add intermediate certificates
+  // ca: fs.readFileSync('intermediate.crt')
+};
+
+const server = https.createServer(options, (req, res) => {
+  res.writeHead(200);
+  res.end('Hello HTTPS World!');
+});
+
+server.listen(443, () => {
+  console.log('HTTPS server running on port 443');
+});
+
+// For development (bypass self-signed warning)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";</code></pre>
+      </section>
+
+      <section id="nginx">
+        <h2>NGINX CONFIGURATION</h2>
+
+        <h3>🌐 Enable HTTPS in Nginx</h3>
+        <pre><code class="language-nginx"># /etc/nginx/sites-available/your-site
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+    
+    ssl_certificate /path/to/certificate.crt;
+    ssl_certificate_key /path/to/private.key;
+    
+    # Optional: improve security
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    
+    # HSTS (optional but recommended)
+    add_header Strict-Transport-Security "max-age=63072000" always;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+    }
+}
+
+# Redirect HTTP to HTTPS
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}</code></pre>
+      </section>
+
+      <section id="certificate-management">
+        <h2>CERTIFICATE MANAGEMENT</h2>
+
+        <h3>📊 Certificate Lifecycle Management</h3>
+        <pre><code class="language-text">Certificate Lifecycle:
+
+1. Planning & Request
+   ├── Determine certificate type needed
+   ├── Choose appropriate CA
+   ├── Generate CSR with proper details
+   └── Submit validation requirements
+
+2. Validation & Issuance
+   ├── Domain validation (DV/OV/EV)
+   ├── Organization verification (OV/EV)
+   ├── Certificate generation by CA
+   └── Certificate delivery
+
+3. Deployment & Configuration
+   ├── Install certificate on servers
+   ├── Configure intermediate certificates
+   ├── Test SSL/TLS configuration
+   └── Update applications/services
+
+4. Monitoring & Maintenance
+   ├── Monitor expiration dates
+   ├── Check certificate health
+   ├── Monitor for security issues
+   └── Plan renewal process
+
+5. Renewal & Replacement
+   ├── Generate new CSR (optional)
+   ├── Renew before expiration
+   ├── Deploy new certificate
+   └── Verify successful replacement
+
+6. Revocation (if needed)
+   ├── Identify compromise/issue
+   ├── Request revocation from CA
+   ├── Replace with new certificate
+   └── Update OCSP/CRL</code></pre>
+
+        <h3>⏰ Certificate Monitoring</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Monitoring Aspect</th>
+              <th>Tools/Methods</th>
+              <th>Alert Threshold</th>
+              <th>Action Required</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Expiration Date</td>
+              <td>SSL monitoring services, scripts</td>
+              <td>30, 14, 7 days before</td>
+              <td>Renew certificate</td>
+            </tr>
+            <tr>
+              <td>Certificate Chain</td>
+              <td>SSL Labs, custom scripts</td>
+              <td>Chain incomplete</td>
+              <td>Install intermediate certs</td>
+            </tr>
+            <tr>
+              <td>Revocation Status</td>
+              <td>OCSP checking, CRL monitoring</td>
+              <td>Certificate revoked</td>
+              <td>Replace immediately</td>
+            </tr>
+            <tr>
+              <td>Security Grade</td>
+              <td>SSL Labs, testssl.sh</td>
+              <td>Grade below A</td>
+              <td>Update configuration</td>
+            </tr>
+            <tr>
+              <td>Protocol Support</td>
+              <td>SSL scanners</td>
+              <td>Weak protocols enabled</td>
+              <td>Disable TLS 1.0/1.1</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🔄 Automated Certificate Management</h3>
+        <h4>ACME Protocol (Automatic Certificate Management Environment):</h4>
+        <pre><code class="language-bash"># Certbot (Let's Encrypt client)
+# Automatic renewal setup
+sudo crontab -e
+0 12 * * * /usr/bin/certbot renew --quiet
+
+# Test renewal
+sudo certbot renew --dry-run
+
+# Wildcard certificate with DNS challenge
+sudo certbot certonly --manual --preferred-challenges=dns \
+  -d *.example.com -d example.com</code></pre>
+
+        <h4>Enterprise Certificate Management:</h4>
+        <ul>
+          <li><strong>Certificate Management Platforms:</strong> Venafi, DigiCert CertCentral, GlobalSign Atlas</li>
+          <li><strong>Internal CA Solutions:</strong> Microsoft ADCS, OpenSSL CA, EJBCA</li>
+          <li><strong>Cloud-native Solutions:</strong> AWS Certificate Manager, Azure Key Vault, Google Certificate Authority Service</li>
+          <li><strong>Kubernetes Integration:</strong> cert-manager, external-secrets</li>
+        </ul>
+
+        <h3>📈 Certificate Inventory Management</h3>
+        <pre><code class="language-bash"># Certificate discovery script
+#!/bin/bash
+# discover-certificates.sh
+
+echo "Certificate Inventory Report - $(date)"
+echo "========================================"
+
+# Scan common ports for certificates
+for host in $(cat hosts.txt); do
+    echo "Checking $host..."
+    
+    # Check HTTPS (443)
+    cert_info=$(echo | openssl s_client -connect $host:443 -servername $host 2>/dev/null | \
+                openssl x509 -noout -dates -subject -issuer 2>/dev/null)
+    
+    if [ $? -eq 0 ]; then
+        echo "Host: $host:443"
+        echo "$cert_info"
+        echo "---"
+    fi
+done</code></pre>
+      </section>
+
+      <section id="letsencrypt">
+        <h2>LET'S ENCRYPT WITH CERTBOT</h2>
+
+        <h3>🆓 Use Let's Encrypt with Certbot</h3>
+        <pre><code class="language-bash"># Install Certbot (Ubuntu/Debian)
+sudo apt update
+sudo apt install certbot python3-certbot-nginx
+
+# Get certificate (Nginx auto-configuration)
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+# Test automatic renewal
+sudo certbot renew --dry-run
+
+# Manual renewal (if auto fails)
+sudo certbot renew
+
+# Certificate locations:
+# /etc/letsencrypt/live/yourdomain.com/
+#   - fullchain.pem (cert + intermediates)
+#   - privkey.pem
+#   - cert.pem (cert only)
+#   - chain.pem (intermediates only)</code></pre>
+
+        <h3>📱 View Certificate in Browser DevTools</h3>
+        <ul>
+          <li><strong>Chrome/Edge:</strong> F12 → Security tab → View certificate</li>
+          <li><strong>Firefox:</strong> Lock icon → Connection secure → More information</li>
+        </ul>
+
+        <h4>Check fields:</h4>
+        <ul>
+          <li>Subject (who it's issued to)</li>
+          <li>Issuer (who issued it)</li>
+          <li>Validity dates</li>
+          <li>Public Key info</li>
+          <li>Certificate path (trust chain)</li>
+        </ul>
+      </section>
+
+      <section id="advanced-topics">
+        <h2>ADVANCED TOPICS</h2>
+
+        <h3>🔐 Certificate Transparency (CT)</h3>
+        <p>Certificate Transparency is a framework for monitoring and auditing SSL certificates. All publicly trusted certificates must be logged in CT logs.</p>
+
+        <h4>CT Log Structure:</h4>
+        <pre><code class="language-text">Certificate Transparency Log Entry:
+{
+  "leaf_input": "base64-encoded certificate",
+  "extra_data": "base64-encoded precertificate chain",
+  "sct": {
+    "version": 1,
+    "log_id": "log identifier",
+    "timestamp": 1640995200000,
+    "signature": "digital signature"
+  }
+}</code></pre>
+
+        <h4>Benefits of Certificate Transparency:</h4>
+        <ul>
+          <li><strong>Mis-issuance Detection:</strong> Detect unauthorized certificates</li>
+          <li><strong>CA Accountability:</strong> Public audit trail of all certificates</li>
+          <li><strong>Domain Monitoring:</strong> Monitor certificates issued for your domains</li>
+          <li><strong>Security Research:</strong> Analyze certificate ecosystem</li>
+        </ul>
+
+        <h4>CT Monitoring Tools:</h4>
+        <ul>
+          <li><strong>crt.sh:</strong> Certificate search engine</li>
+          <li><strong>Facebook CT Monitor:</strong> Domain monitoring service</li>
+          <li><strong>Google CT Search:</strong> Certificate transparency search</li>
+          <li><strong>Censys:</strong> Internet-wide certificate scanning</li>
+        </ul>
+
+        <h3>🏢 Private Certificate Authorities</h3>
+        <p>Organizations can create their own Certificate Authority for internal use, providing complete control over certificate issuance.</p>
+
+        <h4>Setting up Private CA with OpenSSL:</h4>
+        <pre><code class="language-bash"># 1. Create CA directory structure
+mkdir -p ca/{certs,crl,newcerts,private}
+touch ca/index.txt
+echo 1000 > ca/serial
+
+# 2. Generate CA private key
+openssl genrsa -aes256 -out ca/private/ca.key.pem 4096
+chmod 400 ca/private/ca.key.pem
+
+# 3. Create CA certificate
+openssl req -config openssl.cnf -key ca/private/ca.key.pem \
+  -new -x509 -days 7300 -sha256 -extensions v3_ca \
+  -out ca/certs/ca.cert.pem
+
+# 4. Create intermediate CA (optional but recommended)
+openssl genrsa -aes256 -out intermediate/private/intermediate.key.pem 4096
+openssl req -config intermediate/openssl.cnf -new -sha256 \
+  -key intermediate/private/intermediate.key.pem \
+  -out intermediate/csr/intermediate.csr.pem
+
+# 5. Sign intermediate certificate
+openssl ca -config openssl.cnf -extensions v3_intermediate_ca \
+  -days 3650 -notext -md sha256 \
+  -in intermediate/csr/intermediate.csr.pem \
+  -out intermediate/certs/intermediate.cert.pem</code></pre>
+
+        <h3>🔒 Hardware Security Modules (HSM)</h3>
+        <p>HSMs provide hardware-based key storage and cryptographic operations for high-security environments.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>HSM Type</th>
+              <th>Security Level</th>
+              <th>Use Case</th>
+              <th>Cost Range</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Network-attached HSM</td>
+              <td>FIPS 140-2 Level 3</td>
+              <td>Enterprise CA, high-volume</td>
+              <td>$50K - $200K</td>
+            </tr>
+            <tr>
+              <td>PCIe Card HSM</td>
+              <td>FIPS 140-2 Level 3</td>
+              <td>Server-based applications</td>
+              <td>$10K - $50K</td>
+            </tr>
+            <tr>
+              <td>USB Token HSM</td>
+              <td>FIPS 140-2 Level 2</td>
+              <td>Personal certificates, testing</td>
+              <td>$100 - $1K</td>
+            </tr>
+            <tr>
+              <td>Cloud HSM</td>
+              <td>FIPS 140-2 Level 3</td>
+              <td>Cloud-native applications</td>
+              <td>$1-3/hour</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🌐 DNS-based Authentication of Named Entities (DANE)</h3>
+        <p>DANE uses DNS to specify which certificates are valid for a domain, providing an alternative to the traditional CA system.</p>
+
+        <pre><code class="language-text"># DANE TLSA Record Examples
+
+# Pin specific certificate
+_443._tcp.example.com. IN TLSA 3 0 1 (
+    1234567890ABCDEF... ; SHA-256 hash of certificate
+)
+
+# Pin CA certificate
+_443._tcp.example.com. IN TLSA 2 0 1 (
+    FEDCBA0987654321... ; SHA-256 hash of CA certificate
+)
+
+# Pin public key
+_443._tcp.example.com. IN TLSA 3 1 1 (
+    ABCDEF1234567890... ; SHA-256 hash of public key
+)</code></pre>
+
+        <h3>🔄 Certificate Pinning Strategies</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Pinning Type</th>
+              <th>What's Pinned</th>
+              <th>Flexibility</th>
+              <th>Security</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Certificate Pinning</td>
+              <td>Entire certificate</td>
+              <td>Low (must update on renewal)</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td>Public Key Pinning</td>
+              <td>Public key only</td>
+              <td>Medium (survives certificate renewal)</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td>CA Pinning</td>
+              <td>Certificate Authority</td>
+              <td>High (any cert from CA works)</td>
+              <td>Medium</td>
+            </tr>
+            <tr>
+              <td>Intermediate Pinning</td>
+              <td>Intermediate CA</td>
+              <td>Medium-High</td>
+              <td>Medium-High</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🔮 Future of SSL/TLS</h3>
+        <ul>
+          <li><strong>TLS 1.3 Adoption:</strong> Faster handshakes, improved security</li>
+          <li><strong>Post-Quantum Cryptography:</strong> Preparing for quantum computing threats</li>
+          <li><strong>Automated Certificate Management:</strong> ACME protocol expansion</li>
+          <li><strong>Certificate Transparency Evolution:</strong> Enhanced monitoring and compliance</li>
+          <li><strong>Zero-Trust Architecture:</strong> Mutual TLS (mTLS) for service-to-service communication</li>
+        </ul>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-graduation-cap"></i> Key Takeaways</span>
+            <p>SSL/TLS certificates are the foundation of web security, providing authentication, encryption, and data integrity. Understanding their structure, validation methods, and management is crucial for any web professional.</p>
+            <p><strong>Remember:</strong> Certificates are not just about encryption - they're about trust, identity, and the entire PKI ecosystem that keeps the internet secure.</p>
+        </div>
+      </section>
+
+      <section id="production">
+        <h2>PRODUCTION & REAL WORLD</h2>
+
+        <h3>🔄 SSL Termination</h3>
+        <p><strong>Definition:</strong> Decrypting TLS at load balancer/reverse proxy, forwarding plain HTTP to backend</p>
+
+        <pre><code class="language-nginx">upstream backend {
+    server 10.0.0.1:80;
+    server 10.0.0.2:80;
+}
+
+server {
+    listen 443 ssl;
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+    
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}</code></pre>
+
+        <h3>🛡️ HSTS (HTTP Strict Transport Security)</h3>
+        <pre><code class="language-nginx"># Force HTTPS for 2 years, include subdomains, allow preloading
+add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;</code></pre>
+
+        <h4>What it does:</h4>
+        <ul>
+          <li>Browser remembers domain should use HTTPS only</li>
+          <li>Automatically redirects HTTP→HTTPS</li>
+          <li>Protects against SSL stripping attacks</li>
+        </ul>
+
+        <h3>🔄 Renewal Automation</h3>
+        <pre><code class="language-bash"># Systemd timer (Ubuntu)
+sudo systemctl status certbot.timer
+
+# Cron job for other systems
+0 12 * * * /usr/bin/certbot renew --quiet
+
+# Docker-based renewal
+docker run -it --rm --name certbot \
+  -v "/etc/letsencrypt:/etc/letsencrypt" \
+  -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
+  -p 80:80 certbot/certbot renew</code></pre>
+      </section>
+
+      <section id="security">
+        <h2>SECURITY AWARENESS</h2>
+
+        <h3>🎭 Man-in-the-Middle (MITM) Attacks</h3>
+        <h4>How it works:</h4>
+        <ul>
+          <li>Attacker intercepts communication</li>
+          <li>Presents fake certificate to client</li>
+          <li>Decrypts, reads/modifies, re-encrypts traffic</li>
+        </ul>
+
+        <h4>Prevention:</h4>
+        <ul>
+          <li>Valid certificates from trusted CAs</li>
+          <li>Certificate pinning</li>
+          <li>HSTS</li>
+          <li>Public key pinning (HPKP) - deprecated but worth knowing</li>
+        </ul>
+
+        <h3>📌 Certificate Pinning</h3>
+        <pre><code class="language-javascript">// Application-level pinning
+const expectedHash = 'sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+
+fetch('https://api.example.com', {
+  agent: new https.Agent({
+    checkServerIdentity: (hostname, cert) => {
+      const pin = crypto.createHash('sha256').update(cert.raw).digest('base64');
+      if (pin !== expectedHash) {
+        throw new Error('Certificate pin mismatch');
+      }
+    }
+  })
+});</code></pre>
+
+        <h3>⚠️ Why Expired Certs Break Sites</h3>
+        <ul>
+          <li><strong>Validity Period:</strong> Certificates have explicit notBefore/notAfter dates</li>
+          <li><strong>Security Reason:</strong> Limits damage if private key is compromised</li>
+          <li><strong>Browsers:</strong> Strictly enforce validity periods</li>
+          <li><strong>Grace Period:</strong> None for publicly trusted certificates</li>
+        </ul>
+
+        <h3>🚫 Why Browsers Show "Not Secure"</h3>
+        <ul>
+          <li><strong>HTTP Sites:</strong> No encryption at all</li>
+          <li><strong>HTTPS Issues:</strong>
+            <ul>
+              <li>Expired certificate</li>
+              <li>Domain mismatch (cert issued for different domain)</li>
+              <li>Self-signed certificate (no CA trust)</li>
+              <li>Revoked certificate (CRL/OCSP check)</li>
+              <li>Weak encryption (SHA1, RC4, etc.)</li>
+              <li>Missing intermediates (broken chain)</li>
+              <li>Mixed content (HTTPS page loads HTTP resources)</li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <section id="tools">
+        <h2>TOOLS & TESTING</h2>
+
+        <h3>🔧 OpenSSL Commands</h3>
+        <pre><code class="language-bash"># View certificate
+openssl x509 -in certificate.crt -text -noout
+
+# Check private key
+openssl rsa -in private.key -check
+
+# Verify certificate chain
+openssl verify -CAfile ca-bundle.crt certificate.crt
+
+# Check SSL connection
+openssl s_client -connect example.com:443 -servername example.com
+
+# Convert between formats
+openssl pkcs12 -export -out certificate.pfx -inkey private.key -in certificate.crt</code></pre>
+
+        <h3>🌐 Browser DevTools Security Tab</h3>
+        <ul>
+          <li>Certificate details</li>
+          <li>Security overview</li>
+          <li>Connection information</li>
+          <li>Mixed content warnings</li>
+        </ul>
+
+        <h3>🧪 SSL Labs (Qualys SSL Test)</h3>
+        <p>Online tool: <a href="https://www.ssllabs.com/ssltest/" target="_blank">https://www.ssllabs.com/ssltest/</a></p>
+        <h4>Check for:</h4>
+        <ul>
+          <li>Grade (A+ to F)</li>
+          <li>Protocol support</li>
+          <li>Cipher strength</li>
+          <li>Vulnerabilities</li>
+          <li>Certificate validity</li>
+        </ul>
+
+        <h3>🤖 Certbot Commands</h3>
+        <pre><code class="language-bash"># List certificates
+sudo certbot certificates
+
+# Revoke certificate
+sudo certbot revoke --cert-name example.com
+
+# Delete certificate
+sudo certbot delete --cert-name example.com
+
+# Manual DNS challenge (for wildcard)
+sudo certbot certonly --manual --preferred-challenges=dns -d *.example.com</code></pre>
+
+        <h3>🔍 Additional Tools</h3>
+        <pre><code class="language-bash"># nmap SSL scan
+nmap --script ssl-enum-ciphers -p 443 example.com
+
+# testssl.sh (comprehensive)
+./testssl.sh example.com
+
+# Check HSTS preload status
+https://hstspreload.org/
+
+# Check Certificate Transparency logs
+https://crt.sh/</code></pre>
+      </section>
+
+      <section id="checklist">
+        <h2>QUICK REFERENCE CHECKLIST</h2>
+
+        <h3>✅ For Production HTTPS:</h3>
+        <ul>
+          <li>Use TLS 1.2 or 1.3 (disable SSLv3, TLS 1.0, 1.1)</li>
+          <li>Enable HSTS with appropriate max-age</li>
+          <li>Configure secure cipher suites</li>
+          <li>Use strong private key (≥2048-bit RSA or ≥256-bit ECC)</li>
+          <li>Set up automatic certificate renewal</li>
+          <li>Redirect HTTP → HTTPS</li>
+          <li>Include full certificate chain</li>
+          <li>Keep private keys secure (proper permissions)</li>
+          <li>Monitor certificate expiration</li>
+          <li>Implement OCSP stapling</li>
+        </ul>
+
+        <h3>🔧 Common Issues & Fixes:</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Error</th>
+              <th>Cause</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>NET::ERR_CERT_DATE_INVALID</td>
+              <td>Certificate expired</td>
+              <td>Renew certificate</td>
+            </tr>
+            <tr>
+              <td>NET::ERR_CERT_AUTHORITY_INVALID</td>
+              <td>Missing intermediate</td>
+              <td>Install full chain</td>
+            </tr>
+            <tr>
+              <td>Mixed content warnings</td>
+              <td>HTTP resources on HTTPS page</td>
+              <td>Update all resources to use HTTPS</td>
+            </tr>
+            <tr>
+              <td>Cipher mismatch</td>
+              <td>Incompatible cipher suites</td>
+              <td>Update server cipher configuration</td>
+            </tr>
+            <tr>
+              <td>SNI required</td>
+              <td>Multiple domains, one IP</td>
+              <td>Ensure client sends Server Name Indication</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🛡️ Security Best Practices:</h3>
+        <ul>
+          <li>Always use HTTPS - even for static sites</li>
+          <li>Enable HTTP/2 or HTTP/3 over HTTPS</li>
+          <li>Regularly update TLS configurations</li>
+          <li>Monitor for vulnerabilities (Heartbleed, DROWN, etc.)</li>
+          <li>Use certificate transparency monitoring</li>
+        </ul>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-exclamation-triangle"></i> Remember</span>
+            <p>This comprehensive guide covers everything from fundamentals to production implementation. SSL/TLS is a critical component of web security that every developer should understand thoroughly.</p>
+            <p><strong>Encryption is not optional in modern web development.</strong></p>
+        </div>
+      </section>
+
+      <footer>
+        <p>SSL/TLS Complete Guide</p>
+        <p>Generated for <strong>SSL/TLS & Certificate Management</strong></p>
+        <p>Built with 💝</p>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-nginx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+  </body>
+</html>

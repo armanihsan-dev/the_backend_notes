@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSP Reporting Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1>
+      <span style="color: #ffd700">🛡️</span> Content Security Policy (CSP)
+      Reporting Fundamentals
+    </h1>
+
+    <p>
+      <strong>CSP violation reporting</strong> is the mechanism browsers use to
+      notify a server when an attempted action (e.g., loading an external
+      script) breaks the security rules defined by the CSP. **OR** A Content
+      Security Policy is just a set of rules you send in **HTTP headers**.
+    </p>
+    <p>These rules tell the browser:</p>
+    <p>
+      “Only load scripts/images/styles from these trustworthy places. If
+      anything else tries to run → **BLOCK it**.” It protects against **XSS**,
+      **clickjacking**, malicious scripts, etc.
+    </p>
+
+    <h2>2. What Is a "CSP Violation"?</h2>
+    <p>A **“violation”** happens when:</p>
+    <ul>
+      <li>A script loads from a domain not allowed</li>
+      <li>Inline JS tries to run (if not allowed)</li>
+      <li>An image loads from blocked domain</li>
+      <li>A style loads from blocked domain</li>
+    </ul>
+
+    <h3>Example:</h3>
+    <p>
+      Policy is:
+      <code
+        ><span class="dir">script-src</span>
+        <span class="str">'self'</span>;</code
+      >
+    </p>
+    <p>Then someone tries:</p>
+    <pre><code class="html">&lt;<span class="kw">script</span> <span class="prop">src</span>=<span class="str">"https://evil.com/hack.js"</span>>&lt;/<span class="kw">script</span>></code></pre>
+    <p>➡️ Browser blocks it</p>
+    <p>➡️ Browser also reports this violation (if you configured reporting)</p>
+
+    <h2>3. What is <span class="dir">report-uri</span>?</h2>
+    <p>Old CSP standard allowed:</p>
+    <pre><code class="css"><span class="dir">report-uri</span> <span class="mono">https://yourserver.com/csp-report</span></code></pre>
+    <p>Meaning:</p>
+    <p>“If any violation happens, send a **JSON report** to this URL.”</p>
+    <p>Browser sends that report **automatically**.</p>
+
+    <hr />
+
+    <h2>Key Components</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Definition</th>
+          <th>Syntax Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Content-Security-Policy</strong> (Header)</td>
+          <td>
+            <strong>Enforces</strong> the policy and reports violations. The
+            browser **blocks** the offending resource.
+          </td>
+          <td>
+            <code
+              ><span class="dir">Content-Security-Policy</span>:
+              <span class="dir">default-src</span>
+              <span class="str">'self'</span>;
+              <span class="dir">script-src</span>
+              <span class="str">'self'</span>;
+              <span class="dir">report-uri</span>
+              <span class="mono">/csp-report</span>;</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Content-Security-Policy-Report-Only</strong> (Header)</td>
+          <td>
+            <strong>Reports</strong> the violation but **does not block** the
+            offending resource. Crucial for testing new policies.
+          </td>
+          <td>
+            <code
+              ><span class="dir">Content-Security-Policy-Report-Only</span>:
+              <span class="dir">default-src</span>
+              <span class="str">'self'</span>;
+              <span class="dir">report-uri</span>
+              <span class="mono">/csp-report</span>;</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td><span class="dir">report-uri</span> (Directive)</td>
+          <td>
+            Specifies the full URI where the browser should send the violation
+            report (a **JSON payload**) via an HTTP **POST** request.
+          </td>
+          <td>
+            <code
+              ><span class="dir">report-uri</span>
+              <span class="mono">https://example.com/reports/csp</span></code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td><strong>CSP Report</strong> (Payload)</td>
+          <td>
+            The JSON body sent by the browser containing details about the
+            violation.
+          </td>
+          <td>
+            <p><code>JSON</code> (See structure below)</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>CSP Report JSON Structure</h3>
+    <pre class="json-block"><code class="json">{
+  "<span class="json-key">csp-report</span>": {
+    "<span class="json-key">document-uri</span>": "<span class="json-val">https://myapp.com/index.html</span>",
+    "<span class="json-key">referrer</span>": "<span class="json-val"></span>",
+    "<span class="json-key">blocked-uri</span>": "<span class="json-val">https://unsafe.com/script.js</span>",
+    "<span class="json-key">violated-directive</span>": "<span class="json-val">script-src</span>",
+    "<span class="json-key">effective-directive</span>": "<span class="json-val">script-src-elem</span>",
+    "<span class="json-key">original-policy</span>": "<span class="json-val">default-src 'self'; script-src 'self'; report-uri /csp-report-endpoint;</span>",
+    "<span class="json-key">disposition</span>": "<span class="json-val">report</span>"
+  }
+}</code></pre>
+
+    <hr />
+
+    <h2>
+      <span style="color: #3b82f6">💻</span> Practical Express Setup (<span
+        class="mono"
+        >server.js</span
+      >)
+    </h2>
+
+    <p>
+      We will use the built-in
+      <code><span class="dir">express.json()</span></code> middleware but will
+      configure it to also handle the special
+      <code><span class="dir">application/csp-report</span></code> content type.
+    </p>
+
+    <pre><code><span class="kw">import</span> express <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> mongoose <span class="kw">from</span> <span class="str">"mongoose"</span>;
+
+<span class="kw">const</span> app = <span class="dir">express</span>();
+
+<span class="dir">app</span>.<span class="dir">use</span>(<span class="dir">express</span>.<span class="dir">json</span>());
+
+<span class="kw">await</span> <span class="dir">mongoose</span>.<span class="dir">connect</span>(
+    <span class="str">"mongodb://admin:admin@localhost/socialApp?authSource=admin"</span>
+);
+
+<span class="kw">const</span> postSchema = <span class="kw">new</span> <span class="prop">mongoose</span>.<span class="prop">Schema</span>({
+    <span class="prop">content</span>: <span class="type">String</span>,
+    <span class="prop">createdAt</span>: { <span class="type">type</span>: <span class="prop">Date</span>, <span class="prop">default</span>: <span class="prop">Date</span>.<span class="dir">now</span> },
+});
+
+<span class="kw">const</span> Post = <span class="dir">mongoose</span>.<span class="dir">model</span>(<span class="str">"Post"</span>, postSchema);
+
+<span class="dir">app</span>.<span class="dir">use</span>((<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+    <span class="kw">if</span> (<span class="prop">req</span>.<span class="prop">headers</span>.<span class="prop">accept</span>?.<span class="dir">includes</span>(<span class="str">'text/html'</span>)) {
+        <span class="prop">res</span>.<span class="dir">setHeader</span>(
+            <span class="str">'Content-Security-Policy'</span>,
+            <span class="str">"default-src 'self';\
+            script-src 'self'  https://cdn.tailwindcss.com;\
+            img-src 'self' https://images.unsplash.com/;\
+            style-src 'unsafe-inline';\
+            connect-src 'self';\
+            report-uri /csp-report;\
+            "</span>
+        )
+    }
+    <span class="dir">next</span>()
+})
+<span class="dir">app</span>.<span class="dir">use</span>(<span class="dir">express</span>.<span class="dir">static</span>(<span class="str">"./public"</span>));
+
+
+<span class="cmt">// Routes</span>
+<span class="dir">app</span>.<span class="dir">get</span>(<span class="str">"/posts"</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="kw">const</span> posts = <span class="kw">await</span> <span class="prop">Post</span>.<span class="dir">find</span>().<span class="dir">sort</span>({ <span class="prop">createdAt</span>: <span class="lit">-1</span> });
+    <span class="prop">res</span>.<span class="dir">setHeader</span>(<span class="str">"Set-Cookie"</span>, <span class="str">"loginSecret=hdxhw7yrx.k;"</span>);
+    <span class="prop">res</span>.<span class="dir">json</span>(posts);
+});
+
+<span class="cmt">// Route to receive violation reports</span>
+<span class="dir">app</span>.<span class="dir">post</span>(<span class="str">"/csp-report"</span>, <span class="dir">express</span>.<span class="dir">json</span>({ <span class="prop">type</span>: <span class="str">"application/csp-report"</span> }), (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"📢 CSP VIOLATION REPORT RECEIVED:"</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="dir">JSON</span>.<span class="dir">stringify</span>(<span class="prop">req</span>.<span class="prop">body</span>, <span class="lit">null</span>, <span class="lit">2</span>));
+    <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">204</span>).<span class="dir">end</span>(); <span class="cmt">// No response needed</span>
+});
+
+<span class="dir">app</span>.<span class="dir">post</span>(<span class="str">"/posts"</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="kw">const</span> post = <span class="kw">new</span> <span class="prop">Post</span>({ <span class="prop">content</span>: <span class="prop">req</span>.<span class="prop">body</span>.<span class="prop">content</span> });
+    <span class="kw">await</span> <span class="prop">post</span>.<span class="dir">save</span>();
+    <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">201</span>).<span class="dir">json</span>(post);
+});
+
+<span class="cmt">// Start server</span>
+<span class="dir">app</span>.<span class="dir">listen</span>(<span class="lit">4000</span>, () => <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Server running on http://localhost:4000"</span>));</code></pre>
+
+    <hr />
+
+    <h2><span style="color: #4ec9b0">🛡️</span> CSP Header Implementation</h2>
+    <p>
+      The server sets the
+      <code><span class="dir">Content-Security-Policy</span></code> header in a
+      middleware function:
+    </p>
+
+    <pre><code><span class="dir">app</span>.<span class="dir">use</span>((<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+    <span class="kw">if</span> (<span class="prop">req</span>.<span class="prop">headers</span>.<span class="prop">accept</span>?.<span class="dir">includes</span>(<span class="str">'text/html'</span>)) {
+        <span class="prop">res</span>.<span class="dir">setHeader</span>(
+            <span class="str">'Content-Security-Policy'</span>,
+            <span class="str">"/* ... other directives ... */\
+            report-uri /csp-report;\
+            "</span>
+        )
+    }
+    <span class="dir">next</span>()
+})</code></pre>
+    <p>
+      The key part for reporting is the
+      <code
+        ><span class="dir">report-uri</span>
+        <span class="mono">/csp-report</span>;</code
+      >
+      directive.
+    </p>
+
+    <ul>
+      <li>
+        **<span class="dir">report-uri</span> Directive:** This directive tells
+        the client's browser where to send a report if a resource loading or
+        execution attempt violates any of the rules defined in the CSP.
+      </li>
+      <li>
+        **Policy Violation:** If a browser tries to load a resource (e.g., an
+        image, a script, or a font) from a source **not listed** in the policy
+        (for example, trying to load a script from
+        <span class="mono">evil.com</span>), the browser will **block** the
+        resource.
+      </li>
+      <li>
+        **Report Generation:** When a violation occurs, the browser compiles a
+        **JSON object** detailing the violation (the blocked URL, the violating
+        directive, the document URI, etc.).
+      </li>
+      <li>
+        **Report Transmission:** The browser then sends this JSON report via an
+        HTTP **POST** request to the specified URI, which is
+        <code><span class="mono">/csp-report</span></code> in this case.
+      </li>
+    </ul>
+
+    <h2><span style="color: #f08080">📢</span> Server-Side Report Handling</h2>
+    <p>
+      The server has a specific route designed to receive and process these
+      reports:
+    </p>
+
+    <pre><code><span class="dir">app</span>.<span class="dir">post</span>(<span class="str">"/csp-report"</span>, <span class="dir">express</span>.<span class="dir">json</span>({ <span class="prop">type</span>: <span class="str">"application/csp-report"</span> }), (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"📢 CSP VIOLATION REPORT RECEIVED:"</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="dir">JSON</span>.<span class="dir">stringify</span>(<span class="prop">req</span>.<span class="prop">body</span>, <span class="lit">null</span>, <span class="lit">2</span>));
+    <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">204</span>).<span class="dir">end</span>(); <span class="cmt">// No response needed</span>
+});</code></pre>
+
+    <ul>
+      <li>
+        **Route:** The server sets up a **POST** route at
+        <code><span class="mono">/csp-report</span></code
+        >, matching the URI specified in the CSP header.
+      </li>
+      <li>
+        **Middleware** (<span class="dir">express.json</span>({
+        <span class="prop">type</span>:
+        <span class="str">"application/csp-report"</span> })): This is
+        **crucial**. Browsers send CSP reports with the specific content type of
+        <code><span class="dir">application/csp-report</span></code
+        >. This custom middleware configuration ensures that the Express server
+        correctly **parses the incoming JSON body** from the report.
+      </li>
+      <li>
+        **Logging:** The route handler simply logs the received violation report
+        (<code><span class="prop">req.body</span></code
+        >) to the server console. In a production application, this information
+        would typically be saved to a database or a log file for later analysis.
+      </li>
+      <li>
+        **Response:** The server sends a **204 No Content** status code. This is
+        the standard practice for report endpoints, as the server acknowledges
+        receipt of the report but has no content to send back to the browser.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>
+      <span style="color: #ff9900">🛠️</span> Summary of a CSP Violation Event
+    </h2>
+    <ol>
+      <li>A client loads an HTML page from the Express server.</li>
+      <li>
+        The server sends the
+        <code><span class="dir">Content-Security-Policy</span></code> header,
+        which includes
+        <code
+          ><span class="dir">report-uri</span>
+          <span class="mono">/csp-report</span>;</code
+        >.
+      </li>
+      <li>The client's browser parses and enforces the policy.</li>
+      <li>
+        The client's code attempts to load a **forbidden resource** (e.g., a
+        script from <span class="mono">http://malicious.com</span>).
+      </li>
+      <li>The browser **blocks** the resource.</li>
+      <li>The browser generates a **JSON report** about the violation.</li>
+      <li>
+        The browser sends an HTTP **POST** request with the report to
+        <span class="mono">http://localhost:4000/csp-report</span>.
+      </li>
+      <li>
+        The Express server receives the request, parses the JSON body, logs the
+        violation details, and sends back a **204 response**.
+      </li>
+    </ol>
+  </body>
+</html>

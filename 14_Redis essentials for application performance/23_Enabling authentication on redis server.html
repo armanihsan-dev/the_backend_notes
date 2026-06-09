@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Authentication Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="default.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>Redis Authentication 🔒</h1>
+      </header>
+
+      <section class="notes-section">
+        <h2 id="section-1">1. Enabling Authentication on Redis Server 🔒</h2>
+        <h2>🚨 Why Enable Authentication?</h2>
+        <p>
+          By default, Redis server does not require a password, which can be
+          risky in production environments. Enabling password-based
+          authentication helps secure your Redis server from unauthorized
+          access.
+        </p>
+        <p>
+          Redis uses the **<code>requirepass</code>** configuration directive to
+          enforce password authentication.
+        </p>
+
+        <h3>Step 1: Locate and Edit the Configuration File</h3>
+        <ul>
+          <li>
+            Find your Redis configuration file, typically named
+            **<code>redis.conf</code>**.
+          </li>
+          <li>
+            <strong>Linux/macOS:</strong> Often found in
+            <code>/etc/redis/redis.conf</code> or
+            <code>/usr/local/etc/redis.conf</code>.
+          </li>
+          <li>
+            If you installed it using a package manager (like
+            <code>apt</code> or <code>brew</code>), the path is likely
+            standardized.
+          </li>
+          <li>
+            Open the file with a text editor (e.g., <code>nano</code>,
+            <code>vim</code>). You'll likely need <code>sudo</code>.
+          </li>
+        </ul>
+
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre><span class="command">sudo</span> <span class="command">nano</span> <span class="key">/etc/redis/redis.conf</span></pre>
+        </div>
+
+        <h3>Step 2: Set the Password (<code>requirepass</code>)</h3>
+        <ul>
+          <li>
+            Search for the line starting with <code># requirepass foo</code>.
+          </li>
+          <li>**Uncomment** the line (remove the <code>#</code>).</li>
+          <li>Replace <code>foo</code> with a strong, complex password.</li>
+        </ul>
+
+        <blockquote class="tip-box">
+          <p>
+            <strong>Security Tip:</strong> Redis recommends generating a
+            password using the <code>redis-cli</code> tool itself to ensure
+            complexity.
+          </p>
+          <p><strong>Generate Hash (Optional but Recommended):</strong></p>
+          <div class="code-block bash-code nested">
+            <span class="comment"># Bash</span>
+            <pre><span class="command">redis-cli</span> <span class="option">--generate-module-skeleton</span> <span class="operator">|</span> <span class="command">grep</span> <span class="key">requirepass</span></pre>
+          </div>
+          <p>
+            (Note: The actual <code>redis-cli</code> command for hash generation
+            is often part of the security best practices, but a simple random
+            string is sufficient for basic setup.)
+          </p>
+        </blockquote>
+
+        <p><strong>Configuration Example (Use your own secret):</strong></p>
+        <div class="code-block conf-code">
+          <span class="comment"># Authentication settings</span>
+          <pre><span class="directive">requirepass</span> <span class="string">YourStrongAndSecretPassword123!</span></pre>
+        </div>
+
+        <h3>Step 3: Restart the Redis Server</h3>
+        <p>
+          After saving the <code>redis.conf</code> file, you must restart the
+          Redis service for the changes to take effect.
+        </p>
+
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="comment"># Common command for systems using systemd (like modern Ubuntu/Debian)</span>
+<span class="command">sudo</span> <span class="command">systemctl</span> <span class="command">restart</span> <span class="key">redis-server</span>
+
+<span class="comment"># Alternatively, if running directly</span>
+<span class="comment"># sudo /etc/init.d/redis-server restart</span>
+                </pre>
+        </div>
+        <p class="security-final">
+          The server is now **secured**! Any attempt to connect without the
+          correct password will fail.
+        </p>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-2">2. Authenticating via <code>redis-cli</code></h2>
+        <p>
+          When a password is set, the <code>redis-cli</code> tool needs to
+          authenticate before running any data commands.
+        </p>
+
+        <h3>Method 1: Using the <code>AUTH</code> Command (Post-Connection)</h3>
+        <p>
+          Connect to the server without the password. Redis will allow the
+          connection but block commands.
+        </p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="command">GET</span> <span class="key">mykey</span>
+<span class="error">(error) NOAUTH Authentication required.</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="command">AUTH</span> <span class="string">YourStrongAndSecretPassword123!</span>
+<span class="response">OK</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="command">GET</span> <span class="key">mykey</span>
+<span class="string">"somevalue"</span>
+                </pre>
+        </div>
+
+        <h3>Method 2: Passing the Password Directly (<code>-a</code>)</h3>
+        <p>
+          This is the fastest method for interactive use, but the password is
+          **visible in your shell history** (use with caution).
+        </p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span> <span class="option">-a</span> <span class="string">YourStrongAndSecretPassword123!</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="command">SET</span> <span class="key">status</span> <span class="string">"authenticated"</span>
+<span class="response">OK</span>
+                </pre>
+        </div>
+
+        <h3>Method 3: Using Environment Variable (More Secure for Scripts)</h3>
+        <p>
+          For scripting, using an environment variable avoids placing the
+          password directly in the command line or history.
+        </p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">export</span> <span class="variable-name">REDIS_PASSWORD</span>=<span class="string">YourStrongAndSecretPassword123!</span>
+<span class="operator">$</span> <span class="command">redis-cli</span> <span class="option">-a</span> <span class="variable-name">"$REDIS_PASSWORD"</span>
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-3">3. Authenticating via Node.js</h2>
+        <p>
+          When using a Node.js Redis client like <code>ioredis</code> or
+          <code>node-redis</code>, you pass the password during the client
+          initialization.
+        </p>
+
+        <h3>Prerequisites</h3>
+        <div class="code-block bash-code install-code">
+          <span class="comment"># Bash</span>
+          <pre><span class="command">npm</span> <span class="command">install</span> <span class="key">ioredis</span></pre>
+        </div>
+
+        <h3>Node.js Syntax Example (Using <code>ioredis</code>)</h3>
+        <p>
+          In Node.js, the password is provided in the configuration object when
+          creating a new Redis client instance.
+        </p>
+        <div class="code-block js-code">
+          <span class="comment"># JavaScript</span>
+          <pre>
+<span class="keyword">const</span> <span class="variable">Redis</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'ioredis'</span>);
+
+<span class="comment">// --- Configuration Object ---</span>
+<span class="keyword">const</span> <span class="variable-name">redisConfig</span> <span class="operator">=</span> {
+    <span class="variable-name">port</span>: <span class="number">6379</span>,          <span class="comment">// Default port</span>
+    <span class="variable-name">host</span>: <span class="string">'127.0.0.1'</span>,   <span class="comment">// Local host</span>
+    <span class="variable-name">password</span>: <span class="string">'YourStrongAndSecretPassword123!'</span>, <span class="comment">// &lt;-- The critical security parameter</span>
+    <span class="comment">// Other options: family: 4, db: 0, etc.</span>
+};
+
+<span class="comment">// Create the authenticated client</span>
+<span class="keyword">const</span> <span class="variable">redis</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">Redis</span>(<span class="variable-name">redisConfig</span>);
+
+<span class="variable">redis</span>.<span class="method">on</span>(<span class="string">'connect'</span>, () <span class="operator">=></span> {
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">'✅ Connected and Authenticated to Redis successfully!'</span>);
+});
+
+<span class="variable">redis</span>.<span class="method">on</span>(<span class="string">'error'</span>, (<span class="variable">err</span>) <span class="operator">=></span> {
+    <span class="function">console</span>.<span class="method">error</span>(<span class="string">'❌ Redis Connection Error:'</span>, <span class="variable">err</span>);
+    <span class="comment">// This error will often fire if the authentication fails.</span>
+});
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function-name">runAuthenticatedCommands</span>() {
+    <span class="keyword">try</span> {
+        <span class="comment">// 1. SET a value</span>
+        <span class="keyword">const</span> <span class="variable-name">setResponse</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">set</span>(<span class="string">'auth:check'</span>, <span class="string">'passed'</span>);
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">`SET response: ${</span><span class="variable-name">setResponse</span><span class="string">}`</span>);
+
+        <span class="comment">// 2. GET the value</span>
+        <span class="keyword">const</span> <span class="variable-name">getResponse</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">get</span>(<span class="string">'auth:check'</span>);
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">`GET response: ${</span><span class="variable-name">getResponse</span><span class="string">}`</span>);
+        
+    } <span class="keyword">catch</span> (<span class="variable">error</span>) {
+        <span class="comment">// This catch block handles command errors, not connection/auth errors</span>
+        <span class="function">console</span>.<span class="method">error</span>(<span class="string">'Command execution failed:'</span>, <span class="variable">error</span>);
+    } <span class="keyword">finally</span> {
+        <span class="comment">// Clean up</span>
+        <span class="variable">redis</span>.<span class="method">quit</span>();
+    }
+}
+
+<span class="function-name">runAuthenticatedCommands</span>();
+                </pre>
+        </div>
+
+        <h3>Note on Production</h3>
+        <p>
+          In a real-world application, you should **NEVER** hardcode the
+          password. It should be loaded from **environment variables** or a
+          secure secrets manager.
+        </p>
+        <div class="code-block js-code">
+          <span class="comment">// Production Best Practice</span>
+          <pre>
+<span class="keyword">const</span> <span class="variable">redis</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">Redis</span>({
+    <span class="variable-name">host</span>: <span class="variable-name">process</span>.<span class="variable-name">env</span>.<span class="variable-name">REDIS_HOST</span>,
+    <span class="variable-name">password</span>: <span class="variable-name">process</span>.<span class="variable-name">env</span>.<span class="variable-name">REDIS_PASSWORD</span>, <span class="comment">// Loaded from ENV variable</span>
+    <span class="variable-name">port</span>: <span class="variable-name">process</span>.<span class="variable-name">env</span>.<span class="variable-name">REDIS_PORT</span> <span class="operator">||</span> <span class="number">6379</span>,
+});
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <footer class="notes-footer">
+        <p>End of Redis Authentication Notes</p>
+      </footer>
+    </div>
+  </body>
+</html>

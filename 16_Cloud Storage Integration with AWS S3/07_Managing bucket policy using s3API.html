@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS S3 API Policy and Access Management</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h2>
+      <span class="icon">🔒</span> Managing Bucket Policy using
+      <code class="dir">aws s3api</code>
+    </h2>
+
+    <h3>1. What is a Bucket Policy?</h3>
+    <p>
+      A <strong class="kw">Bucket Policy</strong> is an AWS
+      <strong class="str">resource-based policy</strong> written in
+      <strong class="str">JSON</strong> format that you attach directly to an S3
+      bucket.
+    </p>
+    <ul>
+      <li>
+        <strong class="kw">Purpose</strong>: It defines
+        <strong class="prop">who</strong> (the principal) can access the objects
+        in the bucket, <strong class="prop">what actions</strong> they can
+        perform (actions), and under
+        <strong class="prop">what conditions</strong> (conditions).
+      </li>
+      <li>
+        <strong class="kw">Authorization</strong>: Bucket policies are the
+        <strong class="str">primary mechanism</strong> for controlling
+        programmatic access to S3 from outside the AWS account (e.g.,
+        cross-account access or public access).
+      </li>
+      <li>
+        <strong class="kw">Effect</strong>: Unlike IAM User policies, which
+        grant permissions to a user, a Bucket Policy grants permissions to the
+        <strong class="str">resource</strong> (the bucket) itself.
+      </li>
+    </ul>
+
+    <h3>2. Why Use <code class="dir">aws s3api</code>?</h3>
+    <p>
+      The <code class="dir">aws s3</code> command is designed only for file
+      operations (<code class="prop">cp</code>, <code class="prop">sync</code>,
+      <code class="prop">ls</code>). It cannot manage the security configuration
+      of the bucket.
+    </p>
+    <ul>
+      <li>
+        <strong class="kw">Low-Level Access</strong>: Managing security policies
+        is an <strong class="str">API-level configuration task</strong>, which
+        is precisely what <code class="dir">aws s3api</code> is built for.
+      </li>
+      <li>
+        <strong class="kw">Direct Mapping</strong>: The specific API operations
+        map directly to the <code class="prop">s3api</code> commands:
+        <ul>
+          <li>
+            <strong class="str">To Add/Update</strong>:
+            <code class="dir">aws s3api put-bucket-policy</code>
+          </li>
+          <li>
+            <strong class="str">To Retrieve</strong>:
+            <code class="dir">aws s3api get-bucket-policy</code>
+          </li>
+          <li>
+            <strong class="str">To Remove</strong>:
+            <code class="dir">aws s3api delete-bucket-policy</code>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>3. The Process: Managing the Policy from CLI</h3>
+    <p>
+      Managing a bucket policy via the CLI involves creating the policy document
+      locally and then pushing it to the S3 service.
+    </p>
+
+    <hr />
+
+    <h2>Managing Bucket Policy</h2>
+
+    <p>
+      <span class="icon">🔹 1.</span>
+      <strong class="kw">✅ Get Public Access Block Configuration</strong>
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api get-public-access-block --bucket my-bucket-name</span></code></pre>
+    <div class="note">
+      <span class="icon">📌</span> Shows the current public access block
+      settings (if any).
+    </div>
+
+    <p>
+      <span class="icon">🔹 2.</span>
+      <strong class="kw">🗑️ Delete Public Access Block Configuration</strong>
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api delete-public-access-block --bucket my-bucket-name</span></code></pre>
+    <div class="note">
+      <span class="icon">❗</span> This removes the entire public access block
+      configuration, allowing public ACLs or policies to take effect.
+    </div>
+
+    <p>
+      <span class="icon">🔹 3.</span>
+      <strong class="kw">✅ Put Public Access Block Configuration</strong>
+    </p>
+
+    <h4>
+      <span class="icon">🔒</span> (Block Public Access – Recommended for
+      Private Buckets)
+    </h4>
+    <pre><code class="language-json"><span class="dir">aws s3api put-public-access-block \</span>
+  <span class="op">--bucket</span> <span class="prop">my-bucket-name \</span>
+  <span class="op">--public-access-block-configuration</span> <span class="str">'{
+    "BlockPublicAcls": true,
+    "IgnorePublicAcls": true,
+    "BlockPublicPolicy": true,
+    "RestrictPublicBuckets": true
+  }'</span></code></pre>
+
+    <h4>
+      <span class="icon">🔓</span> (Unblock Public Access – For Public Websites)
+    </h4>
+    <pre><code class="language-json"><span class="dir">aws s3api put-public-access-block \</span>
+  <span class="op">--bucket</span> <span class="prop">my-bucket-name \</span>
+  <span class="op">--public-access-block-configuration</span> <span class="str">'{
+    "BlockPublicAcls": false,
+    "IgnorePublicAcls": false,
+    "BlockPublicPolicy": false,
+    "RestrictPublicBuckets": false
+  }'</span></code></pre>
+
+    <p>
+      <span class="icon">🔹 4.</span>
+      <strong class="kw">✅ Get Bucket Policy</strong>
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api get-bucket-policy --bucket my-bucket-name</span></code></pre>
+    <div class="note">
+      <span class="icon">📌</span> Fetches the currently attached bucket policy
+      (if any).
+    </div>
+
+    <p>
+      <span class="icon">🔹 5.</span>
+      <strong class="kw">✅ Put (Set/Update) Bucket Policy</strong>
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api put-bucket-policy \</span>
+  <span class="op">--bucket</span> <span class="prop">my-bucket-name \</span>
+  <span class="op">--policy</span> <span class="prop">file://policy.json</span></code></pre>
+    <div class="note">
+      <span class="icon">📝</span> <code class="prop">policy.json</code> should
+      contain a valid IAM policy. Example for public read:
+    </div>
+    <pre class="json-block"><code class="language-json">{
+  <span class="json-key">"Version"</span>: <span class="json-val">"2012-10-17"</span>,
+  <span class="json-key">"Statement"</span>: [
+    {
+      <span class="json-key">"Sid"</span>: <span class="json-val">"PublicReadGetObject"</span>,
+      <span class="json-key">"Effect"</span>: <span class="json-val">"Allow"</span>,
+      <span class="json-key">"Principal"</span>: <span class="json-val">"*"</span>,
+      <span class="json-key">"Action"</span>: <span class="json-val">"s3:GetObject"</span>,
+      <span class="json-key">"Resource"</span>: <span class="json-val">"arn:aws:s3:::my-bucket-name/*"</span>
+    }
+  ]
+}</code></pre>
+
+    <p>
+      <span class="icon">🔹 6.</span>
+      <strong class="kw">🗑️ Delete Bucket Policy</strong>
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api delete-bucket-policy --bucket my-bucket-name</span></code></pre>
+    <div class="note">
+      <span class="op">❌</span> Removes the custom bucket policy, reverting to
+      IAM-only access rules.
+    </div>
+  </body>
+</html>

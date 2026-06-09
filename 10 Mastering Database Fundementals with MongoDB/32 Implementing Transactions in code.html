@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Transactions Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles for the dark theme */
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #1e1e1e; /* VSCode Dark Theme background */
+            color: #d4d4d4; /* Light text */
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #252526; /* VSCode Editor Group background */
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1, h2, h3 {
+            color: #569cd6; /* VSCode keyword/function color */
+            border-bottom: 2px solid #3c3c3c;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        p, li {
+            font-size: 16px;
+        }
+
+        /* Styling for the steps */
+        .step-heading {
+            color: #ce9178; /* VSCode string color */
+            font-weight: 700;
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .step-heading span {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+
+        /* VSCode Code Block Styling */
+        .code-block {
+            background-color: #1e1e1e; /* Code background */
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            margin: 15px 0;
+            border: 1px solid #3c3c3c;
+        }
+
+        .code-block code {
+            color: #d4d4d4;
+        }
+
+        /* Specific coloring for JavaScript/Bash syntax (mimicking VSCode) */
+        .code-block .keyword { color: #569cd6; } /* const, function, try, catch */
+        .code-block .type { color: #4ec9b0; } /* MongoClient, session */
+        .code-block .string { color: #ce9178; } /* Strings, e.g., "rs0" */
+        .code-block .comment { color: #6a9955; } /* Comments */
+        .code-block .number { color: #b5cea8; } /* Numbers */
+        .code-block .property { color: #9cdcfe; } /* Object properties, e.g., accountId */
+        .code-block .variable { color: #d4d4d4; } /* General variables */
+        .code-block .tag { color: #569cd6; } /* HTML/XML tags */
+        .code-block .operator { color: #d4d4d4; } /* Operators */
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #1e1e1e;
+        }
+
+        th, td {
+            border: 1px solid #3c3c3c;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            font-weight: 700;
+        }
+
+        td:first-child {
+            color: #9cdcfe;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Implementing Transactions in Node.js (Without Mongoose)</h1>
+
+        <p class="step-heading">Query successful</p>
+        <p>This is a **comprehensive guide** to implementing **multi-document transactions** in Node.js using the **native MongoDB driver**, without Mongoose.</p>
+        <p>Multi-document transactions in MongoDB ensure **ACID properties (Atomicity, Consistency, Isolation, Durability)** across multiple operations, even across different collections.</p>
+
+        <h2>First Step: Setup Replica Setup</h2>
+        <p>Let’s go step-by-step so you can enable and initialize a replica set on your local MongoDB server.</h>
+
+        <h3 class="step-heading"><span>🧩</span> Step 1: Locate your mongod.cfg file</h3>
+        <p>This config file is usually at:</p>
+
+        <p><strong>Windows:</strong></p>
+        <div class="code-block">
+            <code>
+                <span class="variable">C:\Program Files\MongoDB\Server\&lt;version&gt;\bin\mongod.cfg</span>
+            </code>
+        </div>
+        <p><strong>Linux/macOS (default installation):</strong></p>
+        <div class="code-block">
+            <code>
+                <span class="variable">/etc/mongod.conf</span>
+            </code>
+        </div>
+
+        <h3 class="step-heading"><span>⚙️</span> Step 2: Edit the config file to enable replica set</h3>
+        <p>Open the file in a text editor with admin rights and add this section (or modify if already present):</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">replication:</span><br>
+                <span class="variable">&nbsp;&nbsp;replSetName:</span> <span class="string">"rs0"</span>
+            </code>
+        </div>
+        <p>👉 "<span class="string">rs0</span>" is a common default replica set name — you can use any name, but keep it consistent later.</p>
+
+        <h3 class="step-heading"><span>🚀</span> Step 3: Restart MongoDB service</h3>
+        <p>After saving the config file, restart the MongoDB server so the new replica set config takes effect.</p>
+
+        <p><strong>Windows:</strong><br>Open Command Prompt (Admin) and run:</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">net stop MongoDB</span><br>
+                <span class="variable">net start MongoDB</span>
+            </code>
+        </div>
+        <p><strong>Linux/macOS:</strong></p>
+        <div class="code-block">
+            <code>
+                <span class="variable">sudo systemctl restart mongod</span>
+            </code>
+        </div>
+
+        <h3 class="step-heading"><span>🧠</span> Step 4: Initialize the replica set from mongosh</h3>
+        <p>Now open your Mongo shell (<span class="variable">mongosh</span>) and connect:</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">mongosh</span>
+            </code>
+        </div>
+        <p>Then run the initialization command:</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">rs.initiate({</span><br>
+                <span class="variable">&nbsp;&nbsp;_id:</span> <span class="string">"rs0"</span><span class="variable">,</span><br>
+                <span class="variable">&nbsp;&nbsp;members: [</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;{ _id:</span> <span class="number">0</span><span class="variable">, host:</span> <span class="string">"127.0.0.1:27017"</span> <span class="variable">}</span><br>
+                <span class="variable">&nbsp;&nbsp;]</span><br>
+                <span class="variable">})</span>
+            </code>
+        </div>
+        <p>If you see:</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">{ ok:</span> <span class="number">1</span> <span class="variable">}</span>
+            </code>
+        </div>
+        <p>✅ <strong>Congrats!</strong> Your replica set is active.</p>
+
+        <h3 class="step-heading"><span>🧩</span> Step 5: Verify the replica set status</h3>
+        <p>Run:</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">rs.status()</span>
+            </code>
+        </div>
+        <p>You should see something like:</p>
+        <div class="code-block">
+            <code>
+                <span class="variable">{</span><br>
+                <span class="variable">&nbsp;&nbsp;set:</span> <span class="string">'rs0'</span><span class="variable">,</span><br>
+                <span class="variable">&nbsp;&nbsp;members: [</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;{</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;_id:</span> <span class="number">0</span><span class="variable">,</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;name:</span> <span class="string">'127.0.0.1:27017'</span><span class="variable">,</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;stateStr:</span> <span class="string">'PRIMARY'</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">&nbsp;&nbsp;]</span><br>
+                <span class="variable">}</span>
+            </code>
+        </div>
+
+        <h3 class="step-heading"><span>🧰</span> Step 6: Update your connection string</h3>
+        <p>Now that your server is a replica set, connect to it using:</p>
+        <div class="code-block">
+            <code>
+                <span class="keyword">const</span> <span class="variable">client</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="type">MongoClient</span><span class="variable">(</span><span class="string">'mongodb://127.0.0.1:27017/?replicaSet=rs0'</span><span class="variable">);</span>
+            </code>
+        </div>
+        <p>✅ This tells MongoDB to use transaction-capable connections.</p>
+
+        <h3 class="step-heading"><span>⚡</span> Optional: If mongod fails to start</h3>
+        <p>If it fails after adding the replica set line, check:</p>
+        <ul>
+            <li>YAML indentation is 2 spaces, not tabs.</li>
+            <li>The <span class="variable">replication:</span> section must be under the root of the config file (not inside <span class="variable">net:</span> or <span class="variable">storage:</span>).</li>
+        </ul>
+
+        <hr>
+
+        <h1>Implementing Transactions in Node.js</h1>
+        <p>This is a comprehensive guide to implementing **multi-document transactions** in Node.js using the **native MongoDB driver**, without Mongoose.</p>
+        <p>Multi-document transactions in MongoDB ensure **ACID properties (Atomicity, Consistency, Isolation, Durability)** across multiple operations, even across different collections.</p>
+
+        <h2>1. Prerequisites and Setup</h2>
+        <p>Before writing any Node.js code, you must ensure your MongoDB instance is running as a **Replica Set**. Transactions are **not supported** on a standalone MongoDB server.</p>
+
+        <h3>1.1 MongoDB Replica Set Requirement</h3>
+        <ul>
+            <li>A **Replica Set** is a group of <span class="variable">mongod</span> processes that maintain the same data set. It provides redundancy and high availability.</li>
+            <li>**Requirement:** Your MongoDB deployment **must** be a replica set (even a single-node replica set for local development is sufficient).</li>
+            <li>**MongoDB Version:** Must be MongoDB **4.0** or higher.</li>
+        </ul>
+
+        <h3>1.2 Node.js Setup</h3>
+        <h4 class="step-heading">Initialize Project:</h4>
+        <div class="code-block">
+            <code>
+                <span class="variable">npm init -y</span>
+            </code>
+        </div>
+        <h4 class="step-heading">Install MongoDB Driver:</h4>
+        <div class="code-block">
+            <code>
+                <span class="variable">npm install mongodb</span>
+            </code>
+        </div>
+        <h4 class="step-heading">Basic File Structure:</h4>
+        <p>Create a file, e.g., <span class="variable">transaction.js</span>.</p>
+
+        <h2>2. MongoDB Driver and Connection</h2>
+        <p>Use the <span class="type">MongoClient</span> from the <span class="variable">mongodb</span> package to establish a connection. The connection string must include the <span class="variable">replicaSet</span> name.</p>
+
+        <h3>2.1 Definitions and Syntax</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Element</th>
+                    <th>Definition</th>
+                    <th>Syntax</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="type">MongoClient</span></td>
+                    <td>The client interface for connecting to MongoDB.</td>
+                    <td><span class="keyword">const</span> <span class="variable">{</span> <span class="type">MongoClient</span> <span class="variable">}</span> <span class="operator">=</span> <span class="variable">require(</span><span class="string">'mongodb'</span><span class="variable">);</span></td>
+                </tr>
+                <tr>
+                    <td>Connection URI</td>
+                    <td>Specifies the database location and Replica Set name.</td>
+                    <td><span class="string">mongodb://localhost:27017/?replicaSet=rs0</span></td>
+                </tr>
+                <tr>
+                    <td><span class="variable">client.connect()</span></td>
+                    <td>Establishes the connection to the database.</td>
+                    <td><span class="keyword">await</span> <span class="variable">client.connect();</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>2.2 Connection Example</h3>
+        <p>In <span class="variable">transaction.js</span>:</p>
+        <div class="code-block">
+            <code>
+                <span class="keyword">const</span> <span class="variable">{</span> <span class="type">MongoClient</span> <span class="variable">}</span> <span class="operator">=</span> <span class="variable">require(</span><span class="string">'mongodb'</span><span class="variable">);</span><br>
+                <span class="comment">// ⚠️ Replace 'rs0' with your actual replica set name and update the host/port if needed.</span><br>
+                <span class="keyword">const</span> <span class="variable">uri</span> <span class="operator">=</span> <span class="string">"mongodb://localhost:27017/?replicaSet=rs0"</span><span class="variable">;</span><br>
+                <span class="keyword">const</span> <span class="variable">client</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="type">MongoClient</span><span class="variable">(uri);</span><br>
+                <span class="keyword">const</span> <span class="variable">DB_NAME</span> <span class="operator">=</span> <span class="string">"transactionDemoDB"</span><span class="variable">;</span><br><br>
+                <span class="keyword">async function</span> <span class="variable">connectClient</span><span class="variable">()</span> <span class="variable">{</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">try</span> <span class="variable">{</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">client.connect();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.log(</span><span class="string">"Connected successfully to server with replicaSet."</span><span class="variable">);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">return</span> <span class="variable">client;</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span> <span class="keyword">catch</span> <span class="variable">(</span><span class="variable">error</span><span class="variable">) {</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.error(</span><span class="string">"Connection failed:"</span><span class="variable">, error);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">throw</span> <span class="variable">error;</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">}</span>
+            </code>
+        </div>
+
+        <h2>3. Implementing the Transaction (Core API)</h2>
+        <p>The recommended approach for transactions is to use a **Client Session**, which allows you to group related operations. The "Core API" is the most explicit way to manage the transaction lifecycle.</p>
+
+        <h3>3.1 Key Transaction Concepts and Methods</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Method</th>
+                    <th>Definition</th>
+                    <th>Syntax</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="variable">client.startSession()</span></td>
+                    <td>Creates a new **Client Session** required for transactions.</td>
+                    <td><span class="keyword">const</span> <span class="variable">session</span> <span class="operator">=</span> <span class="variable">client.startSession();</span></td>
+                </tr>
+                <tr>
+                    <td><span class="variable">session.startTransaction()</span></td>
+                    <td>Initiates the transaction block.</td>
+                    <td><span class="variable">session.startTransaction();</span></td>
+                </tr>
+                <tr>
+                    <td><span class="variable">{ session }</span></td>
+                    <td>Option passed to all operations (CRUD) to include them in the transaction.</td>
+                    <td><span class="variable">collection.insertOne(doc, { session });</span></td>
+                </tr>
+                <tr>
+                    <td><span class="variable">session.commitTransaction()</span></td>
+                    <td>Makes all operations within the transaction **permanent**.</td>
+                    <td><span class="keyword">await</span> <span class="variable">session.commitTransaction();</span></td>
+                </tr>
+                <tr>
+                    <td><span class="variable">session.abortTransaction()</span></td>
+                    <td>**Reverts** all operations if an error occurs.</td>
+                    <td><span class="keyword">await</span> <span class="variable">session.abortTransaction();</span></td>
+                </tr>
+                <tr>
+                    <td><span class="variable">session.endSession()</span></td>
+                    <td>Closes the session, releasing resources. **Always call this.**</td>
+                    <td><span class="variable">session.endSession();</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>3.2 Practical Example: Fund Transfer</h3>
+        <p>This example simulates a bank transfer: **debiting** an amount from one account and **crediting** it to another. Both operations must succeed or fail together.</p>
+
+        <div class="code-block">
+            <code>
+                <span class="comment">// --- Continuation of transaction.js ---</span><br><br>
+                <span class="keyword">async function</span> <span class="variable">runTransaction</span><span class="variable">() {</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">let</span> <span class="variable">session;</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">try</span> <span class="variable">{</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">client</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">connectClient();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">session</span> <span class="operator">=</span> <span class="variable">client.startSession();</span> <span class="comment">// 1. Start a Session</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">session.startTransaction({</span><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Optional: specify transaction options</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;readConcern: {</span> <span class="variable">level:</span> <span class="string">'majority'</span> <span class="variable">},</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;writeConcern: {</span> <span class="variable">w:</span> <span class="string">'majority'</span> <span class="variable">}</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;});</span> <span class="comment">// 2. Start the Transaction</span><br><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">db</span> <span class="operator">=</span> <span class="variable">client.db(DB_NAME);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">accountsCollection</span> <span class="operator">=</span> <span class="variable">db.collection(</span><span class="string">"accounts"</span><span class="variable">);</span><br><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// --- Transaction Operations ---</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">amount</span> <span class="operator">=</span> <span class="number">100</span><span class="variable">;</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">senderId</span> <span class="operator">=</span> <span class="string">"user123"</span><span class="variable">;</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">receiverId</span> <span class="operator">=</span> <span class="string">"user456"</span><span class="variable">;</span><br><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// 3a. Debit: Decrease balance in the sender's account</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">debitResult</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">accountsCollection.updateOne(</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="property">accountId:</span> <span class="variable">senderId</span><span class="variable">,</span> <span class="property">balance:</span> <span class="variable">{</span> <span class="property">$gte:</span> <span class="variable">amount</span> <span class="variable">}</span> <span class="variable">},</span> <span class="comment">// Check for sufficient balance</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="property">$inc:</span> <span class="variable">{</span> <span class="property">balance:</span> <span class="operator">-</span><span class="variable">amount</span> <span class="variable">}</span> <span class="variable">},</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="variable">session</span> <span class="variable">}</span> <span class="comment">// 3. Pass the session to the operation</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;);</span><br><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">if</span> <span class="variable">(</span><span class="variable">debitResult.matchedCount</span> <span class="operator">===</span> <span class="number">0</span><span class="variable">) {</span><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Insufficient funds or sender not found</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">throw new</span> <span class="type">Error</span><span class="variable">(</span><span class="string">`Transaction aborted: Sender ${senderId} not found or insufficient funds.`</span><span class="variable">);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// 3b. Credit: Increase balance in the receiver's account</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">creditResult</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">accountsCollection.updateOne(</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="property">accountId:</span> <span class="variable">receiverId</span> <span class="variable">},</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="property">$inc:</span> <span class="variable">{</span> <span class="property">balance:</span> <span class="variable">amount</span> <span class="variable">}</span> <span class="variable">},</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="variable">session</span> <span class="variable">}</span> <span class="comment">// 3. Pass the session to the operation</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;);</span><br><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">if</span> <span class="variable">(</span><span class="variable">creditResult.matchedCount</span> <span class="operator">===</span> <span class="number">0</span><span class="variable">) {</span><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; // Receiver not found - this will trigger the abort!</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">throw new</span> <span class="type">Error</span><span class="variable">(</span><span class="string">`Transaction aborted: Receiver ${receiverId} not found.`</span><span class="variable">);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// 4. Commit the Transaction</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">session.commitTransaction();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.log(</span><span class="string">"✅ Transaction successfully committed: Funds transferred."</span><span class="variable">);</span><br><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span> <span class="keyword">catch</span> <span class="variable">(</span><span class="variable">error</span><span class="variable">) {</span><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// 5. Abort the Transaction if any operation failed</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">if</span> <span class="variable">(</span><span class="variable">session</span> <span class="operator">&&</span> <span class="variable">session.inTransaction()) {</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">session.abortTransaction();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.log(</span><span class="string">"❌ Transaction aborted. Database state rolled back."</span><span class="variable">);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.error(</span><span class="string">"Transaction Error:"</span><span class="variable">, error.message);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span> <span class="keyword">finally</span> <span class="variable">{</span><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// 6. End the Session and Close the Client</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">if</span> <span class="variable">(</span><span class="variable">session</span><span class="variable">) {</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">session.endSession();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">if</span> <span class="variable">(</span><span class="variable">client</span><span class="variable">) {</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">client.close();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">}</span><br><br>
+                <span class="comment">// Initial setup to run the example</span><br>
+                <span class="keyword">async function</span> <span class="variable">setupAndRun</span><span class="variable">() {</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">client</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="type">MongoClient</span><span class="variable">(uri);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">try</span> <span class="variable">{</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">client.connect();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">db</span> <span class="operator">=</span> <span class="variable">client.db(DB_NAME);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">const</span> <span class="variable">accountsCollection</span> <span class="operator">=</span> <span class="variable">db.collection(</span><span class="string">"accounts"</span><span class="variable">);</span><br><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Cleanup and initial data</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">accountsCollection.deleteMany({});</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">accountsCollection.insertMany([</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="property">accountId:</span> <span class="string">"user123"</span><span class="variable">,</span> <span class="property">balance:</span> <span class="number">500</span> <span class="variable">},</span> <span class="comment">// Sender</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{</span> <span class="property">accountId:</span> <span class="string">"user456"</span><span class="variable">,</span> <span class="property">balance:</span> <span class="number">200</span> <span class="variable">}</span>  <span class="comment">// Receiver</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.log(</span><span class="string">"Initial data loaded."</span><span class="variable">);</span><br><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span> <span class="keyword">finally</span> <span class="variable">{</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">client.close();</span><br><br>
+                <span class="comment">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// Now run the transaction</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="variable">console.log(</span><span class="string">"\n--- Running Transaction ---\n"</span><span class="variable">);</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="keyword">await</span> <span class="variable">runTransaction();</span><br>
+                <span class="variable">&nbsp;&nbsp;&nbsp;&nbsp;}</span><br>
+                <span class="variable">}</span><br><br>
+                <span class="variable">setupAndRun().catch(console.error);</span><br><br>
+                <span class="comment">/*</span><br>
+                <span class="comment">Expected Output (Success):</span><br>
+                <span class="comment">Connected successfully to server with replicaSet.</span><br>
+                <span class="comment">Initial data loaded.</span><br><br>
+                <span class="comment">--- Running Transaction ---</span><br><br>
+                <span class="comment">Connected successfully to server with replicaSet.</span><br>
+                <span class="comment">✅ Transaction successfully committed: Funds transferred.</span><br><br>
+                <span class="comment">If an error occurred (e.g., receiver not found):</span><br>
+                <span class="comment">❌ Transaction aborted. Database state rolled back.</span><br>
+                <span class="comment">Transaction Error: Transaction aborted: Receiver user456 not found.</span><br>
+                <span class="comment">*/</span>
+            </code>
+        </div>
+    </div>
+
+</body>
+</html>

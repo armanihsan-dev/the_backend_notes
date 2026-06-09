@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stunning Blakish Redis Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base styles for the dark theme */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a2e; /* Deep bluish-black background */
+        color: #e0e0e0; /* Light gray text for contrast */
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+        display: flex;
+        justify-content: center;
+      }
+
+      .container {
+        width: 100%;
+        max-width: 900px;
+        background-color: #0f101a; /* Even darker shade for the note container */
+        padding: 40px;
+        border-radius: 12px;
+      }
+
+      /* Headings */
+      h2 {
+        color: #90caf9; /* Light blue for main headings */
+        border-bottom: 2px solid #2a2a40;
+        padding-bottom: 10px;
+        margin-top: 30px;
+        font-weight: 700;
+      }
+
+      h3 {
+        color: #c5a5e0; /* Light purple for sub-headings/bold context */
+        margin-top: 25px;
+        font-weight: 700;
+      }
+
+      /* Paragraph and list styles */
+      p,
+      li {
+        font-weight: 400;
+        margin-bottom: 15px;
+      }
+
+      ul {
+        list-style-type: '👉 ';
+        padding-left: 20px;
+      }
+
+      li strong {
+        color: #ffcc80; /* Light orange for emphasized words */
+      }
+
+      /* Code block styling (VS Code Dark Theme) */
+      pre {
+        background-color: #1e1e1e; /* VS Code dark background */
+        color: #d4d4d4; /* Default text color */
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 20px 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        white-space: pre-wrap; /* Ensure text wraps */
+      }
+
+      /* Custom syntax highlighting classes (simulated VS Code look) */
+      .language {
+        display: block;
+        color: #cccccc; /* Slightly different color for language label */
+        padding-bottom: 8px;
+        border-bottom: 1px solid #333333;
+        margin-bottom: 10px;
+        font-weight: 700;
+      }
+      .comment {
+        color: #6a9955; /* Green for comments */
+      }
+      .keyword {
+        color: #569cd6; /* Light blue for keywords (const, async, await, function, var, npm, node) */
+        font-weight: 400;
+      }
+      .string {
+        color: #ce9178; /* Light orange/brown for strings */
+      }
+      .function-name {
+        color: #dcdcaa; /* Yellow/light green for function names */
+      }
+      .number {
+        color: #b5cea8; /* Light green/mint for numbers */
+      }
+      .command {
+        color: #4ec9b0; /* Teal for commands (SET, GET, DEL) */
+      }
+      .variable {
+        color: #9cdcfe; /* Lighter blue for variables */
+      }
+      .output {
+        color: #cccccc; /* Default light gray for output */
+        font-style: italic;
+      }
+      .url {
+        color: #79d6b2; /* A shade of teal for URLs */
+      }
+
+      /* Source list styling */
+      .sources {
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 2px solid #2a2a40;
+      }
+
+      .sources h3 {
+        color: #f77f52; /* Warm orange for the source heading */
+      }
+
+      .sources ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      .sources li {
+        margin-bottom: 5px;
+        color: #a0a0a0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>1. What is Redis?</h2>
+      <p>
+        <strong>Redis</strong> (Remote Dictionary Server) is an **open-source**,
+        **in-memory data store**.[1] unlike traditional databases (like SQL or
+        MongoDB) that store data on a hard disk, Redis stores data in **RAM
+        (Random Access Memory)**.[1][2][3]
+      </p>
+
+      <h3>It is primarily used as:</h3>
+      <ul>
+        <li>
+          <strong>Cache:</strong> To store **frequently accessed data** so your
+          app doesn't have to query a slow database repeatedly.[1]
+        </li>
+        <li>
+          <strong>Message Broker:</strong> For real-time messaging (**Pub/Sub**)
+          and job queues.
+        </li>
+        <li>
+          <strong>Session Store:</strong> To manage user login sessions in web
+          applications.
+        </li>
+      </ul>
+
+      <h2>2. How Redis Works (Internal Architecture)</h2>
+      <p>Redis is built for **speed**. Here is the core logic behind it:</p>
+
+      <ul>
+        <li>
+          <strong>In-Memory Storage:</strong> It keeps all data in **RAM**.
+          Accessing RAM is roughly **100,000 times faster** than accessing a
+          standard hard disk.
+        </li>
+        <li>
+          <strong>Key-Value Structure:</strong> It acts like a giant JSON object
+          or a Python dictionary. You give it a **key** (like
+          <code>user:101</code>) and it gives you the **value instantly**.
+        </li>
+        <li>
+          <strong>Single-Threaded Event Loop:</strong> Redis mostly uses a
+          **single CPU core** to handle requests. This sounds like a downside,
+          but because RAM is so fast and Redis uses **non-blocking I/O**, it
+          avoids the "context switching" overhead of multi-threaded systems. It
+          can handle **millions of requests per second**.
+        </li>
+        <li>
+          <strong>Persistence:</strong> Even though it runs in RAM, it can save
+          data to the disk periodically (using **RDB snapshots** or **AOF
+          logs**) so you don't lose data if the server restarts.
+        </li>
+      </ul>
+
+      <h2>3. How Redis Makes Applications Faster</h2>
+      <p>Imagine your application is a restaurant:</p>
+
+      <ul>
+        <li>
+          <strong>Without Redis (Database only):</strong> Every time a customer
+          asks for a menu, the waiter has to walk to the basement archive (Hard
+          Disk), find the menu, and walk back. This takes time (milliseconds to
+          seconds).
+        </li>
+        <li>
+          <strong>With Redis (Caching):</strong> The waiter keeps a copy of the
+          menu in their pocket (RAM). When a customer asks, they hand it over
+          **instantly (microseconds)**.
+        </li>
+      </ul>
+
+      <h3>Real-world impact:</h3>
+      <ul>
+        <li>
+          <strong>Reduces Database Load:</strong> Instead of hitting your main
+          database 100 times for the same user profile, you hit it once, save it
+          in Redis, and serve the next 99 requests from Redis.
+        </li>
+        <li>
+          <strong>Low Latency:</strong> Redis responses are often
+          **sub-millisecond**, making apps feel "snappy."
+        </li>
+      </ul>
+
+      <h2>4. Simple Example: Using Redis CLI</h2>
+      <p>
+        If you have Redis installed, you can use the **Command Line Interface
+        (redis-cli)** to test it immediately.
+      </p>
+
+      <h3>Command:</h3>
+      <pre><span class="language">Bash</span><span class="command">redis-cli</span></pre>
+
+      <h3>Inside the CLI:</h3>
+      <pre><span class="language">Bash</span><span class="comment"># 1. Set a value (Key: "username", Value: "Alice")</span>
+<span class="url">127.0.0.1:6379</span>&gt; <span class="command">SET</span> <span class="string">username</span> <span class="string">"Alice"</span>
+<span class="output">OK</span>
+
+<span class="comment"># 2. Get the value back</span>
+<span class="url">127.0.0.1:6379</span>&gt; <span class="command">GET</span> <span class="string">username</span>
+<span class="string">"Alice"</span>
+
+<span class="comment"># 3. Check if a key exists (1 means yes, 0 means no)</span>
+<span class="url">127.0.0.1:6379</span>&gt; <span class="command">EXISTS</span> <span class="string">username</span>
+<span class="output">(integer)</span> <span class="number">1</span>
+
+<span class="comment"># 4. Delete the key</span>
+<span class="url">127.0.0.1:6379</span>&gt; <span class="command">DEL</span> <span class="string">username</span>
+<span class="output">(integer)</span> <span class="number">1</span></pre>
+
+      <h2>5. Simple Example: Using Redis in Node.js</h2>
+      <p>
+        To use Redis in a Node.js application, you typically use the
+        <code>redis</code> package.
+      </p>
+
+      <h3>Step 1: Install the library</h3>
+      <pre><span class="language">Bash</span><span class="keyword">npm</span> install <span class="string">redis</span></pre>
+
+      <h3>Step 2: Create the script (e.g., app.js)</h3>
+      <p>Modern Redis clients (v4+) use **async/await**.</p>
+      <pre><span class="language">JavaScript</span><span class="keyword">const</span> <span class="variable">redis</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'redis'</span>);
+
+<span class="keyword">async function</span> <span class="function-name">run</span>() {
+    <span class="comment">// 1. Create a client</span>
+    <span class="keyword">const</span> <span class="variable">client</span> <span class="operator">=</span> <span class="variable">redis</span>.<span class="function-name">createClient</span>({
+        <span class="string">url</span>: <span class="string">'redis://localhost:6379'</span> <span class="comment">// Default URL</span>
+    });
+
+    <span class="comment">// Handle connection errors</span>
+    <span class="variable">client</span>.<span class="function-name">on</span>(<span class="string">'error'</span>, (<span class="variable">err</span>) <span class="operator">=></span> <span class="variable">console</span>.<span class="function-name">log</span>(<span class="string">'Redis Client Error'</span>, <span class="variable">err</span>));
+
+    <span class="comment">// 2. Connect to Redis</span>
+    <span class="keyword">await</span> <span class="variable">client</span>.<span class="function-name">connect</span>();
+    <span class="variable">console</span>.<span class="function-name">log</span>(<span class="string">'Connected to Redis...'</span>);
+
+    <span class="comment">// 3. SET a value</span>
+    <span class="comment">// We are setting key 'framework' to value 'NodeJS'</span>
+    <span class="keyword">await</span> <span class="variable">client</span>.<span class="function-name">set</span>(<span class="string">'framework'</span>, <span class="string">'NodeJS'</span>);
+    <span class="variable">console</span>.<span class="function-name">log</span>(<span class="string">'Value set!'</span>);
+
+    <span class="comment">// 4. GET the value</span>
+    <span class="keyword">const</span> <span class="variable">value</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">client</span>.<span class="function-name">get</span>(<span class="string">'framework'</span>);
+    <span class="variable">console</span>.<span class="function-name">log</span>(<span class="string">`Retrieved value: ${value}`</span>);
+
+    <span class="comment">// 5. Disconnect</span>
+    <span class="keyword">await</span> <span class="variable">client</span>.<span class="function-name">disconnect</span>();
+}
+
+<span class="function-name">run</span>();</pre>
+
+      <h3>Step 3: Run the script</h3>
+      <pre><span class="language">Bash</span><span class="command">node</span> <span class="string">app.js</span></pre>
+
+      <h3>Output:</h3>
+      <pre><span class="language">Text</span><span class="output">Connected to Redis...
+Value set!
+Retrieved value: NodeJS</span></pre>
+
+      <h2>Essential Redis Terminology</h2>
+      <ul>
+        <li>
+          <h3>1. Basic Data Concepts</h3>
+          <ul>
+            <li>
+              <strong>Key:</strong> The unique identifier used to retrieve data
+              (e.g., <code>user:101</code>). Keys are binary-safe (can be a
+              string, an image file content, etc., but usually strings).
+            </li>
+            <li>
+              <strong>Value:</strong> The actual data stored inside a key.
+            </li>
+            <li>
+              <strong>Namespace:</strong> A convention of using colons to group
+              keys logically, acting like folders. Example:
+              <code>users:profiles:101</code> vs
+              <code>users:settings:101</code>.
+            </li>
+            <li>
+              <strong>Atomic:</strong> This refers to how Redis processes
+              commands. An operation is "atomic" if it either fully happens or
+              doesn't happen at all. No other command can interrupt it while it
+              is running.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3>2. Data Structures (The Values)</h3>
+          <p>Redis is a "Data Structure Server." The value can be complex:</p>
+          <ul>
+            <li>
+              <strong>String:</strong> Basic text or binary data (most common).
+            </li>
+            <li>
+              <strong>Hash:</strong> A collection of field-value pairs (maps
+              directly to a JSON object). Good for storing an object like a
+              "User Profile."
+            </li>
+            <li>
+              <strong>List:</strong> A linked list of strings (ordered by
+              insertion). Good for Queues (**First In, First Out**).
+            </li>
+            <li>
+              <strong>Set:</strong> An unordered collection of unique strings.
+              Good for tags or filtering (e.g., "user_ids_who_liked_post").
+            </li>
+            <li>
+              <strong>Sorted Set (ZSet):</strong> Like a Set, but every item has
+              a **"Score."** Redis keeps them sorted by score. Good for
+              Leaderboards.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3>3. Caching & Lifespan Terms</h3>
+          <p>These are crucial when using Redis to make apps faster:</p>
+          <ul>
+            <li>
+              <strong>TTL (Time To Live):</strong> A countdown timer attached to
+              a key. When the timer hits zero, the key is automatically deleted.
+              Usage: "Keep this session active for 1 hour."
+            </li>
+            <li>
+              <strong>Expiration:</strong> The event of a key being deleted
+              because its TTL ended.
+            </li>
+            <li>
+              <strong>Eviction:</strong> What happens when Redis runs out of
+              memory (RAM). Redis must delete old data to make room for new
+              data.
+            </li>
+            <li>
+              <strong>LRU (Least Recently Used):</strong> The most common
+              "Eviction Policy." Redis deletes the keys that haven't been used
+              for the longest time first.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3>4. Persistence (Saving Data)</h3>
+          <p>
+            Since Redis is in-memory, if you pull the plug, data vanishes.
+            Persistence prevents that.
+          </p>
+          <ul>
+            <li>
+              <strong>RDB (Redis Database):</strong> A **snapshot strategy**.
+              Redis saves a copy of all data to the hard drive every X minutes.
+              Faster, but you might lose a few minutes of data if the server
+              crashes.
+            </li>
+            <li>
+              <strong>AOF (Append Only File):</strong> A **log strategy**. Redis
+              logs every single write command to a file. Slower, but safer (less
+              data loss).
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3>5. Architecture & Scaling</h3>
+          <ul>
+            <li>
+              <strong>Redis Instance:</strong> A single running copy of Redis.
+            </li>
+            <li>
+              <strong>Master (Primary):</strong> The main Redis node where you
+              write data.
+            </li>
+            <li>
+              <strong>Replica (Slave):</strong> A read-only copy of the Master.
+              Data is automatically copied from Master to Replica.
+            </li>
+            <li>
+              <strong>Sentinel:</strong> A system that watches your Master. If
+              the Master crashes, Sentinel automatically promotes a Replica to
+              be the new Master (**High Availability**).
+            </li>
+            <li>
+              <strong>Cluster/Sharding:</strong> Splitting your data across
+              multiple Redis nodes because it is too big to fit in the RAM of
+              just one computer.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3>6. Communication Patterns</h3>
+          <ul>
+            <li>
+              <strong>Pub/Sub (Publish/Subscribe):</strong> A messaging pattern.
+              <ul>
+                <li>**Publisher:** Sends a message to a "Channel".</li>
+                <li>
+                  **Subscriber:** Listens to that "Channel" and receives the
+                  message instantly.
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Pipelining:</strong> Sending multiple commands to the
+              server at once without waiting for the replies of the previous
+              ones. This creates a massive speed boost.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <h3>Summary Example</h3>
+          <p>
+            If a developer says: "We are using Hashes to store user data with a
+            1-hour TTL. To handle high traffic, we set up a Master-Replica
+            architecture with Sentinel for failover."
+          </p>
+          <p>
+            <strong>Translation:</strong> They store user objects in Redis, the
+            data auto-deletes after 1 hour, they have a main server and backup
+            servers for reading, and an automated system to fix things if the
+            main server crashes.
+          </p>
+        </li>
+      </ul>
+      <p id="date">Tue, 25 Nov 2025 07:39:18</p>
+    </div>
+  </body>
+</html>

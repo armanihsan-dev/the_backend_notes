@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON Web Token (JWT) Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling for Blakish Theme */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code dark background */
+        --text-color: #d4d4d4; /* Light text for contrast */
+        --code-bg: #252526; /* Slightly lighter black for code blocks */
+        --highlight-color: #569cd6; /* VS Code blue for keywords/functions */
+        --string-color: #ce9178; /* VS Code orange for strings */
+        --comment-color: #6a9955; /* VS Code green for comments */
+        --yellow-color: #ffcd22; /* Custom yellow for emphasis */
+        --border-color: #333333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Headings */
+      h1 {
+        color: #c586c0; /* VS Code purple for main headings */
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 10px;
+        margin-top: 0;
+      }
+
+      h2 {
+        color: var(--highlight-color);
+        margin-top: 30px;
+        padding-top: 10px;
+      }
+
+      /* General Text & Emphasis */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--yellow-color);
+      }
+
+      /* Blockquotes for Emphasis */
+      blockquote {
+        background: #2d2d30;
+        border-left: 5px solid #4ec9b0;
+        margin: 15px 0;
+        padding: 10px 20px;
+        font-style: italic;
+        color: #cccccc;
+      }
+
+      /* List Styling */
+      ul {
+        list-style: disc;
+        margin-left: 25px;
+        padding-left: 0;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Code Block Styling (VS Code Blackish Theme) */
+      .code-container {
+        background-color: var(--code-bg);
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 5px;
+        overflow-x: auto;
+        border: 1px solid var(--border-color);
+      }
+
+      pre {
+        margin: 0;
+        padding: 0;
+        white-space: pre-wrap; /* For bash commands */
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 14px;
+      }
+
+      .bash-prompt {
+        color: #b5cea8; /* VS Code light green for bash */
+        font-weight: bold;
+      }
+
+      .js-code {
+        color: var(--text-color);
+      }
+
+      .keyword {
+        color: var(--highlight-color); /* Blue for keywords */
+      }
+
+      .function {
+        color: #dcdcaa; /* Yellowish for functions/methods */
+      }
+
+      .string {
+        color: var(--string-color); /* Orange for strings */
+      }
+
+      .comment {
+        color: var(--comment-color); /* Green for comments */
+      }
+
+      .variable {
+        color: #9cdcfe; /* Light blue for variables */
+      }
+
+      .constant {
+        color: #4fc1ff; /* Lighter blue for constants */
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2d2d30;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3c3c3c;
+        color: var(--highlight-color);
+        font-weight: bold;
+      }
+
+      /* Formulas */
+      .formula {
+        text-align: center;
+        font-size: 1.1em;
+        margin: 15px 0;
+        padding: 10px;
+        background-color: #2d2d30;
+        border-radius: 5px;
+        color: #9cdcfe;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>JSON Web Tokens (JWT) Overview</h1>
+    <p>
+      A **JSON Web Token (JWT)**, pronounced **"jot,"** is an **open standard**
+      (RFC 7519) that defines a compact and self-contained way for **securely
+      transmitting information** between parties as a **JSON object**.
+    </p>
+    <p>
+      JWTs are primarily used to enable **stateless authentication and
+      authorization**, meaning the server doesn't need to store session
+      information. The token carries all the necessary information, which is
+      digitally **signed** to prevent tampering and ensure its authenticity.
+    </p>
+
+    <hr />
+
+    <h2>🧐 Why the Name Contains "JSON"</h2>
+    <p>
+      The name JSON Web Token is derived directly from the format of the data it
+      carries:
+    </p>
+    <ul>
+      <li>
+        **JSON:** The core of the JWT's data is a **JSON object**. This JSON
+        object, known as the **Payload** or **Claims Set**, contains the
+        **claims** (statements or pieces of information) being transmitted.
+        <ul>
+          <li>
+            Claims are essentially key-value pairs in the JSON object, such as
+            the user's ID, role, and the token's expiration time.
+          </li>
+        </ul>
+      </li>
+      <li>
+        **Web:** It is designed for use in **web environments**, particularly
+        for transmission via HTTP headers (like the **Authorization** header),
+        URL query parameters, or POST parameters.
+      </li>
+      <li>
+        **Token:** It is a credential that, once issued, proves the **identity
+        and permissions** of the user for subsequent requests.
+      </li>
+    </ul>
+    <p>
+      Using JSON makes the tokens **compact** (less verbose than alternatives
+      like XML-based SAML tokens) and easy to parse by most programming
+      languages, which have native JSON support.
+    </p>
+
+    <hr />
+
+    <h2>⚙️ How JWT Works Behind the Scenes</h2>
+    <p>
+      A JWT in its compact form is a string made of **three parts**, separated
+      by dots (<code>.</code>).
+    </p>
+    <div class="formula">
+      $$\text{Header} . \text{Payload} . \text{Signature}$$
+    </div>
+
+    <h3>1. The Structure (Creation)</h3>
+    <p>
+      A JWT is constructed in three main steps, each corresponding to one of the
+      parts:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Part</th>
+          <th>Content</th>
+          <th>Encoding</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>**1. Header**</td>
+          <td>
+            A JSON object specifying the token type (<code>typ: "JWT"</code>)
+            and the signing algorithm (<code>alg:</code> e.g.,
+            <code>"HS256"</code> or <code>"RS256"</code>).
+          </td>
+          <td>**Base64URL Encoded**</td>
+          <td>Describes how the token is secured.</td>
+        </tr>
+        <tr>
+          <td>**2. Payload**</td>
+          <td>
+            A JSON object containing the **Claims** (statements about the
+            user/entity, such as user ID, permissions, and expiration time).
+          </td>
+          <td>**Base64URL Encoded**</td>
+          <td>Carries the data/information securely.</td>
+        </tr>
+        <tr>
+          <td>**3. Signature**</td>
+          <td>
+            A hash created by combining the Encoded Header, the Encoded Payload,
+            and a **secret key** (or a private key).
+          </td>
+          <td>**Base64URL Encoded**</td>
+          <td>Verifies the token's integrity and authenticity.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>The Signature is calculated as follows (for HMAC-SHA256):</p>
+    <div class="formula">
+      $$\text{Signature} = \text{HMACSHA256} (\text{Base64URL}(\text{Header}) +
+      \text{"."} + \text{Base64URL}(\text{Payload}), \text{Secret})$$
+    </div>
+    <blockquote>
+      <p>
+        <strong>Important Note:</strong> The Header and Payload are only
+        **encoded** (Base64URL), not **encrypted**. This means anyone can easily
+        decode them to view the data. The security comes entirely from the
+        **Signature**, which guarantees the data has not been tampered with.
+      </p>
+    </blockquote>
+
+    <h3>2. The Workflow (Usage)</h3>
+    <ol>
+      <li>
+        **Authentication:** The user sends credentials (username/password) to
+        the server/Identity Provider (IdP).
+      </li>
+      <li>
+        **Token Issuance:** If credentials are valid, the server creates a
+        **JWT** (Header + Payload + Signature) and sends it back to the client.
+      </li>
+      <li>
+        **Client Storage:** The client (e.g., a web browser or mobile app)
+        securely stores the JWT (often in an HTTP-only cookie or memory).
+      </li>
+      <li>
+        **Resource Request:** For all subsequent requests to protected
+        resources, the client includes the JWT, typically in the **Authorization
+        header** as a **Bearer Token** (<code
+          >Authorization: Bearer &lt;JWT&gt;</code
+        >).
+      </li>
+      <li>
+        **Token Verification (Stateless Check):** The receiving server takes the
+        token and performs two key checks:
+        <ul>
+          <li>
+            **Integrity:** It recalculates the signature using the received
+            Encoded Header, Encoded Payload, and its own secret key. If the
+            newly calculated signature matches the received Signature part of
+            the token, it confirms the token hasn't been tampered with.
+          </li>
+          <li>
+            **Validity:** It checks the claims in the decoded payload (e.g.,
+            ensures the token is not expired using the <code>exp</code> claim).
+          </li>
+        </ul>
+      </li>
+      <li>
+        **Access:** If the token is valid and verified, the server trusts the
+        claims within it and grants access to the requested resource.
+      </li>
+    </ol>
+
+    <hr />
+
+    <h2>🚀 Common Use Cases</h2>
+    <p>
+      The stateless and compact nature of JWTs makes them ideal for modern
+      distributed architectures:
+    </p>
+    <ul>
+      <li>
+        **Authorization (Most Common):** After a user successfully logs in, the
+        server returns an **Access Token** (JWT). The client includes this token
+        in all subsequent requests to prove they are authorized to access
+        certain routes, services, and data.
+      </li>
+      <li>
+        **Single Sign-On (SSO):** A user authenticates once with an Identity
+        Provider (IdP), which issues a JWT. This token can then be presented to
+        **multiple independent applications** or microservices, allowing the
+        user to access them without logging in again.
+      </li>
+      <li>
+        **Information Exchange:** JWTs can be used to securely transmit small
+        amounts of information between parties. Since the token is signed, the
+        receiver can be sure of the sender's identity and that the message
+        content has not been altered.
+      </li>
+      <li>
+        **Stateless APIs and Microservices:** JWTs are fundamental for
+        microservice architectures. They allow a Resource Server to validate a
+        user's permissions independently without having to call a central
+        Session/Authentication Service.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h1>How to work with jwt in nodejs</h1>
+    <p>
+      Working with **JSON Web Tokens (JWT)** in Node.js typically involves using
+      a library like <span class="string"><code>jsonwebtoken</code></span> for
+      creating, signing, and verifying tokens, often within the context of user
+      authentication and API route protection with a framework like
+      <span class="string"><code>Express.js</code></span
+      >.
+    </p>
+    <p>The process generally involves three main steps:</p>
+
+    <h2>1. Installation and Setup</h2>
+    <p>
+      First, you need to install the necessary packages. The
+      <span class="string"><code>jsonwebtoken</code></span> package is essential
+      for handling JWTs, and you'll often use
+      <span class="string"><code>express</code></span> for the web framework and
+      <span class="string"><code>dotenv</code></span> to manage your secret key
+      securely.
+    </p>
+    <div class="code-container">
+      <pre><span class="bash-prompt">Bash</span>
+
+<span class="variable">npm install express jsonwebtoken dotenv</span></pre>
+    </div>
+    <p>
+      You should also define a **strong, secret key** in a
+      <span class="string"><code>.env</code></span> file for signing and
+      verifying tokens, for example:
+    </p>
+    <div class="code-container">
+      <pre>
+<span class="variable">JWT_SECRET_KEY</span>=<span class="string">"your_very_strong_secret_key_here"</span></pre>
+    </div>
+
+    <h2>2. Generating (Signing) a JWT</h2>
+    <p>
+      After a user successfully **logs in** (after verifying their credentials
+      against your database), you generate a JWT. The token is created using a
+      **payload** (usually containing the user's ID or other non-sensitive
+      claims) and your secret key.
+    </p>
+    <h3>Example of Token Generation</h3>
+    <div class="code-container">
+      <pre><span class="bash-prompt">JavaScript</span>
+
+<span class="constant">const</span> <span class="variable">jwt</span> <span class="keyword">=</span> <span class="function">require</span>(<span class="string">'jsonwebtoken'</span>);
+<span class="function">require</span>(<span class="string">'dotenv'</span>).<span class="function">config</span>(); <span class="comment">// To load environment variables</span>
+
+<span class="comment">// ... successful user login logic</span>
+<span class="constant">const</span> <span class="variable">user</span> <span class="keyword">=</span> { <span class="variable">id</span>: <span class="string">'user123'</span>, <span class="variable">username</span>: <span class="string">'testuser'</span> };
+<span class="constant">const</span> <span class="variable">secretKey</span> <span class="keyword">=</span> <span class="function">process</span>.<span class="variable">env</span>.<span class="variable">JWT_SECRET_KEY</span>;
+
+<span class="comment">// Create the token</span>
+<span class="constant">const</span> <span class="variable">token</span> <span class="keyword">=</span> <span class="variable">jwt</span>.<span class="function">sign</span>(
+    <span class="variable">user</span>, <span class="comment">// The payload (the data to encode)</span>
+    <span class="variable">secretKey</span>, <span class="comment">// The secret key for signing</span>
+    { <span class="variable">expiresIn</span>: <span class="string">'1h'</span> } <span class="comment">// Optional: Token expiration time</span>
+);
+
+<span class="comment">// Send the token back to the client</span>
+<span class="variable">res</span>.<span class="function">json</span>({ <span class="variable">token</span>: <span class="variable">token</span> });</pre>
+    </div>
+    <p>
+      The client receives this token and stores it (e.g., in local storage or a
+      cookie) to send with future requests for protected resources.
+    </p>
+
+    <h2>3. Verifying the JWT and Protecting Routes (Middleware)</h2>
+    <p>
+      To secure routes, you implement a **middleware function** that executes
+      before the main route handler. This middleware checks for the token in the
+      request (usually in the
+      <span class="string"><code>Authorization</code></span> header as a
+      <span class="string"><code>Bearer</code></span> token), verifies it using
+      the secret key, and grants access if it's valid.
+    </p>
+    <h3>Example of Verification Middleware</h3>
+    <div class="code-container">
+      <pre><span class="bash-prompt">JavaScript</span>
+
+<span class="constant">const</span> <span class="variable">jwt</span> <span class="keyword">=</span> <span class="function">require</span>(<span class="string">'jsonwebtoken'</span>);
+<span class="function">require</span>(<span class="string">'dotenv'</span>).<span class="function">config</span>();
+
+<span class="keyword">function</span> <span class="function">authenticateToken</span>(<span class="variable">req</span>, <span class="variable">res</span>, <span class="variable">next</span>) {
+    <span class="comment">// Get the token from the 'Authorization: Bearer &lt;token&gt;' header</span>
+    <span class="constant">const</span> <span class="variable">authHeader</span> <span class="keyword">=</span> <span class="variable">req</span>.<span class="variable">headers</span>[<span class="string">'authorization'</span>];
+    <span class="constant">const</span> <span class="variable">token</span> <span class="keyword">=</span> <span class="variable">authHeader</span> <span class="keyword">&&</span> <span class="variable">authHeader</span>.<span class="function">split</span>(<span class="string">' '</span>)[<span class="constant">1</span>];
+
+    <span class="keyword">if</span> (<span class="variable">token</span> <span class="keyword">==</span> <span class="constant">null</span>) <span class="keyword">return</span> <span class="variable">res</span>.<span class="function">sendStatus</span>(<span class="constant">401</span>); <span class="comment">// Unauthorized</span>
+
+    <span class="variable">jwt</span>.<span class="function">verify</span>(<span class="variable">token</span>, <span class="function">process</span>.<span class="variable">env</span>.<span class="variable">JWT_SECRET_KEY</span>, (<span class="variable">err</span>, <span class="variable">user</span>) <span class="keyword">=></span> {
+        <span class="keyword">if</span> (<span class="variable">err</span>) <span class="keyword">return</span> <span class="variable">res</span>.<span class="function">sendStatus</span>(<span class="constant">403</span>); <span class="comment">// Forbidden (Invalid or expired token)</span>
+        
+        <span class="comment">// If valid, the decoded payload is added to the request</span>
+        <span class="variable">req</span>.<span class="variable">user</span> <span class="keyword">=</span> <span class="variable">user</span>; 
+        
+        <span class="variable">next</span>(); <span class="comment">// Proceed to the protected route handler</span>
+    });
+}
+
+<span class="comment">// Example of a Protected Route</span>
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/protected-data'</span>, <span class="function">authenticateToken</span>, (<span class="variable">req</span>, <span class="variable">res</span>) <span class="keyword">=></span> {
+    <span class="comment">// Only reachable with a valid token</span>
+    <span class="variable">res</span>.<span class="function">json</span>({ <span class="variable">message</span>: <span class="string">'Access granted!'</span>, <span class="variable">user</span>: <span class="variable">req</span>.<span class="variable">user</span> });
+});</pre>
+    </div>
+    <p>
+      This middleware ensures that any request to a protected route without a
+      valid, non-expired JWT will be rejected.
+    </p>
+  </body>
+</html>

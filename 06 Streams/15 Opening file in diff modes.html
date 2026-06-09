@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Modes in Node.js</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #121212;
+            color: #f5f5f5;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+        h1, h2, h3 {
+            color: #e0e0e0;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+        p {
+            color: #bdbdbd;
+        }
+        .code-container {
+            background-color: #282c34;
+            color: #abb2bf;
+            font-family: "Fira Code", "Fira Mono", monospace;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 14px;
+        }
+        .keyword { color: #c678dd; }
+        .string { color: #98c379; }
+        .comment { color: #5c6370; }
+        .variable { color: #e06c75; }
+        .function { color: #61afef; }
+        .number { color: #d19a66; }
+        .operator { color: #56b6c2; }
+        .punctuation { color: #abb2bf; }
+        ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        li {
+            color: #bdbdbd;
+            margin-bottom: 10px;
+        }
+        strong {
+            color: #fff;
+        }
+        .section-title {
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Opening a File in Different Modes</h1>
+        <p>Opening a file in different modes in Node.js lets you control what you can do with a file, like reading, writing, or both. You use the built-in <code>fs</code> module for this. The mode is specified as a string or a flag, and it tells the operating system what kind of access you need.</p>
+        
+        <h2 class="section-title">Understanding File Modes</h2>
+        <p>When you open a file, you're not just accessing its data; you're also setting permissions for that session. This is important for preventing accidental data loss and managing concurrent access.</p>
+        <p>Here are the most common modes you'll use:</p>
+        <ul>
+            <li><strong>'r' (read):</strong> Opens a file for reading. The file must exist. If it doesn't, an error will be thrown. You can't write to the file in this mode.</li>
+            <li><strong>'r+' (read/write):</strong> Opens a file for both reading and writing. The file must exist.</li>
+            <li><strong>'w' (write):</strong> Opens a file for writing. The file is created if it doesn't exist. If the file exists, its contents will be truncated (deleted). This is a destructive mode, so use it with care.</li>
+            <li><strong>'w+' (read/write):</strong> Opens a file for both reading and writing. The file is created if it doesn't exist. If it does exist, its contents are truncated.</li>
+            <li><strong>'a' (append):</strong> Opens a file for appending. The file is created if it doesn't exist. All writes will be appended to the end of the file, so existing content is preserved.</li>
+            <li><strong>'a+' (append/read):</strong> Opens a file for both reading and appending. The file is created if it doesn't exist. Reading starts at the beginning of the file, but all writes are appended to the end.</li>
+        </ul>
+
+        <h2 class="section-title">Opening a File Using fs.open() and fs.promises.open()</h2>
+        <p>The most fundamental way to open a file is with <code>fs.open()</code> for a callback-based approach, or <code>fs.promises.open()</code> for a promise-based one. Both methods take the file path and the mode as arguments.</p>
+        
+        <h3>Example: Writing to a file in 'w' mode</h3>
+        <p>Here's an example using a promise-based approach to write to a file. Notice how we use the 'w' mode, which will create the file or overwrite it if it already exists.</p>
+        <p><strong>JavaScript</strong></p>
+        <div class="code-container">
+            <span class="keyword">const</span> fs <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'fs/promises'</span>)<span class="punctuation">;</span>
+            <span class="keyword">async</span> <span class="keyword">function</span> <span class="function">writeFile</span>(<span class="variable">filePath</span>, <span class="variable">data</span>) {
+                <span class="keyword">let</span> <span class="variable">fileHandle</span><span class="punctuation">;</span>
+                <span class="keyword">try</span> {
+                    <span class="comment">// Open the file in 'w' mode. It will be created or overwritten.</span>
+                    <span class="variable">fileHandle</span> <span class="operator">=</span> <span class="keyword">await</span> fs.<span class="function">open</span>(<span class="variable">filePath</span>, <span class="string">'w'</span>)<span class="punctuation">;</span>
+                    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`File '${</span><span class="variable">filePath</span><span class="string">}' opened in write mode.`</span>)<span class="punctuation">;</span>
+
+                    <span class="keyword">await</span> <span class="variable">fileHandle</span>.<span class="function">write</span>(<span class="variable">data</span>)<span class="punctuation">;</span>
+                    <span class="function">console</span>.<span class="function">log</span>(<span class="string">'Data written successfully.'</span>)<span class="punctuation">;</span>
+                } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+                    <span class="function">console</span>.<span class="function">error</span>(<span class="string">'Error writing to file:'</span>, <span class="variable">err</span>)<span class="punctuation">;</span>
+                } <span class="keyword">finally</span> {
+                    <span class="keyword">if</span> (<span class="variable">fileHandle</span>) {
+                        <span class="keyword">await</span> <span class="variable">fileHandle</span>.<span class="function">close</span>()<span class="punctuation">;</span>
+                        <span class="function">console</span>.<span class="function">log</span>(<span class="string">'File handle closed.'</span>)<span class="punctuation">;</span>
+                    }
+                }
+            }
+            <span class="function">writeFile</span>(<span class="string">'notes.txt'</span>, <span class="string">'This is a brand new note.'</span>)<span class="punctuation">;</span>
+        </div>
+        <p>If you run this code multiple times, <code>notes.txt</code> will always contain only "This is a brand new note.", as the previous content is truncated each time.</p>
+        
+        <h3>Example: Appending to a file in 'a' mode</h3>
+        <p>To add content without overwriting, you'd use the 'a' mode.</p>
+        <p><strong>JavaScript</strong></p>
+        <div class="code-container">
+            <span class="keyword">const</span> fs <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'fs/promises'</span>)<span class="punctuation">;</span>
+            <span class="keyword">async</span> <span class="keyword">function</span> <span class="function">appendToFile</span>(<span class="variable">filePath</span>, <span class="variable">data</span>) {
+                <span class="keyword">let</span> <span class="variable">fileHandle</span><span class="punctuation">;</span>
+                <span class="keyword">try</span> {
+                    <span class="comment">// Open the file in 'a' mode. It will be created or appended to.</span>
+                    <span class="variable">fileHandle</span> <span class="operator">=</span> <span class="keyword">await</span> fs.<span class="function">open</span>(<span class="variable">filePath</span>, <span class="string">'a'</span>)<span class="punctuation">;</span>
+                    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`File '${</span><span class="variable">filePath</span><span class="string">}' opened in append mode.`</span>)<span class="punctuation">;</span>
+
+                    <span class="keyword">await</span> <span class="variable">fileHandle</span>.<span class="function">write</span>(<span class="string">`\n${</span><span class="variable">data</span><span class="string">}`</span>)<span class="punctuation">;</span> <span class="comment">// Add a newline for readability</span>
+                    <span class="function">console</span>.<span class="function">log</span>(<span class="string">'Data appended successfully.'</span>)<span class="punctuation">;</span>
+                } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+                    <span class="function">console</span>.<span class="function">error</span>(<span class="string">'Error appending to file:'</span>, <span class="variable">err</span>)<span class="punctuation">;</span>
+                } <span class="keyword">finally</span> {
+                    <span class="keyword">if</span> (<span class="variable">fileHandle</span>) {
+                        <span class="keyword">await</span> <span class="variable">fileHandle</span>.<span class="function">close</span>()<span class="punctuation">;</span>
+                        <span class="function">console</span>.<span class="function">log</span>(<span class="string">'File handle closed.'</span>)<span class="punctuation">;</span>
+                    }
+                }
+            }
+            <span class="comment">// First call</span>
+            <span class="function">appendToFile</span>(<span class="string">'notes.txt'</span>, <span class="string">'This is the first line.'</span>)<span class="punctuation">;</span>
+            <span class="comment">// Subsequent call</span>
+            <span class="comment">// appendToFile('notes.txt', 'This is the second line.');</span>
+        </div>
+        <p>Running the first call will create <code>notes.txt</code> with one line. Running the second call will add a new line to the file, preserving the first.</p>
+        
+        <h2 class="section-title">File Modes with fs.createWriteStream()</h2>
+        <p>For larger files or streaming data, <code>fs.createWriteStream()</code> is a more efficient choice. It also takes a <code>flags</code> option, which corresponds to the file modes.</p>
+        <ul>
+            <li><code>flags: 'w'</code> is the default, for writing and overwriting.</li>
+            <li><code>flags: 'a'</code> is for appending.</li>
+        </ul>
+        <p>Here is an example using <code>fs.createWriteStream()</code> to append to a file:</p>
+        <p><strong>JavaScript</strong></p>
+        <div class="code-container">
+            <span class="keyword">const</span> fs <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'fs'</span>)<span class="punctuation">;</span>
+            <span class="keyword">const</span> <span class="variable">stream</span> <span class="operator">=</span> fs.<span class="function">createWriteStream</span>(<span class="string">'stream_notes.txt'</span>, { <span class="variable">flags</span><span class="operator">:</span> <span class="string">'a'</span> })<span class="punctuation">;</span>
+
+            <span class="variable">stream</span>.<span class="function">write</span>(<span class="string">'Writing the first chunk of data.\n'</span>)<span class="punctuation">;</span>
+            <span class="variable">stream</span>.<span class="function">write</span>(<span class="string">'Writing a second chunk of data.\n'</span>)<span class="punctuation">;</span>
+            <span class="variable">stream</span>.<span class="function">end</span>(<span class="string">'This is the end of the stream.'</span>)<span class="punctuation">;</span>
+
+            <span class="variable">stream</span>.<span class="function">on</span>(<span class="string">'finish'</span>, <span class="punctuation">()</span> <span class="operator">=></span> {
+                <span class="function">console</span>.<span class="function">log</span>(<span class="string">'All data has been written to the file.'</span>)<span class="punctuation">;</span>
+            })<span class="punctuation">;</span>
+        </div>
+        <p>This method is ideal for handling continuous data flows and large files, as it doesn't load the entire file into memory at once.</p>
+    </div>
+
+</body>
+</html>

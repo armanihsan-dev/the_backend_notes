@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Implicit Grant Type Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for Blakish Notes */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code dark background */
+        --text-color: #d4d4d4; /* Light text for contrast */
+        --heading-color: #569cd6; /* VS Code blue for headings/keywords */
+        --accent-color: #c586c0; /* VS Code purple for accents/bold */
+        --code-bg: #1f1f1f; /* Slightly lighter code background */
+        --code-text: #dcdcaa; /* VS Code yellow for strings/values */
+        --code-keyword: #569cd6; /* VS Code blue for keywords */
+        --code-comment: #6a9955; /* VS Code green for comments/notes */
+        --font-family-notes: 'Nunito', sans-serif;
+        --font-family-code: 'Consolas', 'Courier New', monospace;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: var(--font-family-notes);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 30px;
+        background-color: #252526; /* Slightly lighter inner panel */
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      strong {
+        color: var(--accent-color);
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      ul {
+        list-style: disc;
+        margin-left: 20px;
+        padding: 0;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid #3e3e3e;
+        padding: 12px 15px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #333;
+        color: var(--heading-color);
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #2c2c2c;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      .code-snippet {
+        background-color: var(--code-bg);
+        border-radius: 4px;
+        padding: 15px;
+        margin: 20px 0;
+        overflow-x: auto;
+        font-family: var(--font-family-code);
+        font-size: 0.95em;
+        color: var(--text-color);
+      }
+
+      .code-snippet span {
+        /* Default for regular text in code */
+        color: var(--text-color);
+      }
+
+      /* Simulating VS Code syntax highlighting colors */
+      .code-snippet .keyword {
+        color: var(--code-keyword);
+      }
+      .code-snippet .string {
+        color: var(--code-text);
+      }
+      .code-snippet .comment {
+        color: var(--code-comment);
+      }
+      .code-snippet .url-param {
+        color: #4ec9b0; /* Light green/teal for URL parameters */
+      }
+      .code-snippet .value {
+        color: #ffd700; /* Yellow for specific values */
+      }
+      .code-snippet .math {
+        font-style: italic;
+        color: #d69d85; /* Light brown/peach for math/special text */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <p>
+        The **Implicit Grant Type** is one of the original authorization flows
+        defined in **OAuth 2.0** and is primarily used by **public clients**,
+        such as Single-Page Applications (SPAs) running in a web browser, that
+        cannot securely store a **Client Secret**.
+      </p>
+
+      <h2>1. Implicit Grant Type: Deep Dive and How It Works</h2>
+      <p>
+        The **Implicit Grant Flow** is a simpler, less secure alternative to the
+        **Authorization Code Flow**. It was designed for **client-side
+        applications** (like JavaScript running in a browser) to receive tokens
+        directly, without needing a server-side component to exchange an
+        intermediate code.
+      </p>
+
+      <h3>Feature Table</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Purpose</td>
+            <td>
+              To obtain an **Access Token** and/or **ID Token** directly for a
+              public client (browser-based app).
+            </td>
+          </tr>
+          <tr>
+            <td>Key Difference</td>
+            <td>
+              The token is delivered directly to the client via the **URL
+              fragment** (after the **#** symbol), rather than being exchanged
+              over a secure back-channel (server-to-server).
+            </td>
+          </tr>
+          <tr>
+            <td>Status</td>
+            <td>
+              **Deprecated** by the OAuth 2.0 Security Best Current Practice and
+              largely replaced by the **Authorization Code Flow with PKCE (Proof
+              Key for Code Exchange)** for SPAs.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>The Implicit Grant Flow</h3>
+      <p>
+        The flow bypasses the secure token exchange step, making it a **two-step
+        process**:
+      </p>
+      <ul>
+        <li>
+          **Client Request**: The client redirects the user's browser to the
+          Authorization Server's <code>/authorize</code> endpoint.
+        </li>
+        <li>
+          **Token Delivery**: After the user authenticates and grants consent,
+          the Authorization Server immediately generates the token(s) and
+          redirects the user back to the client's **redirect_uri**, appending
+          the tokens directly to the **URL fragment**.
+        </li>
+      </ul>
+
+      <h3>Security Concerns</h3>
+      <p>
+        The primary security issue that led to its deprecation is the **exposure
+        of the token**:
+      </p>
+      <ul>
+        <li>
+          **URL Exposure**: The token is transmitted in the **URL fragment**
+          (<code>#...</code>). While the fragment isn't sent to the server, it
+          is accessible to all client-side JavaScript on the page and can
+          sometimes be leaked via browser history, referrer headers, or
+          third-party browser extensions.
+        </li>
+        <li>
+          **No Client Authentication**: Since the client never exchanges a code
+          on a back-channel, the Authorization Server cannot authenticate the
+          client application.
+        </li>
+      </ul>
+
+      <h2>
+        The syntax for making an Implicit Grant Type Authorization URL is a
+        specific structure of a query string appended to the Authorization
+        Server's endpoint.
+      </h2>
+      <p>The general structure is:</p>
+      <div class="code-snippet">
+        <span class="math"
+          >$$\text{Authorization Endpoint} + \text{?response\_type=value} +
+          \text{\&client\_id=value} + \text{\&redirect\_uri=value} +
+          \text{\&scope=value} + \text{[Optional Parameters]}$$</span
+        >
+      </div>
+
+      <h3>🔑 Required Parameters</h3>
+      <p>
+        The Implicit Grant flow requires **four essential parameters** to be
+        present in the URL:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Value (Example)</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>response_type</code></td>
+            <td><code>token</code> or <code>id_token token</code></td>
+            <td>
+              **REQUIRED**. Identifies the flow. For standard OAuth 2.0 Access
+              Token, use **token**. For OpenID Connect (OIDC) including an ID
+              Token, use **id_token** or **id_token token**.
+            </td>
+          </tr>
+          <tr>
+            <td><code>client_id</code></td>
+            <td><code>s823jhdk.apps.google.com</code></td>
+            <td>
+              **REQUIRED**. The publicly known identifier of your client
+              application, registered with the Authorization Server.
+            </td>
+          </tr>
+          <tr>
+            <td><code>redirect_uri</code></td>
+            <td><code>https://client.example.com/cb</code></td>
+            <td>
+              **REQUIRED**. The URL where the Authorization Server will redirect
+              the user (and deliver the token) after authorization. This must
+              match a pre-registered URL.
+            </td>
+          </tr>
+          <tr>
+            <td><code>scope</code></td>
+            <td><code>read:email profile</code></td>
+            <td>
+              **REQUIRED**. One or more space-separated strings defining the
+              level of access the application is requesting. For OIDC,
+              **openid** must be included.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>📝 Optional (But Recommended) Parameters</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Value (Example)</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>state</code></td>
+            <td><code>abcXYZ123</code></td>
+            <td>
+              **HIGHLY RECOMMENDED**. A value set by the client to maintain
+              state between the request and the callback. Used to mitigate
+              **Cross-Site Request Forgery (CSRF)** attacks.
+            </td>
+          </tr>
+          <tr>
+            <td><code>nonce</code></td>
+            <td><code>rand789</code></td>
+            <td>
+              **REQUIRED for OpenID Connect**. A unique value used to mitigate
+              **replay attacks** by being included in the resulting ID Token for
+              validation.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Complete Syntax Example</h3>
+      <p>
+        Here is a template demonstrating the syntax for a common OIDC Implicit
+        Flow:
+      </p>
+      <div class="code-snippet">
+        <span class="url-param"
+          >https://{auth-server-domain}/oauth/authorize?</span
+        ><br />
+        <span class="url-param">response_type=</span
+        ><span class="string">id_token%20token</span>&<br />
+        <span class="url-param">client_id=</span
+        ><span class="string">YOUR_CLIENT_ID</span>&<br />
+        <span class="url-param">redirect_uri=</span
+        ><span class="string">https%3A%2F%2Fclient.example.com%2Fcallback</span
+        >&<br />
+        <span class="url-param">scope=</span
+        ><span class="string">openid%20profile%20email</span>&<br />
+        <span class="url-param">state=</span
+        ><span class="string">a1b2c3d4</span>&<br />
+        <span class="url-param">nonce=</span><span class="string">xZY987</span
+        ><br />
+        <span class="comment"
+          >(Note: Spaces in response_type and scope are URL-encoded as
+          %20.)</span
+        >
+      </div>
+
+      <h2>3. What is Meant by nonce</h2>
+      <p>
+        The **nonce** parameter is not part of the base OAuth 2.0 specification;
+        it is defined by **OpenID Connect (OIDC)**, which is an identity layer
+        built on top of OAuth 2.0.
+      </p>
+
+      <h3>Definition and Purpose</h3>
+      <p>A **nonce** is a **Number used once**.</p>
+      <ul>
+        <li>
+          **Generation**: It is a cryptographically secure, random,
+          non-repeating string generated by the client application for a single
+          request.
+        </li>
+        <li>
+          **Transmission**: The client sends the **nonce** in the initial
+          authorization request URL.
+        </li>
+        <li>
+          **Inclusion**: The Authorization Server (OpenID Provider) includes
+          this exact **nonce** value as a claim inside the resulting **ID
+          Token**.
+        </li>
+        <li>
+          **Validation**: Upon receiving the ID Token, the client application
+          **must validate** that the **nonce** claim inside the token matches
+          the **nonce** value it sent in the original request.
+        </li>
+      </ul>
+
+      <h3>Replay Attack Mitigation</h3>
+      <p>The core function of **nonce** is to **mitigate replay attacks**.</p>
+      <p>
+        If an attacker intercepts a legitimate ID Token, they could try to
+        "replay" it to the client application to impersonate the user. By
+        including the unique **nonce** in the ID Token, the client ensures that
+        the token it receives corresponds specifically to the latest
+        authentication request it initiated. If the token's **nonce** value
+        doesn't match the expected value stored in the client's session, the
+        client rejects the token, preventing the attacker from successfully
+        using a previously stolen token.
+      </p>
+    </div>
+  </body>
+</html>

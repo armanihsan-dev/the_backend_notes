@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Middleware Hooks</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for the Blakish Theme */
+      body {
+        background-color: #1a1a1a; /* Very dark background */
+        color: #f0f0f0; /* Light text */
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 30px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 950px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner background (VS Code sidebar color) */
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #c586c0; /* VS Code-like accent color (Purple/Magenta) for headings */
+        border-bottom: 2px solid #569cd6; /* Blue underline */
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      strong {
+        color: #569cd6; /* Blue for strong emphasis */
+        font-weight: 700;
+      }
+
+      .hook-name {
+        color: #dcdcaa; /* Yellow for specific hook names */
+      }
+
+      .code-inline {
+        background-color: #1e1e1e;
+        color: #4ec9b0; /* Light green/teal for inline code/methods */
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-weight: 700;
+      }
+
+      /* Table Styles */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        color: #cccccc;
+        font-size: 0.95em;
+      }
+
+      th,
+      td {
+        border: 1px solid #3e3e42; /* Darker border */
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3e3e42; /* VS Code tab background */
+        color: #9cdcfe; /* Light blue for headers */
+        font-weight: 800;
+      }
+
+      td {
+        background-color: #2d2d30; /* VS Code inner panel */
+      }
+
+      /* Specific Table Styling for Hook Names */
+      table td:first-child {
+        color: #dcdcaa; /* Yellow for the hook name column */
+        font-weight: 700;
+      }
+
+      /* The final summary table uses slightly different accenting */
+      .summary-table td:first-child {
+        color: #4ec9b0; /* Teal for the category name */
+      }
+      .summary-table code {
+        color: #dcdcaa;
+        background-color: transparent;
+        padding: 0;
+        font-weight: 700;
+      }
+
+      /* Utility for Sub-points */
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Code Block for the vsCode-like theme */
+      .code-vs-dark {
+        background-color: #1e1e1e; /* VS Code Dark+ background */
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: Consolas, 'Courier New', monospace;
+        margin: 20px 0;
+        border: 1px solid #3c3c3c;
+      }
+      .code-vs-dark pre {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      /* VS Code Dark Theme Colors */
+      .c {
+        color: #6a9955;
+      } /* Comment */
+      .k {
+        color: #569cd6;
+      } /* Keyword (like function, return) */
+      .t {
+        color: #4ec9b0;
+      } /* Type/Class (like Model, next) */
+      .s {
+        color: #ce9178;
+      } /* String */
+      .p {
+        color: #f0f0f0;
+      } /* Punctuation/Brackets */
+      .m {
+        color: #b5cea8;
+      } /* Numeric */
+      .n {
+        color: #9cdcfe;
+      } /* Variable/Object (like user, docs) */
+      .f {
+        color: #dcdcaa;
+      } /* Function/Method name (like pre, log) */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Mongoose Middlewares (Hooks)</h1>
+
+      <p>
+        <strong>Middlewares in Mongoose</strong>, also known as
+        <strong class="code-inline">pre</strong> and
+        <strong class="code-inline">post</strong> **hooks**, are functions that
+        are executed at specified stages during the lifecycle of a schema
+        operation.<sup>1</sup> They allow you to define logic that runs
+        **before** or **after** a certain event (<code class="code-inline"
+          >like saving</code
+        >, <code class="code-inline">validating</code>, or
+        <code class="code-inline">removing a document</code>) occurs.<sup
+          >2</sup
+        >
+      </p>
+      <p>
+        They're essential for adding custom validation, modifying data, logging,
+        or handling related document updates before or after Mongoose interacts
+        with MongoDB.<sup>3</sup>
+      </p>
+
+      <hr />
+
+      <h2>Common Types of Mongoose Middleware</h2>
+      <p>
+        Mongoose middlewares are categorized primarily by **when they run**
+        (<strong class="code-inline">pre</strong> or
+        <strong class="code-inline">post</strong>) and **what operation** they
+        are associated with.<sup>4</sup>
+      </p>
+
+      <h3>1. Pre-Middlewares (Hooks)</h3>
+      <p>
+        <strong class="code-inline">Pre-middlewares</strong> execute **before**
+        the specified event occurs.<sup>5</sup> They are useful for tasks like:
+      </p>
+      <ul>
+        <li>Data validation or modification before saving.<sup>6</sup></li>
+        <li>Hashing passwords before a new user is saved.</li>
+        <li>Setting default values or timestamps.</li>
+      </ul>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Hook Name</th>
+            <th>Associated Methods</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="hook-name">pre('save', ...)</span></td>
+            <td>
+              <code class="code-inline">document.save()</code>,
+              <code class="code-inline">Model.create()</code>
+            </td>
+            <td>
+              Runs before a document is saved to the database. Very common for
+              password hashing.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="hook-name">pre('validate', ...)</span></td>
+            <td><code class="code-inline">document.validate()</code></td>
+            <td>Runs before Mongoose's built-in validation.</td>
+          </tr>
+          <tr>
+            <td><span class="hook-name">pre('remove', ...)</span></td>
+            <td><code class="code-inline">document.remove()</code></td>
+            <td>Runs before a document is removed.</td>
+          </tr>
+          <tr>
+            <td><span class="hook-name">pre('updateOne', ...)</span></td>
+            <td>
+              <code class="code-inline">Model.updateOne()</code>,
+              <code class="code-inline">Model.findOneAndUpdate()</code>
+            </td>
+            <td>
+              Runs before a query update operation. This type is generally a
+              <strong class="code-inline">query middleware</strong> (as opposed
+              to a document middleware like
+              <code class="code-inline">save</code> or
+              <code class="code-inline">remove</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="hook-name">pre('find', ...)</span></td>
+            <td>
+              <code class="code-inline">Model.find()</code>,
+              <code class="code-inline">Model.findOne()</code>
+            </td>
+            <td>
+              Runs before a find query. Useful for query modifications like
+              adding filtering conditions.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2. Post-Middlewares (Hooks)</h3>
+      <p>
+        <strong class="code-inline">Post-middlewares</strong> execute **after**
+        the specified event and its associated logic (like saving to the
+        database) have completed.<sup>7</sup> They are useful for tasks like:
+      </p>
+      <ul>
+        <li>Logging the outcome of an operation.</li>
+        <li>
+          Sending notifications or emails after a successful action.<sup>8</sup>
+        </li>
+        <li>
+          Cleanup or cascading deletes (e.g., deleting a related profile after a
+          user is deleted).
+        </li>
+      </ul>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Hook Name</th>
+            <th>Associated Methods</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="hook-name">post('save', ...)</span></td>
+            <td>
+              <code class="code-inline">document.save()</code>,
+              <code class="code-inline">Model.create()</code>
+            </td>
+            <td>Runs after a document has been successfully saved.</td>
+          </tr>
+          <tr>
+            <td><span class="hook-name">post('remove', ...)</span></td>
+            <td><code class="code-inline">document.remove()</code></td>
+            <td>Runs after a document has been successfully removed.</td>
+          </tr>
+          <tr>
+            <td><span class="hook-name">post('init', ...)</span></td>
+            <td><code class="code-inline">document.init()</code></td>
+            <td>
+              Runs after a document is initialized (e.g., when retrieved from
+              the database).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="hook-name">post('findOneAndDelete', ...)</span>
+            </td>
+            <td><code class="code-inline">Model.findOneAndDelete()</code></td>
+            <td>Runs after a query-based delete operation completes.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2>Middleware Categories: Document vs. Query (and Model)</h2>
+
+      <h3>A. Document Middleware</h3>
+      <p>
+        These hooks operate on an actual
+        <strong class="code-inline">Mongoose document</strong> (instance of a
+        Model).<sup>9</sup> They have access to the document being modified via
+        <code class="code-inline">this</code>.
+      </p>
+      <ul>
+        <li>
+          **Examples:** <code class="code-inline">save</code>,
+          <code class="code-inline">validate</code>,
+          <code class="code-inline">remove</code>,
+          <code class="code-inline">init</code>.
+        </li>
+        <li>
+          **Usage:** Used for single document operations like
+          <code class="code-inline">user.save()</code>.<sup>10</sup>
+        </li>
+      </ul>
+
+      <h3>B. Query Middleware</h3>
+      <p>
+        These hooks operate on a
+        <strong class="code-inline">Mongoose Query object</strong>. They **do
+        not** have access to the document via
+        <code class="code-inline">this</code> (except in some special cases like
+        <code class="code-inline">findOneAndUpdate</code>). Instead,
+        <code class="code-inline">this</code> refers to the query object,
+        allowing you to modify the query.
+      </p>
+      <ul>
+        <li>
+          **Examples:** <code class="code-inline">find</code>,
+          <code class="code-inline">findOne</code>,
+          <code class="code-inline">updateMany</code>,
+          <code class="code-inline">deleteOne</code>,
+          <code class="code-inline">updateOne</code>.
+        </li>
+        <li>
+          **Usage:** Used for bulk or lookup operations like
+          <code class="code-inline">UserModel.find({ status: 'active' })</code>.
+        </li>
+      </ul>
+
+      <p>
+        <strong>Key Distinction:</strong> When dealing with updates, operations
+        like <code class="code-inline">Model.updateOne()</code> or
+        <code class="code-inline">Model.findOneAndUpdate()</code> fire **query
+        middleware**, while operations like retrieving a document and then
+        calling <code class="code-inline">document.save()</code> fire **document
+        middleware**.
+      </p>
+
+      <hr />
+
+      <h2>Is there a middleware called Model middleware?</h2>
+      <p>
+        <strong class="code-inline"
+          >is there a middleware called Model middleware</strong
+        >
+        : Yes, <strong class="code-inline">Model middleware</strong> (or Model
+        hooks) is one of the four main types of middleware in Mongoose.<sup
+          >1</sup
+        >
+      </p>
+      <p>
+        The primary role of Model middleware is to intercept operations that are
+        called directly on the
+        <strong class="code-inline">Mongoose Model class</strong> rather than on
+        an individual document or a query object.
+      </p>
+
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Middleware Type</th>
+            <th>Operation Type</th>
+            <th><code class="code-inline">this</code> Context</th>
+            <th>Common Hooks</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Model</td>
+            <td>Static Model function</td>
+            <td>The <code class="code-inline">Model</code> itself</td>
+            <td><code class="code-inline">insertMany</code></td>
+          </tr>
+          <tr>
+            <td>Document</td>
+            <td>Document instance method</td>
+            <td>
+              The <code class="code-inline">Document</code> being modified
+            </td>
+            <td>
+              <code class="code-inline">save</code>,
+              <code class="code-inline">validate</code>,
+              <code class="code-inline">remove</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Query</td>
+            <td>Query method</td>
+            <td>The <code class="code-inline">Query</code> object</td>
+            <td>
+              <code class="code-inline">find</code>,
+              <code class="code-inline">updateOne</code>,
+              <code class="code-inline">deleteOne</code>
+            </td>
+          </tr>
+          <tr>
+            <td>Aggregate</td>
+            <td>Aggregate method</td>
+            <td>The <code class="code-inline">Aggregate</code> object</td>
+            <td><code class="code-inline">aggregate</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Key Characteristics of Model Middleware</h3>
+      <ul>
+        <li>
+          <strong>Supported Method:</strong> The most common operation that
+          fires Model middleware is the static
+          <code class="code-inline">Model.insertMany()</code>.<sup>2</sup>
+        </li>
+        <li>
+          <strong>Context (<code class="code-inline">this</code>):</strong>
+          Inside a Model middleware function, the
+          <code class="code-inline">this</code> keyword refers to the
+          <strong class="code-inline">Mongoose Model</strong> (the class itself,
+          like <code class="code-inline">UserModel</code>), not a single
+          document or a query.<sup>3</sup>
+        </li>
+        <li>
+          <strong>Purpose:</strong> It's used for logic that affects the entire
+          collection or multiple documents in a batch operation.<sup>4</sup> For
+          example, you might use a
+          <code class="code-inline">pre('insertMany')</code> hook to validate or
+          transform an array of documents before they are inserted.
+        </li>
+      </ul>
+
+      <div class="code-vs-dark">
+        <pre><span class="n">userSchema</span>.<span class="f">pre</span>(<span class="s">'insertMany'</span>, <span class="t">function</span>(<span class="t">next</span>, <span class="n">docs</span>) {
+    <span class="c">// 'this' refers to the Mongoose Model (e.g., UserModel)</span>
+    <span class="c">// 'docs' is the array of documents being inserted</span>
+    <span class="f">console</span>.<span class="f">log</span>(<span class="s">`Model Hook: Inserting ${</span><span class="n">docs</span>.<span class="n">length</span><span class="s"> documents.`</span>);
+    
+    <span class="k">if</span> (<span class="n">docs</span>.<span class="f">some</span>(<span class="n">doc</span> <span class="p">=></span> <span class="n">doc</span>.<span class="n">status</span> === <span class="s">'pending'</span>)) {
+        <span class="c">// Modify documents or stop the operation</span>
+        <span class="k">return</span> <span class="t">next</span>(<span class="t">new</span> <span class="t">Error</span>(<span class="s">'Pending status is not allowed for bulk insert.'</span>));
+    }
+    
+    <span class="t">next</span>();
+<span class="p">});</span></pre>
+      </div>
+    </div>
+  </body>
+</html>

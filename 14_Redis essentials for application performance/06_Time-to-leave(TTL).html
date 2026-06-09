@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis TTL Deep Dive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Reset and Base Styles */
+      :root {
+        --color-bg-main: #1e1e1e; /* VS Code Dark Background */
+        --color-bg-card: #252526; /* VS Code Panel Background */
+        --color-text-main: #d4d4d4; /* VS Code Default Text */
+        --color-text-header: #569cd6; /* VS Code Blue for Headings */
+        --color-text-accent: #ce9178; /* VS Code Orange for Strings/Commands */
+        --color-text-comment: #6a9955; /* VS Code Green for Comments */
+        --color-text-keyword: #c586c0; /* VS Code Purple/Pink for Keywords */
+        --color-text-number: #b5cea8; /* VS Code Green for Numbers/Integers */
+        --color-border-subtle: #3c3c3c;
+        --font-main: 'Nunito', sans-serif;
+        --font-code: 'Consolas', 'Monaco', monospace;
+      }
+
+      body {
+        background-color: var(--color-bg-main);
+        color: var(--color-text-main);
+        font-family: var(--font-main);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: var(--color-bg-card);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Typography */
+      h1,
+      h2,
+      h3 {
+        font-weight: 800;
+        color: var(--color-text-header);
+        border-bottom: 2px solid var(--color-border-subtle);
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+        color: var(--color-text-header);
+      }
+
+      h3 {
+        font-size: 1.3em;
+        color: var(--color-text-main);
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      /* Lists */
+      ol,
+      ul {
+        padding-left: 25px;
+        margin-bottom: 20px;
+      }
+
+      li {
+        margin-bottom: 10px;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      .code-block {
+        background-color: #1a1a1a; /* Slightly darker than card for contrast */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+        margin: 20px 0;
+        white-space: pre-wrap; /* Ensure text wraps */
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0;
+      }
+
+      .redis-cli-prompt {
+        color: #9cdcfe; /* Light Blue for the address/prompt */
+      }
+
+      .redis-cli-command {
+        color: var(--color-text-accent); /* Orange for Commands/Keywords */
+        font-weight: 600;
+      }
+
+      .redis-cli-value {
+        color: #ffd700; /* Yellow for values/strings */
+      }
+
+      .redis-cli-output {
+        color: var(--color-text-number); /* Light green for integers/numbers */
+      }
+
+      .redis-cli-ok {
+        color: #8be9fd; /* Cyan for "OK" */
+      }
+
+      .redis-cli-comment {
+        color: var(--color-text-comment);
+        font-style: italic;
+      }
+
+      /* Inline Code */
+      code {
+        background-color: var(--color-bg-main);
+        color: var(--color-text-keyword);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: var(--font-code);
+        font-size: 0.95em;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        background-color: #2c2c2d;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--color-border-subtle);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3e3e40;
+        color: var(--color-text-header);
+        font-weight: 600;
+      }
+
+      /* Emoji Styling */
+      .emoji {
+        margin-right: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Redis Time-To-Live (TTL) Deep Dive</h1>
+
+      <p>
+        <strong>Time-To-Live (TTL)</strong> in Redis allows you to associate an
+        expiration timer with a key, causing Redis to automatically delete the
+        key once the time limit is reached. This feature is vital for
+        <strong>caching</strong>, <strong>session management</strong>, and
+        temporary data storage.
+      </p>
+
+      <p>
+        Here is a deep dive into the most common TTL-related commands using
+        <code>redis-cli</code>.
+      </p>
+
+      <h2 id="setting-ttl">
+        <span class="emoji">🔑</span> Setting a Key's TTL
+      </h2>
+      <p>
+        You can set a key's expiration in several ways using
+        <code>redis-cli</code>:
+      </p>
+
+      <ol>
+        <li>
+          <h3><code>EXPIRE</code>: Set Expiration in Seconds</h3>
+          <p>
+            This is the most common command for setting a key's
+            <strong>relative expiration time</strong>.
+          </p>
+          <p>
+            <strong>Syntax:</strong>
+            <code>EXPIRE key seconds [NX | XX | GT | LT]</code>
+          </p>
+          <p>
+            <strong>Example:</strong> Set <code>user:session:123</code> to
+            expire in 300 seconds (5 minutes).
+          </p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-comment"># 1. Set the key's value (optional if the key already exists)</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">user:session:123</span> <span class="redis-cli-value">"active"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-comment"># 2. Set the expiration to 300 seconds</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">EXPIRE</span> <span class="redis-cli-value">user:session:123</span> <span class="redis-cli-output">300</span>
+<span class="redis-cli-output">(integer) 1</span> <span class="redis-cli-comment"># Output (integer) 1 indicates the timeout was set.</span>
+</pre>
+          </div>
+        </li>
+
+        <li>
+          <h3><code>PEXPIRE</code>: Set Expiration in Milliseconds</h3>
+          <p>
+            Similar to <code>EXPIRE</code>, but allows for finer-grained control
+            over the expiration time.
+          </p>
+          <p>
+            <strong>Syntax:</strong>
+            <code>PEXPIRE key milliseconds [NX | XX | GT | LT]</code>
+          </p>
+          <p>
+            <strong>Example:</strong> Set <code>temp:data:456</code> to expire
+            in 1500 milliseconds (1.5 seconds).
+          </p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-comment"># Set the key's value</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">temp:data:456</span> <span class="redis-cli-value">"ephemeral"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-comment"># Set the expiration to 1500 milliseconds</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">PEXPIRE</span> <span class="redis-cli-value">temp:data:456</span> <span class="redis-cli-output">1500</span>
+<span class="redis-cli-output">(integer) 1</span>
+</pre>
+          </div>
+        </li>
+
+        <li>
+          <h3><code>SETEX</code>: Set Value and Expiration in One Command</h3>
+          <p>
+            This is a convenient <strong>atomic command</strong> for setting a
+            string key's value and its expiration time simultaneously. This is
+            generally preferred over a separate <code>SET</code> and
+            <code>EXPIRE</code> combination, especially for setting new keys.
+          </p>
+          <p><strong>Syntax:</strong> <code>SETEX key seconds value</code></p>
+          <p>
+            <strong>Example:</strong> Set <code>cache:item:789</code> to the
+            value "data" and expire in 60 seconds.
+          </p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SETEX</span> <span class="redis-cli-value">cache:item:789</span> <span class="redis-cli-output">60</span> <span class="redis-cli-value">"data"</span>
+<span class="redis-cli-ok">OK</span>
+</pre>
+          </div>
+        </li>
+
+        <li>
+          <h3>
+            <code>EXPIREAT</code> and <code>PEXPIREAT</code>: Set Expiration at
+            an Absolute Time
+          </h3>
+          <p>
+            These commands set the expiration to a specific absolute
+            <strong>Unix timestamp</strong>, rather than a relative time (like
+            "in 60 seconds").
+          </p>
+          <ul>
+            <li>
+              <code>EXPIREAT</code>: Uses a Unix timestamp in
+              <strong>seconds</strong>.
+            </li>
+            <li>
+              <code>PEXPIREAT</code>: Uses a Unix timestamp in
+              <strong>milliseconds</strong>.
+            </li>
+          </ul>
+          <p>
+            <strong>Example (EXPIREAT):</strong> Assuming the Unix timestamp for
+            9:00 AM on January 1, 2026, is <code>1767292800</code>.
+          </p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">scheduled:job</span> <span class="redis-cli-value">"pending"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-comment"># Set the key to expire exactly at the timestamp</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">EXPIREAT</span> <span class="redis-cli-value">scheduled:job</span> <span class="redis-cli-output">1767292800</span>
+<span class="redis-cli-output">(integer) 1</span>
+</pre>
+          </div>
+        </li>
+      </ol>
+
+      <h2 id="checking-ttl">
+        <span class="emoji">🔍</span> Checking a Key's TTL
+      </h2>
+      <p>
+        To check the remaining Time-To-Live of a key, you use the
+        <code>TTL</code> or <code>PTTL</code> commands.
+      </p>
+
+      <ol>
+        <li>
+          <h3><code>TTL</code>: Remaining Time in Seconds</h3>
+          <p><strong>Syntax:</strong> <code>TTL key</code></p>
+          <p><strong>Return Values:</strong></p>
+          <table>
+            <thead>
+              <tr>
+                <th>Value</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Positive Integer</strong></td>
+                <td>Remaining time in <strong>seconds</strong>.</td>
+              </tr>
+              <tr>
+                <td><strong>-1</strong></td>
+                <td>
+                  The key exists but has <strong>no expiration</strong> set
+                  (it's persistent).
+                </td>
+              </tr>
+              <tr>
+                <td><strong>-2</strong></td>
+                <td>The key <strong>does not exist</strong>.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p><strong>Example:</strong></p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SETEX</span> <span class="redis-cli-value">temp:key</span> <span class="redis-cli-output">120</span> <span class="redis-cli-value">"testing_ttl"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">temp:key</span>
+<span class="redis-cli-output">(integer) 117</span> <span class="redis-cli-comment"># Returns remaining seconds</span>
+
+<span class="redis-cli-comment"># After the key expires or is deleted</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">temp:key</span>
+<span class="redis-cli-output">(integer) -2</span> 
+
+<span class="redis-cli-comment"># For a persistent key</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SET</span> <span class="redis-cli-value">persistent:key</span> <span class="redis-cli-value">"data"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">persistent:key</span>
+<span class="redis-cli-output">(integer) -1</span>
+</pre>
+          </div>
+        </li>
+
+        <li>
+          <h3><code>PTTL</code>: Remaining Time in Milliseconds</h3>
+          <p><strong>Syntax:</strong> <code>PTTL key</code></p>
+          <p><strong>Return Values:</strong></p>
+          <table>
+            <thead>
+              <tr>
+                <th>Value</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Positive Integer</strong></td>
+                <td>Remaining time in <strong>milliseconds</strong>.</td>
+              </tr>
+              <tr>
+                <td><strong>-1</strong></td>
+                <td>
+                  The key exists but has <strong>no expiration</strong> set.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>-2</strong></td>
+                <td>The key <strong>does not exist</strong>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </li>
+      </ol>
+
+      <h2 id="removing-modifying-ttl">
+        <span class="emoji">🗑️</span> Removing and Modifying TTL
+      </h2>
+
+      <ol>
+        <li>
+          <h3><code>PERSIST</code>: Remove Expiration</h3>
+          <p>
+            The <code>PERSIST</code> command removes the expiration associated
+            with a key, making it a <strong>permanent key</strong> again.
+          </p>
+          <p><strong>Syntax:</strong> <code>PERSIST key</code></p>
+          <p>
+            <strong>Example:</strong> Make
+            <code>user:session:123</code> persistent.
+          </p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">user:session:123</span>
+<span class="redis-cli-output">(integer) 290</span> <span class="redis-cli-comment"># Key has 290 seconds left</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">PERSIST</span> <span class="redis-cli-value">user:session:123</span>
+<span class="redis-cli-output">(integer) 1</span> <span class="redis-cli-comment"># Output (integer) 1 means the timeout was removed.</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">user:session:123</span>
+<span class="redis-cli-output">(integer) -1</span> <span class="redis-cli-comment"># Now it's a persistent key</span>
+</pre>
+          </div>
+        </li>
+
+        <li>
+          <h3>Modifying TTL</h3>
+          <p>
+            Calling <code>EXPIRE</code> or <code>PEXPIRE</code> on a key that
+            already has an expiration will <strong>overwrite</strong> the
+            existing TTL with the new value.
+          </p>
+          <p><strong>Example:</strong> Extend the expiration of a key.</p>
+          <div class="code-block">
+            <pre>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">SETEX</span> <span class="redis-cli-value">mykey</span> <span class="redis-cli-output">60</span> <span class="redis-cli-value">"value"</span>
+<span class="redis-cli-ok">OK</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">mykey</span>
+<span class="redis-cli-output">(integer) 58</span>
+<span class="redis-cli-comment"># Extend the TTL to 300 seconds</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">EXPIRE</span> <span class="redis-cli-value">mykey</span> <span class="redis-cli-output">300</span>
+<span class="redis-cli-output">(integer) 1</span>
+<span class="redis-cli-prompt">127.0.0.1:6379></span> <span class="redis-cli-command">TTL</span> <span class="redis-cli-value">mykey</span>
+<span class="redis-cli-output">(integer) 300</span>
+</pre>
+          </div>
+        </li>
+      </ol>
+
+      <h2 id="key-considerations">
+        <span class="emoji">📝</span> Key Considerations
+      </h2>
+      <ul>
+        <li>
+          <p>
+            <strong>Overwrite Behavior:</strong> Most Redis commands that modify
+            a key's value (like <code>SET</code>, <code>LPUSH</code>,
+            <code>HSET</code>) will <strong>not change</strong> the existing
+            TTL. However, the basic <code>SET key value</code> command
+            <strong>will remove</strong> the key's TTL if the key is updated
+            without explicitly passing the <code>EX</code> or
+            <code>PX</code> options.
+          </p>
+          <p>
+            <strong>To retain TTL:</strong> Use the <code>KEEPTTL</code> option
+            with <code>SET</code>: <code>SET mykey "new_value" KEEPTTL</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Expirations on Containers:</strong> TTL is set on the
+            <strong>entire key</strong>, not individual elements within
+            container data structures (like Lists, Hashes, Sets, or Sorted
+            Sets). If a key holding a Hash expires, the entire Hash is deleted.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>TTL Granularity:</strong> Since Redis 2.6, key expiration is
+            accurate to **1 millisecond**.
+          </p>
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

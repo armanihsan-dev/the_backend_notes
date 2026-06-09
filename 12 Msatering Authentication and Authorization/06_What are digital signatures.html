@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Signatures: Blackish Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Consolas&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* --- Base Colors for VS Code Dark Theme --- */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark Background */
+        --text-color: #d4d4d4; /* VS Code Default Text */
+        --heading-color: #569cd6; /* Blue/Light Blue for Headings */
+        --accent-color: #c586c0; /* Purple/Pink for Important Keywords */
+        --code-bg: #1e1e1e; /* Match body for seamless look */
+        --code-bg-line: #2d2d30; /* Background for the overall container */
+        --code-keyword: #569cd6; /* Blue for keywords (const, require) */
+        --code-string: #ce9178; /* Orange/Brown for strings */
+        --code-comment: #6a9955; /* Green for comments */
+        --code-variable: #9cdcfe; /* Light blue for variables */
+        --code-function: #dcdcaa; /* Yellow/Green for functions */
+        --code-builtin: #4ec9b0; /* Teal for built-in functions like crypto */
+        --line-number-color: #858585; /* Gray for line numbers */
+        --box-shadow-color: #0a0a0a;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background-color: #2d2d30; /* Slightly lighter body container for depth */
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px var(--box-shadow-color);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: var(--heading-color);
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      strong {
+        color: var(--accent-color); /* Highlight key terms */
+        font-weight: 700;
+      }
+
+      /* --- List & Marker Styling (Existing) --- */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 10px;
+        position: relative;
+      }
+      li::before {
+        content: '•';
+        color: var(--code-keyword);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+      p span {
+        color: #ffcc66; /* Yellow for numbered markers */
+        font-weight: bold;
+        margin-left: 5px;
+      }
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+      /* --- Table Styling (Existing) --- */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #252526;
+        border: 1px solid #3c3c3c;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border: 1px solid #3c3c3c;
+      }
+      th {
+        background-color: #3c3c3c;
+        color: var(--heading-color);
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      tr:nth-child(even) {
+        background-color: #2d2d30;
+      }
+
+      /* --- UPDATED CODE BLOCK STYLING (The Focus) --- */
+      .code-container {
+        background-color: var(--code-bg-line);
+        border-radius: 6px;
+        padding: 15px;
+        margin: 20px 0;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        overflow-x: auto;
+      }
+
+      .code-language {
+        color: var(--code-comment);
+        font-style: italic;
+        border-bottom: 1px solid #3c3c3c;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
+        display: block;
+      }
+
+      code {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        display: block; /* Important for line wrapping/numbering */
+      }
+
+      /* Styling for each line and line numbers */
+      .code-line {
+        display: flex;
+        padding: 1px 0;
+        counter-increment: line-counter; /* Initialize line counter */
+      }
+
+      .line-number {
+        color: var(--line-number-color);
+        padding-right: 10px;
+        margin-right: 10px;
+        text-align: right;
+        user-select: none;
+        /* Line number is generated here */
+        content: counter(line-counter);
+        width: 25px;
+        flex-shrink: 0;
+        opacity: 0.7;
+      }
+
+      .code-line:hover {
+        background-color: #333; /* Subtle highlight on hover */
+      }
+
+      /* Syntax Highlighting Colors */
+      .code-keyword {
+        color: var(--code-keyword);
+      }
+      .code-variable {
+        color: var(--code-variable);
+      }
+      .code-string {
+        color: var(--code-string);
+      }
+      .code-comment {
+        color: var(--code-comment);
+      }
+      .code-function {
+        color: var(--code-function);
+      }
+      .code-number {
+        color: #b5cea8;
+      }
+      .code-property {
+        color: #ffd700;
+      }
+      .code-operator {
+        color: var(--text-color);
+      }
+      .code-builtin {
+        color: var(--code-builtin);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Digital Signatures: Cryptographic Essentials</h1>
+      <p>
+        An essential concept in **cryptography**, **digitally signing a document
+        using a hash** is a process that guarantees the **authenticity** and
+        **integrity** of a digital document.<span>1</span>
+      </p>
+
+      <h2>Here's a breakdown of how it works:</h2>
+
+      <h3>Hashing the Document:</h3>
+      <p>
+        The document is first run through a **one-way hash function** (like
+        SHA-256).<span>2</span> This mathematical algorithm produces a unique,
+        **fixed-length alphanumeric string** called a **hash value** (or message
+        digest), regardless of the document's size.<span>3</span> Even a
+        single-character change in the document will result in a completely
+        different hash.<span>4</span> This hash acts as the document's unique
+        **digital fingerprint**.<span>5</span>
+      </p>
+
+      <h3>Creating the Digital Signature:</h3>
+      <p>
+        The signer uses their **private key** to encrypt the document's hash
+        value.<span>6</span> The resulting encrypted hash is the **digital
+        signature**.<span>7</span>
+      </p>
+
+      <h3>Verification:</h3>
+      <p>When a recipient receives the document and its digital signature:</p>
+      <ul>
+        <li>
+          They use the signer's corresponding **public key** to decrypt the
+          digital signature, recovering the original hash value.<span>8</span>
+        </li>
+        <li>
+          They independently run the received document through the **same hash
+          function** to generate a new hash value.<span>9</span>
+        </li>
+        <li>
+          If the two hash values (**decrypted hash** from the signature and
+          **newly calculated hash** from the document) match, the signature is
+          **valid**.<span>10</span> This proves:
+          <ul>
+            <li>
+              **Authenticity**: The signature was created by the person holding
+              the private key (since only the public key can decrypt the private
+              key's encryption).
+            </li>
+            <li>
+              **Integrity**: The document has not been altered since it was
+              signed (because a change would produce a mismatching hash).<span
+                >11</span
+              >
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2><span class="emoji">🛡️</span> Benefits of Digital Signatures</h2>
+      <p>
+        Digital signatures offer significant advantages in the digital world:
+      </p>
+      <ul>
+        <li>
+          **Security & Integrity**: They provide a strong cryptographic link
+          between the signer and the document, making it easy to detect any
+          tampering after signing.<span>12</span>
+        </li>
+        <li>
+          **Authentication**: They confirm the identity of the signer, providing
+          a high level of assurance about the source of the document.<span
+            >13</span
+          >
+        </li>
+        <li>
+          **Non-Repudiation**: The signer cannot later deny having signed the
+          document, as the private key used to create the signature is unique to
+          them.<span>14</span>
+        </li>
+        <li>
+          **Efficiency & Cost Savings**: They eliminate the need for printing,
+          manual signing, scanning, mailing, and physical storage, saving time
+          and costs.<span>15</span>
+        </li>
+        <li>
+          **Legal Compliance**: They are legally recognized and compliant with
+          regulations in many jurisdictions (like the US **ESIGN Act** and the
+          EU's **eIDAS** regulation).<span>16</span>
+        </li>
+        <li>
+          **Audit Trails**: Many digital signature solutions include detailed
+          audit logs, tracking the signing process, time, and location.<span
+            >17</span
+          >
+        </li>
+      </ul>
+
+      <h2><span class="emoji">🏢</span> Real-World Applications</h2>
+      <p>
+        Digital signatures are critical components of major applications across
+        various sectors:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Application Sector</th>
+            <th>How Digital Signatures Are Used</th>
+            <th>How They Work (Mechanism)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>**Legal/Contract Management**</td>
+            <td>
+              Signing contracts, agreements, real estate forms, and court
+              documents.
+            </td>
+            <td>
+              Ensure the legal validity and integrity of contracts; guarantee
+              the identity of the signatory in paperless transactions.
+            </td>
+          </tr>
+          <tr>
+            <td>**Finance & Banking**</td>
+            <td>
+              Authorizing bank transfers, loan applications, and generating
+              secure electronic invoices.
+            </td>
+            <td>
+              Secure financial transactions, confirm customer authorization, and
+              ensure the authenticity of financial records.
+            </td>
+          </tr>
+          <tr>
+            <td>**Healthcare**</td>
+            <td>
+              Signing patient records, prescriptions, and insurance claims.
+            </td>
+            <td>
+              Maintain **privacy** and **integrity** of confidential health
+              data, complying with regulations like HIPAA.
+            </td>
+          </tr>
+          <tr>
+            <td>**Software Distribution**</td>
+            <td>Signing software code and updates.</td>
+            <td>
+              Verify that the software hasn't been tampered with by malicious
+              actors and is genuinely from the publisher (e.g., Apple, Microsoft
+              code signing).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>
+        <span class="emoji">💻</span> Digital Signing and Verification in
+        Node.js
+      </h2>
+      <p>
+        You can use the built-in **`crypto`** module in Node.js to digitally
+        sign and verify data using a hash and asymmetric keys (RSA in this
+        example).<span>18</span>
+      </p>
+
+      <h3>1. Key Generation (One-Time Setup)</h3>
+      <p>First, you need a public/private key pair.</p>
+      <div class="code-container">
+        <span class="code-language">JavaScript</span>
+        <code style="counter-reset: line-counter">
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">crypto</span> =
+            <span class="code-builtin">require</span>(<span class="code-string"
+              >'crypto'</span
+            >);
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span> {
+            <span class="code-variable">publicKey</span>,
+            <span class="code-variable">privateKey</span> } =
+            <span class="code-variable">crypto</span>.<span
+              class="code-function"
+              >generateKeyPairSync</span
+            >(<span class="code-string">'rsa'</span>, {
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+              class="code-property"
+              >modulusLength</span
+            >: <span class="code-number">2048</span>,
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+              class="code-property"
+              >publicKeyEncoding</span
+            >: { <span class="code-property">type</span>:
+            <span class="code-string">'spki'</span>,
+            <span class="code-property">format</span>:
+            <span class="code-string">'pem'</span> },
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+              class="code-property"
+              >privateKeyEncoding</span
+            >: { <span class="code-property">type</span>:
+            <span class="code-string">'pkcs8'</span>,
+            <span class="code-property">format</span>:
+            <span class="code-string">'pem'</span> },
+          </div>
+          <div class="code-line"><span class="line-number"></span>});</div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// Save these keys securely (e.g., to files for later use)</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// For this example, we'll just use the variables.</span
+            >
+          </div>
+        </code>
+      </div>
+
+      <h3>2. Signing the Document (Sender Side)<span>19</span></h3>
+      <p>
+        The signer calculates the hash and encrypts it with their **private
+        key** to create the signature.
+      </p>
+      <div class="code-container">
+        <span class="code-language">JavaScript</span>
+        <code style="counter-reset: line-counter">
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">data</span> =
+            <span class="code-string"
+              >'This is the document content to be signed.'</span
+            >;
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">algorithm</span> =
+            <span class="code-string">'SHA256'</span>;
+          </div>
+          <div class="code-line"><span class="line-number"></span></div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// 1. Calculate the hash (message digest)</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">hash</span> =
+            <span class="code-variable">crypto</span>.<span
+              class="code-function"
+              >createHash</span
+            >(<span class="code-variable">algorithm</span>).<span
+              class="code-function"
+              >update</span
+            >(<span class="code-variable">data</span>).<span
+              class="code-function"
+              >digest</span
+            >();
+          </div>
+          <div class="code-line"><span class="line-number"></span></div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// 2. Sign the hash with the private key</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">signer</span> =
+            <span class="code-variable">crypto</span>.<span
+              class="code-function"
+              >createSign</span
+            >(<span class="code-variable">algorithm</span>);
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-variable">signer</span>.<span
+              class="code-function"
+              >update</span
+            >(<span class="code-variable">data</span>);
+            <span class="code-comment"
+              >// Pass the original data, the .sign method handles the hashing
+              internally in this format</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">signature</span> =
+            <span class="code-variable">signer</span>.<span
+              class="code-function"
+              >sign</span
+            >(<span class="code-variable">privateKey</span>,
+            <span class="code-string">'hex'</span>);
+          </div>
+          <div class="code-line"><span class="line-number"></span></div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-builtin">console</span>.<span
+              class="code-function"
+              >log</span
+            >(<span class="code-string">'Original Data:'</span>,
+            <span class="code-variable">data</span>);
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-builtin">console</span>.<span
+              class="code-function"
+              >log</span
+            >(<span class="code-string">'Digital Signature:'</span>,
+            <span class="code-variable">signature</span>);
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// This signature (along with the data and public
+              key/certificate) is sent to the recipient.</span
+            >
+          </div>
+        </code>
+      </div>
+
+      <h3>3. Verification (Recipient Side)</h3>
+      <p>
+        The recipient uses the sender's **public key** to verify the signature
+        against the received data.
+      </p>
+      <div class="code-container">
+        <span class="code-language">JavaScript</span>
+        <code style="counter-reset: line-counter">
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// Data and signature are received from the sender</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">receivedData</span> =
+            <span class="code-string"
+              >'This is the document content to be signed.'</span
+            >; <span class="code-comment">// Assume no tampering</span>
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">receivedSignature</span> =
+            <span class="code-variable">signature</span>;
+            <span class="code-comment"
+              >// Use the signature generated above</span
+            >
+          </div>
+          <div class="code-line"><span class="line-number"></span></div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// 1. Use the public key and signature to check if the hash
+              matches a newly calculated hash</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">verifier</span> =
+            <span class="code-variable">crypto</span>.<span
+              class="code-function"
+              >createVerify</span
+            >(<span class="code-variable">algorithm</span>);
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-variable">verifier</span>.<span
+              class="code-function"
+              >update</span
+            >(<span class="code-variable">receivedData</span>);
+          </div>
+          <div class="code-line"><span class="line-number"></span></div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-keyword">const</span>
+            <span class="code-variable">isVerified</span> =
+            <span class="code-variable">verifier</span>.<span
+              class="code-function"
+              >verify</span
+            >(
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+              class="code-variable"
+              >publicKey</span
+            >,
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+              class="code-variable"
+              >receivedSignature</span
+            >,
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+              class="code-string"
+              >'hex'</span
+            >
+          </div>
+          <div class="code-line"><span class="line-number"></span>);</div>
+          <div class="code-line"><span class="line-number"></span></div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-builtin">console</span>.<span
+              class="code-function"
+              >log</span
+            >(<span class="code-string">`Is signature verified: </span
+            ><span class="code-variable">${isVerified}</span
+            ><span class="code-string">`</span>);
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// If 'isVerified' is 'true', the document is authentic and has
+              not been altered.</span
+            >
+          </div>
+          <div class="code-line">
+            <span class="line-number"></span
+            ><span class="code-comment"
+              >// If the receivedData was even slightly changed, 'isVerified'
+              would be 'false'.</span
+            >
+          </div>
+        </code>
+      </div>
+    </div>
+  </body>
+</html>

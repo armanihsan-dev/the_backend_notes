@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Important Metrics to Calculate | PromQL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-gauge-high"></i> KEY METRICS</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Traffic</div>
+        <a href="#rps" class="nav-link">Requests Per Second</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Errors</div>
+        <a href="#error-rate" class="nav-link">Error Rate</a>
+        <a href="#success-rate" class="nav-link">Success Rate</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Latency</div>
+        <a href="#mean-latency" class="nav-link">Mean Latency</a>
+        <a href="#slow-requests" class="nav-link">Slow Request Ratio</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Saturation</div>
+        <a href="#in-flight" class="nav-link">In-Flight Requests</a>
+        <a href="#cpu" class="nav-link">CPU Usage</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus</span>
+        <h1>IMPORTANT METRICS</h1>
+        <p>KEY PROMQL QUERIES EVERY SRE SHOULD KNOW</p>
+      </section>
+
+      <!-- ─── RPS ────────────────────────────────────────────── -->
+      <section id="rps">
+        <h2>1. REQUESTS PER SECOND (RPS)</h2>
+
+        <p>
+          RPS tells you <strong>how much traffic</strong> your service is
+          receiving right now. It's the most fundamental metric for any
+          web service.
+        </p>
+
+        <h3>Overall RPS — All Traffic Combined</h3>
+        <pre><code class="language-promql">sum(rate(http_requests_total[1m]))</code></pre>
+
+        <h3>RPS by Route</h3>
+        <pre><code class="language-promql">sum by (path) (rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">{path="/"}       → 20.3 req/s
+{path="/fancy"}  → 13.1 req/s
+{path="/users"}  → 4.8  req/s</code></pre>
+
+        <h3>RPS by Route + Status Code</h3>
+        <pre><code class="language-promql">sum by (path, status) (rate(http_requests_total[1m]))</code></pre>
+
+        <h3>RPS by HTTP Method</h3>
+        <pre><code class="language-promql">sum by (method) (rate(http_requests_total[1m]))</code></pre>
+
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>sum(rate(...))</code></td><td>Total load on your service</td></tr>
+            <tr><td><code>sum by (path)(...)</code></td><td>Which routes are busiest</td></tr>
+            <tr><td><code>sum by (method)(...)</code></td><td>GET vs POST breakdown</td></tr>
+            <tr><td><code>sum by (path, status)(...)</code></td><td>Traffic + health per route</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── ERROR RATE ─────────────────────────────────────── -->
+      <section id="error-rate">
+        <h2>2. ERROR RATE</h2>
+
+        <p>
+          Error rate queries tell you <strong>how many requests are
+          failing</strong> and what percentage of total traffic they represent.
+        </p>
+
+        <h3>5xx Error RPS — Raw Count</h3>
+        <pre><code class="language-promql">sum(rate(http_requests_total{status=~"5.."}[1m]))</code></pre>
+
+        <h3>Error Percentage — 5xx / All Traffic</h3>
+        <pre><code class="language-promql">100 *
+  sum(rate(http_requests_total{status=~"5.."}[5m]))
+/
+  sum(rate(http_requests_total[5m]))</code></pre>
+        <pre><code class="language-text">→ 2.4  (meaning 2.4% of all requests are 5xx errors)</code></pre>
+
+        <h3>404 Rate by Route</h3>
+        <pre><code class="language-promql">sum by (path) (rate(http_requests_total{status="404"}[5m]))</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> The Regex =~"5.."
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>status=~"5.."</code> uses a regex match. The <code>.</code>
+            matches any character, so it catches <code>500</code>,
+            <code>502</code>, <code>503</code>, <code>504</code> — all 5xx
+            codes in one selector.
+          </p>
+        </div>
+
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>sum(rate({status=~"5.."}[1m]))</code></td><td>How many errors per second right now</td></tr>
+            <tr><td><code>100 * errors / total</code></td><td>What % of traffic is failing</td></tr>
+            <tr><td><code>sum by (path)({status="404"})</code></td><td>Which routes are returning 404s</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── SUCCESS RATE ───────────────────────────────────── -->
+      <section id="success-rate">
+        <h2>3. SUCCESS RATE</h2>
+
+        <p>
+          The flip side of error rate — what percentage of requests are
+          completing successfully with a <strong>2xx status code</strong>.
+        </p>
+
+        <h3>Success Percentage — 2xx / All Traffic</h3>
+        <pre><code class="language-promql">100 *
+  sum(rate(http_requests_total{status=~"2.."}[5m]))
+/
+  sum(rate(http_requests_total[5m]))</code></pre>
+        <pre><code class="language-text">→ 97.6  (meaning 97.6% of requests are successful)</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Alert Threshold</span>
+          <p style="margin-bottom:0">
+            A common SLO is <strong>99.9% success rate</strong>. If this query
+            drops below your threshold, fire an alert. Error % + Success % won't
+            always add up to 100 — 3xx and 4xx responses fall in between.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── MEAN LATENCY ───────────────────────────────────── -->
+      <section id="mean-latency">
+        <h2>4. AVERAGE REQUEST DURATION (MEAN LATENCY)</h2>
+
+        <p>
+          Prometheus histograms expose two companion metrics:
+          <code>_sum</code> (total time spent) and <code>_count</code> (total
+          requests). Dividing them gives you the <strong>mean latency</strong>.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-calculator"></i> The Formula
+          </span>
+          <pre style="margin:0;background:var(--bg-secondary)"><code class="language-text">mean latency = rate(_sum[5m]) / rate(_count[5m])
+             = total time spent per second / requests per second
+             = average seconds per request</code></pre>
+        </div>
+
+        <h3>Global Mean Duration</h3>
+        <pre><code class="language-promql">sum(rate(http_request_duration_seconds_sum[5m]))
+/
+sum(rate(http_request_duration_seconds_count[5m]))</code></pre>
+        <pre><code class="language-text">→ 0.043  (43ms average response time)</code></pre>
+
+        <h3>Mean Duration by Route</h3>
+        <pre><code class="language-promql">sum by (path) (rate(http_request_duration_seconds_sum[5m]))
+/
+sum by (path) (rate(http_request_duration_seconds_count[5m]))</code></pre>
+        <pre><code class="language-text">{path="/"}      → 0.021  (21ms)
+{path="/fancy"} → 0.089  (89ms)
+{path="/users"} → 0.210  (210ms) ← slow!</code></pre>
+
+        <h3>Mean Duration by Route + Status</h3>
+        <pre><code class="language-promql">sum by (path, status) (rate(http_request_duration_seconds_sum[5m]))
+/
+sum by (path, status) (rate(http_request_duration_seconds_count[5m]))</code></pre>
+
+        <table>
+          <thead><tr><th>Result</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0.021</code></td><td>21ms average — healthy</td></tr>
+            <tr><td><code>0.250</code></td><td>250ms average — getting slow</td></tr>
+            <tr><td><code>1.000</code></td><td>1s average — investigate immediately</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── SLOW REQUESTS ──────────────────────────────────── -->
+      <section id="slow-requests">
+        <h2>5. SLOW REQUEST RATIO</h2>
+
+        <p>
+          Using histogram buckets (<code>_bucket</code>), you can calculate
+          what <strong>percentage of requests completed under a threshold</strong>
+          — or how many are exceeding it.
+        </p>
+
+        <h3>% of Requests Under 250ms</h3>
+        <pre><code class="language-promql">100 *
+  sum(rate(http_request_duration_seconds_bucket{le="0.25"}[5m]))
+/
+  sum(rate(http_request_duration_seconds_count[5m]))</code></pre>
+        <pre><code class="language-text">→ 94.2  (94.2% of requests finish in under 250ms)</code></pre>
+
+        <h3>% of Requests Under 100ms by Route</h3>
+        <pre><code class="language-promql">100 *
+  sum by (path) (rate(http_request_duration_seconds_bucket{le="0.1"}[5m]))
+/
+  sum by (path) (rate(http_request_duration_seconds_count[5m]))</code></pre>
+
+        <h3>Slow Requests Over 1s — RPS</h3>
+        <pre><code class="language-promql">sum(rate(http_request_duration_seconds_count[5m]))
+-
+sum(rate(http_request_duration_seconds_bucket{le="1"}[5m]))</code></pre>
+        <pre><code class="language-text">→ 0.8  (0.8 requests per second are taking longer than 1 second)</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> How le="0.25" Works
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>le</code> stands for <strong>"less than or equal"</strong>.
+            The bucket <code>le="0.25"</code> contains a cumulative count of
+            all requests that completed in <strong>0.25 seconds or less</strong>.
+            Dividing by total count gives you the percentile.
+          </p>
+        </div>
+
+        <table>
+          <thead><tr><th>Query Pattern</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>bucket{le="0.1"} / count</code></td><td>% of requests under 100ms</td></tr>
+            <tr><td><code>bucket{le="0.25"} / count</code></td><td>% of requests under 250ms</td></tr>
+            <tr><td><code>count - bucket{le="1"}</code></td><td>RPS of requests slower than 1s</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── IN-FLIGHT ──────────────────────────────────────── -->
+      <section id="in-flight">
+        <h2>6. IN-FLIGHT REQUESTS (CONCURRENCY)</h2>
+
+        <p>
+          In-flight requests is a <strong>gauge</strong> — it shows how many
+          requests are <em>currently being processed</em> at this exact moment.
+          High concurrency can indicate your server is under heavy load or
+          requests are getting stuck.
+        </p>
+
+        <h3>Total In-Flight Across All Routes</h3>
+        <pre><code class="language-promql">sum(http_requests_in_flight)</code></pre>
+
+        <h3>In-Flight by Route</h3>
+        <pre><code class="language-promql">sum by (path) (http_requests_in_flight)</code></pre>
+        <pre><code class="language-text">{path="/"}      → 12
+{path="/fancy"} → 3
+{path="/users"} → 47  ← suspiciously high, investigate!</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Why This Matters</span>
+          <p style="margin-bottom:0">
+            Unlike RPS (which is a rate), in-flight is an <strong>instantaneous
+            count</strong>. A sudden spike means requests are piling up — either
+            a slow downstream dependency or a resource bottleneck. Use this
+            alongside latency metrics to diagnose the cause.
+          </p>
+        </div>
+
+        <table>
+          <thead><tr><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Low &amp; stable</td><td>Healthy — requests completing quickly</td></tr>
+            <tr><td>Gradually rising</td><td>Possible memory leak or slow dependency</td></tr>
+            <tr><td>Sudden spike</td><td>Traffic burst or downstream service down</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── CPU ────────────────────────────────────────────── -->
+      <section id="cpu">
+        <h2>7. CPU USAGE</h2>
+
+        <p>
+          <code>process_cpu_seconds_total</code> is a counter — it tracks the
+          total CPU time consumed since the process started. Use
+          <code>rate()</code> to convert it into a meaningful real-time metric.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> What the Result Means
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>rate(process_cpu_seconds_total[1m])</code> returns
+            <strong>CPU seconds consumed per second</strong> — which equals the
+            number of CPU cores being fully utilized. A result of
+            <code>0.25</code> means your process is using 25% of one core.
+          </p>
+        </div>
+
+        <h3>CPU Cores Used (Average Over 1m)</h3>
+        <pre><code class="language-promql">rate(process_cpu_seconds_total[1m])</code></pre>
+        <pre><code class="language-text">→ 0.25  (using ~25% of one CPU core)</code></pre>
+
+        <h3>CPU as a Percentage</h3>
+        <pre><code class="language-promql">100 * rate(process_cpu_seconds_total[1m])</code></pre>
+        <pre><code class="language-text">→ 25  (25% of one core)</code></pre>
+
+        <h3>CPU Percentage Relative to Total Cores</h3>
+        <pre><code class="language-promql">100 * rate(process_cpu_seconds_total[1m]) / &lt;number_of_cores&gt;</code></pre>
+        <pre><code class="language-text"># Example: 4-core machine
+100 * rate(process_cpu_seconds_total[1m]) / 4
+→ 6.25  (6.25% of total available CPU)</code></pre>
+
+        <table>
+          <thead><tr><th>Result</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>0.05</code></td><td>5% of one core — very light load</td></tr>
+            <tr><td><code>0.50</code></td><td>50% of one core — moderate load</td></tr>
+            <tr><td><code>1.00</code></td><td>One full core saturated</td></tr>
+            <tr><td><code>4.00</code></td><td>4 full cores — investigate immediately</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">
+            💡 Golden Rule — The Four Golden Signals
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            These metrics map directly to Google's Four Golden Signals:
+          </p>
+          <pre style="margin:0;background:var(--bg-secondary)"><code class="language-text">Traffic     → RPS          (sum(rate(http_requests_total[1m])))
+Errors      → Error rate   (5xx / total * 100)
+Latency     → Mean latency (rate(_sum) / rate(_count))
+Saturation  → In-flight    (sum(http_requests_in_flight))
+             CPU usage     (rate(process_cpu_seconds_total[1m]))</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Important Metrics to Calculate — PromQL Reference</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

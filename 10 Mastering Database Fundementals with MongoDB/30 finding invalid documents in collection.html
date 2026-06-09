@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Find Invalid MongoDB Documents</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blackish Theme */
+      body {
+        background-color: #1a1a1a; /* Very dark gray/almost black */
+        color: #d4d4d4; /* Light gray text */
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: #242424; /* Slightly lighter background for the content box */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2 {
+        color: #61afef; /* VS Code-like blue for headings */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 25px;
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #e5c07b; /* Yellow/Orange for key emphasis */
+      }
+
+      /* VS Code-like Code Blocks */
+      .code-container {
+        background-color: #1e1e1e; /* VS Code dark theme background */
+        border-radius: 6px;
+        margin: 20px 0;
+        padding: 15px;
+        overflow-x: auto;
+        border: 1px solid #3c3c3c;
+      }
+
+      .code-container pre {
+        margin: 0;
+        padding: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      /* VS Code Syntax Highlighting Simulation */
+      .keyword {
+        color: #c678dd;
+      } /* Purple for keywords (const, function, await, return, if, try, catch, finally) */
+      .type {
+        color: #56b6c2;
+      } /* Cyan for built-in objects/types (MongoClient, Error, console) */
+      .string {
+        color: #98c379;
+      } /* Green for strings */
+      .comment {
+        color: #7f848e;
+      } /* Gray for comments */
+      .property {
+        color: #e5c07b;
+      } /* Yellow/Orange for properties/variables/functions */
+      .operator {
+        color: #e06c75;
+      } /* Red/Pink for operators (new, throw) */
+      .value {
+        color: #d19a66;
+      } /* Tan/Orange for numbers, special values (null, true, false) */
+      .method {
+        color: #61afef;
+      } /* Blue for methods/functions calls (find, toArray, log) */
+
+      .language-label {
+        color: #abb2bf;
+        font-size: 0.85em;
+        margin-bottom: 5px;
+        display: block;
+        border-bottom: 1px dashed #3c3c3c;
+        padding-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <p>
+        You can find invalid documents in a MongoDB collection from Node.js by
+        using the **<span class="property">$jsonSchema</span>** operator or the
+        **<span class="method">db.getCollectionInfos()</span>** command to
+        retrieve the validation rules, and then using that rule as a **negative
+        query** with the **<span class="property">$not</span>** operator in your
+        **<span class="method">find()</span>** operation.
+      </p>
+      <p>
+        This method requires your collection to have **schema validation**
+        defined.
+      </p>
+
+      <h2>1. Get the Validation Schema</h2>
+      <p>
+        First, you need to retrieve the actual validation rules that the
+        collection is currently using.
+      </p>
+      <p>
+        You can use the Node.js MongoDB driver's **<span class="method"
+          >db.listCollections()</span
+        >** method or **<span class="method">db.getCollectionInfos()</span>** to
+        find the validation object for your collection.
+      </p>
+
+      <div class="code-container">
+        <span class="language-label">JavaScript</span>
+        <pre>
+<span class="comment">// Assuming 'db' is your connected MongoDB database instance</span>
+<span class="keyword">async function</span> <span class="property">getValidationSchema</span>(<span class="property">db</span>, <span class="property">collectionName</span>) {
+    <span class="keyword">const</span> <span class="property">collections</span> = <span class="keyword">await</span> <span class="property">db</span>.<span class="method">listCollections</span>({ <span class="property">name</span>: <span class="property">collectionName</span> }).<span class="method">toArray</span>();
+
+    <span class="keyword">if</span> (<span class="property">collections</span>.<span class="property">length</span> <span class="operator">===</span> <span class="value">0</span>) {
+        <span class="operator">throw</span> <span class="operator">new</span> <span class="type">Error</span>(<span class="string">`Collection '</span><span class="property">${collectionName}</span><span class="string">' not found.`</span>);
+    }
+
+    <span class="keyword">const</span> <span class="property">options</span> = <span class="property">collections</span>[<span class="value">0</span>].<span class="property">options</span>;
+    <span class="keyword">const</span> <span class="property">validator</span> = <span class="property">options</span>.<span class="property">validator</span>;
+
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">validator</span> <span class="operator">||</span> <span class="type">Object</span>.<span class="method">keys</span>(<span class="property">validator</span>).<span class="property">length</span> <span class="operator">===</span> <span class="value">0</span>) {
+        <span class="type">console</span>.<span class="method">warn</span>(<span class="string">`Collection '</span><span class="property">${collectionName}</span><span class="string">' has no active schema validation.`</span>);
+        <span class="keyword">return</span> <span class="value">null</span>;
+    }
+
+    <span class="comment">// The validator object is the rule you need to invert.</span>
+    <span class="keyword">return</span> <span class="property">validator</span>;
+}
+            </pre>
+      </div>
+
+      <h2>2. Construct the Negative Query</h2>
+      <p>
+        Once you have the validation rule (the **<span class="property"
+          >validator</span
+        >** object), you wrap it in the **<span class="property">$not</span>**
+        logical operator to find documents that **do not** match the schema.
+      </p>
+      <p>
+        The final query will look like this: **<span class="property"
+          >{ "$not": { &lt;your_validation_rule&gt; } }</span
+        >**
+      </p>
+
+      <div class="code-container">
+        <span class="language-label">JavaScript</span>
+        <pre>
+<span class="keyword">async function</span> <span class="property">findInvalidDocuments</span>(<span class="property">db</span>, <span class="property">collectionName</span>) {
+    <span class="keyword">const</span> <span class="property">validator</span> = <span class="keyword">await</span> <span class="property">getValidationSchema</span>(<span class="property">db</span>, <span class="property">collectionName</span>);
+
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">validator</span>) {
+        <span class="keyword">return</span> []; <span class="comment">// Return empty array if no validation is set</span>
+    }
+
+    <span class="comment">// Construct the query: find documents that do NOT match the validator rule</span>
+    <span class="keyword">const</span> <span class="property">invalidDocumentQuery</span> = { 
+        <span class="string">"$not"</span>: <span class="property">validator</span> 
+    };
+
+    <span class="type">console</span>.<span class="method">log</span>(<span class="string">"Searching for documents with query:"</span>, <span class="type">JSON</span>.<span class="method">stringify</span>(<span class="property">invalidDocumentQuery</span>));
+
+    <span class="comment">// Execute the find operation</span>
+    <span class="keyword">const</span> <span class="property">invalidDocuments</span> = <span class="keyword">await</span> <span class="property">db</span>
+        .<span class="method">collection</span>(<span class="property">collectionName</span>)
+        .<span class="method">find</span>(<span class="property">invalidDocumentQuery</span>)
+        .<span class="method">toArray</span>();
+
+    <span class="keyword">return</span> <span class="property">invalidDocuments</span>;
+}
+            </pre>
+      </div>
+
+      <h2>Complete Node.js Example (Conceptual)</h2>
+      <p>
+        Here is how you would piece it together in a full connection context:
+      </p>
+
+      <div class="code-container">
+        <span class="language-label">JavaScript</span>
+        <pre>
+<span class="keyword">const</span> { <span class="type">MongoClient</span> } = <span class="method">require</span>(<span class="string">'mongodb'</span>);
+<span class="keyword">const</span> <span class="property">uri</span> = <span class="string">"mongodb://localhost:27017"</span>;
+<span class="keyword">const</span> <span class="property">client</span> = <span class="operator">new</span> <span class="type">MongoClient</span>(<span class="property">uri</span>);
+<span class="keyword">const</span> <span class="property">DB_NAME</span> = <span class="string">"myAppDB"</span>;
+<span class="keyword">const</span> <span class="property">COLLECTION_NAME</span> = <span class="string">"users"</span>;
+
+<span class="keyword">async function</span> <span class="property">main</span>() {
+    <span class="keyword">try</span> {
+        <span class="keyword">await</span> <span class="property">client</span>.<span class="method">connect</span>();
+        <span class="keyword">const</span> <span class="property">db</span> = <span class="property">client</span>.<span class="method">db</span>(<span class="property">DB_NAME</span>);
+
+        <span class="keyword">const</span> <span class="property">invalidDocs</span> = <span class="keyword">await</span> <span class="property">findInvalidDocuments</span>(<span class="property">db</span>, <span class="property">COLLECTION_NAME</span>);
+
+        <span class="type">console</span>.<span class="method">log</span>(<span class="string">`\nFound </span><span class="property">${invalidDocs.length}</span><span class="string"> invalid documents in '</span><span class="property">${COLLECTION_NAME}</span><span class="string">':`</span>);
+        <span class="type">console</span>.<span class="method">table</span>(<span class="property">invalidDocs</span>);
+
+    } <span class="keyword">catch</span> (<span class="property">error</span>) {
+        <span class="type">console</span>.<span class="method">error</span>(<span class="string">"An error occurred:"</span>, <span class="property">error</span>.<span class="property">message</span>);
+    } <span class="keyword">finally</span> {
+        <span class="keyword">await</span> <span class="property">client</span>.<span class="method">close</span>();
+    }
+}
+
+<span class="comment">// Reuse the functions defined in sections 1 & 2 above: getValidationSchema and findInvalidDocuments</span>
+<span class="comment">// Function to retrieve the active validation schema from the collection options</span>
+<span class="keyword">async function</span> <span class="property">getValidationSchema</span>(<span class="property">db</span>, <span class="property">collectionName</span>) {
+    <span class="comment">// ... (implementation from section 1)</span>
+    <span class="keyword">const</span> <span class="property">collections</span> = <span class="keyword">await</span> <span class="property">db</span>.<span class="method">listCollections</span>({ <span class="property">name</span>: <span class="property">collectionName</span> }).<span class="method">toArray</span>();
+    <span class="keyword">if</span> (<span class="property">collections</span>.<span class="property">length</span> <span class="operator">===</span> <span class="value">0</span>) { <span class="operator">throw</span> <span class="operator">new</span> <span class="type">Error</span>(<span class="string">`Collection '</span><span class="property">${collectionName}</span><span class="string">' not found.`</span>); }
+    <span class="keyword">const</span> <span class="property">options</span> = <span class="property">collections</span>[<span class="value">0</span>].<span class="property">options</span>;
+    <span class="keyword">const</span> <span class="property">validator</span> = <span class="property">options</span>.<span class="property">validator</span>;
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">validator</span> <span class="operator">||</span> <span class="type">Object</span>.<span class="method">keys</span>(<span class="property">validator</span>).<span class="property">length</span> <span class="operator">===</span> <span class="value">0</span>) { <span class="type">console</span>.<span class="method">warn</span>(<span class="string">`Collection '</span><span class="property">${collectionName}</span><span class="string">' has no active schema validation.`</span>); <span class="keyword">return</span> <span class="value">null</span>; }
+    <span class="keyword">return</span> <span class="property">validator</span>;
+}
+
+<span class="comment">// Function to construct and execute the $not query</span>
+<span class="keyword">async function</span> <span class="property">findInvalidDocuments</span>(<span class="property">db</span>, <span class="property">collectionName</span>) {
+    <span class="comment">// ... (implementation from section 2)</span>
+    <span class="keyword">const</span> <span class="property">validator</span> = <span class="keyword">await</span> <span class="property">getValidationSchema</span>(<span class="property">db</span>, <span class="property">collectionName</span>);
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">validator</span>) { <span class="keyword">return</span> []; } 
+    <span class="keyword">const</span> <span class="property">invalidDocumentQuery</span> = { <span class="string">"$not"</span>: <span class="property">validator</span> };
+    <span class="type">console</span>.<span class="method">log</span>(<span class="string">"Searching for documents with query:"</span>, <span class="type">JSON</span>.<span class="method">stringify</span>(<span class="property">invalidDocumentQuery</span>));
+    <span class="keyword">const</span> <span class="property">invalidDocuments</span> = <span class="keyword">await</span> <span class="property">db</span>
+        .<span class="method">collection</span>(<span class="property">collectionName</span>)
+        .<span class="method">find</span>(<span class="property">invalidDocumentQuery</span>)
+        .<span class="method">toArray</span>();
+    <span class="keyword">return</span> <span class="property">invalidDocuments</span>;
+}
+
+<span class="property">main</span>();
+            </pre>
+      </div>
+    </div>
+  </body>
+</html>

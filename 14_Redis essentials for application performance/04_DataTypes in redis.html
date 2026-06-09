@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Data Types (Data Structure Store)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Dark Theme (Blakish) */
+      body {
+        background-color: #1e1e1e; /* VSCode Dark Background */
+        color: #d4d4d4; /* Light Text */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 25px;
+        margin: 0;
+      }
+
+      /* General Content Styling */
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6; /* VSCode Blue for headings */
+        border-bottom: 2px solid #569cd650;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+      h2 {
+        font-size: 1.6em;
+      }
+      h3 {
+        font-size: 1.2em;
+      }
+      p {
+        margin-bottom: 15px;
+      }
+      strong {
+        color: #ce9178;
+      } /* VSCode Orange/Red for emphasis */
+
+      /* Lists */
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+      ul li {
+        margin-bottom: 8px;
+      }
+      ul.core-types li:before {
+        content: '•';
+        color: #4ec9b0; /* Green/Teal */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Code Block Styling (VSCode Dark Theme) */
+      pre {
+        background-color: #1f1f1f; /* Slightly lighter black for code */
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        border: 1px solid #3c3c3c;
+      }
+
+      /* Syntax Highlighting Mock */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .string {
+        color: #ce9178;
+      } /* Orange/Red */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .type-icon {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+      .feature {
+        color: #ffd700;
+        font-weight: bold;
+        display: block;
+        margin-top: 5px;
+      }
+      .complexity {
+        color: #4ec9b0; /* Teal/Green */
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <span class="variable">🧠</span> Redis Data Types: The Data Structure
+      Store
+    </h1>
+
+    <p>
+      That's a great topic! Redis is often called a **"Data Structure Store"**
+      because it supports a wide variety of advanced data types beyond simple
+      strings. Understanding these types is key to leveraging Redis effectively.
+    </p>
+
+    <p>Here are the five primary supported data types in Redis:</p>
+
+    <hr />
+
+    <section>
+      <h2><span class="type-icon">1. 🔠</span> Strings (The Basic Type)</h2>
+      <p>
+        This is the **simplest type**, capable of holding any kind of
+        data—**binary safe** (meaning you can store JPEGs, serialized Ruby
+        objects, or simple text).
+      </p>
+
+      <ul class="core-types">
+        <li>
+          **Structure**: A sequence of bytes up to
+          <span class="variable">512 MB</span>.
+        </li>
+        <li>
+          **Use Cases**:
+          <ul>
+            <li>Caching HTML fragments or pages.</li>
+            <li>
+              Simple key-value storage (e.g., storing a user's name:
+              <pre><span class="keyword">SET</span> <span class="variable">user:1:name</span> <span class="string">"Alice"</span></pre>
+              ).
+            </li>
+            <li>
+              Counters and rate limiting (Redis provides commands to
+              **atomically increment/decrement** strings, treating them as
+              integers:
+              <pre><span class="keyword">INCR</span> <span class="variable">user:1:visits</span></pre>
+              ).
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2><span class="type-icon">2. 📝</span> Lists</h2>
+      <p>
+        Redis Lists are essentially **linked lists** of strings, allowing **fast
+        insertion and deletion at the head or tail**. This is different from the
+        array-based lists found in many programming languages.
+      </p>
+
+      <ul class="core-types">
+        <li>
+          **Structure**: A collection of strings, maintained in **insertion
+          order**.
+        </li>
+        <li>
+          <span class="feature">**Key Feature**</span>:
+          <span class="complexity">Fast $O(1)$ (constant time)</span> operations
+          for pushing/popping elements from the left or right side.
+        </li>
+        <li>
+          **Use Cases**:
+          <ul>
+            <li>
+              Implementing a **queue** (e.g., using
+              <span class="keyword">LPUSH</span> to add tasks and
+              <span class="keyword">RPOP</span> to consume them).
+            </li>
+            <li>
+              Implementing a **stack** (e.g., using
+              <span class="keyword">LPUSH</span> and
+              <span class="keyword">LPOP</span>).
+            </li>
+            <li>
+              Maintaining **recent items** (e.g.,
+              <span class="keyword">LPUSH</span> new comments and trim the list
+              using <span class="keyword">LTRIM</span> to keep only the latest
+              <span class="variable">500</span>).
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2><span class="type-icon">3. 🏷️</span> Sets</h2>
+      <p>
+        Redis Sets are an **unordered collection of unique strings**. You cannot
+        have **duplicate members** in a set.
+      </p>
+
+      <ul class="core-types">
+        <li>
+          **Structure**: An **unordered collection** of strings with **no
+          duplicates**.
+        </li>
+        <li>
+          <span class="feature">**Key Feature**</span>:
+          <span class="complexity">Fast $O(1)$ membership testing</span> (<span
+            class="keyword"
+            >SISMEMBER</span
+          >) and powerful commands for performing **set operations** (union,
+          intersection, difference).
+        </li>
+        <li>
+          **Use Cases**:
+          <ul>
+            <li>
+              Tracking **unique visitors** (e.g.,
+              <pre><span class="keyword">SADD</span> <span class="variable">visitors:2025-11-25</span> <span class="string">user:101</span></pre>
+              ).
+            </li>
+            <li>
+              Finding **common users** between groups (using
+              <span class="keyword">SINTER</span>).
+            </li>
+            <li>Storing **unique tags** associated with a product.</li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2><span class="type-icon">4. 📊</span> Hashes</h2>
+      <p>
+        Redis Hashes are perfect for representing **objects or records**,
+        similar to a map or dictionary in programming languages. They store a
+        collection of **field-value pairs** under a **single key**.
+      </p>
+
+      <ul class="core-types">
+        <li>
+          **Structure**: A map where the key is the object identifier, and the
+          values are field-value pairs (both strings).
+        </li>
+        <li>
+          <span class="feature">**Key Feature**</span>: Allows you to store many
+          fields without consuming many unique keys in the Redis database,
+          **saving memory overhead**.
+        </li>
+        <li>
+          **Use Cases**:
+          <ul>
+            <li>
+              Storing **user profiles** (e.g.,
+              <pre><span class="keyword">HSET</span> <span class="variable">user:1</span> <span class="string">name</span> <span class="string">"Alice"</span> <span class="string">email</span> <span class="string">"a@a.com"</span></pre>
+              ).
+            </li>
+            <li>
+              Storing **product details** (e.g., title, price, stock count).
+            </li>
+            <li>
+              **Efficiently retrieving individual fields** of an object using
+              <span class="keyword">HGET</span>.
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2><span class="type-icon">5. 🏆</span> Sorted Sets (ZSETs)</h2>
+      <p>
+        Sorted Sets are similar to regular Sets, but every member is associated
+        with a **score** (a floating-point number). Members are always **ordered
+        by their score**.
+      </p>
+
+      <ul class="core-types">
+        <li>
+          **Structure**: A collection of unique strings, where each string
+          member has an associated **score** used for ordering.
+        </li>
+        <li>
+          <span class="feature">**Key Feature**</span>: Allows for very fast
+          retrieval of members by **score range or rank** (e.g., the top 10
+          members).
+        </li>
+        <li>
+          **Use Cases**:
+          <ul>
+            <li>
+              **Leaderboards** (e.g., storing game players and their scores).
+            </li>
+            <li>**Ranking systems** (e.g., storing content popularity).</li>
+            <li>
+              Implementing a **range-based queue** where you process tasks based
+              on a timestamp (the score).
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>
+        <span class="type-icon">💡</span> Beyond the Basics (Geospatial &
+        Bitmaps)
+      </h2>
+      <p>
+        While the five above are the core types, Redis also offers advanced
+        capabilities built on top of them:
+      </p>
+
+      <ul class="core-types">
+        <li>
+          **Geospatial (Geo)**: Uses a **Sorted Set internally** (via GeoHash
+          encoding) to store coordinates (longitude, latitude) and efficiently
+          query nearby points (e.g., "Find all users within
+          <span class="variable">5km</span> of this location").
+        </li>
+        <li>
+          **Bitmaps**: Treats a **String type** as a collection of bits.
+          Excellent for **memory-efficient tracking of millions of items**
+          (e.g., "Has user 10 million logged in today?").
+        </li>
+        <li>
+          **HyperLogLog**: A **probabilistic data structure** used to **estimate
+          the count of unique items** (cardinality) with very low memory usage,
+          but with a small standard error. Ideal for counting unique page views.
+        </li>
+      </ul>
+    </section>
+  </body>
+</html>

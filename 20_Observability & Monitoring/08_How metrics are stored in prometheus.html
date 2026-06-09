@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>How Metrics Are Stored in Prometheus | Complete Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-database"></i> PROMETHEUS</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Storage</div>
+        <a href="#storage" class="nav-link">Metric Storage</a>
+        <a href="#cpu-metric" class="nav-link">CPU Metric Explained</a>
+        <a href="#increase" class="nav-link">Understanding increase()</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Querying</div>
+        <a href="#query-types" class="nav-link">Query Types</a>
+        <a href="#labels" class="nav-link">Label Filtering</a>
+        <a href="#functions" class="nav-link">Function Cheat Sheet</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Practice</div>
+        <a href="#practical" class="nav-link">Practical Queries</a>
+        <a href="#reference" class="nav-link">Quick Reference</a>
+        <a href="#test" class="nav-link">Test Yourself</a>
+        <a href="#takeaways" class="nav-link">Key Takeaways</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus TSDB</span>
+        <h1>HOW METRICS ARE STORED IN PROMETHEUS</h1>
+        <p>STORAGE, STRUCTURE & QUERYING — CONCISE EDITION</p>
+      </section>
+
+      <section id="storage">
+        <h2>1. METRIC STORAGE</h2>
+
+        <p>
+          Prometheus stores metrics in a custom-built, high-performance time
+          series database (TSDB) designed for efficiency. The core idea is to
+          optimize for how monitoring data is typically written (ingested
+          constantly) and queried (recent data is accessed most often).
+        </p>
+
+        <h3>What Gets Stored</h3>
+        <pre><code class="language-text">process_cpu_seconds_total{instance="localhost:4000"} 0.03 @ 1742820845
+│─────────────────────────│ │──────────────────────│ │───│ │──────────│
+        METRIC NAME                  LABELS           VALUE  TIMESTAMP</code></pre>
+
+        <h3>Physical Storage Layers</h3>
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #3b82f6">
+            <h4 style="color:#3b82f6;margin-top:0"><i class="fa-solid fa-memory"></i> In Memory</h4>
+            <p style="margin-bottom:0">Last <strong>2 hours</strong> of data for fast access</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #8b5cf6">
+            <h4 style="color:#8b5cf6;margin-top:0"><i class="fa-solid fa-hard-drive"></i> On Disk</h4>
+            <p style="margin-bottom:0">Compressed <strong>2-hour blocks</strong> for long-term storage</p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #f59e0b">
+            <h4 style="color:#f59e0b;margin-top:0"><i class="fa-solid fa-shield-halved"></i> WAL</h4>
+            <p style="margin-bottom:0">Write-Ahead Log for <strong>crash recovery</strong></p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--accent)">
+            <h4 style="color:var(--accent);margin-top:0"><i class="fa-solid fa-compress"></i> Efficiency</h4>
+            <p style="margin-bottom:0">Only <strong>1–2 bytes</strong> per sample (highly compressed)</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="cpu-metric">
+        <h2>2. UNDERSTANDING process_cpu_seconds_total</h2>
+
+        <h3>Reading the Metric</h3>
+        <pre><code class="language-text">First point:  0.015 @ 1742820845
+Second point: 0.030 @ 1742820852</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>Part</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>0.015</code></td><td>Total CPU seconds used so far</td></tr>
+            <tr><td><code>@ 1742820845</code></td><td>Unix timestamp when measured</td></tr>
+            <tr><td>Difference</td><td>0.015s of CPU used between measurements</td></tr>
+          </tbody>
+        </table>
+
+        <h3>It's a COUNTER (Like an Odometer)</h3>
+        <ul>
+          <li>Only <strong>increases</strong> — never goes down</li>
+          <li>Shows <strong>cumulative</strong> time since process started</li>
+          <li>Need <code>rate()</code> or <code>increase()</code> to make it useful</li>
+        </ul>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-car"></i> Odometer Analogy</span>
+          <p style="margin-bottom:0">
+            Just like a car odometer shows total miles driven (not current speed),
+            <code>process_cpu_seconds_total</code> shows total CPU time used — not
+            current CPU usage. You need <code>rate()</code> to get "speed."
+          </p>
+        </div>
+      </section>
+
+      <section id="increase">
+        <h2>3. UNDERSTANDING increase()</h2>
+
+        <pre><code class="language-promql">increase(process_cpu_seconds_total[1m]) = 0.302</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>Value</th><th>Interpretation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><strong>0.302 seconds</strong></td><td>CPU time used in the last 60 seconds</td></tr>
+            <tr><td><strong>59.698 seconds</strong></td><td>App was idle</td></tr>
+            <tr><td><strong>~0.5%</strong></td><td>CPU utilization</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Quick Value Guide</h3>
+        <table>
+          <thead>
+            <tr><th>Value</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>&lt; 1.0</code></td><td>Normal idle app ✅</td></tr>
+            <tr><td><code>5 – 10</code></td><td>After hitting a CPU-heavy endpoint</td></tr>
+            <tr><td><code>&gt; 50</code></td><td>App might be stuck ⚠️</td></tr>
+            <tr><td><code>60</code></td><td>Used the entire minute — problem! ❌</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="query-types">
+        <h2>4. QUERY TYPES</h2>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-circle-dot"></i> Instant Query — current value</span>
+          <pre><code class="language-promql">process_cpu_seconds_total</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-clock-rotate-left"></i> Range Query — values over time</span>
+          <pre><code class="language-promql">process_cpu_seconds_total[5m]
+# Returns: 0.015 @ t1, 0.030 @ t2, 0.045 @ t3</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-gauge"></i> Rate Query — per-second increase</span>
+          <pre><code class="language-promql">rate(process_cpu_seconds_total[1m])    # Average over 1m
+irate(process_cpu_seconds_total[5m])   # Instant rate (better for spikes)</code></pre>
+        </div>
+      </section>
+
+      <section id="labels">
+        <h2>5. LABEL FILTERING</h2>
+
+        <pre><code class="language-promql">{job="my-express-app"}                              # All metrics with this label
+process_cpu_seconds_total{instance="localhost:4000"} # Specific instance
+{job=~"my-.*"}                                       # Regex match
+{job!="my-express-app"}                              # Not equal</code></pre>
+
+        <table>
+          <thead>
+            <tr><th>Operator</th><th>Meaning</th><th>Example</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>=</code></td><td>Exact match</td><td><code>job="app"</code></td></tr>
+            <tr><td><code>!=</code></td><td>Not equal</td><td><code>job!="app"</code></td></tr>
+            <tr><td><code>=~</code></td><td>Regex match</td><td><code>job=~"my-.*"</code></td></tr>
+            <tr><td><code>!~</code></td><td>Regex not match</td><td><code>job!~"my-.*"</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="functions">
+        <h2>6. FUNCTION CHEAT SHEET</h2>
+
+        <table>
+          <thead>
+            <tr><th>Function</th><th>Purpose</th><th>Use When</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>rate()</code></td><td>Per-second avg rate</td><td>Counters — smooth graphs</td></tr>
+            <tr><td><code>irate()</code></td><td>Per-second instant rate</td><td>Counters — spike detection</td></tr>
+            <tr><td><code>increase()</code></td><td>Total increase over window</td><td>How much happened in X minutes</td></tr>
+            <tr><td><code>avg_over_time()</code></td><td>Average value</td><td>Gauges — smoothing</td></tr>
+            <tr><td><code>max_over_time()</code></td><td>Peak value</td><td>Finding worst-case</td></tr>
+            <tr><td><code>sum()</code></td><td>Add multiple series</td><td>Aggregating across instances</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="practical">
+        <h2>7. PRACTICAL QUERIES FOR YOUR APP</h2>
+
+        <pre><code class="language-promql"># CPU total (raw counter)
+process_cpu_seconds_total
+
+# CPU used in last minute
+increase(process_cpu_seconds_total[1m])
+
+# CPU rate (per second)
+rate(process_cpu_seconds_total[1m])
+
+# CPU percentage
+rate(process_cpu_seconds_total[1m]) * 100
+
+# Memory in MB
+process_resident_memory_bytes / 1024 / 1024</code></pre>
+      </section>
+
+      <section id="reference">
+        <h2>8. QUICK REFERENCE</h2>
+
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--accent)">
+            <h4 style="color:var(--accent);margin-top:0"><i class="fa-solid fa-tag"></i> Metric Structure</h4>
+            <pre style="margin:0"><code class="language-text">name{labels} value @ timestamp
+
+process_cpu_seconds_total
+  {instance="local"} 0.03</code></pre>
+          </div>
+
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #3b82f6">
+            <h4 style="color:#3b82f6;margin-top:0"><i class="fa-solid fa-layer-group"></i> Storage Layers</h4>
+            <ul style="margin-bottom:0">
+              <li>Memory: Last 2 hours</li>
+              <li>Disk: Compressed 2h blocks</li>
+              <li>WAL: Crash recovery</li>
+            </ul>
+          </div>
+
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #8b5cf6">
+            <h4 style="color:#8b5cf6;margin-top:0"><i class="fa-solid fa-terminal"></i> Query Basics</h4>
+            <ul style="margin-bottom:0">
+              <li><code>metric</code> → current value</li>
+              <li><code>metric[5m]</code> → over time</li>
+              <li><code>rate(metric[1m])</code> → per-second</li>
+              <li><code>{job="app"}</code> → label filter</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="test">
+        <h2>9. TEST YOURSELF</h2>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-1"></i> Check Baseline</span>
+          <pre><code class="language-promql">increase(process_cpu_seconds_total[1m])</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-2"></i> Hit a CPU-heavy endpoint</span>
+          <p style="margin-bottom:0">Trigger <code>/user-cpu</code> (5 seconds of CPU work)</p>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-3"></i> Query Again</span>
+          <pre><code class="language-promql">increase(process_cpu_seconds_total[1m])  # Now ~5.3s</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-4"></i> See Rate as Percentage</span>
+          <pre><code class="language-promql">rate(process_cpu_seconds_total[1m]) * 100</code></pre>
+        </div>
+      </section>
+
+      <section id="takeaways">
+        <h2>10. KEY TAKEAWAYS</h2>
+
+        <ul>
+          <li>✅ <code>process_cpu_seconds_total</code> = cumulative CPU time (always increases)</li>
+          <li>✅ <code>increase(metric[1m])</code> = how much CPU was used in the last minute</li>
+          <li>✅ <code>rate(metric[1m])</code> = CPU usage per second</li>
+          <li>✅ <code>0.3s</code> CPU per minute = healthy idle app</li>
+          <li>✅ <code>5s+</code> increase = after hitting a CPU-heavy endpoint</li>
+        </ul>
+
+        <div
+          class="note-box"
+          style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem"
+        >
+          <span class="note-title" style="color:var(--accent);font-size:1rem">
+            💡 Golden Rule
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Raw counter values are meaningless on their own. Always wrap counters
+            in <code>rate()</code> or <code>increase()</code> to get actionable
+            insight from them.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>How Metrics Are Stored in Prometheus</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

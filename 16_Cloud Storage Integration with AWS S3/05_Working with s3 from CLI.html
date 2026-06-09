@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS S3 CLI Command Reference</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h2><span class="icon">💾</span> AWS S3 CLI Commands Explained</h2>
+
+    <p>
+      The AWS S3 commands are executed using the structure:
+      <code class="dir">aws s3 &lt;operation&gt; [parameters]</code>.
+    </p>
+
+    <h3>1. Bucket Commands (Create & Delete)</h3>
+    <p>These commands are used for managing the S3 containers themselves.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">List all buckets</strong></td>
+          <td><code class="dir">aws s3 ls</code></td>
+          <td>
+            Lists all S3 buckets owned by your AWS account across all regions.
+          </td>
+          <td><code class="dir">aws s3 ls</code></td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Create a bucket</strong></td>
+          <td><code class="dir">aws s3 mb s3://&lt;bucket-name&gt;</code></td>
+          <td>
+            <code class="prop">mb</code> stands for
+            <strong class="str">Make Bucket</strong>. Creates a new bucket.
+            Bucket names must be globally unique.
+          </td>
+          <td><code class="dir">aws s3 mb s3://my-new-unique-bucket</code></td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Delete a bucket</strong></td>
+          <td><code class="dir">aws s3 rb s3://&lt;bucket-name&gt;</code></td>
+          <td>
+            <code class="prop">rb</code> stands for
+            <strong class="str">Remove Bucket</strong> (fails if not empty).
+          </td>
+          <td><code class="dir">aws s3 rb s3://old-empty-bucket</code></td>
+        </tr>
+        <tr>
+          <td>
+            <strong class="kw"
+              >Delete a bucket forcefully (with all contents)</strong
+            >
+          </td>
+          <td>
+            <code class="dir">aws s3 rb s3://&lt;bucket-name&gt; --force</code>
+          </td>
+          <td>
+            Use this with caution. It deletes the bucket and all objects within
+            it, regardless of content.
+          </td>
+          <td>
+            <code class="dir">aws s3 rb s3://my-data-archive --force</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2. Upload and Download (<code class="prop">cp</code>)</h3>
+    <p>
+      The <code class="prop">cp</code> (copy) command is used for transferring
+      objects (files) between your local machine and S3, and vice-versa.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Upload a file to bucket</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 cp &lt;local-file&gt; s3://&lt;bucket-name&gt;/</code
+            >
+          </td>
+          <td>Copies a local file into the root of the specified S3 bucket.</td>
+          <td>
+            <code class="dir">aws s3 cp notes.txt s3://project-files/</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Upload a folder recursively</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 cp &lt;local-folder&gt; s3://&lt;bucket-name&gt;/
+              --recursive</code
+            >
+          </td>
+          <td>
+            Copies the entire local folder structure and its contents to the S3
+            bucket. The <code class="op">--recursive</code> flag is key for
+            folders.
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 cp ./images s3://assets-bucket/ --recursive</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Download a file from bucket</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 cp s3://&lt;bucket-name&gt;/&lt;file-path&gt;
+              &lt;local-destination&gt;</code
+            >
+          </td>
+          <td>Copies a file from the S3 bucket to your local machine.</td>
+          <td>
+            <code class="dir">aws s3 cp s3://reports/Q4.pdf ./data/</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Download a folder recursively</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 cp s3://&lt;bucket-name&gt;/&lt;folder-name&gt;
+              &lt;local-destination&gt; --recursive</code
+            >
+          </td>
+          <td>
+            Downloads an S3 folder and all its contents, maintaining the folder
+            structure, to your local machine.
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 cp s3://backup-data/logs/ ./local-logs --recursive</code
+            >
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>3. Sync Folders (<code class="prop">sync</code>)</h3>
+    <p>
+      The <code class="prop">sync</code> command efficiently synchronizes the
+      contents of a source and destination, copying only new or modified files
+      and deleting files that exist in the destination but not the source (if
+      <code class="op">--delete</code> is used).
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Sync local folder with S3 bucket</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 sync &lt;local-folder&gt; s3://&lt;bucket-name&gt;/</code
+            >
+          </td>
+          <td>
+            Compares files in the local folder and the S3 bucket, uploading only
+            the necessary changes to S3.
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 sync ./website-code s3://production-site/</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Sync S3 bucket with local folder</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 sync s3://&lt;bucket-name&gt;/ &lt;local-folder&gt;</code
+            >
+          </td>
+          <td>
+            Downloads changes from S3 to the local folder, ensuring the local
+            copy matches the S3 content.
+          </td>
+          <td>
+            <code class="dir">aws s3 sync s3://shared-docs/ ./team-folder</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>
+      4. List Contents of a Bucket or Folder (<code class="prop">ls</code>)
+    </h3>
+    <p>
+      The <code class="prop">ls</code> (list) command is used to view the
+      objects (files and folders) inside a bucket.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">List files in a bucket</strong></td>
+          <td><code class="dir">aws s3 ls s3://&lt;bucket-name&gt;/</code></td>
+          <td>
+            Lists the objects and common prefixes (folders) at the top level of
+            the specified bucket.
+          </td>
+          <td><code class="dir">aws s3 ls s3://customer-invoices/</code></td>
+        </tr>
+        <tr>
+          <td>
+            <strong class="kw">List files in a folder inside bucket</strong>
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 ls s3://&lt;bucket-name&gt;/&lt;folder-name&gt;/</code
+            >
+          </td>
+          <td>
+            Lists the objects and folders located inside the specified path
+            within the bucket.
+          </td>
+          <td>
+            <code class="dir">aws s3 ls s3://media-files/thumbnails/</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>5. Delete Files and Folders (<code class="prop">rm</code>)</h3>
+    <p>
+      The <code class="prop">rm</code> (remove) command is used to permanently
+      delete objects from S3.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Delete a file</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 rm s3://&lt;bucket-name&gt;/&lt;file-path&gt;</code
+            >
+          </td>
+          <td>Permanently deletes a single specified object (file) from S3.</td>
+          <td>
+            <code class="dir">aws s3 rm s3://temp-storage/scratch.log</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Delete all files in a folder</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 rm s3://&lt;bucket-name&gt;/&lt;folder-name&gt;/
+              --recursive</code
+            >
+          </td>
+          <td>
+            Deletes all objects within the specified "folder" (prefix) inside
+            the bucket.
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 rm s3://backups/old-logs/ --recursive</code
+            >
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>6. Move or Rename Files (<code class="prop">mv</code>)</h3>
+    <p>
+      The <code class="prop">mv</code> (move) command is used to rename a file
+      or move it to a different location within S3.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Move (rename) a file</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 mv s3://&lt;bucket-name&gt;/&lt;old-path&gt;
+              s3://&lt;bucket-name&gt;/&lt;new-path&gt;</code
+            >
+          </td>
+          <td>
+            Copies the object from the source to the destination, then deletes
+            the source object.
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 mv s3://docs/draft.docx s3://docs/final.docx</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Move entire folder</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 mv s3://&lt;bucket-name&gt;/&lt;source-folder&gt;/
+              s3://&lt;bucket-name&gt;/&lt;destination-folder&gt;/
+              --recursive</code
+            >
+          </td>
+          <td>Moves all objects from one prefix (folder) to another prefix.</td>
+          <td>
+            <code class="dir"
+              >aws s3 mv s3://archive/2023/ s3://processed/2023/
+              --recursive</code
+            >
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>7. Presigned URLs (<code class="prop">presign</code>)</h3>
+    <p>
+      The <code class="prop">presign</code> command generates a temporary,
+      time-limited URL that allows anyone who holds the URL to access a specific
+      S3 object, even if they don't have AWS credentials.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Generate a presigned URL</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 presign s3://&lt;bucket-name&gt;/&lt;file-path&gt;</code
+            >
+          </td>
+          <td>
+            Generates a URL with the default expiry time (usually 3600 seconds,
+            or 1 hour).
+          </td>
+          <td>
+            <code class="dir">aws s3 presign s3://data/large-report.zip</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Set custom expiry</strong></td>
+          <td>
+            <code class="dir"
+              >aws s3 presign s3://&lt;bucket-name&gt;/&lt;file-path&gt;
+              --expires-in &lt;seconds&gt;</code
+            >
+          </td>
+          <td>
+            Specifies a custom duration (in seconds) for which the generated URL
+            will remain valid.
+          </td>
+          <td>
+            <code class="dir"
+              >aws s3 presign s3://public/video.mp4 --expires-in 900</code
+            >
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>8. Advanced Options (Global Flags)</h3>
+    <p>
+      These are options (flags) that can be appended to almost any command to
+      customize the output or authentication context.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Syntax</th>
+          <th>Explanation</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Set output format</strong></td>
+          <td>
+            <code class="dir">aws &lt;command&gt; --output &lt;format&gt;</code>
+          </td>
+          <td>
+            Changes the way the CLI displays its results (e.g.,
+            <code class="str">json</code>, <code class="str">table</code>, or
+            <code class="str">text</code>).
+          </td>
+          <td>
+            <code class="dir">aws s3 ls s3://my-bucket/ --output json</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Use a specific profile</strong></td>
+          <td>
+            <code class="dir">aws &lt;command&gt; --profile &lt;name&gt;</code>
+          </td>
+          <td>
+            Uses credentials and configuration stored under a specific named
+            profile in your local AWS config files.
+          </td>
+          <td><code class="dir">aws s3 ls --profile dev-account</code></td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Set region explicitly</strong></td>
+          <td>
+            <code class="dir"
+              >aws &lt;command&gt; --region &lt;region-code&gt;</code
+            >
+          </td>
+          <td>
+            Overrides the default region set during configuration, forcing the
+            command to target a specific region (e.g.,
+            <code class="str">us-east-1</code>).
+          </td>
+          <td><code class="dir">aws s3 ls --region us-east-1</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>9. Help for Each Command</h3>
+    <p>
+      The built-in help commands provide immediate, detailed documentation
+      within your terminal.
+    </p>
+
+    <ul>
+      <li>
+        <strong class="kw">Service-level Help</strong>:
+        <code class="dir">aws s3 help</code> Shows a full list of all available
+        commands (operations) under the S3 service.
+      </li>
+      <li>
+        <strong class="kw">Command-level Help</strong>:
+        <code class="dir">aws s3 &lt;command&gt; help</code> Provides detailed
+        usage, required parameters, and all available options for a specific
+        operation.
+      </li>
+    </ul>
+
+    <h2><span class="icon">💻</span> AWS CLI Command Breakdown</h2>
+
+    <p>The command you provided is:</p>
+    <pre><code class="language-bash"><span class="dir">aws</span> <span class="kw">s3 cp</span> <span class="str">"F:\Software Data\all_softwares"</span> <span class="prop">s3://arman-physical-computer-data/access_softwares/</span> <span class="op">--recursive</span></code></pre>
+
+    <h3>1. Purpose of the Command</h3>
+    <p>
+      The primary purpose of this command is to
+      <strong class="str"
+        >upload an entire folder structure from your local Windows computer
+        (Drive F:) to a specific location within an Amazon S3 bucket</strong
+      >.
+    </p>
+    <ul>
+      <li>
+        <strong class="kw">Goal</strong>: To transfer a comprehensive collection
+        of software files and folders (e.g., installers, configurations) from a
+        local storage drive to a highly durable, scalable, and secure cloud
+        storage location (S3).
+      </li>
+      <li>
+        <strong class="kw">Result</strong>: All files and subfolders contained
+        within the local folder
+        <code class="str">F:\Software Data\all_softwares</code> will be
+        replicated under the <code class="prop">access_softwares/</code> path in
+        the S3 bucket named
+        <code class="prop">arman-physical-computer-data</code>.
+      </li>
+    </ul>
+
+    <h3>2. Line-by-Line Explanation</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Meaning</th>
+          <th>Syntax Type</th>
+          <th>Your Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="dir">aws</code></td>
+          <td>The main program executable.</td>
+          <td><strong class="kw">Program Call</strong></td>
+          <td><code class="dir">aws</code></td>
+        </tr>
+        <tr>
+          <td><code class="kw">s3</code></td>
+          <td>The AWS service target.</td>
+          <td><strong class="kw">Service Name</strong></td>
+          <td><code class="prop">s3</code> (Amazon Simple Storage Service)</td>
+        </tr>
+        <tr>
+          <td><code class="kw">cp</code></td>
+          <td>The operation to perform.</td>
+          <td><strong class="kw">Command/Operation</strong></td>
+          <td><code class="prop">cp</code> (Copy)</td>
+        </tr>
+        <tr>
+          <td><code class="str">"F:\Software Data\all_softwares"</code></td>
+          <td>The <strong class="prop">source</strong> path.</td>
+          <td><strong class="kw">Local Path (Source)</strong></td>
+          <td>
+            This is the local folder on your computer that contains the files to
+            be copied. The quotation marks are essential because the path
+            contains spaces.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <code class="prop"
+              >s3://arman-physical-computer-data/access_softwares/</code
+            >
+          </td>
+          <td>The <strong class="prop">destination</strong> path.</td>
+          <td><strong class="kw">S3 URI (Destination)</strong></td>
+          <td>
+            <code class="prop">s3://</code> is the required protocol prefix.
+            <code class="prop">arman-physical-computer-data</code> is the name
+            of your S3 bucket. <code class="prop">access_softwares/</code> is
+            the <strong class="prop">prefix</strong> (or "folder") within the
+            bucket where the contents will be uploaded.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="op">--recursive</code></td>
+          <td>A critical flag (option).</td>
+          <td><strong class="kw">Flag/Option</strong></td>
+          <td>
+            This instructs the <code class="prop">cp</code> command to copy the
+            <strong class="str">entire folder structure</strong> and all files
+            within it, not just the single folder itself.
+            <strong class="op">Without this, the command would fail.</strong>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>3. How the Process Works</h3>
+    <ul>
+      <li>
+        <strong class="kw">Authentication</strong>: The
+        <code class="dir">aws</code> command first uses the credentials (Access
+        Key ID and Secret Access Key) stored on your local machine (usually in
+        <code class="type">~/.aws/credentials</code>) to securely authenticate
+        with the AWS API.
+      </li>
+      <li>
+        <strong class="kw">Request</strong>: It sends a request to the S3
+        service, instructing it to begin a series of upload operations.
+      </li>
+      <li>
+        <strong class="kw">Recursion</strong>: The
+        <code class="op">--recursive</code> flag tells the CLI to walk through
+        the source folder (<code class="str"
+          >F:\Software Data\all_softwares</code
+        >) and list every file and subdirectory inside it.
+      </li>
+      <li>
+        <strong class="kw">Transfer</strong>: For every file found (e.g.,
+        <code class="str">F:\Software Data\all_softwares\setup.exe</code>), the
+        CLI uploads that file.
+      </li>
+      <li>
+        <strong class="kw">Path Mapping</strong>: The local path is mapped to
+        the S3 destination. For example:
+        <ul>
+          <li>
+            <strong class="prop">Local File</strong>:
+            <code class="str"
+              >F:\Software Data\all_softwares\Utility\tool.zip</code
+            >
+          </li>
+          <li>
+            <strong class="prop">S3 Object</strong>:
+            <code class="prop"
+              >s3://arman-physical-computer-data/access_softwares/Utility/tool.zip</code
+            >
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <p>
+      In short, this command is your single-line solution for performing a
+      complete, automated backup of a local directory to the cloud.
+    </p>
+  </body>
+</html>

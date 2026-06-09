@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Line Items (Order Items) in Lemon Squeezy</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Line Items (Order Items) in Lemon Squeezy</h1>
+
+    <h2>What are Line Items?</h2>
+    <p>
+      In Lemon Squeezy, **line items** (officially called **Order Items**) are
+      individual products/variants that a customer purchases in an order. They
+      represent each distinct item on a receipt or invoice.
+    </p>
+
+    <h3>Analogy:</h3>
+    <p>Think of a grocery receipt:</p>
+    <ul>
+      <li>**Order** = The entire purchase transaction</li>
+      <li>**Order Items** = Each individual product line:</li>
+    </ul>
+
+    <pre><code class="text">
+🛒 ORDER #12345
+├── 🥤 Lemonade (Citrus Blast)  $9.99  → Order Item 1
+├── 🍪 Cookies (Chocolate Chip) $5.99  → Order Item 2
+└── 🍋 Lemons (Organic)        $3.99  → Order Item 3
+    </code></pre>
+
+    <p>Each of those product lines is an **Order Item**.</p>
+
+    <h2>Key Concepts:</h2>
+
+    <h3>1. Order vs Order Item Relationship</h3>
+    <pre><code class="javascript">
+<span class="cmt">// One Order can have multiple Order Items</span>
+<span class="type">Order</span> {
+  <span class="prop">id</span>: <span class="lit">1</span>,
+  <span class="prop">total</span>: <span class="str">$19.97</span>,
+  <span class="prop">order_items</span>: [
+    { <span class="prop">product</span>: <span class="str">"Lemonade"</span>, <span class="prop">variant</span>: <span class="str">"Citrus Blast"</span>, <span class="prop">price</span>: <span class="str">$9.99</span>, <span class="prop">quantity</span>: <span class="lit">1</span> },
+    { <span class="prop">product</span>: <span class="str">"Cookies"</span>, <span class="prop">variant</span>: <span class="str">"Chocolate Chip"</span>, <span class="prop">price</span>: <span class="str">$5.99</span>, <span class="prop">quantity</span>: <span class="lit">1</span> },
+    { <span class="prop">product</span>: <span class="str">"Lemons"</span>, <span class="prop">variant</span>: <span class="str">"Organic"</span>, <span class="prop">price</span>: <span class="str">$3.99</span>, <span class="prop">quantity</span>: <span class="lit">1</span> }
+  ]
+}
+    </code></pre>
+
+    <h3>2. Order Item Attributes Explained</h3>
+    <p>From your example:</p>
+    <pre><code class="json">
+{
+  <span class="json-key">"order_id"</span>: <span class="json-val">1</span>, <span class="cmt">// Which order this belongs to</span>
+  <span class="json-key">"product_id"</span>: <span class="json-val">1</span>, <span class="cmt">// Reference to the Product</span>
+  <span class="json-key">"variant_id"</span>: <span class="json-val">1</span>, <span class="cmt">// Reference to the Variant</span>
+  <span class="json-key">"product_name"</span>: <span class="json-val">"Lemonade"</span>, <span class="cmt">// Name at time of purchase</span>
+  <span class="json-key">"variant_name"</span>: <span class="json-val">"Citrus Blast"</span>, <span class="cmt">// Variant name at time of purchase</span>
+  <span class="json-key">"price"</span>: <span class="json-val">999</span>, <span class="cmt">// Price in cents ($9.99)</span>
+  <span class="json-key">"quantity"</span>: <span class="json-val">1</span>, <span class="cmt">// How many were purchased</span>
+  <span class="json-key">"created_at"</span>: <span class="json-val">"..."</span>, <span class="cmt">// When the item was added</span>
+  <span class="json-key">"updated_at"</span>: <span class="json-val">"..."</span> <span class="cmt">// Last update timestamp</span>
+}
+    </code></pre>
+    <p>
+      **Important:** `product_name` and `variant_name` are **snapshots** - they
+      preserve what the customer saw at purchase time, even if you later rename
+      your products.
+    </p>
+
+    <h2>API Operations with Examples:</h2>
+
+    <h3>1. Retrieve a Single Order Item</h3>
+    <pre><code class="bash">
+<span class="cmt"># GET a specific order item</span>
+<span class="kw">curl</span> <span class="str">"https://api.lemonsqueezy.com/v1/order-items/1"</span> \
+  -H <span class="str">'Accept: application/vnd.api+json'</span> \
+  -H <span class="str">'Authorization: Bearer YOUR_API_KEY'</span>
+    </code></pre>
+
+    <h4>Node.js Implementation:</h4>
+    <pre><code class="javascript">
+<span class="kw">const</span> <span class="prop">https</span> = <span class="dir">require</span>(<span class="str">'https'</span>);
+
+<span class="kw">function</span> <span class="dir">getOrderItem</span>(<span class="prop">orderItemId</span>) {
+  <span class="kw">return new</span> <span class="type">Promise</span>((<span class="prop">resolve</span>, <span class="prop">reject</span>) => {
+    <span class="kw">const</span> <span class="prop">options</span> = {
+      <span class="prop">headers</span>: {
+        <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+        <span class="str">'Authorization'</span>: <span class="str">`Bearer ${process.env.LEMON_API_KEY}`</span>
+      }
+    };
+
+    <span class="kw">const</span> <span class="prop">req</span> = <span class="prop">https</span>.<span class="dir">get</span>(
+      <span class="str">`https://api.lemonsqueezy.com/v1/order-items/${orderItemId}`</span>,
+      <span class="prop">options</span>,
+      (<span class="prop">res</span>) => {
+        <span class="kw">let</span> <span class="prop">data</span> = <span class="str">''</span>;
+        <span class="prop">res</span>.<span class="dir">on</span>(<span class="str">'data'</span>, <span class="prop">chunk</span> => <span class="prop">data</span> += <span class="prop">chunk</span>);
+        <span class="prop">res</span>.<span class="dir">on</span>(<span class="str">'end'</span>, () => {
+          <span class="kw">const</span> <span class="prop">response</span> = <span class="dir">JSON</span>.<span class="dir">parse</span>(<span class="prop">data</span>);
+          <span class="prop">resolve</span>(<span class="prop">response</span>.<span class="prop">data</span>);
+        });
+      }
+    );
+
+    <span class="prop">req</span>.<span class="dir">on</span>(<span class="str">'error'</span>, <span class="prop">reject</span>);
+  });
+}
+
+<span class="cmt">// Usage</span>
+<span class="dir">getOrderItem</span>(<span class="lit">1</span>).<span class="dir">then</span>(<span class="prop">item</span> => {
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Product: ${item.attributes.product_name}`</span>);
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Price: $${(item.attributes.price / 100).toFixed(2)}`</span>);
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Quantity: ${item.attributes.quantity}`</span>);
+});
+    </code></pre>
+
+    <h3>2. List All Order Items (with filtering)</h3>
+    <pre><code class="bash">
+<span class="cmt"># GET all order items with pagination</span>
+<span class="kw">curl</span> <span class="str">"https://api.lemonsqueezy.com/v1/order-items?page[number]=1&page[size]=10"</span> \
+  -H <span class="str">'Accept: application/vnd.api+json'</span> \
+  -H <span class="str">'Authorization: Bearer YOUR_API_KEY'</span>
+
+<span class="cmt"># Filter by order_id</span>
+<span class="kw">curl</span> <span class="str">"https://api.lemonsqueezy.com/v1/order-items?filter[order_id]=123"</span> \
+  -H <span class="str">'Accept: application/vnd.api+json'</span> \
+  -H <span class="str">'Authorization: Bearer YOUR_API_KEY'</span>
+
+<span class="cmt"># Filter by product_id</span>
+<span class="kw">curl</span> <span class="str">"https://api.lemonsqueezy.com/v1/order-items?filter[product_id]=456"</span> \
+  -H <span class="str">'Accept: application/vnd.api+json'</span> \
+  -H <span class="str">'Authorization: Bearer YOUR_API_KEY'</span>
+    </code></pre>
+
+    <h4>Node.js Implementation with Filtering:</h4>
+    <pre><code class="javascript">
+<span class="kw">async function</span> <span class="dir">listOrderItems</span>(<span class="prop">filters</span> = {}) {
+  <span class="kw">const</span> <span class="prop">apiKey</span> = <span class="dir">process</span>.<span class="prop">env</span>.<span class="prop">LEMON_API_KEY</span>;
+
+  <span class="cmt">// Build query parameters</span>
+  <span class="kw">const</span> <span class="prop">params</span> = <span class="kw">new</span> <span class="type">URLSearchParams</span>();
+
+  <span class="cmt">// Add filters</span>
+  <span class="kw">if</span> (<span class="prop">filters</span>.<span class="prop">orderId</span>) {
+    <span class="prop">params</span>.<span class="dir">append</span>(<span class="str">'filter[order_id]'</span>, <span class="prop">filters</span>.<span class="prop">orderId</span>);
+  }
+  <span class="kw">if</span> (<span class="prop">filters</span>.<span class="prop">productId</span>) {
+    <span class="prop">params</span>.<span class="dir">append</span>(<span class="str">'filter[product_id]'</span>, <span class="prop">filters</span>.<span class="prop">productId</span>);
+  }
+
+  <span class="cmt">// Pagination</span>
+  <span class="prop">params</span>.<span class="dir">append</span>(<span class="str">'page[number]'</span>, <span class="prop">filters</span>.<span class="prop">page</span> || <span class="lit">1</span>);
+  <span class="prop">params</span>.<span class="dir">append</span>(<span class="str">'page[size]'</span>, <span class="prop">filters</span>.<span class="prop">limit</span> || <span class="lit">10</span>);
+
+  <span class="kw">const</span> <span class="prop">url</span> = <span class="str">`https://api.lemonsqueezy.com/v1/order-items?${params}`</span>;
+
+  <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="prop">url</span>, {
+    <span class="prop">headers</span>: {
+      <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+      <span class="str">'Authorization'</span>: <span class="str">`Bearer ${apiKey}`</span>
+    }
+  });
+
+  <span class="kw">return</span> <span class="kw">await</span> <span class="prop">response</span>.<span class="dir">json</span>();
+}
+
+<span class="cmt">// Usage examples</span>
+<span class="kw">const</span> <span class="prop">allItems</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">limit</span>: <span class="lit">50</span> });
+<span class="kw">const</span> <span class="prop">orderItems</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">orderId</span>: <span class="lit">123</span> });
+<span class="kw">const</span> <span class="prop">productItems</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">productId</span>: <span class="lit">456</span>, <span class="prop">page</span>: <span class="lit">2</span> });
+    </code></pre>
+
+    <h3>3. Get Order Items for a Specific Order</h3>
+    <pre><code class="javascript">
+<span class="kw">async function</span> <span class="dir">getOrderItemsByOrder</span>(<span class="prop">orderId</span>) {
+  <span class="cmt">// Method 1: Using filter on order-items endpoint</span>
+  <span class="kw">const</span> <span class="prop">items</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">orderId</span> });
+
+  <span class="cmt">// Method 2: Using relationships (if you have the order data)</span>
+  <span class="cmt">// First get the order, then follow the relationship</span>
+  <span class="kw">const</span> <span class="prop">orderResponse</span> = <span class="kw">await</span> <span class="dir">fetch</span>(
+    <span class="str">`https://api.lemonsqueezy.com/v1/orders/${orderId}?include=order-items`</span>,
+    {
+      <span class="prop">headers</span>: {
+        <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+        <span class="str">'Authorization'</span>: <span class="str">`Bearer ${process.env.LEMON_API_KEY}`</span>
+      }
+    }
+  );
+
+  <span class="kw">const</span> <span class="prop">orderData</span> = <span class="kw">await</span> <span class="prop">orderResponse</span>.<span class="dir">json</span>();
+  <span class="cmt">// Includes order items in the response</span>
+  <span class="kw">return</span> <span class="prop">orderData</span>.<span class="prop">included</span>;
+}
+    </code></pre>
+
+    <h2>Practical Use Cases:</h2>
+
+    <h3>1. Generate Detailed Invoice</h3>
+    <pre><code class="javascript">
+<span class="kw">async function</span> <span class="dir">generateDetailedInvoice</span>(<span class="prop">orderId</span>) {
+  <span class="cmt">// Get order details</span>
+  <span class="kw">const</span> <span class="prop">orderRes</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">`https://api.lemonsqueezy.com/v1/orders/${orderId}`</span>, {
+    <span class="prop">headers</span>: { <span class="cmt">/* auth headers */</span> }
+  });
+  <span class="kw">const</span> <span class="prop">order</span> = <span class="kw">await</span> <span class="prop">orderRes</span>.<span class="dir">json</span>();
+
+  <span class="cmt">// Get all items for this order</span>
+  <span class="kw">const</span> <span class="prop">items</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">orderId</span> });
+
+  <span class="cmt">// Build invoice lines</span>
+  <span class="kw">const</span> <span class="prop">invoiceLines</span> = <span class="prop">items</span>.<span class="prop">data</span>.<span class="dir">map</span>(<span class="prop">item</span> => {
+    <span class="kw">const</span> <span class="prop">attrs</span> = <span class="prop">item</span>.<span class="prop">attributes</span>;
+    <span class="kw">return</span> {
+      <span class="prop">description</span>: <span class="str">`${attrs.product_name} - ${attrs.variant_name}`</span>,
+      <span class="prop">quantity</span>: <span class="prop">attrs</span>.<span class="prop">quantity</span>,
+      <span class="prop">unitPrice</span>: <span class="prop">attrs</span>.<span class="prop">price</span> / <span class="lit">100</span>,
+      <span class="prop">total</span>: (<span class="prop">attrs</span>.<span class="prop">price</span> * <span class="prop">attrs</span>.<span class="prop">quantity</span>) / <span class="lit">100</span>
+    };
+  });
+
+  <span class="kw">return</span> {
+    <span class="prop">orderNumber</span>: <span class="prop">order</span>.<span class="prop">data</span>.<span class="prop">attributes</span>.<span class="prop">identifier</span>,
+    <span class="prop">date</span>: <span class="prop">order</span>.<span class="prop">data</span>.<span class="prop">attributes</span>.<span class="prop">created_at</span>,
+    <span class="prop">customer</span>: <span class="prop">order</span>.<span class="prop">data</span>.<span class="prop">attributes</span>.<span class="prop">customer_name</span>,
+    <span class="prop">items</span>: <span class="prop">invoiceLines</span>,
+    <span class="prop">total</span>: <span class="prop">order</span>.<span class="prop">data</span>.<span class="prop">attributes</span>.<span class="prop">total</span> / <span class="lit">100</span>
+  };
+}
+    </code></pre>
+
+    <h3>2. Calculate Product Revenue</h3>
+    <pre><code class="javascript">
+<span class="kw">async function</span> <span class="dir">getProductRevenue</span>(<span class="prop">productId</span>) {
+  <span class="cmt">// Get all orders for this product</span>
+  <span class="kw">const</span> <span class="prop">items</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">productId</span> });
+
+  <span class="kw">let</span> <span class="prop">totalRevenue</span> = <span class="lit">0</span>;
+  <span class="kw">let</span> <span class="prop">totalQuantity</span> = <span class="lit">0</span>;
+
+  <span class="prop">items</span>.<span class="prop">data</span>.<span class="dir">forEach</span>(<span class="prop">item</span> => {
+    <span class="kw">const</span> <span class="prop">attrs</span> = <span class="prop">item</span>.<span class="prop">attributes</span>;
+    <span class="prop">totalRevenue</span> += (<span class="prop">attrs</span>.<span class="prop">price</span> * <span class="prop">attrs</span>.<span class="prop">quantity</span>);
+    <span class="prop">totalQuantity</span> += <span class="prop">attrs</span>.<span class="prop">quantity</span>;
+  });
+
+  <span class="kw">return</span> {
+    <span class="prop">productId</span>,
+    <span class="prop">totalRevenue</span>: <span class="prop">totalRevenue</span> / <span class="lit">100</span>,
+    <span class="prop">totalQuantity</span>,
+    <span class="prop">averagePrice</span>: (<span class="prop">totalRevenue</span> / <span class="prop">totalQuantity</span>) / <span class="lit">100</span>
+  };
+}
+    </code></pre>
+
+    <h3>3. Get Top-Selling Products</h3>
+    <pre><code class="javascript">
+<span class="kw">async function</span> <span class="dir">getTopSellingProducts</span>(<span class="prop">limit</span> = <span class="lit">10</span>) {
+  <span class="cmt">// Get all order items</span>
+  <span class="kw">const</span> <span class="prop">allItems</span> = <span class="kw">await</span> <span class="dir">listOrderItems</span>({ <span class="prop">limit</span>: <span class="lit">1000</span> }); <span class="cmt">// Adjust as needed</span>
+
+  <span class="cmt">// Aggregate by product</span>
+  <span class="kw">const</span> <span class="prop">productSales</span> = {};
+
+  <span class="prop">allItems</span>.<span class="prop">data</span>.<span class="dir">forEach</span>(<span class="prop">item</span> => {
+    <span class="kw">const</span> <span class="prop">attrs</span> = <span class="prop">item</span>.<span class="prop">attributes</span>;
+    <span class="kw">const</span> <span class="prop">productId</span> = <span class="prop">attrs</span>.<span class="prop">product_id</span>;
+
+    <span class="kw">if</span> (!<span class="prop">productSales</span>[<span class="prop">productId</span>]) {
+      <span class="prop">productSales</span>[<span class="prop">productId</span>] = {
+        <span class="prop">productName</span>: <span class="prop">attrs</span>.<span class="prop">product_name</span>,
+        <span class="prop">totalQuantity</span>: <span class="lit">0</span>,
+        <span class="prop">totalRevenue</span>: <span class="lit">0</span>
+      };
+    }
+
+    <span class="prop">productSales</span>[<span class="prop">productId</span>].<span class="prop">totalQuantity</span> += <span class="prop">attrs</span>.<span class="prop">quantity</span>;
+    <span class="prop">productSales</span>[<span class="prop">productId</span>].<span class="prop">totalRevenue</span> += (<span class="prop">attrs</span>.<span class="prop">price</span> * <span class="prop">attrs</span>.<span class="prop">quantity</span>);
+  });
+
+  <span class="cmt">// Sort and return top products</span>
+  <span class="kw">return</span> <span class="dir">Object</span>.<span class="dir">entries</span>(<span class="prop">productSales</span>)
+    .<span class="dir">map</span>(([<span class="prop">id</span>, <span class="prop">data</span>]) => ({
+      <span class="prop">productId</span>: <span class="prop">id</span>,
+      ...<span class="prop">data</span>,
+      <span class="prop">totalRevenue</span>: <span class="prop">data</span>.<span class="prop">totalRevenue</span> / <span class="lit">100</span>
+    }))
+    .<span class="dir">sort</span>((<span class="prop">a</span>, <span class="prop">b</span>) => <span class="prop">b</span>.<span class="prop">totalQuantity</span> - <span class="prop">a</span>.<span class="prop">totalQuantity</span>)
+    .<span class="dir">slice</span>(<span class="lit">0</span>, <span class="prop">limit</span>);
+}
+    </code></pre>
+
+    <h2>Important Notes:</h2>
+    <ul>
+      <li>
+        **Price Format:** Always divide by <code class="lit">100</code> (prices
+        are in cents)
+      </li>
+      <li>**Data Immutability:** Order items preserve historical data</li>
+      <li>
+        **Relationships:** Use <code class="prop">include</code> parameter to
+        get related data
+      </li>
+      <li>**Pagination:** Always implement pagination for lists</li>
+      <li>**Filtering:** Use filters to avoid fetching unnecessary data</li>
+    </ul>
+
+    <h2>Common API Parameters:</h2>
+    <pre><code class="javascript">
+<span class="cmt">// Useful parameters for order-items endpoint</span>
+<span class="kw">const</span> <span class="prop">params</span> = {
+  <span class="str">'page[number]'</span>: <span class="lit">1</span>,           <span class="cmt">// Page number</span>
+  <span class="str">'page[size]'</span>: <span class="lit">50</span>,            <span class="cmt">// Items per page</span>
+  <span class="str">'filter[order_id]'</span>: <span class="lit">123</span>,     <span class="cmt">// Filter by order</span>
+  <span class="str">'filter[product_id]'</span>: <span class="lit">456</span>,   <span class="cmt">// Filter by product</span>
+  <span class="str">'sort'</span>: <span class="str">'-created_at'</span>,       <span class="cmt">// Sort by newest first</span>
+  <span class="str">'include'</span>: <span class="str">'product,variant'</span> <span class="cmt">// Include related data</span>
+};
+    </code></pre>
+  </body>
+</html>

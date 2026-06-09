@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js HTTP Module Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #f1f1f1;
+        --heading-color: #00bcd4;
+        --code-bg: #2d2d2d; /* A bit lighter black for code */
+        --code-text: #f8f8f2;
+        --code-comment: #92b0c1;
+        --code-keyword: #ff79c6;
+        --code-string: #ff9959;
+        --code-function: #50fa7b;
+        --code-property: #bd93f9;
+        --code-number: #f1fa8c;
+        --hr-color: #444;
+        --ul-bullet: #00bcd4;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--hr-color);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      p,
+      ul,
+      li {
+        margin-bottom: 15px;
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      ul li::before {
+        content: '→';
+        color: var(--ul-bullet);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      .code-container {
+        background-color: var(--code-bg);
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+        overflow-x: auto;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      pre {
+        margin: 0;
+      }
+
+      code {
+        font-family: 'Fira Code', 'Roboto Mono', monospace;
+        color: var(--code-text);
+        line-height: 1.5;
+        white-space: pre;
+      }
+
+      .comment {
+        color: var(--code-comment);
+      }
+      .keyword {
+        color: var(--code-keyword);
+      }
+      .string {
+        color: var(--code-string);
+      }
+      .function {
+        color: var(--code-function);
+      }
+      .property {
+        color: var(--code-property);
+      }
+      .number {
+        color: var(--code-number);
+      }
+      .text {
+        color: var(--code-text);
+      }
+      .variable {
+        color: var(--code-text);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--hr-color);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #333;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: var(--hr-color);
+        margin: 40px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>What is the http module in Node.js?</h1>
+    <p>
+      Node.js has a built-in <span class="keyword">http</span> module that
+      allows you to create servers and handle HTTP requests and responses. It
+      follows the event-driven and stream-based architecture of Node.js.
+    </p>
+    <p>It can be used to:</p>
+    <ul>
+      <li>Serve web pages</li>
+      <li>Send JSON APIs</li>
+      <li>Stream video/audio files</li>
+      <li>Handle REST APIs</li>
+    </ul>
+
+    <hr />
+
+    <h2>2. Syntax for Creating a Basic HTTP Server</h2>
+    <div class="code-container">
+      <pre><code><span class="keyword">import</span> <span class="property">http</span> <span class="keyword">from</span> <span class="string">"node:http"</span>;
+<span class="comment">// Create server</span>
+<span class="keyword">const</span> <span class="variable">server</span> = <span class="function">http.createServer</span>((<span class="variable">req</span>, <span class="variable">res</span>) => {
+  <span class="comment">// req = IncomingMessage (Readable stream)</span>
+  <span class="comment">// res = ServerResponse (Writable stream)</span>
+
+  <span class="function">res.writeHead</span>(<span class="number">200</span>, { <span class="string">"Content-Type"</span>: <span class="string">"text/plain"</span> });
+  <span class="function">res.write</span>(<span class="string">"Hello, this is my first Node.js server!"</span>);
+  <span class="function">res.end</span>();
+});
+<span class="comment">// Start server</span>
+<span class="function">server.listen</span>(<span class="number">3000</span>, () => {
+  <span class="function">console.log</span>(<span class="string">"Server is running at http://localhost:3000"</span>);
+});</code></pre>
+    </div>
+    <h3>Explanation:</h3>
+    <ul>
+      <li><span class="keyword">http.createServer()</span></li>
+      <ul>
+        <li>Creates an HTTP server.</li>
+        <li>
+          Takes a callback function (<span class="variable">req</span>,
+          <span class="variable">res</span>) that runs every time a client makes
+          a request.
+        </li>
+      </ul>
+      <li><span class="keyword">req</span> → Incoming Request Object</li>
+      <ul>
+        <li>Represents the client’s HTTP request.</li>
+        <li>It’s a Readable Stream (data flows from client → server).</li>
+      </ul>
+      <li><span class="keyword">res</span> → Server Response Object</li>
+      <ul>
+        <li>Represents what the server sends back.</li>
+        <li>It’s a Writable Stream (data flows from server → client).</li>
+      </ul>
+      <li><span class="keyword">server.listen(port, callback)</span></li>
+      <ul>
+        <li>Starts the server on the given port.</li>
+      </ul>
+    </ul>
+
+    <hr />
+
+    <h2>3. Requests and Responses as Streams</h2>
+    <h3>Why Streams?</h3>
+    <ul>
+      <li>
+        Requests (<span class="variable">req</span>) can be very large (like
+        file uploads).
+      </li>
+      <li>
+        Responses (<span class="variable">res</span>) can also be large (like
+        sending a video).
+      </li>
+      <li>
+        Instead of loading the whole thing into memory, Node.js uses streams to
+        process data piece by piece.
+      </li>
+    </ul>
+    <p>
+      👉 That’s why <span class="variable">req</span> is Readable Stream and
+      <span class="variable">res</span> is Writable Stream.
+    </p>
+
+    <hr />
+
+    <h2>4. Important Events</h2>
+    <p>Both the server and the request/response streams emit events.</p>
+    <h3>Server Events</h3>
+    <div class="code-container">
+      <pre><code><span class="function">server.on</span>(<span class="string">"request"</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+  <span class="function">console.log</span>(<span class="string">"New request received"</span>);
+});
+
+<span class="function">server.on</span>(<span class="string">"close"</span>, () => {
+  <span class="function">console.log</span>(<span class="string">"Server closed"</span>);
+});
+
+<span class="function">server.on</span>(<span class="string">"error"</span>, (<span class="variable">err</span>) => {
+  <span class="function">console.error</span>(<span class="string">"Server error:"</span>, <span class="variable">err</span>);
+});</code></pre>
+    </div>
+    <ul>
+      <li>
+        <span class="keyword">request</span> → Triggered whenever a client makes
+        an HTTP request.
+      </li>
+      <li>
+        <span class="keyword">close</span> → Triggered when the server shuts
+        down.
+      </li>
+      <li>
+        <span class="keyword">error</span> → Triggered if something goes wrong.
+      </li>
+    </ul>
+    <h3>Request (req) Events</h3>
+    <div class="code-container">
+      <pre><code><span class="function">req.on</span>(<span class="string">"data"</span>, (<span class="variable">chunk</span>) => {
+  <span class="function">console.log</span>(<span class="string">"Got data:"</span>, <span class="function">chunk.toString</span>());
+});
+
+<span class="function">req.on</span>(<span class="string">"end"</span>, () => {
+  <span class="function">console.log</span>(<span class="string">"Request ended"</span>);
+});</code></pre>
+    </div>
+    <ul>
+      <li>
+        <span class="keyword">data</span> → Fired when a chunk of request body
+        arrives (important for POST requests).
+      </li>
+      <li>
+        <span class="keyword">end</span> → Fired when the request body is
+        completely received.
+      </li>
+    </ul>
+    <h3>Response (res) Methods & Events</h3>
+    <div class="code-container">
+      <pre><code><span class="function">res.on</span>(<span class="string">"finish"</span>, () => {
+  <span class="function">console.log</span>(<span class="string">"Response fully sent to client"</span>);
+});</code></pre>
+    </div>
+    <ul>
+      <li>
+        <span class="keyword">finish</span> → Fired when the response has been
+        completely sent.
+      </li>
+      <li>
+        <span class="keyword">res.write(chunk)</span> → Sends a piece of data.
+      </li>
+      <li>
+        <span class="keyword">res.end([data])</span> → Ends the response
+        (optionally sending last piece).
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>5. Important Properties of the req Object</h2>
+    <p>
+      <span class="variable">req</span> (IncomingMessage) has many useful
+      properties:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Description</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="property">req.method</span></td>
+          <td>HTTP method used</td>
+          <td>"GET", "POST"</td>
+        </tr>
+        <tr>
+          <td><span class="property">req.url</span></td>
+          <td>The URL/path requested</td>
+          <td>"/about?name=Arman"</td>
+        </tr>
+        <tr>
+          <td><span class="property">req.headers</span></td>
+          <td>Request headers</td>
+          <td>{ "user-agent": "...", "content-type": "application/json" }</td>
+        </tr>
+        <tr>
+          <td><span class="property">req.httpVersion</span></td>
+          <td>HTTP version used</td>
+          <td>"1.1"</td>
+        </tr>
+        <tr>
+          <td><span class="property">req.socket</span></td>
+          <td>TCP socket object</td>
+          <td>Low-level info about connection</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>👉 Example:</p>
+    <div class="code-container">
+      <pre><code><span class="keyword">const</span> <span class="variable">server</span> = <span class="function">http.createServer</span>((<span class="variable">req</span>, <span class="variable">res</span>) => {
+  <span class="function">console.log</span>(<span class="string">"Method:"</span>, <span class="property">req.method</span>);
+  <span class="function">console.log</span>(<span class="string">"URL:"</span>, <span class="property">req.url</span>);
+  <span class="function">console.log</span>(<span class="string">"Headers:"</span>, <span class="property">req.headers</span>);
+
+  <span class="function">res.writeHead</span>(<span class="number">200</span>, { <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span> });
+  <span class="function">res.end</span>(<span class="function">JSON.stringify</span>({ <span class="string">"message"</span>: <span class="string">"Check console for request details"</span> }));
+});</code></pre>
+    </div>
+
+    <hr />
+
+    <h2>6. Full Practical Example</h2>
+    <h3>Handling GET and POST requests</h3>
+    <div class="code-container">
+      <pre><code><span class="keyword">import</span> <span class="property">http</span> <span class="keyword">from</span> <span class="string">"node:http"</span>;
+<span class="keyword">const</span> <span class="variable">server</span> = <span class="function">http.createServer</span>((<span class="variable">req</span>, <span class="variable">res</span>) => {
+  <span class="keyword">if</span> (<span class="property">req.method</span> === <span class="string">"GET"</span> && <span class="property">req.url</span> === <span class="string">"/"</span>) {
+    <span class="function">res.writeHead</span>(<span class="number">200</span>, { <span class="string">"Content-Type"</span>: <span class="string">"text/html"</span> });
+    <span class="function">res.end</span>(<span class="string">"&lt;h1&gt;Welcome to Home Page&lt;/h1&gt;"</span>);
+  }
+
+  <span class="keyword">else</span> <span class="keyword">if</span> (<span class="property">req.method</span> === <span class="string">"GET"</span> && <span class="property">req.url</span> === <span class="string">"/about"</span>) {
+    <span class="function">res.writeHead</span>(<span class="number">200</span>, { <span class="string">"Content-Type"</span>: <span class="string">"text/plain"</span> });
+    <span class="function">res.end</span>(<span class="string">"About Page"</span>);
+  }
+
+  <span class="keyword">else</span> <span class="keyword">if</span> (<span class="property">req.method</span> === <span class="string">"POST"</span> && <span class="property">req.url</span> === <span class="string">"/data"</span>) {
+    <span class="keyword">let</span> <span class="variable">body</span> = <span class="string">""</span>;
+    <span class="function">req.on</span>(<span class="string">"data"</span>, (<span class="variable">chunk</span>) => {
+      <span class="variable">body</span> += <span class="function">chunk.toString</span>();
+    });
+
+    <span class="function">req.on</span>(<span class="string">"end"</span>, () => {
+      <span class="function">res.writeHead</span>(<span class="number">200</span>, { <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span> });
+      <span class="function">res.end</span>(<span class="function">JSON.stringify</span>({ <span class="string">"received"</span>: <span class="variable">body</span> }));
+    });
+  }
+
+  <span class="keyword">else</span> {
+    <span class="function">res.writeHead</span>(<span class="number">404</span>, { <span class="string">"Content-Type"</span>: <span class="string">"text/plain"</span> });
+    <span class="function">res.end</span>(<span class="string">"Not Found"</span>);
+  }
+});
+
+<span class="function">server.listen</span>(<span class="number">3000</span>, () => {
+  <span class="function">console.log</span>(<span class="string">"Server running at http://localhost:3000"</span>);
+});</code></pre>
+    </div>
+    <p>Try it:</p>
+    <ul>
+      <li>
+        Open browser →
+        <a href="http://localhost:3000" style="color: var(--heading-color)"
+          >http://localhost:3000</a
+        >
+      </li>
+      <li>Visit <span class="property">/about</span></li>
+      <li>Send POST request with Postman or curl:</li>
+    </ul>
+    <div class="code-container">
+      <pre><code><span class="function">curl</span> -X POST http://localhost:3000/data -d <span class="string">"hello world"</span></code></pre>
+    </div>
+    <hr />
+
+    <h3>✅ Now you know:</h3>
+    <ul>
+      <li>What the http module is</li>
+      <li>Syntax to create servers</li>
+      <li>
+        Requests (<span class="variable">req</span>) and Responses (<span
+          class="variable"
+          >res</span
+        >) as streams
+      </li>
+      <li>
+        Important events (<span class="keyword">data</span>,
+        <span class="keyword">end</span>, <span class="keyword">finish</span>,
+        <span class="keyword">request</span>,
+        <span class="keyword">error</span>)
+      </li>
+      <li>
+        Useful properties (<span class="keyword">method</span>,
+        <span class="keyword">url</span>, <span class="keyword">headers</span>)
+      </li>
+      <li>A full example with GET & POST routes</li>
+    </ul>
+  </body>
+</html>

@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bearer Authentication Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Consolas:wght@400;700&display=swap" rel="stylesheet">
+   <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>What is Bearer Authentication?</h1>
+    <p>Bearer authentication is an HTTP authentication scheme where the client provides a **bearer token** (typically a cryptographic string) in the <code class="prop">Authorization</code> header. The name "bearer" means anyone who possesses this token can use it to access protected resources - much like how anyone holding a physical bearer bond can redeem it.</p>
+    <p>OR</p>
+<p>
+  A Bearer token means:
+  <strong>“If you have this token, you are allowed.”</strong>
+</p>
+
+<h2>How It Works</h2>
+
+<p>Imagine a room with a door.</p>
+
+<p>The door guard says:</p>
+
+<blockquote>
+  <p>
+    “I don’t care who you are.<br>
+    If you carry this key, you can enter.”
+  </p>
+</blockquote>
+
+<p><strong>That key</strong> = Bearer token</p>
+
+<p><strong>The rule</strong> =</p>
+
+<p>
+  <strong>Bearer rule:</strong> possession = permission
+</p>
+
+<h3>The precise truth (clean and simple)</h3>
+
+<p><strong>🔑 Bearer</strong> = the rule</p>
+
+<blockquote>
+  <p>“Whoever carries the token is trusted”</p>
+</blockquote>
+
+<p><strong>📦 Token type</strong> = what’s inside</p>
+
+<ul>
+  <li>If the token is <strong>JWT</strong> → guard reads fields inside</li>
+  <li>If the token is a <strong>random key</strong> → guard looks it up in database</li>
+</ul>
+
+<p>
+  <strong>Bearer itself</strong> says nothing about contents.
+</p>
+
+    <h3>Core Flow:</h3>
+<pre><code><span class="type">text</span>
+Client → Server: Request with <span class="prop">Authorization: Bearer &lt;token&gt;</span>
+Server → Client: Validates token → Grants/Denies access</code></pre>
+
+    <h3>Is It Stateless or Stateful?</h3>
+    <p>Bearer authentication is inherently <strong class="kw">STATELESS</strong> on the server side, but with important caveats:</p>
+    <ul>
+        <li><strong>Server Perspective:</strong> <strong class="kw">Stateless</strong> - server validates the token without storing session data</li>
+        <li><strong>Token Itself:</strong> Contains all necessary claims/authorizations</li>
+        <li><strong>Validation:</strong> Server verifies token signature and checks claims</li>
+        <li><strong>No Server Session Storage:</strong> Each request carries its own authentication</li>
+    </ul>
+    <p>However, token **issuance/revocation** requires state management:</p>
+    <ul>
+        <li>Token blacklists (for invalidation)</li>
+        <li>Refresh token rotations</li>
+        <li>Key rotation for signing</li>
+    </ul>
+
+    <h2>HTTP Request Structure</h2>
+    <h3>Request Headers:</h3>
+<pre><code><span class="type">http</span>
+<span class="kw">GET</span> <span class="mono">/api/protected-resource</span> <span class="dir">HTTP/1.1</span>
+<span class="prop">Host</span>: <span class="mono">api.example.com</span>
+<span class="prop">Authorization</span>: <span class="kw">Bearer</span> <span class="str">eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c</span>
+<span class="prop">Content-Type</span>: <span class="str">application/json</span></code></pre>
+
+    <h3>Server Response Examples:</h3>
+    <h4>Success (<span class="lit">200</span> OK):</h4>
+<pre><code><span class="type">http</span>
+<span class="dir">HTTP/1.1</span> <span class="lit">200</span> OK
+<span class="prop">Content-Type</span>: <span class="str">application/json</span>
+<span class="str">{"data": "protected content"}</span></code></pre>
+    <h4>Failure (<span class="lit">401</span> Unauthorized):</h4>
+<pre><code><span class="type">http</span>
+<span class="dir">HTTP/1.1</span> <span class="lit">401</span> Unauthorized
+<span class="prop">WWW-Authenticate</span>: <span class="kw">Bearer</span> <span class="prop">realm</span>="Example", <span class="op">error</span>="invalid_token", <span class="prop">error_description</span>="The access token expired"</code></pre>
+
+    <h2>Server-to-Server Authentication (<code class="prop">Node.js</code> → <code class="prop">Lemon Squeezy</code>)</h2>
+    <h3>Why Use Bearer Auth Between Servers:</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// Example Node.js server making request to Lemon Squeezy</span>
+<span class="kw">const</span> <span class="prop">axios</span> = <span class="dir">require</span>(<span class="str">'axios'</span>);
+
+<span class="kw">async function</span> <span class="dir">getLemonSqueezyData</span>() {
+    <span class="kw">const</span> <span class="prop">API_TOKEN</span> = <span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">LEMON_SQUEEZY_API_KEY</span>;
+    
+    <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">axios</span>.<span class="dir">get</span>(<span class="str">'https://api.lemonsqueezy.com/v1/products'</span>, {
+        <span class="prop">headers</span>: {
+            <span class="str">'Authorization'</span>: <span class="str">`Bearer ${API_TOKEN}`</span>,
+            <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+            <span class="str">'Content-Type'</span>: <span class="str">'application/vnd.api+json'</span>
+        }
+    });
+    <span class="kw">return</span> <span class="prop">response</span>.<span class="prop">data</span>;
+}</code></pre>
+
+    <h3>✅ SECURE FOR SERVER-TO-SERVER:</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Security Aspect</th>
+                <th>Why It's Secure</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Token Storage</td>
+                <td>API tokens stored in server environment variables, **never exposed to clients**</td>
+            </tr>
+            <tr>
+                <td>Network Path</td>
+                <td>Direct server-to-server communication, **no intermediaries**</td>
+            </tr>
+            <tr>
+                <td>IP Whitelisting</td>
+                <td>Can configure Lemon Squeezy to only accept requests from **known server IPs**</td>
+            </tr>
+            <tr>
+                <td>Token Rotation</td>
+                <td>Easy to rotate tokens **without client impact**</td>
+            </tr>
+            <tr>
+                <td>Limited Scope</td>
+                <td>API tokens can be scoped to specific operations</td>
+            </tr>
+            <tr>
+                <td>Monitoring</td>
+                <td>Server logs can track all API usage centrally</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>Best Practices for Server-to-Server:</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// Secure implementation example</span>
+<span class="kw">class</span> <span class="prop">LemonSqueezyClient</span> {
+    <span class="dir">constructor</span>() {
+        <span class="kw">this</span>.<span class="prop">baseURL</span> = <span class="str">'https://api.lemonsqueezy.com/v1'</span>;
+        <span class="kw">this</span>.<span class="prop">token</span> = <span class="kw">this</span>.<span class="dir">rotateToken</span>(); <span class="cmt">// Implement token rotation</span>
+    }
+    
+    <span class="kw">async function</span> <span class="dir">makeRequest</span>(<span class="prop">endpoint</span>) {
+        <span class="cmt">// Use HTTPS always</span>
+        <span class="cmt">// Implement retry logic with exponential backoff</span>
+        <span class="cmt">// Log all requests for audit trail</span>
+        <span class="cmt">// Validate SSL certificates</span>
+        <span class="kw">return</span> <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">`</span><span class="str">${</span><span class="kw">this</span>.<span class="prop">baseURL</span><span class="str">}${</span><span class="prop">endpoint</span><span class="str">}`</span>, {
+            <span class="prop">headers</span>: {
+                <span class="str">'Authorization'</span>: <span class="str">`Bearer ${</span><span class="kw">this</span>.<span class="prop">token</span><span class="str">}`</span>,
+                <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>
+            }
+        });
+    }
+    
+    <span class="dir">rotateToken</span>() {
+        <span class="cmt">// Automated token rotation logic</span>
+        <span class="cmt">// Store new token in secure key management system</span>
+    }
+}</code></pre>
+
+    <h2>Client-to-Server Authentication (<code class="prop">React.js</code> → <code class="prop">Lemon Squeezy</code>)</h2>
+    <h3>❌ RISKY - Why NOT to Use Directly:</h3>
+    <h3>Only used it for learning purpose</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// ⚠️ DANGEROUS - Client-side React code exposing API token</span>
+<span class="kw">function</span> <span class="dir">DangerousComponent</span>() {
+    <span class="kw">const</span> [<span class="prop">data</span>, <span class="dir">setData</span>] = <span class="dir">useState</span>(<span class="kw">null</span>);
+    
+    <span class="dir">useEffect</span>(() => {
+        <span class="cmt">// API token exposed in client-side code</span>
+        <span class="kw">const</span> <span class="prop">LEMON_TOKEN</span> = <span class="str">'ls_sk_123456789'</span>; <span class="cmt">// Visible in browser!</span>
+        
+        <span class="dir">fetch</span>(<span class="str">'https://api.lemonsqueezy.com/v1/products'</span>, {
+            <span class="prop">headers</span>: {
+                <span class="str">'Authorization'</span>: <span class="str">`Bearer ${LEMON_TOKEN}`</span>
+            }
+        })
+        .<span class="dir">then</span>(<span class="prop">res</span> => <span class="prop">res</span>.<span class="dir">json</span>())
+        .<span class="dir">then</span>(<span class="dir">setData</span>);
+    }, []);
+    
+    <span class="kw">return</span> <span class="kw">div</span>>{<span class="cmt">/* ... */</span>}<span class="kw"></div></span>;
+}</code></pre>
+
+    <h3>Security Risks of Client-to-Server Bearer Auth:</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Risk</th>
+                <th>Explanation</th>
+                <th>Impact</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Token Exposure</td>
+                <td>API tokens visible in browser DevTools, JavaScript source</td>
+                <td>Attacker can **steal token** and make unlimited API calls</td>
+            </tr>
+            <tr>
+                <td>No IP Restrictions</td>
+                <td>Requests come from user's IP, not your server IP</td>
+                <td>Cannot whitelist IPs at Lemon Squeezy</td>
+            </tr>
+            <tr>
+                <td>Rate Limiting Abuse</td>
+                <td>Each user has separate rate limit</td>
+                <td>Users could **exhaust your API quota**</td>
+            </tr>
+            <tr>
+                <td>Token Theft</td>
+                <td>XSS attacks can easily steal tokens</td>
+                <td>Complete account compromise</td>
+            </tr>
+            <tr>
+                <td>No Server Logging</td>
+                <td>API calls bypass your server</td>
+                <td>No audit trail, no usage monitoring</td>
+            </tr>
+            <tr>
+                <td>CORS Limitations</td>
+                <td>Browser enforces same-origin policy</td>
+                <td>May need to expose API endpoints publicly</td>
+            </tr>
+            <tr>
+                <td>Token Rotation Hell</td>
+                <td>Changing tokens requires updating all clients</td>
+                <td>Cannot revoke individual user tokens</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Secure Alternatives for Client-Server Communication</h2>
+    <h3>Option 1: Backend Proxy Pattern (Recommended)</h3>
+<pre><code><span class="cmt">// React (Frontend) → Your Node.js Backend → Lemon Squeezy</span>
+
+<span class="cmt">// FRONTEND (React):</span>
+<span class="kw">async function</span> <span class="dir">getProducts</span>() {
+    <span class="cmt">// Call YOUR server endpoint</span>
+    <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">'/api/lemonsqueezy/products'</span>);
+    <span class="kw">return</span> <span class="prop">response</span>.<span class="dir">json</span>();
+}
+
+<span class="cmt">// BACKEND (Node.js):</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">'/api/lemonsqueezy/products'</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="cmt">// Validate user session first</span>
+    <span class="kw">if</span> (!<span class="prop">req</span>.<span class="prop">session</span>.<span class="prop">userId</span>) <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">401</span>).<span class="dir">send</span>();
+    
+    <span class="cmt">// Then proxy to Lemon Squeezy with server token</span>
+    <span class="kw">const</span> <span class="prop">lemonResponse</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">'https://api.lemonsqueezy.com/v1/products'</span>, {
+        <span class="prop">headers</span>: {
+            <span class="str">'Authorization'</span>: <span class="str">`Bearer ${</span><span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">LEMON_SQUEEZY_API_KEY</span><span class="str">}`</span>
+        }
+    });
+    
+    <span class="cmt">// Optional: Transform data, add logging, implement caching</span>
+    <span class="kw">const</span> <span class="prop">data</span> = <span class="kw">await</span> <span class="prop">lemonResponse</span>.<span class="dir">json</span>();
+    <span class="prop">res</span>.<span class="dir">json</span>(<span class="prop">data</span>);
+});</code></pre>
+
+    <h3>Option 2: Temporary Signed URLs</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// Node.js Backend creates time-limited access</span>
+<span class="prop">app</span>.<span class="dir">post</span>(<span class="str">'/api/lemonsqueezy/signed-url'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="kw">const</span> { <span class="prop">userId</span>, <span class="prop">resource</span> } = <span class="prop">req</span>.<span class="prop">body</span>;
+    
+    <span class="cmt">// Validate user authorization</span>
+    <span class="kw">if</span> (!<span class="dir">authorized</span>(<span class="prop">userId</span>, <span class="prop">resource</span>)) <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">403</span>).<span class="dir">send</span>();
+    
+    <span class="cmt">// Create time-limited token (e.g., 5 minutes)</span>
+    <span class="kw">const</span> <span class="prop">token</span> = <span class="prop">jwt</span>.<span class="dir">sign</span>(
+        { 
+            <span class="prop">userId</span>, 
+            <span class="prop">resource</span>, 
+            <span class="prop">exp</span>: <span class="prop">Math</span>.<span class="dir">floor</span>(<span class="prop">Date</span>.<span class="dir">now</span>() / <span class="lit">1000</span>) + <span class="lit">300</span> 
+        },
+        <span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">JWT_SECRET</span>
+    );
+    
+    <span class="prop">res</span>.<span class="dir">json</span>({
+        <span class="prop">url</span>: <span class="str">`https://api.lemonsqueezy.com/v1/${resource}?temp_token=${token}`</span>
+    });
+});</code></pre>
+
+    <h3>Option 3: Backend-Generated Client Tokens (Most Secure)</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// Backend issues short-lived, scoped tokens</span>
+<span class="kw">class</span> <span class="prop">TokenService</span> {
+    <span class="dir">generateClientToken</span>(<span class="prop">userId</span>, <span class="prop">permissions</span>) {
+        <span class="kw">return</span> <span class="prop">jwt</span>.<span class="dir">sign</span>(
+            {
+                <span class="prop">sub</span>: <span class="prop">userId</span>,
+                <span class="prop">permissions</span>, <span class="cmt">// Limited scopes: ['read:products']</span>
+                <span class="prop">iss</span>: <span class="str">'your-backend-service'</span>,
+                <span class="prop">aud</span>: <span class="str">'lemonsqueezy-api'</span>,
+                <span class="prop">exp</span>: <span class="prop">Math</span>.<span class="dir">floor</span>(<span class="prop">Date</span>.<span class="dir">now</span>() / <span class="lit">1000</span>) + <span class="lit">3600</span> <span class="cmt">// 1 hour</span>
+            },
+            <span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">JWT_SECRET</span>
+        );
+    }
+}
+<span class="cmt">// Lemon Squeezy would need to accept and validate these JWTs</span></code></pre>
+
+    <h2>Bearer Token Security Best Practices</h2>
+    <h3>For Server-to-Server:</h3>
+    <ul>
+        <li>**Use Environment Variables:** Never hardcode tokens</li>
+        <li>**Implement Token Rotation:** Automated, regular rotation</li>
+        <li>**Use Different Tokens:** Separate tokens for different services</li>
+        <li>**Monitor Usage:** Alert on abnormal patterns</li>
+        <li>**Implement Retry Logic:** With exponential backoff</li>
+        <li>**Use HTTPS Only:** Always enforce TLS</li>
+    </ul>
+
+    <h3>For Any Bearer Token Usage:</h3>
+    <ul>
+        <li>**Short Expiration:** Keep token lifetimes minimal</li>
+        <li>**Limited Scope:** Principle of least privilege</li>
+        <li>**Secure Storage:** Key management systems (AWS Secrets Manager, HashiCorp Vault)</li>
+        <li>**Revocation Plan:** Ability to quickly revoke compromised tokens</li>
+        <li>**Audit Logging:** Track all token usage</li>
+    </ul>
+
+    <h2>JWT vs. Opaque Tokens in Bearer Auth</h2>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// JWT Bearer Token (Self-contained):</span>
+<span class="cmt">// Header.Payload.Signature</span>
+<span class="cmt">// Contains claims, verifiable signature</span>
+<span class="cmt">// Stateless validation</span>
+
+<span class="cmt">// Opaque Bearer Token (Reference token):</span>
+<span class="cmt">// Random string, server must look up</span>
+<span class="cmt">// More control over revocation</span>
+<span class="cmt">// Stateful on token validation server</span></code></pre>
+
+    <h2>Summary Table</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Aspect</th>
+                <th>Server-to-Server</th>
+                <th>Client-to-Server (Direct)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Security</td>
+                <td>✅ Secure</td>
+                <td>❌ Highly Risky</td>
+            </tr>
+            <tr>
+                <td>Token Exposure</td>
+                <td>Protected on server</td>
+                <td>Exposed in browser</td>
+            </tr>
+            <tr>
+                <td>IP Whitelisting</td>
+                <td>Possible</td>
+                <td>Not possible</td>
+            </tr>
+            <tr>
+                <td>Rate Limiting</td>
+                <td>Controlled by you</td>
+                <td>Per client, hard to manage</td>
+            </tr>
+            <tr>
+                <td>Audit Trail</td>
+                <td>Full visibility</td>
+                <td>No visibility</td>
+            </tr>
+            <tr>
+                <td>Token Rotation</td>
+                <td>Easy</td>
+                <td>Difficult/Impossible</td>
+            </tr>
+            <tr>
+                <td>Recommended</td>
+                <td>✅ Yes</td>
+                <td>❌ Never</td>
+            </tr>
+        </tbody>
+    </table>
+    <p><strong>Bottom Line:</strong> Always use a **backend proxy** when clients need to access third-party APIs. The backend acts as a security gatekeeper, maintaining control, visibility, and protection of your API credentials.</p>
+
+    <h2>Simplified Architecture Flow</h2>
+    <p>The following diagram illustrates the secure **Backend Proxy Pattern** for a payment flow:</p>
+<pre><code><span class="type">text</span>
+┌──────────┐         ┌─────────────┐         ┌──────────────────┐
+│  React   │         │  Node.js    │         │  Lemon Squeezy   │
+│ (Client) │         │ (Backend)   │         │    API Server    │
+└─────┬────┘         └──────┬──────┘         └─────────┬────────┘
+      │                     │                           │
+      │ 1. User Login       │                           │
+      │    (gets JWT)       │                           │
+      ├────────────────────►│                           │
+      │                     │                           │
+      │ 2. Buy Product      │                           │
+      │    (with user JWT)  │                           │
+      ├────────────────────►│                           │
+      │                     │                           │
+      │                     │ 3. Validate User JWT      │
+      │                     │    (your auth system)     │
+      │                     │                           │
+      │                     │ 4. Prepare LS Request     │
+      │                     │    + <span class="kw">Bearer Token</span>         │
+      │                     ├──────────────────────────►│
+      │                     │ <span class="prop">Authorization</span>: <span class="kw">Bearer</span> ls_sk_... │
+      │                     │                           │
+      │                     │ 5. LS Validates Token     │
+      │                     │    Signature + Scope      │
+      │                     │◄──────────────────────────┤
+      │                     │                           │
+      │                     │ 6. Returns Checkout URL   │
+      │                     │◄──────────────────────────┤
+      │                     │                           │
+      │ 7. Redirect to      │                           │
+      │    Checkout URL     │                           │
+      │◄────────────────────┤                           │
+      │                     │                           │
+      │ 8. User Pays on     │                           │
+      │    Lemon Squeezy    │                           │
+      ├─────────────────────┼──────────────────────────►│
+      │                     │                           │
+      │ 9. Webhook to       │                           │
+      │    Your Backend     │                           │
+      │◄────────────────────┼───────────────────────────┤
+      │                     │                           │
+      │10. Update Order     │                           │
+      │    Status           │                           │
+      └─────────────────────┴───────────────────────────┘
+</code></pre>
+
+    <h2>Key Token Flow Explained</h2>
+    <h3>1. User Authentication (Your App)</h3>
+<pre><code><span class="cmt">// React → Your Node.js Server</span>
+<span class="cmt">// User gets YOUR JWT token, NOT Lemon Squeezy token</span>
+<span class="dir">fetch</span>(<span class="str">'/api/login'</span>, {
+  <span class="prop">method</span>: <span class="str">'POST'</span>,
+  <span class="prop">body</span>: <span class="prop">JSON</span>.<span class="dir">stringify</span>({ <span class="prop">email</span>, <span class="prop">password</span> })
+});
+<span class="cmt">// Response: { token: "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..." }</span></code></pre>
+
+    <h3>2. Making Purchase Request</h3>
+<pre><code><span class="cmt">// React sends YOUR JWT to YOUR backend</span>
+<span class="dir">fetch</span>(<span class="str">'/api/create-checkout'</span>, {
+  <span class="prop">headers</span>: {
+    <span class="str">'Authorization'</span>: <span class="str">`Bearer ${userJWT}`</span>,  <span class="cmt">// YOUR app's JWT</span>
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>
+  },
+  <span class="prop">body</span>: <span class="prop">JSON</span>.<span class="dir">stringify</span>({ <span class="prop">productId</span>: <span class="str">'123'</span> })
+});</code></pre>
+
+    <h3>3. Backend Validates & Forwards to Lemon Squeezy</h3>
+<pre><code><span class="cmt">// Node.js backend code</span>
+<span class="prop">app</span>.<span class="dir">post</span>(<span class="str">'/api/create-checkout'</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="cmt">// 1. Validate YOUR user's JWT</span>
+  <span class="kw">const</span> <span class="prop">userData</span> = <span class="prop">jwt</span>.<span class="dir">verify</span>(<span class="prop">req</span>.<span class="prop">headers</span>.<span class="prop">authorization</span>.<span class="dir">split</span>(<span class="str">' '</span>)[<span class="lit">1</span>], <span class="str">'your-secret'</span>);
+  
+  <span class="cmt">// 2. Prepare Lemon Squeezy request with THEIR token</span>
+  <span class="kw">const</span> <span class="prop">lemonResponse</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">'https://api.lemonsqueezy.com/v1/checkouts'</span>, {
+    <span class="prop">method</span>: <span class="str">'POST'</span>,
+    <span class="prop">headers</span>: {
+      <span class="str">'Authorization'</span>: <span class="str">`Bearer ${</span><span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">LEMON_SQUEEZY_API_KEY</span><span class="str">}`</span>, <span class="cmt">// LS token</span>
+      <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>
+    },
+    <span class="prop">body</span>: <span class="prop">JSON</span>.<span class="dir">stringify</span>({
+      <span class="cmt">// Checkout data...</span>
+    })
+  });
+  
+  <span class="cmt">// 3. Return checkout URL to frontend</span>
+  <span class="prop">res</span>.<span class="dir">json</span>({ <span class="prop">checkoutUrl</span>: <span class="prop">lemonResponse</span>.<span class="prop">data</span>.<span class="prop">url</span> });
+});</code></pre>
+
+    <h3>4. Lemon Squeezy Validates THEIR Token</h3>
+<pre><code><span class="type">text</span>
+Lemon Squeezy receives:
+<span class="prop">Authorization</span>: <span class="kw">Bearer</span> ls_sk_abcdef123456...
+
+Validation steps:
+1. Extract token: ls_sk_abcdef123456...
+2. Check if token exists in their system
+3. Verify token hasn't expired
+4. Check token permissions (scope)
+5. Validate store_id access
+6. Process request if valid
+</code></pre>
+
+    <h3>Token Types in the Flow</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Token Type</th>
+                <th>Where Used</th>
+                <th>Purpose</th>
+                <th>Visible To</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Your User JWT</td>
+                <td><code class="prop">React</code> ↔ <code class="prop">Your Backend</code></td>
+                <td>Authenticate YOUR users</td>
+                <td><code class="prop">Browser</code> + <code class="prop">Your Server</code></td>
+            </tr>
+            <tr>
+                <td>Lemon Squeezy API Key</td>
+                <td><code class="prop">Your Backend</code> ↔ <code class="prop">Lemon Squeezy</code></td>
+                <td>Access Lemon Squeezy API</td>
+                <td><code class="prop">Only Your Server</code></td>
+            </tr>
+            <tr>
+                <td>Checkout Session Token</td>
+                <td><code class="prop">Browser</code> ↔ <code class="prop">Lemon Squeezy</code></td>
+                <td>Individual checkout session</td>
+                <td><code class="prop">Browser</code> + <code class="prop">Lemon Squeezy</code></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Why This is Secure</h2>
+    <h3>1. API Token Never Exposed to Browser</h3>
+<pre><code><span class="type">text</span>
+❌ DANGEROUS (Direct from browser):
+Browser → Lemon Squeezy: 
+  Authorization: <span class="kw">Bearer</span> ls_sk_secret (<span class="op">EXPOSED!</span>)
+
+✅ SECURE (Through backend):
+Browser → Your Backend: 
+  Authorization: <span class="kw">Bearer</span> your_jwt_token
+  
+Your Backend → Lemon Squeezy: 
+  Authorization: <span class="kw">Bearer</span> ls_sk_secret (<span class="prop">HIDDEN!</span>)
+</code></pre>
+
+    <h3>2. Double Validation Layer</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// Your Backend validates BOTH:</span>
+<span class="cmt">// 1. User is authenticated in YOUR system</span>
+<span class="kw">if</span> (!<span class="prop">req</span>.<span class="prop">user</span>) <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">401</span>).<span class="dir">send</span>();
+
+<span class="cmt">// 2. User has permission to buy this product</span>
+<span class="kw">if</span> (!<span class="dir">userCanPurchase</span>(<span class="prop">req</span>.<span class="prop">user</span>, <span class="prop">productId</span>)) <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">403</span>).<span class="dir">send</span>();
+
+<span class="cmt">// Only THEN call Lemon Squeezy</span></code></pre>
+
+    <h3>3. Webhook Security</h3>
+<pre><code><span class="type">javascript</span>
+<span class="cmt">// Lemon Squeezy → Your Backend webhook</span>
+<span class="prop">app</span>.<span class="dir">post</span>(<span class="str">'/webhooks/lemon'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="cmt">// Verify webhook signature</span>
+  <span class="kw">const</span> <span class="prop">signature</span> = <span class="prop">req</span>.<span class="prop">headers</span>[<span class="str">'x-signature'</span>];
+  <span class="kw">const</span> <span class="prop">isValid</span> = <span class="dir">verifySignature</span>(<span class="prop">signature</span>, <span class="prop">req</span>.<span class="prop">body</span>);
+  
+  <span class="kw">if</span> (!<span class="prop">isValid</span>) <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">401</span>).<span class="dir">send</span>();
+  
+  <span class="cmt">// Process order update</span>
+  <span class="dir">updateOrderStatus</span>(<span class="prop">req</span>.<span class="prop">body</span>);
+});</code></pre>
+
+    <h2>Payment Flow Steps (Non-Technical)</h2>
+    <ol>
+        <li>User logs into **YOUR website** → Gets **YOUR** authentication token</li>
+        <li>User clicks "Buy Now" → Sends request to **YOUR server** with **THEIR** token</li>
+        <li>**YOUR server** checks: Is this a valid user? Do they have permission?</li>
+        <li>**YOUR server** calls Lemon Squeezy using Lemon's **secret API key** (user never sees this)</li>
+        <li>Lemon Squeezy validates their API key, creates checkout</li>
+        <li>Your server gets checkout URL, sends to user's browser</li>
+        <li>User redirected to Lemon Squeezy checkout page</li>
+        <li>User enters payment directly on Lemon Squeezy (PCI compliant)</li>
+        <li>Lemon Squeezy processes payment, sends **webhook** to **YOUR server**</li>
+        <li>Your server updates user's order status</li>
+    </ol>
+
+    <h2>Critical Security Points</h2>
+    <ul>
+        <li>**API Token Location:** Only in backend environment variables</li>
+        <li>**User Authentication:** Separate from Lemon Squeezy authentication</li>
+        <li>**Payment Page:** Always on Lemon Squeezy domain (never embedded)</li>
+        <li>**Webhook Verification:** Always verify signatures</li>
+        <li>**Error Handling:** Never leak API errors to frontend</li>
+    </ul>
+
+    <h2>Simple Analogy</h2>
+    <p>Think of it like a **restaurant**:</p>
+    <ul>
+        <li>**Customer (React App):** Shows ID to get in (your JWT)</li>
+        <li>**Waiter (Your Backend):** Takes order, goes to kitchen</li>
+        <li>**Kitchen (Lemon Squeezy):** Only listens to waiters (API tokens), not customers directly</li>
+        <li>**Payment:** Done at cashier (Lemon Squeezy checkout), not with waiter</li>
+    </ul>
+    <p>Customer never enters kitchen, kitchen only trusts waiters with proper uniform (API tokens).</p>
+
+</body>
+</html>

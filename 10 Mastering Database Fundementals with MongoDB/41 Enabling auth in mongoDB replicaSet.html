@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Complete Guide: MongoDB Replica Sets with Authentication & OpenSSL
+    </title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Dark Theme - Blakish Notes */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a; /* Dark background */
+        color: #d4d4d4; /* Light text for readability */
+        line-height: 1.6;
+        margin: 0;
+        padding: 120px;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6; /* VSCode-like blue for headings */
+        font-weight: 700;
+        border-bottom: 2px solid #2d2d30;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      /* Table of Contents Styling */
+      .toc {
+        background-color: #252526;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 30px;
+        border-left: 5px solid #6a9955; /* Green highlight */
+      }
+      .toc a {
+        color: #ce9178; /* Orange-ish link color */
+        text-decoration: none;
+      }
+      .toc a:hover {
+        text-decoration: underline;
+      }
+      .toc h2 {
+        color: #ce9178;
+        border-bottom: 1px solid #3e3e42;
+      }
+
+      /* General Text & Lists */
+      p,
+      ul,
+      ol,
+      table {
+        margin-bottom: 15px;
+      }
+
+      b {
+        color: #9cdcfe; /* Light blue for key terms */
+      }
+
+      li {
+        padding-left: 5px;
+        margin-bottom: 5px;
+      }
+
+      /* Code Block Styling (VSCode Dark Theme) */
+      .code-container {
+        background-color: #1e1e1e; /* VSCode editor background */
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        margin: 20px 0;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+      }
+
+      .language-bash,
+      .language-javascript,
+      .language-json {
+        white-space: pre-wrap; /* Allows line wrapping */
+        word-wrap: break-word; /* Prevents overflow */
+      }
+
+      /* Syntax Highlighting */
+      /* Comments/Logs */
+      .cmt {
+        color: #6a9955;
+      }
+      /* Keywords (var, const, function, async, await, class, if, else, etc.) */
+      .kwd {
+        color: #569cd6;
+      }
+      /* Variables/Properties/Objects (e.g., db, rs, client, host, members, _id) */
+      .var {
+        color: #9cdcfe;
+      }
+      /* Strings (text in quotes) */
+      .str {
+        color: #ce9178;
+      }
+      /* Numbers/Booleans/Values (e.g., 1, 0, true, false, 27017, 756) */
+      .val {
+        color: #b5cea8;
+      }
+      /* Operators/Symbols */
+      .op {
+        color: #d4d4d4;
+      }
+      /* Commands/Functions */
+      .func {
+        color: #dcdcaa;
+      }
+      /* Important command prefix */
+      .prefix {
+        color: #c586c0;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #252526;
+        margin: 20px 0;
+      }
+      th,
+      td {
+        border: 1px solid #3e3e42;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #2d2d30;
+        color: #569cd6;
+      }
+      td {
+        color: #d4d4d4;
+      }
+
+      /* Architecture Diagram */
+      .diagram {
+        font-family: 'Consolas', monospace;
+        white-space: pre;
+        padding: 15px;
+        background-color: #2d2d30;
+        color: #9cdcfe;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>
+        Complete Guide: MongoDB Replica Sets with Authentication & OpenSSL
+      </h1>
+    </header>
+
+    <div class="toc">
+      <h2>Table of Contents</h2>
+      <ul>
+        <li>
+          <a href="#replica-set-definition"
+            >What is a Replica Set in MongoDB?</a
+          >
+        </li>
+        <li>
+          <a href="#replica-set-server"
+            >What Does It Mean to Be Part of a Replica Set?</a
+          >
+        </li>
+        <li><a href="#what-is-openssl">What is OpenSSL?</a></li>
+        <li>
+          <a href="#start-rs-auth"
+            >Starting a Replica Set with Authentication</a
+          >
+        </li>
+        <li>
+          <a href="#generate-key-openssl">Generating Key Files with OpenSSL</a>
+        </li>
+        <li>
+          <a href="#connect-rs-auth"
+            >Connecting to a Replica Set with Authentication</a
+          >
+        </li>
+      </ul>
+    </div>
+
+    <section id="replica-set-definition">
+      <h2>1. What is a Replica Set in MongoDB?</h2>
+
+      <h3>Definition</h3>
+      <p>
+        A <b>Replica Set</b> in MongoDB is a group of MongoDB server instances
+        (nodes) that maintain the same data by replicating information from one
+        **primary node** to multiple **secondary nodes**. It provides data
+        redundancy, high availability, and automatic failover capabilities.
+      </p>
+
+      <h3>Core Concept</h3>
+      <p>
+        Think of a Replica Set like a master-slave synchronization system where
+        one "<span class="str">boss</span>" (<span class="kwd">Primary</span>)
+        tells multiple "<span class="str">workers</span>" (<span class="kwd"
+          >Secondaries</span
+        >) what to do. All write operations happen on the
+        <span class="kwd">Primary</span>, and the data automatically gets copied
+        to the <span class="kwd">Secondaries</span>.
+      </p>
+
+      <h3>Architecture</h3>
+      <div class="diagram">
+        <span class="var">┌─────────────────────────────────────────────┐</span>
+        <span class="var">│           Replica Set (3 members)           │</span>
+        <span class="var">├──────────────┬──────────────┬───────────────┤</span>
+        <span class="var">│   PRIMARY    │ SECONDARY 1  │  SECONDARY 2  │</span>
+        <span class="var">│   (Port      │   (Port      │   (Port       │</span>
+        <span class="var">│   27017)     │   27018)     │   27019)      │</span>
+        <span class="var">└──────────────┴──────────────┴───────────────┘</span>
+        <span class="var">      ▲              ▲              ▲</span>
+        <span class="var">      │ Replication  │              │</span>
+        <span class="var">      └──────────────┴──────────────┘</span>
+      </div>
+
+      <h3>Components of a Replica Set</h3>
+      <ul>
+        <li>
+          <b>Primary Node:</b> The only member that accepts write operations. It
+          logs these operations to its
+          <span class="var">oplog</span> (operations log). Each replica set has
+          exactly <b>ONE</b> primary at any time.
+        </li>
+        <li>
+          <b>Secondary Nodes:</b> Read-only members that replicate data from the
+          <span class="kwd">Primary</span> via the
+          <span class="var">oplog</span>. They don't accept writes unless
+          promoted to <span class="kwd">Primary</span> during failover.
+        </li>
+        <li>
+          <b>Arbiter Node (Optional):</b> A lightweight member that participates
+          in elections but doesn't store data. Used to break ties in voting
+          scenarios.
+        </li>
+        <li>
+          <b>Oplog (Operations Log):</b> A special capped collection that stores
+          all write operations, allowing <span class="kwd">Secondaries</span> to
+          replicate data asynchronously.
+        </li>
+      </ul>
+
+      <h3>Key Characteristics</h3>
+      <ul>
+        <li>
+          <b>Automatic Failover:</b> If the
+          <span class="kwd">Primary</span> fails, the Replica Set automatically
+          elects a new <span class="kwd">Primary</span> from the
+          <span class="kwd">Secondaries</span>
+        </li>
+        <li>
+          <b>Data Redundancy:</b> Each write is replicated to multiple servers,
+          preventing data loss
+        </li>
+        <li>
+          <b>Read Scalability:</b> You can read from
+          <span class="kwd">Secondaries</span> to distribute query load
+        </li>
+        <li>
+          <b>High Availability:</b> Applications can continue working even if
+          one or two nodes fail (with <span class="val">3+</span> members)
+        </li>
+      </ul>
+
+      <h3>Minimum Configuration</h3>
+      <p>
+        A functional Replica Set requires at least
+        <span class="val">3</span> members (typically
+        <span class="val">2</span> data-bearing nodes +
+        <span class="val">1</span> arbiter, or
+        <span class="val">3</span> data-bearing nodes).
+      </p>
+    </section>
+
+    <hr />
+
+    <section id="replica-set-server">
+      <h2>
+        2. What Does It Mean if a MongoDB Server is Part of a Replica Set?
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        When a MongoDB server is part of a Replica Set, it means that server
+        instance is configured to synchronize data with other MongoDB instances
+        and participate in distributed data management, automatic elections, and
+        failover operations.
+      </p>
+
+      <h3>What Changes When a Server Joins a Replica Set</h3>
+      <ul>
+        <li>
+          <b>Identity:</b> The server gets an identity within the set. It's
+          assigned a replica set name (e.g.,
+          <span class="str">"myReplicaSet"</span>) and knows which other servers
+          are part of its set.
+        </li>
+        <li>
+          <b>Synchronization:</b> The server automatically stays in sync with
+          other members by:
+          <ul>
+            <li>If it's Primary: Sending write operations to Secondaries</li>
+            <li>
+              If it's Secondary: Continuously pulling operations from the
+              Primary and applying them locally
+            </li>
+          </ul>
+        </li>
+        <li>
+          <b>Elections:</b> The server participates in elections. When the
+          Primary dies or becomes unreachable, healthy Secondaries vote to elect
+          a new Primary.
+        </li>
+        <li>
+          <b>Data State:</b> The server maintains an
+          <span class="var">oplog</span> that tracks all write operations,
+          enabling other members to replicate data.
+        </li>
+        <li>
+          <b>Network Awareness:</b> The server constantly monitors heartbeats
+          from other replica set members and knows their status (up/down,
+          healthy/unhealthy).
+        </li>
+      </ul>
+
+      <h3>Example: Lifecycle of a Server in a Replica Set</h3>
+      <p><b>Step 1: Standalone MongoDB running</b></p>
+      <p>
+          <span class="var">Status:</span> <span class="str">STANDALONE</span
+        ><br />
+          <span class="var">Role:</span>
+        <span class="str">Can accept reads and writes</span>
+      </p>
+
+      <p><b>Step 2: Configure server as part of Replica Set</b></p>
+      <p>
+          <span class="var">Status:</span>
+        <span class="str">REPLICA SET MEMBER</span><br />
+          <span class="var">Role:</span>
+        <span class="str">Initially PRIMARY (if first member)</span>
+      </p>
+
+      <p><b>Step 3: Add more members</b></p>
+      <p>
+          <span class="var">Step 3a:</span> Member
+        <span class="val">2</span> joins<br />
+            Member <span class="val">1</span>:
+        <span class="kwd">PRIMARY</span> (<span class="str">accepts writes</span
+        >)<br />
+            Member <span class="val">2</span>:
+        <span class="kwd">SECONDARY</span> (<span class="str"
+          >replicates from Member 1</span
+        >)
+      </p>
+      <p>
+          <span class="var">Step 3b:</span> Member
+        <span class="val">3</span> joins<br />
+            Member <span class="val">1</span>: <span class="kwd">PRIMARY</span
+        ><br />
+            Member <span class="val">2</span>: <span class="kwd">SECONDARY</span
+        ><br />
+            Member <span class="val">3</span>:
+        <span class="kwd">SECONDARY</span>
+      </p>
+
+      <p><b>Step 4: If PRIMARY fails</b></p>
+      <p>
+          Remaining members detect failure<br />
+          Members <span class="val">2</span> and
+        <span class="val">3</span> vote<br />
+          Winner (<span class="str">e.g., Member 2</span>) becomes
+        <span class="str">NEW PRIMARY</span><br />
+          Member <span class="val">3</span> becomes
+        <span class="kwd">SECONDARY</span> of new Primary
+      </p>
+
+      <h3>Operational Implications</h3>
+      <ul>
+        <li>
+          <b>No Standalone Operations:</b> The server is bound to its replica
+          set and cannot function independently
+        </li>
+        <li>
+          <b>Replication Overhead:</b> Slight latency in replication (typically
+          milliseconds)
+        </li>
+        <li>
+          <b>Automatic Recovery:</b> If a member crashes and restarts, it
+          automatically re-syncs with other members
+        </li>
+        <li>
+          <b>Port Requirements:</b> All members must be able to communicate with
+          each other on their configured ports
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section id="what-is-openssl">
+      <h2>3. What is OpenSSL?</h2>
+
+      <h3>Definition</h3>
+      <p>
+        <b>OpenSSL</b> is a free, open-source cryptography library and toolkit
+        used to create, manage, and work with SSL/TLS certificates, keys, and
+        other cryptographic operations. It's one of the most widely used
+        cryptographic libraries in the world.
+      </p>
+
+      <h3>Purpose</h3>
+      <p>OpenSSL provides tools and libraries for:</p>
+      <ul>
+        <li>
+          <b>Encryption:</b> Securing data in transit using SSL/TLS protocols
+        </li>
+        <li>
+          <b>Key Generation:</b> Creating private and public keys for
+          cryptographic operations
+        </li>
+        <li>
+          <b>Certificate Management:</b> Creating and managing X.509 digital
+          certificates
+        </li>
+        <li><b>Hashing:</b> Creating cryptographic hashes of data</li>
+        <li>
+          <b>Digital Signatures:</b> Signing and verifying data authenticity
+        </li>
+      </ul>
+
+      <h3>Why MongoDB Uses OpenSSL</h3>
+      <p>MongoDB uses OpenSSL for two main reasons:</p>
+      <ul>
+        <li>
+          <b>Inter-node Communication:</b> When replica set members communicate,
+          OpenSSL can encrypt that communication
+        </li>
+        <li>
+          <b>Key File Authentication:</b> MongoDB uses a
+          <span class="var">key file</span> (generated with OpenSSL) as a
+          <b>shared secret</b> between replica set members, ensuring only
+          authorized members can join
+        </li>
+      </ul>
+
+      <h3>Common OpenSSL Commands</h3>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Generate a private key</span>
+<span class="func">openssl</span> <span class="func">genrsa</span> <span class="op">-</span><span class="kwd">out</span> <span class="str">filename.pem</span> <span class="val">2048</span>
+
+<span class="cmt"># Generate a random key file</span>
+<span class="func">openssl</span> <span class="kwd">rand</span> <span class="op">-</span><span class="kwd">base64</span> <span class="val">756</span> <span class="op">></span> <span class="str">filename.key</span>
+
+<span class="cmt"># View certificate information</span>
+<span class="func">openssl</span> <span class="func">x509</span> <span class="op">-</span><span class="kwd">in</span> <span class="str">certificate.crt</span> <span class="op">-</span><span class="kwd">text</span> <span class="op">-</span><span class="kwd">noout</span>
+
+<span class="cmt"># Generate a self-signed certificate</span>
+<span class="func">openssl</span> <span class="kwd">req</span> <span class="op">-</span><span class="kwd">x509</span> <span class="op">-</span><span class="kwd">newkey</span> <span class="var">rsa</span>:<span class="val">4096</span> <span class="op">-</span><span class="kwd">keyout</span> <span class="str">key.pem</span> <span class="op">-</span><span class="kwd">out</span> <span class="str">cert.pem</span> <span class="op">-</span><span class="kwd">days</span> <span class="val">365</span></pre>
+      </div>
+
+      <h3>Key Concepts</h3>
+      <ul>
+        <li>
+          <b>Private Key:</b> Secret data that only you have. Used to decrypt
+          messages and sign data.
+        </li>
+        <li>
+          <b>Public Key:</b> Publicly shared data derived from the private key.
+          Used to encrypt messages and verify signatures.
+        </li>
+        <li>
+          <b>Certificate:</b> A digital document that proves ownership of a
+          public key, signed by a Certificate Authority (CA).
+        </li>
+        <li>
+          <b>Key File:</b> A shared secret file used by MongoDB to authenticate
+          replica set members with each other.
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section id="start-rs-auth">
+      <h2>4. How to Start a Replica Set Server with Authentication Enabled</h2>
+
+      <h3>Step-by-Step Process</h3>
+
+      <h4>Step 1: Create Directory Structure</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Create data directories for three replica set members</span>
+<span class="func">mkdir</span> <span class="op">-</span><span class="kwd">p</span> <span class="str">/data/db/rs0</span>
+<span class="func">mkdir</span> <span class="op">-</span><span class="kwd">p</span> <span class="str">/data/db/rs1</span>
+<span class="func">mkdir</span> <span class="op">-</span><span class="kwd">p</span> <span class="str">/data/db/rs2</span>
+
+<span class="cmt"># Create a directory for authentication key files</span>
+<span class="func">mkdir</span> <span class="op">-</span><span class="kwd">p</span> <span class="str">/data/key</span></pre>
+      </div>
+
+      <h4>Step 2: Generate Key File Using OpenSSL</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Generate a random key file (with restricted permissions)</span>
+<span class="func">openssl</span> <span class="kwd">rand</span> <span class="op">-</span><span class="kwd">base64</span> <span class="val">756</span> <span class="op">></span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Set correct permissions (MongoDB requires 400 or 600)</span>
+<span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Verify the file was created</span>
+<span class="func">cat</span> <span class="str">/data/key/mongodb.key</span></pre>
+      </div>
+      <p>What this does:</p>
+      <ul>
+        <li><span class="kwd">openssl rand:</span> Generates random data</li>
+        <li><span class="kwd">-base64:</span> Encodes it in base64 format</li>
+        <li><span class="val">756:</span> Number of bytes to generate</li>
+        <li>
+          <span class="kwd">chmod 400:</span> Makes the file readable only by
+          the owner (required by MongoDB)
+        </li>
+      </ul>
+
+      <h4>Step 3: Start Individual Replica Set Members</h4>
+
+      <h5>Member 1 - Primary (Port 27017)</h5>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongod</span> \
+  <span class="op">--</span><span class="kwd">replSet</span> <span class="str">myReplicaSet</span> \
+  <span class="op">--</span><span class="kwd">keyFile</span> <span class="str">/data/key/mongodb.key</span> \
+  <span class="op">--</span><span class="kwd">auth</span> \
+  <span class="op">--</span><span class="kwd">dbpath</span> <span class="str">/data/db/rs0</span> \
+  <span class="op">--</span><span class="kwd">port</span> <span class="val">27017</span> \
+  <span class="op">--</span><span class="kwd">logpath</span> <span class="str">/data/logs/rs0.log</span> \
+  <span class="op">--</span><span class="kwd">fork</span></pre>
+      </div>
+
+      <h5>Member 2 - Secondary (Port 27018)</h5>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongod</span> \
+  <span class="op">--</span><span class="kwd">replSet</span> <span class="str">myReplicaSet</span> \
+  <span class="op">--</span><span class="kwd">keyFile</span> <span class="str">/data/key/mongodb.key</span> \
+  <span class="op">--</span><span class="kwd">auth</span> \
+  <span class="op">--</span><span class="kwd">dbpath</span> <span class="str">/data/db/rs1</span> \
+  <span class="op">--</span><span class="kwd">port</span> <span class="val">27018</span> \
+  <span class="op">--</span><span class="kwd">logpath</span> <span class="str">/data/logs/rs1.log</span> \
+  <span class="op">--</span><span class="kwd">fork</span></pre>
+      </div>
+
+      <h5>Member 3 - Secondary (Port 27019)</h5>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongod</span> \
+  <span class="op">--</span><span class="kwd">replSet</span> <span class="str">myReplicaSet</span> \
+  <span class="op">--</span><span class="kwd">keyFile</span> <span class="str">/data/key/mongodb.key</span> \
+  <span class="op">--</span><span class="kwd">auth</span> \
+  <span class="op">--</span><span class="kwd">dbpath</span> <span class="str">/data/db/rs2</span> \
+  <span class="op">--</span><span class="kwd">port</span> <span class="val">27019</span> \
+  <span class="op">--</span><span class="kwd">logpath</span> <span class="str">/data/logs/rs2.log</span> \
+  <span class="op">--</span><span class="kwd">fork</span></pre>
+      </div>
+
+      <h5>Command Explanation</h5>
+      <table>
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>--replSet myReplicaSet</code></td>
+            <td>Name of the replica set (all members use the same name)</td>
+          </tr>
+          <tr>
+            <td><code>--keyFile /data/key/mongodb.key</code></td>
+            <td>Path to the key file for inter-node authentication</td>
+          </tr>
+          <tr>
+            <td><code>--auth</code></td>
+            <td>
+              Enable authentication (users must authenticate before accessing
+              data)
+            </td>
+          </tr>
+          <tr>
+            <td><code>--dbpath /data/db/rs0</code></td>
+            <td>Directory where MongoDB stores data for this instance</td>
+          </tr>
+          <tr>
+            <td><code>--port 27017</code></td>
+            <td>Port number for this MongoDB instance</td>
+          </tr>
+          <tr>
+            <td><code>--logpath /data/logs/rs0.log</code></td>
+            <td>File where logs are written</td>
+          </tr>
+          <tr>
+            <td><code>--fork</code></td>
+            <td>Run MongoDB in the background</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>Initialize the Replica Set</h4>
+      <p>
+        Connect to the Primary (<span class="val">27017</span>) without
+        authentication initially:
+      </p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongosh</span> <span class="op">--</span><span class="kwd">port</span> <span class="val">27017</span></pre>
+      </div>
+      <p>Then initialize the replica set:</p>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="cmt">// Inside mongosh</span>
+<span class="var">rs</span>.<span class="func">initiate</span>({
+  <span class="op">_</span><span class="kwd">id</span>: <span class="str">"myReplicaSet"</span>,
+  <span class="kwd">members</span>: [
+    { <span class="op">_</span><span class="kwd">id</span>: <span class="val">0</span>, <span class="kwd">host</span>: <span class="str">"localhost:27017"</span> },
+    { <span class="op">_</span><span class="kwd">id</span>: <span class="val">1</span>, <span class="kwd">host</span>: <span class="str">"localhost:27018"</span> },
+    { <span class="op">_</span><span class="kwd">id</span>: <span class="val">2</span>, <span class="kwd">host</span>: <span class="str">"localhost:27019"</span> }
+  ]
+})</pre>
+      </div>
+      <p>What this does:</p>
+      <ul>
+        <li>
+          <span class="var">_id:</span> Replica set name (must match
+          <span class="op">--</span><span class="kwd">replSet</span> value)
+        </li>
+        <li>
+          <span class="var">members:</span> Array of all replica set members
+          with unique IDs and hostnames
+        </li>
+      </ul>
+      <p>Expected output:</p>
+      <div class="code-container">
+        <pre><span class="prefix">json</span>{ <span class="kwd">ok</span>: <span class="val">1</span> }</pre>
+      </div>
+
+      <h4>Verify Replica Set Status</h4>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="var">rs</span>.<span class="func">status</span>()
+
+<span class="cmt">// Returns something like:</span>
+{
+  <span class="kwd">set</span>: <span class="str">'myReplicaSet'</span>,
+  <span class="kwd">date</span>: <span class="func">ISODate</span>(<span class="str">'2025-10-14T...'</span>),
+  <span class="kwd">myState</span>: <span class="val">1</span>,  <span class="cmt">// 1 = PRIMARY</span>
+  <span class="kwd">members</span>: [
+    {
+      <span class="op">_</span><span class="kwd">id</span>: <span class="val">0</span>,
+      <span class="kwd">name</span>: <span class="str">'localhost:27017'</span>,
+      <span class="kwd">health</span>: <span class="val">1</span>,  <span class="cmt">// 1 = healthy</span>
+      <span class="kwd">state</span>: <span class="val">1</span>,   <span class="cmt">// 1 = PRIMARY</span>
+      <span class="kwd">stateStr</span>: <span class="str">'PRIMARY'</span>
+    },
+    {
+      <span class="op">_</span><span class="kwd">id</span>: <span class="val">1</span>,
+      <span class="kwd">name</span>: <span class="str">'localhost:27018'</span>,
+      <span class="kwd">health</span>: <span class="val">1</span>,
+      <span class="kwd">state</span>: <span class="val">2</span>,   <span class="cmt">// 2 = SECONDARY</span>
+      <span class="kwd">stateStr</span>: <span class="str">'SECONDARY'</span>
+    },
+    <span class="cmt">// ... more members</span>
+  ]
+}</pre>
+      </div>
+    </section>
+
+    <hr />
+
+    <section id="generate-key-openssl">
+      <h2>5. How to Generate the Key File Using OpenSSL and Configure It</h2>
+
+      <h3>Detailed Key File Generation</h3>
+
+      <h4>Method 1: Random Base64 (Recommended for Replica Sets)</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Generate a 756-byte random key file in base64 format</span>
+<span class="func">openssl</span> <span class="kwd">rand</span> <span class="op">-</span><span class="kwd">base64</span> <span class="val">756</span> <span class="op">></span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Secure the file permissions</span>
+<span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Verify contents (should be base64-encoded random data)</span>
+<span class="func">head</span> <span class="op">-</span><span class="kwd">c</span> <span class="val">50</span> <span class="str">/data/key/mongodb.key</span>  <span class="cmt"># Shows first 50 characters</span></pre>
+      </div>
+      <p>Output Example:</p>
+      <p>
+        <code
+          >a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0u1V2w3X4y5Z6a7B8c9D0e1F2g3H4<br />i5J6k7L8m9N0o1P2q3R4s5T6u7V8w9X0y1Z2a3B4c5D6e7F8g9H0i1J2k3L4m5N6o7P8<br />...</code
+        >
+      </p>
+
+      <h4>Method 2: Hash-Based Key (Alternative)</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Create a key from the output of openssl genrsa</span>
+<span class="func">openssl</span> <span class="func">genrsa</span> <span class="val">1024</span> <span class="op">|</span> <span class="func">openssl</span> <span class="func">md5</span> <span class="op">></span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span></pre>
+      </div>
+
+      <h3>Key File Configuration Steps</h3>
+
+      <h4>Step 1: Create Directory with Proper Permissions</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Create key directory</span>
+<span class="func">mkdir</span> <span class="op">-</span><span class="kwd">p</span> <span class="str">/data/key</span>
+
+<span class="cmt"># Set directory permissions</span>
+<span class="func">chmod</span> <span class="val">700</span> <span class="str">/data/key</span>
+
+<span class="cmt"># Verify permissions</span>
+<span class="func">ls</span> <span class="op">-</span><span class="kwd">ld</span> <span class="str">/data/key</span>
+<span class="cmt"># Output: drwx------ ... /data/key</span></pre>
+      </div>
+
+      <h4>Step 2: Generate Key File</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">openssl</span> <span class="kwd">rand</span> <span class="op">-</span><span class="kwd">base64</span> <span class="val">756</span> <span class="op">></span> <span class="str">/data/key/mongodb.key</span></pre>
+      </div>
+
+      <h4>Step 3: Set Correct File Permissions</h4>
+      <p>MongoDB requires specific permissions on the key file:</p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Set to 400 (read-only for owner)</span>
+<span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Verify permissions (should show -r--------)</span>
+<span class="func">ls</span> <span class="op">-</span><span class="kwd">l</span> <span class="str">/data/key/mongodb.key</span>
+<span class="cmt"># Output: -r-------- 1 user group ... /data/key/mongodb.key</span></pre>
+      </div>
+      <p><b>Why this matters:</b></p>
+      <ul>
+        <li>
+          MongoDB will refuse to use a key file with overly permissive
+          permissions
+        </li>
+        <li>Only the owner can read it, preventing unauthorized access</li>
+        <li>
+          If permissions are wrong, you'll get an error:
+          <span class="str"
+            >"permissions on /data/key/mongodb.key are too open"</span
+          >
+        </li>
+      </ul>
+
+      <h4>Step 4: Replicate Key File Across All Members</h4>
+      <p>
+        <b>Important:</b> All replica set members must use the <b>SAME</b> key
+        file content.
+      </p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># On primary server:</span>
+<span class="func">cat</span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Copy the output and paste it into the key files on other servers</span>
+<span class="cmt"># Or use scp to copy:</span>
+<span class="func">scp</span> <span class="str">/data/key/mongodb.key</span> <span class="var">user</span>@<span class="var">secondary1</span>:<span class="str">/data/key/mongodb.key</span>
+<span class="func">scp</span> <span class="str">/data/key/mongodb.key</span> <span class="var">user</span>@<span class="var">secondary2</span>:<span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># Fix permissions on copied files</span>
+<span class="func">ssh</span> <span class="var">user</span>@<span class="var">secondary1</span> <span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span>
+<span class="func">ssh</span> <span class="var">user</span>@<span class="var">secondary2</span> <span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span></pre>
+      </div>
+
+      <h4>Step 5: Start MongoDB with Key File</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongod</span> \
+  <span class="op">--</span><span class="kwd">replSet</span> <span class="str">myReplicaSet</span> \
+  <span class="op">--</span><span class="kwd">keyFile</span> <span class="str">/data/key/mongodb.key</span> \
+  <span class="op">--</span><span class="kwd">auth</span> \
+  <span class="op">--</span><span class="kwd">dbpath</span> <span class="str">/data/db/rs0</span> \
+  <span class="op">--</span><span class="kwd">port</span> <span class="val">27017</span></pre>
+      </div>
+
+      <h3>Troubleshooting Key File Issues</h3>
+      <p>
+        <b>Problem:</b>
+        <span class="str"
+          >"Error: open(): permission denied /data/key/mongodb.key"</span
+        >
+      </p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Solution: Fix file permissions</span>
+<span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span>
+<span class="func">chmod</span> <span class="val">700</span> <span class="str">/data/key/</span></pre>
+      </div>
+
+      <p>
+        <b>Problem:</b>
+        <span class="str"
+          >"Error: permissions on /data/key/mongodb.key are too open"</span
+        >
+      </p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Solution: Restrict permissions further</span>
+<span class="cmt"># Current: chmod 644 (too open)</span>
+<span class="cmt"># Required: chmod 400 or 600</span>
+<span class="func">chmod</span> <span class="val">400</span> <span class="str">/data/key/mongodb.key</span></pre>
+      </div>
+
+      <p><b>Problem:</b> <span class="str">"Authentication failed"</span></p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># Solution: Verify all members have identical key files</span>
+<span class="cmt"># Compare checksums on all servers</span>
+<span class="func">md5sum</span> <span class="str">/data/key/mongodb.key</span>
+
+<span class="cmt"># All servers should show the same checksum:</span>
+<span class="cmt"># abc123def456... /data/key/mongodb.key (on all servers)</span></pre>
+      </div>
+    </section>
+
+    <hr />
+
+    <section id="connect-rs-auth">
+      <h2>6. How to Connect to a MongoDB Replica Set with Authentication</h2>
+
+      <h3>Understanding Connection Strings</h3>
+      <p>A MongoDB connection string format:</p>
+      <p>
+        <code
+          >mongodb://<span class="var">username</span>:<span class="var"
+            >password</span
+          >@<span class="var">host1</span>:<span class="var">port1</span>,<span
+            class="var"
+            >host2</span
+          >:<span class="var">port2</span>,<span class="var">host3</span>:<span
+            class="var"
+            >port3</span
+          >/?<span class="kwd">replicaSet</span>=<span class="var"
+            >replicaSetName</span
+          >&<span class="kwd">authSource</span>=<span class="var"
+            >database</span
+          ></code
+        >
+      </p>
+      <p>Components:</p>
+      <ul>
+        <li><span class="var">username:</span> MongoDB user account</li>
+        <li>
+          <span class="var">password:</span> User password (URL-encoded if
+          special characters)
+        </li>
+        <li><span class="var">host1:port1:</span> First member with port</li>
+        <li><span class="kwd">replicaSet:</span> Replica set name</li>
+        <li>
+          <span class="kwd">authSource:</span> Database where user credentials
+          are stored (usually <span class="str">admin</span>)
+        </li>
+      </ul>
+
+      <h3>Step 1: Create a User Account</h3>
+      <p>
+        First, connect to the Primary without authentication (only works
+        initially):
+      </p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongosh</span> <span class="op">--</span><span class="kwd">port</span> <span class="val">27017</span></pre>
+      </div>
+      <p>Then create an admin user:</p>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="kwd">use</span> <span class="var">admin</span>
+
+<span class="var">db</span>.<span class="func">createUser</span>({
+  <span class="kwd">user</span>: <span class="str">"admin"</span>,
+  <span class="kwd">pwd</span>: <span class="str">"securePassword123"</span>,
+  <span class="kwd">roles</span>: [ { <span class="kwd">role</span>: <span class="str">"root"</span>, <span class="kwd">db</span>: <span class="str">"admin"</span> } ]
+})
+
+<span class="cmt">// Output:</span>
+<span class="cmt">// { ok: 1 }</span></pre>
+      </div>
+      <p>Create an application user:</p>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="kwd">use</span> <span class="var">admin</span>
+
+<span class="var">db</span>.<span class="func">createUser</span>({
+  <span class="kwd">user</span>: <span class="str">"appuser"</span>,
+  <span class="kwd">pwd</span>: <span class="str">"appPassword456"</span>,
+  <span class="kwd">roles</span>: [ { <span class="kwd">role</span>: <span class="str">"readWrite"</span>, <span class="kwd">db</span>: <span class="str">"myappdb"</span> } ]
+})</pre>
+      </div>
+      <p>Exit mongosh:</p>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="func">exit</span></pre>
+      </div>
+
+      <h3>Method 1: Connect from Terminal Using mongosh</h3>
+
+      <h4>Basic Connection with Authentication</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongosh</span> <span class="str">"mongodb://admin:securePassword123@localhost:27017,localhost:27018,localhost:27019/?replicaSet=myReplicaSet&authSource=admin"</span></pre>
+      </div>
+
+      <h4>Connection with URL Encoding (Special Characters in Password)</h4>
+      <p>If your password contains special characters, URL-encode them:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Special Char</th>
+            <th>URL Encoded</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>@</code></td>
+            <td><code>%40</code></td>
+          </tr>
+          <tr>
+            <td><code>:</code></td>
+            <td><code>%3A</code></td>
+          </tr>
+          <tr>
+            <td><code>#</code></td>
+            <td><code>%23</code></td>
+          </tr>
+          <tr>
+            <td><code>/</code></td>
+            <td><code>%2F</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>Example password: <span class="str">pass@word:123</span></p>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="cmt"># URL-encoded: pass%40word%3A123</span>
+<span class="func">mongosh</span> <span class="str">"mongodb://admin:pass%40word%3A123@localhost:27017,localhost:27018,localhost:27019/?replicaSet=myReplicaSet&authSource=admin"</span></pre>
+      </div>
+
+      <h4>Using Command-Line Arguments</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">mongosh</span> \
+  <span class="op">--</span><span class="kwd">host</span> <span class="str">localhost:27017,localhost:27018,localhost:27019</span> \
+  <span class="op">--</span><span class="kwd">replicaSet</span> <span class="str">myReplicaSet</span> \
+  <span class="op">--</span><span class="kwd">username</span> <span class="str">admin</span> \
+  <span class="op">--</span><span class="kwd">password</span> <span class="str">securePassword123</span> \
+  <span class="op">--</span><span class="kwd">authenticationDatabase</span> <span class="str">admin</span></pre>
+      </div>
+
+      <h4>Verify You're Connected</h4>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="cmt">// Check current user</span>
+<span class="var">db</span>.<span class="func">runCommand</span>({ <span class="kwd">connectionStatus</span>: <span class="val">1</span> })
+
+<span class="cmt">// Output shows authenticated user:</span>
+{
+  <span class="str">"authInfo"</span>: {
+    <span class="str">"authenticatedUsers"</span>: [
+      {
+        <span class="str">"user"</span>: <span class="str">"admin"</span>,
+        <span class="str">"db"</span>: <span class="str">"admin"</span>
+      }
+    ],
+    <span class="str">"authenticatedUserRoles"</span>: [
+      {
+        <span class="str">"role"</span>: <span class="str">"root"</span>,
+        <span class="str">"db"</span>: <span class="str">"admin"</span>
+      }
+    ]
+  },
+  <span class="str">"ok"</span>: <span class="val">1</span>
+}</pre>
+      </div>
+      <p><b>Read from Secondary (Optional)</b></p>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="cmt">// Allow reads from secondary nodes</span>
+<span class="var">rs</span>.<span class="func">secondaryOk</span>()
+
+<span class="cmt">// Or set read preference in connection string:</span>
+<span class="cmt">// mongodb://admin:pwd@host1,host2,host3/?replicaSet=myReplicaSet&readPreference=secondary</span></pre>
+      </div>
+
+      <h3>Method 2: Connect from Node.js Using MongoDB Driver</h3>
+
+      <h4>Installation</h4>
+      <div class="code-container">
+        <pre><span class="prefix">bash</span><span class="func">npm</span> <span class="kwd">install</span> <span class="var">mongodb</span></pre>
+      </div>
+
+      <h4>Basic Connection Code</h4>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="kwd">const</span> { <span class="var">MongoClient</span> } = <span class="func">require</span>(<span class="str">'mongodb'</span>);
+
+<span class="cmt">// Connection string with authentication</span>
+<span class="kwd">const</span> <span class="var">connectionString</span> = <span class="str">'mongodb://admin:securePassword123@localhost:27017,localhost:27018,localhost:27019/?replicaSet=myReplicaSet&authSource=admin'</span>;
+
+<span class="kwd">async</span> <span class="kwd">function</span> <span class="func">connectToReplicaSet</span>() {
+  <span class="kwd">const</span> <span class="var">client</span> = <span class="kwd">new</span> <span class="var">MongoClient</span>(<span class="var">connectionString</span>, {
+    <span class="cmt">// Options for replica set connection</span>
+    <span class="kwd">retryWrites</span>: <span class="kwd">true</span>,
+    <span class="kwd">w</span>: <span class="str">'majority'</span>  <span class="cmt">// Wait for write acknowledgment from majority of nodes</span>
+  });
+
+  <span class="kwd">try</span> {
+    <span class="cmt">// Connect to MongoDB</span>
+    <span class="kwd">await</span> <span class="var">client</span>.<span class="func">connect</span>();
+    <span class="var">console</span>.<span class="func">log</span>(<span class="str">'Connected to replica set successfully'</span>);
+
+    <span class="cmt">// Get admin database</span>
+    <span class="kwd">const</span> <span class="var">adminDb</span> = <span class="var">client</span>.<span class="func">db</span>(<span class="str">'admin'</span>);
+
+    <span class="cmt">// Verify connection</span>
+    <span class="kwd">const</span> <span class="var">status</span> = <span class="kwd">await</span> <span class="var">adminDb</span>.<span class="func">admin</span>().<span class="func">serverStatus</span>();
+    <span class="var">console</span>.<span class="func">log</span>(<span class="str">'Server is running'</span>);
+
+    <span class="cmt">// Get database</span>
+    <span class="kwd">const</span> <span class="var">db</span> = <span class="var">client</span>.<span class="func">db</span>(<span class="str">'myappdb'</span>);
+
+    <span class="cmt">// Insert a document</span>
+    <span class="kwd">const</span> <span class="var">collection</span> = <span class="var">db</span>.<span class="func">collection</span>(<span class="str">'users'</span>);
+    <span class="kwd">const</span> <span class="var">result</span> = <span class="kwd">await</span> <span class="var">collection</span>.<span class="func">insertOne</span>({
+      <span class="kwd">name</span>: <span class="str">'John Doe'</span>,
+      <span class="kwd">email</span>: <span class="str">'john@example.com'</span>
+    });
+    <span class="var">console</span>.<span class="func">log</span>(<span class="str">`Document inserted with ID: ${result.insertedId}`</span>);
+
+    <span class="cmt">// Find a document</span>
+    <span class="kwd">const</span> <span class="var">user</span> = <span class="kwd">await</span> <span class="var">collection</span>.<span class="func">findOne</span>({ <span class="kwd">name</span>: <span class="str">'John Doe'</span> });
+    <span class="var">console</span>.<span class="func">log</span>(<span class="str">'Found user:'</span>, <span class="var">user</span>);
+
+  } <span class="kwd">catch</span> (<span class="var">error</span>) {
+    <span class="var">console</span>.<span class="func">error</span>(<span class="str">'Connection error:'</span>, <span class="var">error</span>);
+  } <span class="kwd">finally</span> {
+    <span class="cmt">// Close connection</span>
+    <span class="kwd">await</span> <span class="var">client</span>.<span class="func">close</span>();
+    <span class="var">console</span>.<span class="func">log</span>(<span class="str">'Connection closed'</span>);
+  }
+}
+
+<span class="cmt">// Run the connection</span>
+<span class="func">connectToReplicaSet</span>();</pre>
+      </div>
+
+      <h4>Connection Options Explained</h4>
+      <div class="code-container">
+        <pre><span class="prefix">javascript</span><span class="kwd">const</span> <span class="var">client</span> = <span class="kwd">new</span> <span class="var">MongoClient</span>(<span class="var">connectionString</span>, {
+  <span class="cmt">// Replica Set Options</span>
+  <span class="kwd">replicaSet</span>: <span class="str">'myReplicaSet'</span>,  <span class="cmt">// Replica set name</span>
+  
+  <span class="cmt">// Write Concern (when to consider a write complete)</span>
+  <span class="kwd">w</span>: <span class="str">'majority'</span>,               <span class="cmt">// Wait for majority of replicas to acknowledge</span>
+  <span class="cmt">// Options: 1 (primary only), 'majority', number, or tag</span>
+  
+  <span class="cmt">// Write Concern Timeout</span>
+  <span class="kwd">wtimeout</span>: <span class="val">5000</span>,              <span class="cmt">// Wait max 5000ms for write acknowledgment</span>
+  
+  <span class="cmt">// Journal/Persistence</span>
+  <span class="kwd">j</span>: <span class="kwd">true</span>,                     <span class="cmt">// Wait for journal fsync before acknowledging</span>
+  
+  <span class="cmt">// Retry Writes (automatic retry on transient errors)</span>
+  <span class="kwd">retryWrites</span>: <span class="kwd">true</span>,           <span class="cmt">// Automatically retry writes once</span>
+  
+  <span class="cmt">// Read Preference</span>
+  <span class="kwd">readPreference</span>: <span class="str">'primary'</span>,   <span class="cmt">// Options: primary, primaryPreferred, secondary, secondaryPreferred, nearest</span>
+  
+  <span class="cmt">// Connection Pool</span>
+  <span class="kwd">maxPoolSize</span>: <span class="val">10</span>,             <span class="cmt">// Maximum connections in pool</span>
+  <span class="kwd">minPoolSize</span>: <span class="val">2</span>,              <span class="cmt">// Minimum connections in pool</span>
+  
+  <span class="cmt">// Timeouts</span>
+  <span class="kwd">socketTimeoutMS</span>: <span class="val">45000</span>,      <span class="cmt">// Socket timeout in milliseconds</span>
+  <span class="kwd">serverSelectionTimeoutMS</span>: <span class="val">5000</span>, <span class="cmt">// Server selection timeout</span>
+  
+  <span class="cmt">// Authentication</span>
+  <span class="kwd">authSource</span>: <span class="str">'admin'</span>          <span class="cmt">// Database where user is defined</span>
+});</pre>
+      </div>
+
+      <hr />
+
+      <h3>Summary Table: Configuration Overview</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Configuration</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Key File</td>
+            <td><code>openssl rand -base64 756</code></td>
+            <td>Inter-node authentication</td>
+          </tr>
+          <tr>
+            <td>Key File Permissions</td>
+            <td><code>chmod 400</code></td>
+            <td>Security: owner read-only</td>
+          </tr>
+          <tr>
+            <td>Replica Set Name</td>
+            <td><code>--replSet myReplicaSet</code></td>
+            <td>Identifies set members</td>
+          </tr>
+          <tr>
+            <td>Authentication</td>
+            <td><code>--auth --keyFile</code></td>
+            <td>Enables user authentication</td>
+          </tr>
+          <tr>
+            <td>Write Concern</td>
+            <td><code>w: 'majority'</code></td>
+            <td>Data replication guarantee</td>
+          </tr>
+          <tr>
+            <td>Connection String</td>
+            <td>
+              <code>mongodb://user:pwd@host1,host2/?replicaSet=name</code>
+            </td>
+            <td>Client connection format</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Key Takeaways</h3>
+      <ul>
+        <li>
+          <b>Replica Sets</b> provide high availability through automatic
+          failover and data replication
+        </li>
+        <li>
+          <b>Key files</b> secure inter-node communication using
+          OpenSSL-generated cryptographic material
+        </li>
+        <li>
+          <b>Authentication</b> adds a security layer requiring users to prove
+          identity before accessing data
+        </li>
+        <li>
+          Proper <b>file permissions</b> are critical - MongoDB enforces strict
+          security checks on key files
+        </li>
+        <li>
+          <b>Connection strings</b> specify the replica set topology allowing
+          drivers to connect intelligently
+        </li>
+        <li>
+          <b>Write concern</b> settings balance consistency with performance -
+          <span class="str">majority</span> provides good safety
+        </li>
+        <li>
+          All replica set members must have <b>identical key files</b> for
+          authentication to work correctly
+        </li>
+      </ul>
+    </section>
+  </body>
+</html>

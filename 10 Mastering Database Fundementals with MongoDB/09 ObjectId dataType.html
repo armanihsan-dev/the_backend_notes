@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB ObjectId Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for Blakish Theme */
+      body {
+        background-color: #1a1a1a; /* Very dark background */
+        color: #e0e0e0; /* Light gray text for contrast */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #242424; /* Slightly lighter inner container */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2 {
+        color: #8be9fd; /* Light blue for headings */
+        border-bottom: 2px solid #50fa7b; /* Green underline */
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      /* General paragraph and strong text styling */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #f1fa8c; /* Yellowish for key terms */
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #242424;
+        color: #e0e0e0;
+      }
+
+      th,
+      td {
+        border: 1px solid #44475a; /* Darker border color */
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #383a47; /* Header background */
+        color: #bd93f9; /* Purple for header text */
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #282a36; /* Alternating row color */
+      }
+
+      /* Code Block Styling (VS Code-like Dark Theme) */
+      .code-table-wrapper {
+        overflow-x: auto;
+      }
+
+      .code-table {
+        min-width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+        font-family: Consolas, 'Courier New', monospace;
+        font-size: 0.9em;
+        background-color: #1e1e1e; /* VS Code dark background */
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+      }
+
+      .code-table th,
+      .code-table td {
+        border: none;
+        padding: 10px 15px;
+        text-align: left;
+        white-space: nowrap; /* Prevent code examples from wrapping */
+      }
+
+      .code-table th {
+        background-color: #252526; /* VS Code header bar color */
+        color: #d4d4d4;
+        font-weight: 400;
+        font-style: italic;
+      }
+
+      /* Syntax Highlighting-like Colors */
+      .op-col {
+        color: #dcdcaa; /* Yellow for Operation/Method names */
+      }
+
+      .example-col {
+        color: #c586c0; /* Pink/Purple for Code/Function calls */
+      }
+
+      .desc-col {
+        color: #9cdcfe; /* Light blue for descriptions */
+      }
+
+      /* Utility classes for text exclusion */
+      .excluded-text {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB ObjectId Data Type</h1>
+
+      <p>
+        The **MongoDB ObjectId** is a **12-byte BSON** (Binary JSON) data type
+        that serves as the **default and primary key** for every document in a
+        MongoDB collection, stored in the `_id` field. It's designed to be
+        **small, unique, fast to generate, and ordered**.
+      </p>
+      <p>
+        <span class="excluded-text"
+          >Query successful Try again without apps</span
+        >
+      </p>
+
+      <h2>1. ObjectId Structure (12 Bytes)</h2>
+
+      <p>
+        The ObjectId is a **96-bit value** composed of three main sections,
+        designed to ensure uniqueness across different machines, processes, and
+        within a single process. It is typically represented as a **24-character
+        hexadecimal string**.
+      </p>
+      <p>The 12 bytes are structured as follows:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Byte Count</th>
+            <th>Hex Chars</th>
+            <th>Component</th>
+            <th>Description</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>4 bytes</td>
+            <td>8</td>
+            <td>**Timestamp**</td>
+            <td>Seconds since the Unix epoch (January 1, 1970).</td>
+            <td>
+              Allows sorting by creation time and extracting the document's
+              creation date.
+            </td>
+          </tr>
+          <tr>
+            <td>5 bytes</td>
+            <td>10</td>
+            <td>**Random Value**</td>
+            <td>
+              A value unique to the machine and process, generated once per
+              process.
+            </td>
+            <td>Ensures uniqueness across different machines and processes.</td>
+          </tr>
+          <tr>
+            <td>3 bytes</td>
+            <td>6</td>
+            <td>**Incrementing Counter**</td>
+            <td>
+              A counter that starts with a random value and increments for each
+              ObjectId generated within the same process.
+            </td>
+            <td>
+              Guarantees uniqueness for multiple ObjectIds generated within the
+              same second/process.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><span class="excluded-text">Export to Sheets</span></p>
+
+      <h3>Note on Byte Order:</h3>
+      <p>
+        The **timestamp and counter values** are stored in **big-endian format**
+        (most significant byte first), which is the opposite of most other BSON
+        values, but is **essential for lexicographical sorting by creation
+        time**.
+      </p>
+
+      <h3>Legacy Structure:</h3>
+      <p>
+        In older versions of MongoDB (pre-4.0), the 5-byte "Random Value"
+        component was split into a **3-byte machine identifier** and a **2-byte
+        process ID (PID)**. The current structure uses the 5-byte random value
+        for better security and stability in distributed environments.
+      </p>
+
+      <h2>2. Key Characteristics and Benefits</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Characteristic</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>**Uniqueness**</td>
+            <td>
+              The combination of time, random value, and an incrementing counter
+              makes collisions highly unlikely, even in distributed systems.
+            </td>
+          </tr>
+          <tr>
+            <td>**Creation Time**</td>
+            <td>
+              The first four bytes (timestamp) allow you to **determine the
+              approximate creation time** of a document without needing a
+              separate timestamp field. You can extract this using the
+              <code>getTimestamp()</code> method.
+            </td>
+          </tr>
+          <tr>
+            <td>**Orderable**</td>
+            <td>
+              Since the timestamp is the first component, ObjectIds are
+              **roughly ordered by creation time**. This is useful for indexing
+              and sorting, making queries that filter or sort by creation time
+              efficient.
+            </td>
+          </tr>
+          <tr>
+            <td>**Indexing Efficiency**</td>
+            <td>
+              At only **12 bytes**, the ObjectId is **compact**, leading to
+              smaller indexes, which generally results in **better performance**
+              compared to larger identifiers like UUIDs.
+            </td>
+          </tr>
+          <tr>
+            <td>**Automatic Generation**</td>
+            <td>
+              If you insert a document without an <code>_id</code> field, the
+              MongoDB driver (or the <code>mongod</code> server if the driver
+              doesn't) **automatically generates a unique ObjectId**.
+            </td>
+          </tr>
+          <tr>
+            <td>**Client-Side Generation**</td>
+            <td>
+              ObjectIds are typically generated by the **MongoDB driver** on the
+              client side, **eliminating the need to wait** for the database
+              server to generate a unique ID, thus reducing network overhead and
+              latency for inserts.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p><span class="excluded-text">Export to Sheets</span></p>
+
+      <h2>3. Practical Usage and Methods</h2>
+      <p>
+        In the **mongosh (MongoDB Shell)**, you use the
+        <code>ObjectId()</code> constructor to work with ObjectIds.
+      </p>
+
+      <div class="code-table-wrapper">
+        <table class="code-table">
+          <thead>
+            <tr>
+              <th class="op-col">Operation</th>
+              <th class="example-col">Example (mongosh)</th>
+              <th class="desc-col">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="op-col">Generate New</td>
+              <td class="example-col"><code>newObjectId = ObjectId()</code></td>
+              <td class="desc-col">Creates a new unique ObjectId.</td>
+            </tr>
+            <tr>
+              <td class="op-col">Query by ID</td>
+              <td class="example-col">
+                <code
+                  >db.users.findOne({ _id: ObjectId("60f1c9f4e2b0c1b4a0f4a4a0")
+                  })</code
+                >
+              </td>
+              <td class="desc-col">
+                Finds a document using a specific ObjectId value. You **must**
+                wrap the hex string in <code>ObjectId()</code>.
+              </td>
+            </tr>
+            <tr>
+              <td class="op-col">Get Timestamp</td>
+              <td class="example-col">
+                <code>newObjectId.getTimestamp()</code>
+              </td>
+              <td class="desc-col">
+                Extracts the creation time as a JavaScript Date object.
+              </td>
+            </tr>
+            <tr>
+              <td class="op-col">Convert to String</td>
+              <td class="example-col"><code>newObjectId.toString()</code></td>
+              <td class="desc-col">
+                Returns the 24-character hexadecimal string representation.
+              </td>
+            </tr>
+            <tr>
+              <td class="op-col">Check Validity</td>
+              <td class="example-col">
+                <code>ObjectId.isValid("notAValidHex")</code>
+              </td>
+              <td class="desc-col">
+                Checks if a given string is a valid 24-character hexadecimal
+                ObjectId.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

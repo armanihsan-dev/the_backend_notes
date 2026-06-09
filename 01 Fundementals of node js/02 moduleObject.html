@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node.js Module Object Notes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        h1 {
+            border-bottom: 2px solid #0056b3;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            margin-top: 30px;
+            margin-bottom: 15px;
+            color: #007bff;
+        }
+        h3 {
+            margin-top: 25px;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+        pre {
+            background-color: #e9e9e9;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            white-space: pre-wrap; /* Ensures text wraps within the pre block */
+            word-wrap: break-word;  /* Ensures long words break */
+        }
+        code {
+            font-family: Consolas, monospace;
+            background-color: #e9e9e9;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        strong {
+            color: #d9534f;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        hr {
+            border: 0;
+            height: 1px;
+            background: #ccc;
+            margin: 40px 0;
+        }
+        .emoji {
+            font-size: 1.2em;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Node.js Module Object</h1>
+
+        <p>The <strong><code>module</code> object</strong> in Node.js is a fundamental, built-in object available within every JavaScript file that Node.js treats as a module. It's essentially a wrapper around your code, providing crucial metadata and functionality related to the current module.</p>
+
+        <hr>
+
+        <h2>Role of the <code>module</code> Object</h2>
+        <p>The <code>module</code> object plays several vital roles in Node.js's module system:</p>
+
+        <ul>
+            <li>
+                <h3>Exporting Values 📤</h3>
+                <p>Its most important role is facilitating the export of values from a module. The <code>module.exports</code> property is what defines what a <code>require()</code> call will return when another file imports your module. Whatever you assign to <code>module.exports</code> (a function, an object, a primitive value) becomes the public interface of your module.</p>
+            </li>
+            <li>
+                <h3>Module Identification 🆔</h3>
+                <p>It holds information to uniquely identify the module.</p>
+                <ul>
+                    <li><strong><code>module.id</code></strong>: A unique identifier for the module, typically the absolute path to the module file.</li>
+                    <li><strong><code>module.filename</code></strong>: The absolute path to the file of the current module.</li>
+                </ul>
+            </li>
+            <li>
+                <h3>Module Relationships 👨‍👩‍👧‍👦</h3>
+                <p>It tracks dependencies and relationships between modules.</p>
+                <ul>
+                    <li><strong><code>module.parent</code></strong>: A reference to the <code>module</code> object of the module that first required the current module. This allows you to trace back the dependency chain.</li>
+                    <li><strong><code>module.children</code></strong>: An array containing the <code>module</code> objects of all modules that the current module has required.</li>
+                </ul>
+            </li>
+            <li>
+                <h3>Loading Status ✅</h3>
+                <ul>
+                    <li><strong><code>module.loaded</code></strong>: A boolean indicating whether the module has finished loading. This is <code>false</code> during the initial execution of the module and becomes <code>true</code> once it's fully loaded and its exports are finalized.</li>
+                </ul>
+            </li>
+            <li>
+                <h3>Internal Wrapper</h3>
+                <p>Node.js wraps your module's code in a function. The <code>module</code> object (along with <code>exports</code>, <code>require</code>, <code>__filename</code>, and <code>__dirname</code>) is passed as an argument to this function, making it directly accessible within your module's scope.</p>
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>How a Module Can Access <code>module</code> Object Variables</h2>
+        <p>A module can access the <code>module</code> object and its properties <strong>directly by using the <code>module</code> keyword</strong> within the module's code. Since Node.js provides the <code>module</code> object as part of the module wrapper function, it's globally available within that specific module's scope without needing any special imports.</p>
+
+        <h3>Example:</h3>
+        <pre><code class="language-javascript">// myUtility.js
+// Accessing module properties directly within the file
+console.log('--- Inside myUtility.js ---');
+console.log('Module ID:', module.id);
+console.log('Module Filename:', module.filename);
+console.log('Module Loaded:', module.loaded);
+
+if (module.parent) {
+  console.log('Parent Module Filename:', module.parent.filename);
+} else {
+  console.log('No Parent Module (This might be the entry point)');
+}
+
+// You can use module.exports to define what your module provides
+module.exports = {
+  sayHello: () => "Hello from myUtility!",
+  getModuleName: () => module.filename // Example of exporting a function that uses module properties
+};
+console.log('--- End of myUtility.js ---');</code></pre>
+
+        <pre><code class="language-javascript">// app.js
+console.log('--- Inside app.js ---');
+
+// Requiring myUtility.js
+const myUtility = require('./myUtility');
+
+console.log('\n--- In app.js after requiring myUtility ---');
+console.log('Result from myUtility:', myUtility.sayHello());
+console.log('MyUtility Module Name (via exported function):', myUtility.getModuleName());
+
+// You can also inspect the 'module' object of app.js itself
+console.log('\n--- app.js module details ---');
+console.log('app.js Module ID:', module.id);
+console.log('app.js Module Filename:', module.filename);
+console.log('app.js Children (should include myUtility.js):', module.children.map(child => child.filename));</code></pre>
+        <p>When you run <code>app.js</code>, you'll see the console logs from both <code>myUtility.js</code> and <code>app.js</code>, demonstrating how each module can access its own module object and its properties, including <code>module.parent</code> and <code>module.children</code> to understand the module graph.</p>
+
+        <hr>
+
+        <h2><code>module</code> Object Key Properties</h2>
+        <p>The <code>module</code> object in Node.js contains several key properties that provide information and control over the current module. Here are its most important keys:</p>
+
+        <h3>1. <code>module.exports</code> 📤</h3>
+        <p>This is arguably the most crucial property of the <code>module</code> object. It's an object that defines what gets returned when another file <code>require()</code>s your module. By default, it's an empty object (<code>{}</code>). When you assign a value to <code>module.exports</code> (e.g., a function, an object, a primitive), that value becomes the public interface of your module.</p>
+        <pre><code class="language-javascript">// myModule.js
+module.exports = {
+  greet: (name) => `Hello, ${name}!`,
+  version: '1.0.0'
+};</code></pre>
+        <pre><code class="language-javascript">// app.js
+const myModule = require('./myModule');
+console.log(myModule.greet('World')); // Hello, World!</code></pre>
+
+        <h3>2. <code>module.id</code> 🆔</h3>
+        <p>This property holds a unique identifier for the module. For file-based modules, it's typically the absolute path to the module's file. For core Node.js modules (like <code>fs</code> or <code>http</code>), it's their name.</p>
+        <pre><code class="language-javascript">// myFile.js
+console.log(module.id); // e.g., /path/to/your/project/myFile.js</code></pre>
+
+        <h3>3. <code>module.filename</code> 📄</h3>
+        <p>This provides the absolute resolved filename of the module. It's very similar to <code>module.id</code> for file-based modules, but <code>filename</code> always refers to the actual file path.</p>
+        <pre><code class="language-javascript">// myFile.js
+console.log(module.filename); // e.g., /path/to/your/project/myFile.js</code></pre>
+
+        <h3>4. <code>module.loaded</code> ✅</h3>
+        <p>A boolean value indicating whether the module has finished loading. It is <code>false</code> during the initial execution of the module's code and becomes <code>true</code> once the module has completed loading and its exports are finalized.</p>
+        <pre><code class="language-javascript">// someModule.js
+console.log('Is this module loaded yet? (during execution):', module.loaded); // false
+// ... some code ...
+module.exports = {};
+// After this line, when execution finishes, module.loaded becomes true.</code></pre>
+
+        <h3>5. <code>module.parent</code> 👨‍👩‍👧</h3>
+        <p>A reference to the <code>module</code> object of the module that first required the current module. This allows you to understand the immediate dependency relationship. If the current module is the entry point of the application (i.e., not required by another module), <code>module.parent</code> will be <code>null</code>.</p>
+        <pre><code class="language-javascript">// child.js
+if (module.parent) {
+  console.log('I was required by:', module.parent.filename);
+}
+module.exports = 'I am the child.';</code></pre>
+        <pre><code class="language-javascript">// parent.js
+const child = require('./child'); // This will trigger the console.log in child.js
+console.log(child);</code></pre>
+
+        <h3>6. <code>module.children</code> 👶</h3>
+        <p>An array containing the <code>module</code> objects of all modules that the current module has required. This provides a list of direct dependencies loaded by the current module.</p>
+        <pre><code class="language-javascript">// main.js
+const dep1 = require('./dependency1');
+const dep2 = require('./dependency2');
+
+console.log('Dependencies of main.js:');
+module.children.forEach(childModule => {
+  console.log('- ' + childModule.filename);
+});</code></pre>
+    </div>
+</body>
+</html>

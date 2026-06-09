@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Custom Methods - Blackish Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Setup */
+      :root {
+        --bg-dark: #1e1e1e; /* VS Code Dark Background */
+        --bg-code: #1b1b1b;
+        --text-light: #d4d4d4; /* VS Code Light Text */
+        --accent-green: #4ec9b0; /* VS Code keyword/type color */
+        --accent-blue: #569cd6; /* VS Code property/function color */
+        --accent-yellow: #dcdcaa; /* VS Code string color */
+        --accent-comment: #6a9955; /* VS Code comment color */
+        --accent-number: #b5cea8;
+        --accent-red: #c586c0; /* VS Code variable/keyword color */
+      }
+
+      body {
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        background-color: #252525;
+      }
+
+      /* Headings and Text */
+      h1,
+      h2,
+      h3 {
+        color: var(--accent-green);
+        border-bottom: 2px solid #3a3a3a;
+        padding-bottom: 5px;
+        margin-top: 30px;
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ffcc00; /* Subtle gold for emphasis */
+      }
+
+      /* Code Blocks (VS Code Theme) */
+      pre {
+        background-color: rgb(6, 1, 28);
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.9em;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+      }
+
+      .code-block {
+        white-space: pre-wrap;
+      }
+
+      /* Syntax Highlighting */
+      .kw {
+        color: var(--accent-red);
+      } /* keyword (const, function, return, this) */
+      .fn {
+        color: var(--accent-blue);
+      } /* function/method names (require, split) */
+      .ty {
+        color: var(--accent-green);
+      } /* types/class (mongoose, String, Number, Schema) */
+      .co {
+        color: var(--accent-comment);
+      } /* comment */
+      .st {
+        color: var(--accent-yellow);
+      } /* string */
+      .nm {
+        color: var(--accent-number);
+      } /* number */
+      .pr {
+        color: #9cdcfe;
+      } /* property (name, age, type, methods) */
+      .op {
+        color: #ffffff;
+      } /* operator */
+      .vl {
+        color: #ce9178;
+      } /* variable names */
+
+      /* Lists and Steps */
+      ol {
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 10px;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: #2f2f2f;
+        border: 1px solid #444;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #444;
+      }
+
+      th {
+        background-color: #3a3a3a;
+        color: var(--text-light);
+      }
+
+      td:nth-child(2) .code-block {
+        background-color: transparent;
+        padding: 0;
+        margin: 0;
+        box-shadow: none;
+      }
+
+      /* Callout Box */
+      .callout {
+        border-left: 5px solid var(--accent-yellow);
+        background-color: #333333;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Defining custom methods on mongoose documents</h1>
+      <p>
+        It's great you're diving into Mongoose custom methods! You can define
+        custom **instance methods** directly on the Mongoose **Schema** using
+        the <span class="kw">.methods</span> object. These methods become
+        available on every **document** retrieved or created using that schema.
+      </p>
+
+      <p>Here's a step-by-step guide:</p>
+
+      <h2>Defining Custom Methods on a Mongoose Schema</h2>
+
+      <p>You define your custom methods **before** creating the model.</p>
+
+      <h3>1. Define the Schema</h3>
+      <p>Start by requiring Mongoose and defining your schema.</p>
+
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">const</span> <span class="vl">mongoose</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'mongoose'</span>);
+
+<span class="co">// Define the User schema</span>
+<span class="kw">const</span> <span class="vl">userSchema</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">mongoose</span>.<span class="ty">Schema</span>({
+  <span class="pr">name</span>: {
+    <span class="pr">type</span>: <span class="ty">String</span>,
+    <span class="pr">required</span>: <span class="kw">true</span>
+  },
+  <span class="pr">age</span>: <span class="ty">Number</span>,
+  <span class="pr">email</span>: <span class="ty">String</span>
+});
+    </div></pre>
+
+      <h3>2. Add Methods using <span class="kw">.methods</span></h3>
+      <p>
+        Attach your custom functions to the <span class="vl">userSchema</span
+        ><span class="kw">.methods</span> object. Inside these functions,
+        <span class="kw">this</span> refers to the specific Mongoose
+        **document** on which the method is called.
+      </p>
+
+      <p>Example Methods:</p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="co">// Add a custom method to get a user's initials</span>
+<span class="vl">userSchema</span>.<span class="pr">methods</span>.<span class="fn">getInitials</span> <span class="op">=</span> <span class="kw">function</span>() {
+  <span class="co">// 'this' refers to the specific user document</span>
+  <span class="kw">const</span> <span class="vl">nameParts</span> <span class="op">=</span> <span class="kw">this</span>.<span class="pr">name</span>.<span class="fn">split</span>(<span class="st">' '</span>);
+  <span class="kw">let</span> <span class="vl">initials</span> <span class="op">=</span> <span class="st">''</span>;
+  <span class="kw">for</span> (<span class="kw">const</span> <span class="vl">part</span> <span class="kw">of</span> <span class="vl">nameParts</span>) {
+    <span class="kw">if</span> (<span class="vl">part</span>.<span class="pr">length</span> <span class="op">></span> <span class="nm">0</span>) {
+      <span class="vl">initials</span> <span class="op">+=</span> <span class="vl">part</span>[<span class="nm">0</span>].<span class="fn">toUpperCase</span>();
+    }
+  }
+  <span class="kw">return</span> <span class="vl">initials</span>;
+};
+
+<span class="co">// Add a method to say a greeting</span>
+<span class="vl">userSchema</span>.<span class="pr">methods</span>.<span class="fn">sayHello</span> <span class="op">=</span> <span class="kw">function</span>() {
+  <span class="kw">return</span> <span class="st">`Hello! My name is </span><span class="vl">${this.name}</span><span class="st"> and I am </span><span class="vl">${this.age}</span><span class="st"> years old.`</span>;
+};
+
+<span class="co">// You can also use async/await for methods that perform database operations</span>
+<span class="vl">userSchema</span>.<span class="pr">methods</span>.<span class="fn">findSimilarAgeUsers</span> <span class="op">=</span> <span class="kw">async</span> <span class="kw">function</span>() {
+  <span class="co">// Query the database for users with age close to this user's age</span>
+  <span class="kw">const</span> <span class="vl">similarUsers</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">mongoose</span>.<span class="ty">models</span>.<span class="ty">User</span>.<span class="fn">find</span>({
+    <span class="pr">age</span>: { <span class="pr">$gte</span>: <span class="kw">this</span>.<span class="pr">age</span> <span class="op">-</span> <span class="nm">5</span>, <span class="pr">$lte</span>: <span class="kw">this</span>.<span class="pr">age</span> <span class="op">+</span> <span class="nm">5</span> }, <span class="co">// e.g., within 5 years</span>
+    <span class="pr">_id</span>: { <span class="pr">$ne</span>: <span class="kw">this</span>.<span class="pr">_id</span> } <span class="co">// Exclude the current user</span>
+  });
+  <span class="kw">return</span> <span class="vl">similarUsers</span>;
+};
+    </div></pre>
+
+      <h3>3. Create the Model</h3>
+      <p>Create your Mongoose model using the defined schema.</p>
+
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="co">// Create the Mongoose Model</span>
+<span class="kw">const</span> <span class="ty">User</span> <span class="op">=</span> <span class="ty">mongoose</span>.<span class="fn">model</span>(<span class="st">'User'</span>, <span class="vl">userSchema</span>);
+
+<span class="kw">module</span>.<span class="pr">exports</span> <span class="op">=</span> <span class="ty">User</span>;
+    </div></pre>
+
+      <hr />
+
+      <h2>Accessing Custom Methods in Node.js</h2>
+      <p>
+        Once you have defined the methods on the schema and created the model,
+        you can access them on any **document instance**.
+      </p>
+
+      <p>Example Usage:</p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">const</span> <span class="ty">User</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'./userModel'</span>); <span class="co">// Assuming your model file is 'userModel.js'</span>
+
+<span class="co">// ... (Connect to MongoDB here) ...</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="fn">runExample</span>() {
+  <span class="co">// 1. Create a new document (instance)</span>
+  <span class="kw">const</span> <span class="vl">newUser</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">User</span>({
+    <span class="pr">name</span>: <span class="st">'Jane Doe'</span>,
+    <span class="pr">age</span>: <span class="nm">30</span>,
+    <span class="pr">email</span>: <span class="st">'jane.doe@example.com'</span>
+  });
+
+  <span class="co">// 2. Call the instance methods (they are available on the 'newUser' document)</span>
+  <span class="kw">const</span> <span class="vl">initials</span> <span class="op">=</span> <span class="vl">newUser</span>.<span class="fn">getInitials</span>();
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`Initials: </span><span class="vl">${initials}</span><span class="st">`</span>); <span class="co">// Output: JD</span>
+
+  <span class="kw">const</span> <span class="vl">greeting</span> <span class="op">=</span> <span class="vl">newUser</span>.<span class="fn">sayHello</span>();
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`Greeting: </span><span class="vl">${greeting}</span><span class="st">`</span>); <span class="co">// Output: Hello! My name is Jane Doe and I am 30 years old.</span>
+
+  <span class="co">// 3. Save the user</span>
+  <span class="kw">await</span> <span class="vl">newUser</span>.<span class="fn">save</span>();
+
+  <span class="co">// 4. Retrieve a document from the database</span>
+  <span class="kw">const</span> <span class="vl">retrievedUser</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">User</span>.<span class="fn">findOne</span>({
+    <span class="pr">name</span>: <span class="st">'Jane Doe'</span>
+  });
+
+  <span class="co">// 5. Call the async instance method on the retrieved document</span>
+  <span class="kw">const</span> <span class="vl">similarAgeUsers</span> <span class="op">=</span> <span class="kw">await</span> <span class="vl">retrievedUser</span>.<span class="fn">findSimilarAgeUsers</span>();
+  <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`Found </span><span class="vl">${similarAgeUsers.length}</span><span class="st"> users with similar age.`</span>);
+}
+
+<span class="fn">runExample</span>();
+    </div></pre>
+
+      <hr />
+
+      <div class="callout">
+        <h3>Key Takeaway:</h3>
+        <ul>
+          <li>
+            **Instance Methods (using <span class="kw">.methods</span>):** Used
+            for logic specific to a **single document** (e.g., calculating a
+            user's age, formatting a name, or finding related documents based on
+            the current document's properties). They are called on a document
+            instance (e.g., <span class="vl">user</span>.<span class="fn"
+              >sayHello</span
+            >()).
+          </li>
+          <li>
+            For methods that operate on the **Model as a whole** (e.g., a custom
+            search function that doesn't rely on a specific document's data),
+            you'd use **Static Methods** with <span class="vl">userSchema</span
+            ><span class="kw">.statics</span>.
+          </li>
+        </ul>
+      </div>
+
+      <p>
+        The custom method is being defined inside the **Schema Options object**,
+        which is the second argument passed to
+        <span class="kw">new Schema()</span>. This is a clean, modern way to
+        define **Instance Methods** in Mongoose.
+      </p>
+
+      <h2>1. Extracting and Teaching the Syntax</h2>
+      <p>
+        The key to defining custom methods in your provided schema lies in the
+        **second argument** of the
+        <span class="kw">new Schema()</span> constructor: the **Schema Options
+        object**.
+      </p>
+
+      <h3>Custom Method Syntax</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Part</th>
+            <th>Code Example</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Schema Definition</td>
+            <td>
+              <span class="code-block"
+                ><span class="kw">new Schema</span>(<span class="vl"
+                  >schemaDefinition</span
+                >, <span class="kw">**options**</span>)</span
+              >
+            </td>
+            <td>
+              The Mongoose Schema constructor takes two arguments. We focus on
+              the second one: <span class="kw">options</span>.
+            </td>
+          </tr>
+          <tr>
+            <td>Methods Container</td>
+            <td>
+              <span class="code-block"
+                ><span class="pr">methods</span>: {
+                <span class="op">...</span> }</span
+              >
+            </td>
+            <td>
+              Inside the options object, you define instance methods using the
+              <span class="pr">methods</span> property.
+            </td>
+          </tr>
+          <tr>
+            <td>Method Name</td>
+            <td>
+              <span class="code-block"
+                ><span class="fn">getSummary</span>(<span class="op">...</span
+                >)</span
+              >
+            </td>
+            <td>
+              This is the name you want the method to have on the document.
+            </td>
+          </tr>
+          <tr>
+            <td>Method Function</td>
+            <td>
+              <span class="code-block"
+                ><span class="fn">getSummary</span>(<span class="kw"
+                  >**option**</span
+                >) { <span class="op">...</span> }</span
+              >
+            </td>
+            <td>
+              This is the actual JavaScript function. It can take arguments
+              (<span class="vl">option</span> in this case).
+            </td>
+          </tr>
+          <tr>
+            <td>Document Access</td>
+            <td>
+              <span class="code-block"
+                ><span class="kw">**this**</span>.<span class="pr"
+                  >name</span
+                ></span
+              >
+            </td>
+            <td>
+              Inside the method function, the keyword
+              <span class="kw">this</span> refers to the specific **Mongoose
+              Document** (or instance) on which the method is called. This
+              allows you to access the document's fields like
+              <span class="pr">name</span>, <span class="pr">age</span>, and
+              <span class="pr">hobbies</span>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>In your code:</p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="co">// Second argument to new Schema() is the options object</span>
+{ 
+    <span class="pr">strict</span>: <span class="st">'throw'</span>, 
+    <span class="pr">timestamps</span>: <span class="kw">true</span>,
+    <span class="co">// &lt;--- THIS IS WHERE THE CUSTOM METHOD IS DEFINED ---&gt;</span>
+    <span class="pr">methods</span>: {
+        <span class="fn">getSummary</span>(<span class="vl">option</span>) { 
+            <span class="co">// 'this' refers to the document instance</span>
+            <span class="kw">if</span> (<span class="vl">option</span> <span class="op">===</span> <span class="st">'full'</span>) {
+                <span class="kw">return</span> <span class="st">`I am </span><span class="vl">${this.name}</span><span class="st">. And i am </span><span class="vl">${this.age}</span><span class="st"> years old. I am really intrested in </span><span class="vl">${this.hobbies.join(', ')}</span><span class="st">`</span>
+            } <span class="kw">else</span> {
+                <span class="kw">return</span> <span class="st">`I am </span><span class="vl">${this.name}</span><span class="st">. And i am </span><span class="vl">${this.age}</span><span class="st"> years old.`</span>
+            }
+        }
+    }
+}
+    </div></pre>
+
+      <h2>2. How to Access <span class="fn">getSummary</span> Later</h2>
+      <p>
+        The method <span class="fn">getSummary</span> is an **Instance Method**,
+        meaning it's only available on a specific **document** retrieved from or
+        created by the Mongoose Model, not on the Model itself.
+      </p>
+
+      <h3>Step 1: Create the Model</h3>
+      <p>First, you need to create the Mongoose Model from your schema.</p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="co">// Assume modelSchema is defined as above</span>
+<span class="kw">const</span> <span class="vl">mongoose</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'mongoose'</span>);
+<span class="kw">const</span> <span class="ty">Model</span> <span class="op">=</span> <span class="ty">mongoose</span>.<span class="fn">model</span>(<span class="st">'ModelName'</span>, <span class="vl">modelSchema</span>);
+    </div></pre>
+
+      <h3>Step 2: Access a Document</h3>
+      <p>
+        You must either create a new document or retrieve an existing one from
+        the database.
+      </p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">async</span> <span class="kw">function</span> <span class="fn">useCustomMethod</span>() {
+    <span class="co">// A. Retrieve an existing document (e.g., by finding one)</span>
+    <span class="kw">const</span> <span class="vl">documentInstance</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">Model</span>.<span class="fn">findOne</span>({ <span class="pr">name</span>: <span class="st">'John Doe'</span> });
+
+    <span class="co">// OR</span>
+
+    <span class="co">// B. Create a new document instance</span>
+    <span class="kw">const</span> <span class="vl">newDocument</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">Model</span>({
+        <span class="pr">name</span>: <span class="st">'Jane Smith'</span>,
+        <span class="pr">age</span>: <span class="nm">25</span>,
+        <span class="pr">hobbies</span>: [<span class="st">'coding'</span>, <span class="st">'reading'</span>]
+    });
+
+    <span class="kw">if</span> (<span class="vl">newDocument</span>) {
+        <span class="co">// ... proceed to call the method on the document instance</span>
+    }
+}
+    </div></pre>
+
+      <h3>Step 3: Call the Instance Method</h3>
+      <p>
+        You call <span class="fn">getSummary</span> directly on the **document
+        instance** you retrieved or created, just like a regular object method.
+      </p>
+
+      <h3>Example Calls:</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Call Type</th>
+            <th>Code</th>
+            <th>Output</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Basic Summary</td>
+            <td>
+              <span class="code-block"
+                ><span class="vl">newDocument</span>.<span class="fn"
+                  >getSummary</span
+                >()</span
+              >
+            </td>
+            <td>Returns: I am Jane Smith. And i am 25 years old.</td>
+          </tr>
+          <tr>
+            <td>Full Summary</td>
+            <td>
+              <span class="code-block"
+                ><span class="vl">newDocument</span>.<span class="fn"
+                  >getSummary</span
+                >(<span class="st">'full'</span>)</span
+              >
+            </td>
+            <td>
+              Returns: I am Jane Smith. And i am 25 years old. I am really
+              intrested in coding, reading
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

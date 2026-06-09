@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node.js Writable Streams Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #ffe4e1; /* Pinkish background */
+            color: #4b0082; /* Dark purple text */
+            margin: 0;
+            padding: 20px;
+        }
+        .note-container {
+            background-color: #fff0f5; /* Lighter pink note background */
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px auto;
+            max-width: 800px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            line-height: 1.6;
+        }
+        h1, h2, h3 {
+            color: #8b008b; /* Magenta headings */
+            border-bottom: 2px solid #ffb6c1; /* Light pink underline */
+            padding-bottom: 5px;
+            margin-top: 20px;
+        }
+        p, li {
+            margin: 10px 0;
+        }
+        pre {
+            background-color: #282c34; /* VS Code dark theme background */
+            color: #abb2bf; /* Default text color */
+            border-left: 3px solid #61dafb; /* React-like blue for accent */
+            padding: 15px;
+            overflow-x: auto;
+            border-radius: 5px;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace; /* Fira Code for a dev feel */
+            font-size: 14px;
+            white-space: pre-wrap; /* Ensures code wraps */
+            word-wrap: break-word; /* Breaks long words */
+        }
+        code {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            color: #abb2bf;
+        }
+        /* Specific syntax highlighting for a JS look */
+        pre .keyword { color: #c678dd; } /* const, function, return, etc. */
+        pre .string { color: #98c379; } /* 'hello' */
+        pre .comment { color: #5c6370; } /* // a comment */
+        pre .variable { color: #e06c75; } /* i, writeStream */
+        pre .number { color: #d19a66; } /* 1000 */
+        pre .function-name { color: #61dafb; } /* write, end */
+        pre .method { color: #61dafb; } /* .write(), .end() */
+        pre .punctuation { color: #abb2bf; } /* (){}; */
+        pre .operator { color: #56b6c2; } /* <=, = */
+        pre .boolean { color: #d19a66; } /* true, false */
+
+        .user-prompt, .chatgpt-response {
+            border: 1px solid #ffc0cb; /* Pink border */
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .user-prompt {
+            background-color: #fffaf0; /* Floral white */
+        }
+        .chatgpt-response {
+            background-color: #f0fff0; /* Honeydew */
+        }
+        .user-text, .chatgpt-text {
+            font-weight: 600;
+        }
+        .code-block {
+            background-color: #f8f8ff;
+            border: 1px solid #ffc0cb;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .highlight {
+            background-color: #ffdab9; /* Peach puff highlight */
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        .tip {
+            background-color: #ffb6c1;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="note-container">
+    <h1>1. Why ending a writable stream is important</h1>
+    
+    <h3>Signals “No More Data”</h3>
+    <ul>
+        <li><code><span class="method">stream.end</span>()</code> tells Node.js that you have finished writing data.</li>
+        <li>Without it, the stream will remain open and keep waiting for more chunks — which can lead to memory leaks or a process that never exits.</li>
+    </ul>
+
+    <h3>Flushes Remaining Data</h3>
+    <ul>
+        <li>Some data may still be buffered inside the stream.</li>
+        <li><code><span class="method">end</span>()</code> ensures all buffered data is flushed to the destination (file, socket, etc.) before closing.</li>
+    </ul>
+
+    <h3>Triggers the finish event</h3>
+    <ul>
+        <li>You can listen for <code>finish</code> to know when all data has been written and the file/socket is safely closed.</li>
+    </ul>
+
+    <h1>2. How to end a writable stream</h1>
+    
+    <h3>There are two ways:</h3>
+
+    <h4>(A) Write some final data and then end</h4>
+    <pre><code><span class="keyword">import</span> <span class="variable">fs</span> <span class="keyword">from</span> <span class="string">'fs'</span><span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">writeStream</span> <span class="operator">=</span> <span class="variable">fs</span><span class="punctuation">.</span><span class="method">createWriteStream</span>(<span class="string">'output.txt'</span>)<span class="punctuation">;</span>
+
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">write</span>(<span class="string">'Hello, '</span>)<span class="punctuation">;</span>
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">write</span>(<span class="string">'world!'</span>)<span class="punctuation">;</span>
+
+<span class="comment">// End the stream and write a final piece of data</span>
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">end</span>(<span class="string">' This is the end.'</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Stream ended.'</span>)<span class="punctuation">;</span>
+})<span class="punctuation">;</span>
+
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'finish'</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'All writes are finished.'</span>)<span class="punctuation">;</span>
+})<span class="punctuation">;</span></code></pre>
+
+    <h4>(B) End without extra data</h4>
+    <pre><code><span class="keyword">const</span> <span class="variable">writeStream</span> <span class="operator">=</span> <span class="variable">fs</span><span class="punctuation">.</span><span class="method">createWriteStream</span>(<span class="string">'output.txt'</span>)<span class="punctuation">;</span>
+
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">write</span>(<span class="string">'First line.\n'</span>)<span class="punctuation">;</span>
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">write</span>(<span class="string">'Second line.\n'</span>)<span class="punctuation">;</span>
+
+<span class="comment">// End without additional data</span>
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">end</span>()<span class="punctuation">;</span>
+
+<span class="variable">writeStream</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'finish'</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Done writing!'</span>)<span class="punctuation">;</span>
+})<span class="punctuation">;</span></code></pre>
+
+    <div class="tip">
+        💡 Tip: If you forget to call <code><span class="method">end</span>()</code>, especially in file writes or network requests, your program may hang because Node.js thinks you're still sending data.
+    </div>
+</div>
+
+</body>
+</html>

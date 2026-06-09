@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAuth 2.0 Grant Types: Deep Dive</title>
+    <!-- Nunito Font Import -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling */
+      body {
+        background-color: #1e1e1e; /* VS Code Dark background */
+        color: #d4d4d4; /* Light grey text */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #252526; /* Slightly lighter inner panel */
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code Blue for headings */
+        font-weight: 900;
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+
+      h3 {
+        font-size: 1.4em;
+        color: #c586c0; /* VS Code Purple */
+        border-bottom: none;
+      }
+
+      p {
+        margin: 10px 0;
+      }
+
+      strong {
+        color: #ffd700; /* Gold/Yellow highlight */
+        font-weight: 700;
+      }
+
+      /* List Styling */
+      ol {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      ol li {
+        background-color: #2d2d30; /* Darker list item background */
+        margin-bottom: 15px;
+        padding: 15px;
+        border-left: 4px solid #4ec9b0; /* Teal/Green accent */
+        border-radius: 4px;
+      }
+
+      /* VS Code-like Code Block Styling */
+      .code-block {
+        background-color: #1e1e1e; /* Inner code block background */
+        color: #d4d4d4;
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin: 15px 0;
+        font-family: Consolas, 'Courier New', monospace;
+        white-space: pre-wrap;
+        overflow-x: auto;
+        border: 1px solid #3c3c3c;
+      }
+
+      /* Specific color for credentials/tokens in text */
+      .token {
+        color: #4ec9b0; /* Teal/Green */
+        font-weight: 700;
+      }
+
+      .warn {
+        color: #f08080; /* Light red for warnings/deprecations */
+        font-weight: 700;
+      }
+
+      .recommend {
+        color: #9cdcfe; /* Light Blue for recommendations */
+        font-weight: 700;
+      }
+
+      /* Inline Code/Keys */
+      code {
+        background-color: #3c3c3c;
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: #9cdcfe; /* Light Blue */
+        font-family: Consolas, 'Courier New', monospace;
+      }
+
+      /* Table Styling */
+      .table-wrapper {
+        overflow-x: auto;
+        margin-top: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9em;
+        min-width: 700px; /* Ensures better readability on desktop */
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border: 1px solid #3c3c3c;
+      }
+      th {
+        background-color: #2d2d30; /* Header background */
+        color: #d4d4d4;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.8em;
+        letter-spacing: 0.05em;
+      }
+      tr {
+        background-color: #252526;
+      }
+      tr:nth-child(even) {
+        background-color: #2d2d30; /* Zebra striping */
+      }
+      .security-high {
+        color: #4ec9b0;
+        font-weight: 900;
+      }
+      .security-low {
+        color: #f08080;
+        font-weight: 900;
+      }
+      .deprecated {
+        color: #ff8c00; /* Orange for deprecated */
+      }
+      .partial {
+        color: #ffd700; /* Gold for partial involvement */
+      }
+
+      /* Responsive adjustments for smaller screens */
+      @media (max-width: 600px) {
+        .container {
+          padding: 10px;
+        }
+        body {
+          padding: 10px;
+        }
+        th,
+        td {
+          padding: 8px 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>OAuth 2.0 Grant Types</h1>
+      <p>
+        Grant types in OAuth 2.0 define the specific method an application
+        (<strong>Client</strong>) uses to obtain an
+        <span class="token">Access Token</span>—a credential that grants limited
+        access to a user's (<strong>Resource Owner's</strong>) protected
+        resources, hosted on a <span class="token">Resource Server</span>,
+        without exposing the user's password.
+      </p>
+      <h3>OR</h3>
+      <p>
+        A grant type is a way for a client to request authorization servers and
+        receive tokens. It determines how the client authenticates itself and/or
+        the user.
+      </p>
+      <p>
+        The choice of grant type depends heavily on the
+        <strong>client application's security capabilities</strong>
+        and its interaction model with the user and the authorization server.
+      </p>
+
+      <h2>
+        <span style="color: #ffd700">🔑</span> Common OAuth 2.0 Grant Types and
+        Use Cases
+      </h2>
+      <p>
+        Here are the most common grant types, their processes, and their typical
+        use cases:
+      </p>
+
+      <ol>
+        <!-- 1. Authorization Code Grant -->
+        <li>
+          <h3>
+            1. Authorization Code Grant (<span class="recommend"
+              >Recommended for Web Apps</span
+            >)
+          </h3>
+          <p>
+            This is generally considered the <strong>most secure</strong> and
+            most widely used grant type.
+          </p>
+
+          <h4>Process:</h4>
+          <div class="code-block">
+            <p>
+              The client redirects the user to the
+              <span class="token">Authorization Server</span> to log in and
+              approve the request.
+            </p>
+            <p>
+              The <span class="token">Authorization Server</span> sends back a
+              single-use <span class="token">Authorization Code</span> to the
+              client's registered redirect URI.
+            </p>
+            <p>
+              The client's backend securely exchanges this code, along with its
+              own credentials (<code>Client ID</code> and
+              <code>Client Secret</code>), for an
+              <span class="token">Access Token</span> and, optionally, a
+              <span class="token">Refresh Token</span>.
+            </p>
+          </div>
+
+          <h4>Use Case:</h4>
+          <p>
+            <strong>Confidential Clients</strong> like traditional
+            <strong>Web Applications</strong> running on a server (e.g., PHP,
+            Java, Python apps). The code exchange happens server-to-server,
+            protecting the <span class="token">Access Token</span> from being
+            exposed in the user's browser.
+          </p>
+          <p>
+            <strong
+              >Authorization Code with PKCE (Proof Key for Code
+              Exchange)</strong
+            >
+            is the current <strong>best practice</strong> for
+            <strong>Single Page Applications (SPAs)</strong> and
+            <strong>Mobile/Native Apps</strong> because these clients cannot
+            securely store a <code>Client Secret</code>. PKCE adds an extra
+            layer of security to this flow.
+          </p>
+        </li>
+
+        <!-- 2. Client Credentials Grant -->
+        <li>
+          <h3>2. Client Credentials Grant</h3>
+          <p>
+            This flow is used for
+            <strong>machine-to-machine communication</strong>, where there is no
+            human user involved.
+          </p>
+
+          <h4>Process:</h4>
+          <div class="code-block">
+            <p>
+              The client (acting on its own behalf) directly sends its
+              <code>Client ID</code> and <code>Client Secret</code> to the
+              <span class="token">Authorization Server</span>.
+            </p>
+            <p>
+              The <span class="token">Authorization Server</span> verifies the
+              credentials and returns an
+              <span class="token">Access Token</span>.
+            </p>
+            <p>
+              A <span class="token">Refresh Token</span> is typically not issued
+              since there's no user session to maintain.
+            </p>
+          </div>
+
+          <h4>Use Case:</h4>
+          <p>
+            <strong>Server-to-Server communication</strong>, where a backend
+            application needs to access an API that protects its
+            <strong>own resources</strong>, not a user's data (e.g., a scheduled
+            batch job fetching application-wide configuration data from another
+            service, or an internal microservice calling another internal API).
+          </p>
+        </li>
+
+        <!-- 3. Refresh Token Grant -->
+        <li>
+          <h3>3. Refresh Token Grant</h3>
+          <p>
+            This grant type allows a client to obtain a new
+            <span class="token">Access Token</span> without requiring the user
+            to re-authenticate.
+          </p>
+
+          <h4>Process:</h4>
+          <div class="code-block">
+            <p>
+              The client sends an expired
+              <span class="token">Access Token</span> and its
+              <span class="token">Refresh Token</span> to the
+              <span class="token">Authorization Server</span>.
+            </p>
+            <p>
+              The server validates the
+              <span class="token">Refresh Token</span> and issues a new
+              <span class="token">Access Token</span> (and sometimes a new
+              <span class="token">Refresh Token</span>).
+            </p>
+          </div>
+
+          <h4>Use Case:</h4>
+          <p>
+            <strong>Extending sessions</strong> and maintaining continuous
+            access to resources when the
+            <span class="token">Access Token</span> (which usually has a short
+            lifespan) expires. This improves the user experience by avoiding
+            frequent log-in prompts.
+          </p>
+        </li>
+
+        <!-- 4. Resource Owner Password Credentials Grant -->
+        <li>
+          <h3>
+            4. Resource Owner Password Credentials Grant (<span class="warn"
+              >Not Recommended</span
+            >)
+          </h3>
+          <p>
+            This flow is generally <strong>discouraged</strong> due to security
+            risks.
+          </p>
+
+          <h4>Process:</h4>
+          <div class="code-block">
+            <p>
+              The client application collects the user's
+              <code>username</code> and <code>password</code>.
+            </p>
+            <p>
+              The client sends these credentials (along with its own
+              <code>Client ID</code> and <code>Secret</code>) directly to the
+              <span class="token">Authorization Server</span>.
+            </p>
+            <p>
+              The server verifies the credentials and returns an
+              <span class="token">Access Token</span>.
+            </p>
+          </div>
+
+          <h4>Use Case:</h4>
+          <p>
+            It was originally intended for
+            <strong>highly trusted first-party applications</strong> (owned and
+            operated by the resource provider) where a user is willing to hand
+            over their credentials. However, because it violates the principle
+            of <strong>never sharing credentials with the client</strong>, it is
+            now largely considered an <strong>anti-pattern</strong>.
+            <span class="recommend"
+              >Authorization Code with PKCE is the recommended
+              alternative.</span
+            >
+          </p>
+        </li>
+
+        <!-- 5. Device Code Grant -->
+        <li>
+          <h3>5. Device Code Grant (Device Authorization Flow)</h3>
+          <p>
+            Used for devices with
+            <strong>limited input capabilities</strong> (e.g., smart TVs,
+            printers, or command-line apps) that cannot easily perform web
+            redirects.
+          </p>
+
+          <h4>Process:</h4>
+          <div class="code-block">
+            <p>
+              The device requests a <span class="token">Device Code</span> and
+              <span class="token">User Code</span> from the
+              <span class="token">Authorization Server</span>.
+            </p>
+            <p>
+              The device displays the <span class="token">User Code</span> and a
+              verification URL to the user.
+            </p>
+            <p>
+              The user goes to the verification URL on a separate, input-enabled
+              device (like a smartphone or laptop), enters the
+              <span class="token">User Code</span>, and grants permission.
+            </p>
+            <p>
+              The original device periodically polls the
+              <span class="token">Authorization Server</span> with the
+              <span class="token">Device Code</span> until authorization is
+              granted, at which point it receives the
+              <span class="token">Access Token</span>.
+            </p>
+            <p>
+              OR A grant type is a way for a client to request authorization
+              servers and receive tokens. It determines how the client
+              authenticates itself and/or the user. 6:
+              <span class="warn"
+                >implicit Grant Type ⚠️ Deprecated✅ YesPublicSPAs
+                (legacy)❌Tokens in URL; now deprecated in OAuth 2.1</span
+              >
+            </p>
+          </div>
+
+          <h4>Use Case:</h4>
+          <p>
+            <strong>Input-constrained devices</strong> like smart TVs, gaming
+            consoles, or command-line interface (CLI) tools.
+          </p>
+        </li>
+      </ol>
+
+      <h2 style="margin-top: 40px">Summary of OAuth 2.0 Grant Types</h2>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Grant Type</th>
+              <th>User Involved?</th>
+              <th>Client Type</th>
+              <th>Use Case</th>
+              <th>Security Level</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>authorization_code</td>
+              <td>✅ Yes</td>
+              <td>Confidential</td>
+              <td>Web apps with backend</td>
+              <td class="security-high">🔐🔐🔐</td>
+              <td>Most secure; uses <code>client_secret</code></td>
+            </tr>
+            <tr>
+              <td><span class="deprecated">implicit ⚠️ Deprecated</span></td>
+              <td>✅ Yes</td>
+              <td>Public</td>
+              <td>SPAs (legacy)</td>
+              <td class="security-low">❌</td>
+              <td>Tokens in URL; now deprecated in OAuth 2.1</td>
+            </tr>
+            <tr>
+              <td>authorization_code + PKCE</td>
+              <td>✅ Yes</td>
+              <td>Public</td>
+              <td>Mobile apps, SPAs</td>
+              <td class="security-high">🔐🔐🔐</td>
+              <td>
+                Secure alternative for apps without <code>client_secret</code>
+              </td>
+            </tr>
+            <tr>
+              <td>client_credentials</td>
+              <td>❌ No</td>
+              <td>Confidential</td>
+              <td>Server-to-server APIs</td>
+              <td class="security-high">🔐🔐</td>
+              <td>No user context; uses <code>client_secret</code></td>
+            </tr>
+            <tr>
+              <td><span class="deprecated">password ⚠️ Deprecated</span></td>
+              <td>✅ Yes</td>
+              <td>First-party apps</td>
+              <td>Legacy apps with trusted UIs</td>
+              <td class="security-low">❌</td>
+              <td>User gives password directly; now discouraged</td>
+            </tr>
+            <tr>
+              <td>refresh_token</td>
+              <td><span class="partial">⚠️ Partial</span></td>
+              <td>Confidential/Public</td>
+              <td>Renew expired access tokens</td>
+              <td class="security-high">🔐🔐🔐</td>
+              <td>Issued in <code>authorization_code</code> flows</td>
+            </tr>
+            <tr>
+              <td>device_code</td>
+              <td>✅ Yes</td>
+              <td>Public</td>
+              <td>TVs, consoles, CLI apps</td>
+              <td class="security-high">🔐🔐</td>
+              <td>User logs in on separate device</td>
+            </tr>
+            <tr>
+              <td>jwt_bearer (RFC 7523)</td>
+              <td><span class="partial">⚠️ Optional</span></td>
+              <td>Confidential</td>
+              <td>Auth using signed JWT assertions</td>
+              <td class="security-high">🔐🔐🔐</td>
+              <td>Often used in service accounts / backend integrations</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

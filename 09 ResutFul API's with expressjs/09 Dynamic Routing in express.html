@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Routing Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #f0f0f0;
+            --heading-color: #90caf9;
+            --sub-heading-color: #b39ddb;
+            --code-bg: #1e1e1e;
+            --code-text: #d4d4d4;
+            --code-comment: #555555;
+            --code-keyword: #c586c0;
+            --code-string: #ce9178;
+            --code-variable: #9cdcfe;
+            --code-function: #dcdcaa;
+            --code-number: #b5cea8;
+            --code-operator: #d4d4d4;
+            --code-punctuation: #d4d4d4;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Nunito', sans-serif;
+            margin: 0;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            font-weight: 700;
+        }
+        
+        h1 {
+            color: var(--heading-color);
+            border-bottom: 2px solid var(--heading-color);
+            padding-bottom: 0.5rem;
+        }
+
+        h2 {
+            color: var(--sub-heading-color);
+        }
+
+        h3 {
+            color: var(--code-variable);
+            margin-top: 2rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        strong {
+            color: var(--code-keyword);
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        code {
+            font-family: 'Fira Code', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: var(--code-text);
+        }
+
+        .comment { color: var(--code-comment); }
+        .keyword { color: var(--code-keyword); }
+        .string { color: var(--code-string); }
+        .variable { color: var(--code-variable); }
+        .function { color: var(--code-function); }
+        .number { color: var(--code-number); }
+        .operator { color: var(--code-operator); }
+        .punctuation { color: var(--code-punctuation); }
+        .prop { color: var(--code-variable); }
+        .label { color: #569cd6; } /* Special color for labels like JavaScript */
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Dynamic Routing in Express.js</h1>
+    <p>Dynamic routing in Express.js is a powerful feature that allows you to create flexible routes that can handle variable parts in the URL. This is essential for building **RESTful APIs**, where you often need to identify and interact with a specific resource based on a unique identifier.</p>
+
+    <h2>Definition</h2>
+    <p>Dynamic routes are defined using **named placeholders** called "route parameters." These placeholders are prefixed with a colon (`:`), such as `:id` or `:username`, in the route path. When a request is made, Express parses the URL, extracts the value of the dynamic segment, and makes it available as a property on the **`req.params`** object.</p>
+    <p>For example, the route `'/users/:id'` will match URLs like `/users/123` or `/users/abc`. The value `123` or `abc` can then be accessed via `req.params.id` in your route handler.</p>
+
+    <h2>Proper Syntax</h2>
+    <p>The basic syntax for a dynamic route is to use a colon followed by the parameter name in the route path string.</p>
+    
+    <div class="label">JavaScript</div>
+    <pre><code><span class="function">app</span><span class="punctuation">.</span><span class="function">get</span><span class="punctuation">(</span><span class="string">'/api/resource/:paramName'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="comment">// Access the parameter value</span>
+  <span class="keyword">const</span> <span class="variable">paramValue</span> <span class="operator">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="prop">params</span><span class="punctuation">.</span><span class="prop">paramName</span><span class="punctuation">;</span>
+  <span class="comment">// ... rest of your code</span>
+<span class="punctuation">}</span><span class="punctuation">)</span><span class="punctuation">;</span></code></pre>
+
+    <ul>
+        <li>**`app.get()`**: Specifies the HTTP method for the request. Other methods like `app.post()`, `app.put()`, or `app.delete()` can also use dynamic routes.</li>
+        <li>**`'/api/resource/:paramName'`**: The route path. `:paramName` is the dynamic segment.</li>
+        <li>**`req.params`**: An object containing the extracted route parameters. The keys match the parameter names (e.g., `paramName`), and the values are the corresponding parts of the URL.</li>
+    </ul>
+
+    <h2>Complete Examples</h2>
+    <p>Let's look at complete examples for different HTTP methods. We'll use a simple in-memory array to simulate a data store.</p>
+    
+    <div class="label">JavaScript</div>
+    <pre><code><span class="keyword">const</span> <span class="variable">express</span> <span class="operator">=</span> <span class="function">require</span><span class="punctuation">(</span><span class="string">'express'</span><span class="punctuation">)</span><span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">app</span> <span class="operator">=</span> <span class="function">express</span><span class="punctuation">(</span><span class="punctuation">)</span><span class="punctuation">;</span>
+<span class="function">app</span><span class="punctuation">.</span><span class="function">use</span><span class="punctuation">(</span><span class="function">express</span><span class="punctuation">.</span><span class="function">json</span><span class="punctuation">(</span><span class="punctuation">)</span><span class="punctuation">)</span><span class="punctuation">;</span> <span class="comment">// Middleware to parse JSON bodies</span>
+
+<span class="comment">// Sample data store</span>
+<span class="keyword">let</span> <span class="variable">files</span> <span class="operator">=</span> <span class="punctuation">[</span>
+  <span class="punctuation">{</span> <span class="prop">id</span><span class="punctuation">:</span> <span class="string">'1'</span><span class="punctuation">,</span> <span class="prop">name</span><span class="punctuation">:</span> <span class="string">'report.pdf'</span> <span class="punctuation">}</span><span class="punctuation">,</span>
+  <span class="punctuation">{</span> <span class="prop">id</span><span class="punctuation">:</span> <span class="string">'2'</span><span class="punctuation">,</span> <span class="prop">name</span><span class="punctuation">:</span> <span class="string">'invoice.docx'</span> <span class="punctuation">}</span><span class="punctuation">,</span>
+  <span class="punctuation">{</span> <span class="prop">id</span><span class="punctuation">:</span> <span class="string">'3'</span><span class="punctuation">,</span> <span class="prop">name</span><span class="punctuation">:</span> <span class="string">'photo.jpg'</span> <span class="punctuation">}</span><span class="punctuation">,</span>
+<span class="punctuation">]</span><span class="punctuation">;</span>
+
+<span class="keyword">const</span> <span class="variable">port</span> <span class="operator">=</span> <span class="number">3000</span><span class="punctuation">;</span></code></pre>
+
+    <h3>GET Request: Retrieve a Specific File</h3>
+    <p>This route handles a GET request to retrieve a single file by its unique ID.</p>
+    
+    <div class="label">JavaScript</div>
+    <pre><code><span class="comment">// GET /api/files/:id</span>
+<span class="function">app</span><span class="punctuation">.</span><span class="function">get</span><span class="punctuation">(</span><span class="string">'/api/files/:id'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="comment">// 1. Get the ID from the URL using req.params</span>
+  <span class="keyword">const</span> <span class="variable">fileId</span> <span class="operator">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="prop">params</span><span class="punctuation">.</span><span class="prop">id</span><span class="punctuation">;</span>
+
+  <span class="comment">// 2. Find the file in our data store</span>
+  <span class="keyword">const</span> <span class="variable">file</span> <span class="operator">=</span> <span class="variable">files</span><span class="punctuation">.</span><span class="function">find</span><span class="punctuation">(</span><span class="variable">f</span> <span class="operator">=></span> <span class="variable">f</span><span class="punctuation">.</span><span class="prop">id</span> <span class="operator">===</span> <span class="variable">fileId</span><span class="punctuation">)</span><span class="punctuation">;</span>
+
+  <span class="comment">// 3. Handle cases where the file is not found</span>
+  <span class="keyword">if</span> <span class="punctuation">(</span><span class="operator">!</span><span class="variable">file</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+    <span class="keyword">return</span> <span class="variable">res</span><span class="punctuation">.</span><span class="function">status</span><span class="punctuation">(</span><span class="number">404</span><span class="punctuation">)</span><span class="punctuation">.</span><span class="function">send</span><span class="punctuation">(</span><span class="string">'The file with the given ID was not found.'</span><span class="punctuation">)</span><span class="punctuation">;</span>
+  <span class="punctuation">}</span>
+
+  <span class="comment">// 4. Send the file data back as a JSON response</span>
+  <span class="variable">res</span><span class="punctuation">.</span><span class="function">json</span><span class="punctuation">(</span><span class="variable">file</span><span class="punctuation">)</span><span class="punctuation">;</span>
+<span class="punctuation">}</span><span class="punctuation">)</span><span class="punctuation">;</span></code></pre>
+
+    <h4>Code Explanation:</h4>
+    <ul>
+        <li>`const fileId = req.params.id;`: The value of the `:id` parameter (e.g., `1` from `/api/files/1`) is extracted and stored.</li>
+        <li>`files.find(...)`: We search the `files` array for an object where the `id` property matches `fileId`.</li>
+        <li>`if (!file) ...`: A check to ensure a file was found. If not, we return a `404 Not Found` status.</li>
+        <li>`res.json(file);`: If the file is found, we send it as a JSON response.</li>
+    </ul>
+
+    <h3>DELETE Request: Delete a File</h3>
+    <p>This route handles a DELETE request to remove a file from the server using its ID.</p>
+    
+    <div class="label">JavaScript</div>
+    <pre><code><span class="comment">// DELETE /api/files/:id</span>
+<span class="function">app</span><span class="punctuation">.</span><span class="function">delete</span><span class="punctuation">(</span><span class="string">'/api/files/:id'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="comment">// 1. Get the ID from req.params</span>
+  <span class="keyword">const</span> <span class="variable">fileId</span> <span class="operator">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="prop">params</span><span class="punctuation">.</span><span class="prop">id</span><span class="punctuation">;</span>
+
+  <span class="comment">// 2. Find the index of the file to delete</span>
+  <span class="keyword">const</span> <span class="variable">fileIndex</span> <span class="operator">=</span> <span class="variable">files</span><span class="punctuation">.</span><span class="function">findIndex</span><span class="punctuation">(</span><span class="variable">f</span> <span class="operator">=></span> <span class="variable">f</span><span class="punctuation">.</span><span class="prop">id</span> <span class="operator">===</span> <span class="variable">fileId</span><span class="punctuation">)</span><span class="punctuation">;</span>
+
+  <span class="comment">// 3. Handle case where the file is not found</span>
+  <span class="keyword">if</span> <span class="punctuation">(</span><span class="variable">fileIndex</span> <span class="operator">===</span> <span class="number">-1</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+    <span class="keyword">return</span> <span class="variable">res</span><span class="punctuation">.</span><span class="function">status</span><span class="punctuation">(</span><span class="number">404</span><span class="punctuation">)</span><span class="punctuation">.</span><span class="function">send</span><span class="punctuation">(</span><span class="string">'The file with the given ID was not found.'</span><span class="punctuation">)</span><span class="punctuation">;</span>
+  <span class="punctuation">}</span>
+
+  <span class="comment">// 4. Remove the file from the array using its index</span>
+  <span class="keyword">const</span> <span class="variable">deletedFile</span> <span class="operator">=</span> <span class="variable">files</span><span class="punctuation">.</span><span class="function">splice</span><span class="punctuation">(</span><span class="variable">fileIndex</span><span class="punctuation">,</span> <span class="number">1</span><span class="punctuation">)</span><span class="punctuation">[</span><span class="number">0</span><span class="punctuation">]</span><span class="punctuation">;</span>
+
+  <span class="comment">// 5. Send back the deleted file as a confirmation</span>
+  <span class="variable">res</span><span class="punctuation">.</span><span class="function">json</span><span class="punctuation">(</span><span class="variable">deletedFile</span><span class="punctuation">)</span><span class="punctuation">;</span>
+<span class="punctuation">}</span><span class="punctuation">)</span><span class="punctuation">;</span></code></pre>
+
+    <h4>Code Explanation:</h4>
+    <ul>
+        <li>`const fileId = req.params.id;`: We get the ID of the file to be deleted.</li>
+        <li>`files.findIndex(...)`: We get the index of the file, which is required for `splice()`.</li>
+        <li>`if (fileIndex === -1) ...`: If the file isn't found, we return a `404`.</li>
+        <li>`files.splice(fileIndex, 1)`: This modifies the array by removing one element at the specified index.</li>
+        <li>`res.json(deletedFile);`: We send back the deleted file's data to confirm the action.</li>
+    </ul>
+
+    <h3>PATCH Request: Rename a File</h3>
+    <p>A PATCH request is used for partial modifications. Here, we'll use it to rename a file.</p>
+
+    <div class="label">JavaScript</div>
+    <pre><code><span class="comment">// PATCH /api/files/:id</span>
+<span class="function">app</span><span class="punctuation">.</span><span class="function">patch</span><span class="punctuation">(</span><span class="string">'/api/files/:id'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="comment">// 1. Get the ID from req.params</span>
+  <span class="keyword">const</span> <span class="variable">fileId</span> <span class="operator">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="prop">params</span><span class="punctuation">.</span><span class="prop">id</span><span class="punctuation">;</span>
+
+  <span class="comment">// 2. Find the file</span>
+  <span class="keyword">const</span> <span class="variable">file</span> <span class="operator">=</span> <span class="variable">files</span><span class="punctuation">.</span><span class="function">find</span><span class="punctuation">(</span><span class="variable">f</span> <span class="operator">=></span> <span class="variable">f</span><span class="punctuation">.</span><span class="prop">id</span> <span class="operator">===</span> <span class="variable">fileId</span><span class="punctuation">)</span><span class="punctuation">;</span>
+
+  <span class="comment">// 3. Handle case where file is not found</span>
+  <span class="keyword">if</span> <span class="punctuation">(</span><span class="operator">!</span><span class="variable">file</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+    <span class="keyword">return</span> <span class="variable">res</span><span class="punctuation">.</span><span class="function">status</span><span class="punctuation">(</span><span class="number">404</span><span class="punctuation">)</span><span class="punctuation">.</span><span class="function">send</span><span class="punctuation">(</span><span class="string">'The file with the given ID was not found.'</span><span class="punctuation">)</span><span class="punctuation">;</span>
+  <span class="punctuation">}</span>
+
+  <span class="comment">// 4. Check if the new name is provided in the request body</span>
+  <span class="keyword">if</span> <span class="punctuation">(</span><span class="operator">!</span><span class="variable">req</span><span class="punctuation">.</span><span class="prop">body</span><span class="punctuation">.</span><span class="prop">name</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+    <span class="keyword">return</span> <span class="variable">res</span><span class="punctuation">.</span><span class="function">status</span><span class="punctuation">(</span><span class="number">400</span><span class="punctuation">)</span><span class="punctuation">.</span><span class="function">send</span><span class="punctuation">(</span><span class="string">'New file name is required.'</span><span class="punctuation">)</span><span class="punctuation">;</span>
+  <span class="punctuation">}</span>
+
+  <span class="comment">// 5. Update the file's name</span>
+  <span class="variable">file</span><span class="punctuation">.</span><span class="prop">name</span> <span class="operator">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="prop">body</span><span class="punctuation">.</span><span class="prop">name</span><span class="punctuation">;</span>
+
+  <span class="comment">// 6. Send the updated file back</span>
+  <span class="variable">res</span><span class="punctuation">.</span><span class="function">json</span><span class="punctuation">(</span><span class="variable">file</span><span class="punctuation">)</span><span class="punctuation">;</span>
+<span class="punctuation">}</span><span class="punctuation">)</span><span class="punctuation">;</span></code></pre>
+
+    <h4>Code Explanation:</h4>
+    <ul>
+        <li>`const fileId = req.params.id;`: The ID is extracted to identify the file.</li>
+        <li>`const file = files.find(...)`: The file object is found.</li>
+        <li>`if (!file) ...`: We handle the not-found case with a `404`.</li>
+        <li>`if (!req.body.name) ...`: We check if the request body contains a new `name`. If not, we send a `400 Bad Request` error.</li>
+        <li>`file.name = req.body.name;`: The `name` property is updated with the new value from the request body.</li>
+        <li>`res.json(file);`: We return the modified file object to confirm the change.</li>
+    </ul>
+    
+    <hr>
+
+    <h2>Optional Dynamic Routing</h2>
+    <p>Sometimes you need a route parameter to be optional. For example, you might want to retrieve a list of all users, but also have the option to get users from a specific city. Express allows you to define optional parameters by adding a question mark (`?`) after the parameter name in the route path.</p>
+
+    <div class="label">Syntax</div>
+    <pre><code><span class="string">'/api/resource/:paramName?'</span></code></pre>
+    
+    <p>This route will match both `/api/resource/` and `/api/resource/someValue`.</p>
+
+    <h3>Practical Example</h3>
+    <p>Let's create a route that can either return a list of all files or find a file by its ID if the ID is provided.</p>
+    
+    <div class="label">JavaScript</div>
+    <pre><code><span class="comment">// GET /api/files/:id?</span>
+<span class="function">app</span><span class="punctuation">.</span><span class="function">get</span><span class="punctuation">(</span><span class="string">'/api/files/:id?'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="comment">// Check if the 'id' parameter is present in the URL</span>
+  <span class="keyword">const</span> <span class="variable">fileId</span> <span class="operator">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="prop">params</span><span class="punctuation">.</span><span class="prop">id</span><span class="punctuation">;</span>
+
+  <span class="comment">// If an ID is provided, find and return that specific file</span>
+  <span class="keyword">if</span> <span class="punctuation">(</span><span class="variable">fileId</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+    <span class="keyword">const</span> <span class="variable">file</span> <span class="operator">=</span> <span class="variable">files</span><span class="punctuation">.</span><span class="function">find</span><span class="punctuation">(</span><span class="variable">f</span> <span class="operator">=></span> <span class="variable">f</span><span class="punctuation">.</span><span class="prop">id</span> <span class="operator">===</span> <span class="variable">fileId</span><span class="punctuation">)</span><span class="punctuation">;</span>
+    <span class="keyword">if</span> <span class="punctuation">(</span><span class="operator">!</span><span class="variable">file</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+      <span class="keyword">return</span> <span class="variable">res</span><span class="punctuation">.</span><span class="function">status</span><span class="punctuation">(</span><span class="number">404</span><span class="punctuation">)</span><span class="punctuation">.</span><span class="function">send</span><span class="punctuation">(</span><span class="string">'File not found.'</span><span class="punctuation">)</span><span class="punctuation">;</span>
+    <span class="punctuation">}</span>
+    <span class="variable">res</span><span class="punctuation">.</span><span class="function">json</span><span class="punctuation">(</span><span class="variable">file</span><span class="punctuation">)</span><span class="punctuation">;</span>
+  <span class="punctuation">}</span> <span class="keyword">else</span> <span class="punctuation">{</span>
+    <span class="comment">// If no ID is provided, return the entire list of files</span>
+    <span class="variable">res</span><span class="punctuation">.</span><span class="function">json</span><span class="punctuation">(</span><span class="variable">files</span><span class="punctuation">)</span><span class="punctuation">;</span>
+  <span class="punctuation">}</span>
+<span class="punctuation">}</span><span class="punctuation">)</span><span class="punctuation">;</span></code></pre>
+
+    <h4>Code Explanation:</h4>
+    <ul>
+        <li>The route `'/api/files/:id?'` tells Express that the `id` parameter is optional.</li>
+        <li>Inside the route handler, we check if `req.params.id` exists. If it does, a specific file was requested.</li>
+        <li>If `req.params.id` is undefined, no parameter was provided in the URL, and we serve the full list of files.</li>
+    </ul>
+
+    <p>This technique is a great way to consolidate multiple similar routes into a single, more flexible one.</p>
+
+    <p>Finally, we'll add the server start-up code.</p>
+
+    <div class="label">JavaScript</div>
+    <pre><code><span class="function">app</span><span class="punctuation">.</span><span class="function">listen</span><span class="punctuation">(</span><span class="variable">port</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="function">console</span><span class="punctuation">.</span><span class="function">log</span><span class="punctuation">(</span><span class="string">`Server listening on http://localhost:${port}`</span><span class="punctuation">)</span><span class="punctuation">;</span>
+<span class="punctuation">}</span><span class="punctuation">)</span><span class="punctuation">;</span></code></pre>
+
+</div>
+
+</body>
+</html>

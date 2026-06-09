@@ -1,0 +1,166 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CommonJS Exports Notes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #0056b3;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+        h2 {
+            font-size: 1.5em;
+        }
+        h3 {
+            color: #007bff;
+            margin-top: 20px;
+        }
+        p {
+            margin-bottom: 10px;
+        }
+        strong {
+            color: #d9534f; /* A bold red for emphasis */
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            padding-left: 0;
+        }
+        ul li {
+            margin-bottom: 8px;
+        }
+        pre {
+            background-color: #eee;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #333;
+        }
+        code {
+            background-color: #e0e0e0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+        }
+        .note {
+            background-color: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CommonJS: <code>module.exports</code> vs. <code>exports</code></h1>
+        <p>In CommonJS, both <code>module.exports</code> and <code>exports</code> are used to expose values from a module, but they function differently.</p>
+
+        ---
+
+        <h2><code>module.exports</code></h2>
+        <ul>
+            <li>This is the <strong>actual object</strong> that gets returned when a module is <code>require()</code>d.</li>
+            <li>If you assign a <strong>new value</strong> to <code>module.exports</code>, that new value becomes the sole export of the module.</li>
+        </ul>
+
+        ---
+
+        <h2><code>exports</code></h2>
+        <ul>
+            <li>This is a <strong>reference</strong> to <code>module.exports</code>.</li>
+            <li>Initially, <code>exports</code> points to the same empty object that <code>module.exports</code> points to.</li>
+            <li>You can <strong>add properties</strong> to <code>exports</code> (e.g., <code>exports.foo = 'bar'</code>), and these properties will be added to the object that <code>module.exports</code> refers to.</li>
+            <li><strong>However, if you reassign <code>exports</code> to a new object</strong> (e.g., <code>exports = { foo: 'bar' }</code>), it <strong>breaks the reference</strong> to <code>module.exports</code>. In this case, <code>module.exports</code> will still be the original empty object (or whatever it was previously assigned), and your changes to the re-assigned <code>exports</code> will <strong>not be reflected</strong> in the module's actual exports.</li>
+        </ul>
+
+        ---
+
+        <h2>Key Differences</h2>
+        <h3>Assignment vs. Property Assignment:</h3>
+        <ul>
+            <li>You can <strong>assign a new value to <code>module.exports</code></strong> to completely replace what the module exports. This is common when you want to export a single function, class, or primitive value.</li>
+            <li>You can <strong>only add properties to <code>exports</code></strong>. You cannot reassign <code>exports</code> itself if you want those changes to be reflected in the module's actual exports.</li>
+        </ul>
+
+        <h3>Return Value:</h3>
+        <ul>
+            <li>The <code>require()</code> function <strong>always returns the value of <code>module.exports</code></strong>.</li>
+        </ul>
+
+        <h3>Use Cases:</h3>
+        <ul>
+            <li>Use <code>module.exports</code> when you want to <strong>export a single entity</strong> (e.g., a function, a class, an object literal).</li>
+            <li>Use <code>exports</code> when you want to <strong>export multiple named properties</strong> from your module. This is essentially a shorthand for <code>module.exports.propertyName = value</code>.</li>
+        </ul>
+
+        ---
+
+        <h2>Examples</h2>
+
+        <h3>Using <code>module.exports</code></h3>
+        <pre><code>// myModule.js
+function sayHello(name) {
+  return `Hello, ${name}!`;
+}
+
+module.exports = sayHello; // Exporting the function directly
+
+// anotherFile.js
+const greet = require('./myModule');
+console.log(greet('Alice')); // Output: Hello, Alice!
+</code></pre>
+
+        <h3>Using <code>exports</code></h3>
+        <pre><code>// myOtherModule.js
+exports.add = (a, b) => a + b;
+exports.subtract = (a, b) => a - b;
+
+// anotherFile.js
+const math = require('./myOtherModule');
+console.log(math.add(5, 3));      // Output: 8
+console.log(math.subtract(10, 4)); // Output: 6
+</code></pre>
+
+        <h3>Incorrect Use of <code>exports</code> (Reassigning <code>exports</code>)</h3>
+        <pre><code>// problematicModule.js
+exports = {
+  name: 'John Doe' // This assignment will NOT be exported
+};
+
+module.exports.age = 30; // This will be exported
+
+// anotherFile.js
+const data = require('./problematicModule');
+console.log(data);         // Output: { age: 30 }
+console.log(data.name);    // Output: undefined (because `exports = { name: 'John Doe' }` was ignored)
+</code></pre>
+        <div class="note">
+            <p><strong>Important Note:</strong> In <code>problematicModule.js</code>, reassigning <code>exports</code> broke its reference to <code>module.exports</code>. Therefore, when <code>anotherFile.js</code> requires the module, it only receives the properties attached to the original <code>module.exports</code> object.</p>
+        </div>
+    </div>
+</body>
+</html>
+```

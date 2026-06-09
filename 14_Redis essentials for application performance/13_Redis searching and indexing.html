@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Search Deep Dive Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="default.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Redis Search: Deep Dive & Indexing</h1>
+        <p>
+            Redis Search, powered by the
+            <span class="tag">RediSearch module</span> (part of Redis Stack),
+            provides powerful
+            <span class="tag">full-text search, secondary indexing, and query capabilities</span>
+            on top of Redis's in-memory data structures. It allows for complex
+            queries, filtering, and sorting that go beyond simple key lookups.
+        </p>
+
+        <h2 id="core-definitions">
+            <span class="emoji">📚</span> Core Definitions and Concepts
+        </h2>
+        <ul>
+            <li>
+                <span class="tag">RediSearch:</span> A Redis module that enables
+                full-text search, secondary indexing, and aggregation.
+            </li>
+            <li>
+                <span class="tag">Index:</span> A data structure that RediSearch uses
+                to quickly look up documents based on the values of specified fields.
+            </li>
+            <li>
+                <span class="tag">Document:</span> The data record being indexed and
+                searched. In Redis, this is typically stored as a
+                <span class="tag">Hash</span> or a
+                <span class="tag">JSON</span> object.
+            </li>
+            <li>
+                <span class="tag">Schema:</span> The definition of which fields in
+                your documents should be indexed and what type of index they should
+                have (e.g., <span class="tag">TEXT</span>,
+                <span class="tag">NUMERIC</span>, <span class="tag">TAG</span>).
+            </li>
+            <li>
+                <span class="tag">Query Syntax:</span> A specialized language used in
+                the <span class="command">FT.SEARCH</span> command to perform complex
+                searches, including full-text, phrase matching, numerical ranges, and
+                tag filtering.
+            </li>
+        </ul>
+
+        <hr class="note-hr" />
+
+        <h2 id="redis-search-and-json">RediSearch and JSON Components</h2>
+        <p>
+            Before diving into the code, it's helpful to understand the core
+            components.
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Concept</th>
+                    <th>Definition</th>
+                    <th>Key Role in Searching</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="tag">JSON Data Type</span></td>
+                    <td>
+                        A native Redis data type (available with Redis Stack/v7+) that
+                        stores JSON documents efficiently.
+                    </td>
+                    <td>
+                        The storage format for your documents. Searching targets fields
+                        within this structure.
+                    </td>
+                </tr>
+                <tr>
+                    <td><span class="command">FT.CREATE</span></td>
+                    <td>The command used to define an index on specific Redis keys.</td>
+                    <td>
+                        Defines the schema (which fields to index) and the searchable
+                        structure (how to search them).
+                    </td>
+                </tr>
+                <tr>
+                    <td><span class="tag">JSON Path</span></td>
+                    <td>
+                        A syntax (e.g., <span class="string">$.name</span>,
+                        <span class="string">$.info.tags[*]['_']</span>) used in
+                        RediSearch to specify fields inside a JSON document.
+                    </td>
+                    <td>
+                        Specifies exactly which nested fields within your JSON documents
+                        should be indexed.
+                    </td>
+                </tr>
+                <tr>
+                    <td><span class="command">FT.SEARCH</span></td>
+                    <td>The command used to query the index.</td>
+                    <td>
+                        Executes the search query against the index and returns matching
+                        JSON documents or fragments.
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr class="note-hr" />
+
+        <h2 id="redis-cli-syntax">
+            <span class="emoji">💻</span> Redis-CLI Syntax and Example
+        </h2>
+        <p>
+            The <span class="tag">redis-cli</span> commands are fundamental for
+            managing indexes and executing searches directly in ubuntu redis client
+            or any redis-client (redis insight cli).
+        </p>
+
+        <h3><span class="emoji">📌</span> Check Existing Indexes</h3>
+        <div class="code-block">
+            <pre><span class="command">FT._LIST</span> <span class="comment">// This command lists all existing Redis Search indexes.</span></pre>
+        </div>
+
+        <h3><span class="emoji">📋</span> Get Information About an Index</h3>
+        <div class="code-block">
+            <pre><span class="command">FT.INFO</span> <span class="tag">indexName</span>
+<span class="comment">// Example:</span>
+<span class="command">FT.INFO</span> <span class="tag">cityIdx</span> <span class="comment">// This command provides detailed information about the specified index, such such as: indexed fields and their types, number of documents, memory usage, failure stats, index options and definition. Use this to inspect and debug your indexes.</span></pre>
+        </div>
+
+        <h3><span class="emoji">📌</span> Create Indexes for JSON Data</h3>
+        <div class="code-block">
+            <pre><span class="comment">// 🔹 Index on city field (as TAG)</span>
+<span class="command">FT.CREATE</span> <span class="tag">cityIdx</span> <span class="tag">ON JSON</span> <span class="tag">PREFIX</span> <span class="number">1</span> <span class="string">"user:"</span> <span class="tag">SCHEMA</span> <span class="string">$.city</span> <span class="tag">AS city TAG</span>
+
+<span class="comment">// 🔹 Index on age field (as NUMERIC)</span>
+<span class="command">FT.CREATE</span> <span class="tag">ageIdx</span> <span class="tag">ON JSON</span> <span class="tag">PREFIX</span> <span class="number">1</span> <span class="string">"user:"</span> <span class="tag">SCHEMA</span> <span class="string">$.age</span> <span class="tag">AS age NUMERIC</span>
+
+<span class="comment">// 🔹 Index on name field (as TEXT)</span>
+<span class="command">FT.CREATE</span> <span class="tag">nameIdx</span> <span class="tag">ON JSON</span> <span class="tag">PREFIX</span> <span class="number">1</span> <span class="string">"user:"</span> <span class="tag">SCHEMA</span> <span class="string">$.name</span> <span class="tag">AS name TEXT</span></pre>
+        </div>
+
+        <h3><span class="emoji">🔍</span> Searching with Redis CLI</h3>
+        <div class="code-block">
+            <pre><span class="comment">// 🔸 Search by City (exact match)</span>
+<span class="command">FT.SEARCH</span> <span class="tag">cityIdx</span> <span class="string">"@city:{Delhi}"</span>
+
+<span class="comment">// 🔸 Search Users by Exact Age</span>
+<span class="command">FT.SEARCH</span> <span class="tag">ageIdx</span> <span class="string">"@age:[25 25]"</span>
+
+<span class="comment">// 🔸 Search Users if the index is set as TEXT</span>
+<span class="command">FT.SEARCH</span> <span class="tag">nameIdx</span> <span class="string">"@age:fancy"</span>
+
+<span class="comment">// 🔸 Search Users with Age Greater Than or Equal to 28</span>
+<span class="command">FT.SEARCH</span> <span class="tag">ageIdx</span> <span class="string">"@age:[28 +inf]"</span>
+
+<span class="comment">// 🔸 Search Users with Age Less Than 28</span>
+<span class="command">FT.SEARCH</span> <span class="tag">ageIdx</span> <span class="string">"@age:[-inf (28]"</span>
+
+<span class="comment">// Note: +inf and -inf represent unbounded upper and lower limits.</span>
+<span class="comment">// Use square brackets [] for inclusive bounds. Use parenthesis () for exclusive bounds.</span>
+<span class="comment">// Examples: [25 30] → age between 25 and 30 (inclusive) | [25 (30] → age ≥ 25 and < 30</span>
+
+<span class="comment">// 🔸 Search by Name (full-text)</span>
+<span class="command">FT.SEARCH</span> <span class="tag">nameIdx</span> <span class="string">"@name:Anurag"</span>
+
+<span class="comment">// 🔸 Command to Get Only the Matched Count</span>
+<span class="command">FT.SEARCH</span> <span class="tag">nameIdx</span> <span class="string">"@name:Kumar"</span> <span class="tag">LIMIT</span> <span class="number">0</span> <span class="number">0</span>
+
+<span class="comment">// 🔸 Command to Get the Selected Fields (only works for the field on which the search is being performed)</span>
+<span class="command">FT.SEARCH</span> <span class="tag">nameIdx</span> <span class="string">"@name:Kumar"</span> <span class="tag">RETURN</span> <span class="number">1</span> <span class="tag">name</span></pre>
+        </div>
+
+        <h3><span class="emoji">❌</span> Drop an Index</h3>
+        <div class="code-block">
+            <pre><span class="comment">// 🔹 Drop Index Only (keep documents)</span>
+<span class="command">FT.DROPINDEX</span> <span class="tag">nameIdx</span>
+
+<span class="comment">// 🔹 Drop Index and Delete Documents</span>
+<span class="command">FT.DROPINDEX</span> <span class="tag">ageIdx</span> <span class="tag">DD</span></pre>
+        </div>
+
+        <hr class="note-hr" />
+
+        <h2 id="data-types-in-schema">Schema Data Types: TEXT, TAG, NUMERIC</h2>
+        <p>
+            These are the three fundamental data types used when defining a
+            RediSearch index schema on a Redis data type (like JSON or Hash). They
+            tell the search engine how to store, process, and query the data in that
+            specific field.
+        </p>
+
+        <h3><span class="emoji">📝</span> TEXT Type</h3>
+        <p>
+            The <span class="tag">TEXT</span> field type is designed for full-text
+            search. It's the standard type for any long-form, human-readable
+            content.
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Description</th>
+                    <th>Example Use Case</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Indexing</td>
+                    <td>
+                        Tokenized, lower-cased, and stemmed (by default). This means words
+                        are broken down, common endings are removed, and capitalization is
+                        ignored.
+                    </td>
+                    <td>Product descriptions, article bodies, email subjects.</td>
+                </tr>
+                <tr>
+                    <td>Search</td>
+                    <td>
+                        Supports partial word matches, fuzzy matching, phrase matching,
+                        and complex Boolean queries (<span class="tag">AND</span>,
+                        <span class="tag">OR</span>, <span class="tag">NOT</span>).
+                    </td>
+                    <td>
+                        Searching for "running shoes" will often match documents
+                        containing the word "run" or "ran".
+                    </td>
+                </tr>
+                <tr>
+                    <td>Syntax</td>
+                    <td>
+                        Standard query syntax: <span class="command">FT.SEARCH</span>
+                        <span class="tag">index</span>
+                        <span class="string">"@field:keyword"</span>
+                    </td>
+                    <td>
+                        Search for "premium wireless":
+                        <span class="command">FT.SEARCH</span>
+                        <span class="tag">idx</span>
+                        <span class="string">"@desc:premium wireless"</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3><span class="emoji">🏷️</span> TAG Type</h3>
+        <p>
+            The <span class="tag">TAG</span> field type is designed for exact
+            filtering and classification. It treats the entire field value as a
+            single, atomic token.
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Description</th>
+                    <th>Example Use Case</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Indexing</td>
+                    <td>
+                        Not tokenized or stemmed. The entire value is indexed as a single
+                        string (a "tag"). Ideal for discrete, categorical data.
+                    </td>
+                    <td>
+                        User IDs, product categories (e.g., 'Electronics', 'Apparel'),
+                        country codes (e.g., 'US', 'UK').
+                    </td>
+                </tr>
+                <tr>
+                    <td>Search</td>
+                    <td>
+                        Supports exact matches only. You can efficiently check if a
+                        document has one or more specific tags. This is often used for
+                        faceted search.
+                    </td>
+                    <td>Filtering by multiple categories, languages, or features.</td>
+                </tr>
+                <tr>
+                    <td>Syntax</td>
+                    <td>
+                        Requires curly braces <span class="symbol">{}</span> and supports
+                        <span class="tag">OR</span> logic (using
+                        <span class="symbol">|</span>):
+                        <span class="command">FT.SEARCH</span>
+                        <span class="tag">index</span>
+                        <span class="string">"@field:{value1 | value2}"</span>
+                    </td>
+                    <td>
+                        Search for tags 'Sci-Fi' OR 'Fantasy':
+                        <span class="command">FT.SEARCH</span>
+                        <span class="tag">idx</span>
+                        <span class="string">"@genre:{Sci-Fi | Fantasy}"</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3><span class="emoji">🔢</span> NUMERIC Type</h3>
+        <p>
+            The <span class="tag">NUMERIC</span> field type is designed for storing
+            numerical values and enabling range queries.
+        </p>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Description</th>
+                    <th>Example Use Case</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Indexing</td>
+                    <td>
+                        Stored as a floating-point number, enabling efficient mathematical
+                        comparisons.
+                    </td>
+                    <td>Price, quantity, age, rating, timestamp.</td>
+                </tr>
+                <tr>
+                    <td>Search</td>
+                    <td>
+                        Supports querying for values within a specific range (inclusive or
+                        exclusive).
+                    </td>
+                    <td>
+                        Finding items within a budget or people within an age group.
+                    </td>
+                </tr>
+                <tr>
+                    <td>Syntax</td>
+                    <td>
+                        Requires brackets <span class="symbol">[]</span> to define the
+                        inclusive range: <span class="command">FT.SEARCH</span>
+                        <span class="tag">index</span>
+                        <span class="string">"@field:[min max]"</span>
+                    </td>
+                    <td>
+                        Search for products priced between 50 and 100:
+                        <span class="command">FT.SEARCH</span>
+                        <span class="tag">idx</span>
+                        <span class="string">"@price:[50 100]"</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Open Ranges</td>
+                    <td>
+                        You can use the special tokens
+                        <span class="tag">-inf</span> (negative infinity) or
+                        <span class="tag">+inf</span> (positive infinity) for open-ended
+                        ranges.
+                    </td>
+                    <td>
+                        Search for prices greater than 200:
+                        <span class="command">FT.SEARCH</span>
+                        <span class="tag">idx</span>
+                        <span class="string">"@price:[200 +inf]"</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr class="note-hr" />
+
+        <h2 id="numeric-range-examples">
+            <span class="emoji">🔍</span> Redis Search Numeric Range Examples
+            (Exclusive & Inclusive)
+        </h2>
+        <p>
+            This guide provides examples of how to use inclusive
+            <span class="symbol">[]</span> brackets and exclusive bounds using
+            <span class="symbol">()</span> within numeric ranges in Redis Search.
+            Redis Search supports inclusive bounds on both sides or exclusive bounds
+            on either or both sides within square brackets.
+        </p>
+
+        <h3>
+            <span class="emoji">🔢</span> Common Range Query Variations with
+            <span class="tag">@age</span>
+        </h3>
+        <div class="code-block">
+            <pre><span class="comment">// 🔸 Exact Match (inclusive)</span>
+<span class="string">@age:[25 25]</span><span class="comment"> 	 # age == 25</span>
+
+<span class="comment">// 🔸 Greater Than or Equal (inclusive)</span>
+<span class="string">@age:[25 +inf]</span><span class="comment"> 	 # age >= 25</span>
+
+<span class="comment">// 🔸 Greater Than (exclusive)</span>
+<span class="string">@age:[(25 +inf]</span><span class="comment"> 	# age > 25</span>
+
+<span class="comment">// 🔸 Less Than or Equal (inclusive)</span>
+<span class="string">@age:[-inf 28]</span><span class="comment"> 	 # age <= 28</span>
+
+<span class="comment">// 🔸 Less Than (exclusive)</span>
+<span class="string">@age:[-inf (28]</span><span class="comment"> 	# age < 28</span>
+
+<span class="comment">// 🔸 Between (inclusive on both ends)</span>
+<span class="string">@age:[25 30]</span><span class="comment"> 	 	 # 25 <= age <= 30</span>
+
+<span class="comment">// 🔸 Between (inclusive lower, exclusive upper)</span>
+<span class="string">@age:[25 (30]</span><span class="comment"> 	 	# 25 <= age < 30</span>
+
+<span class="comment">// 🔸 Between (exclusive lower, inclusive upper)</span>
+<span class="string">@age:[(25 30]</span><span class="comment"> 	 	# 25 < age <= 30</span>
+
+<span class="comment">// 🔸 Between (exclusive on both ends)</span>
+<span class="string">@age:[(25 (30]</span><span class="comment"> 	# 25 < age < 30</span></pre>
+        </div>
+        <p>
+            <span class="tag">✅ Use square brackets <span class="symbol">[]</span> to wrap the
+                entire range.</span><br />
+            <span class="tag">✅ Use <span class="symbol">(</span> on either side inside the square
+                brackets to make a bound exclusive.</span><br />
+            <span class="tag">✅ Use <span class="tag">+inf</span> and
+                <span class="tag">-inf</span> for unbounded ends.</span>
+        </p>
+
+        <h3><span class="emoji">🔍</span> Example Full Search Command</h3>
+        <div class="code-block">
+            <pre><span class="command">FT.SEARCH</span> <span class="tag">ageIdx</span> <span class="string">"@age:[(25 (30]"</span> <span class="comment">// This returns users where age is strictly greater than 25 and strictly less than 30</span></pre>
+        </div>
+        <p>
+            🟢 <strong>Node.js Implementation</strong><br />
+            The most common way to interact with Redis/RediSearch in Node.js is
+            using the node-redis client (v4.x+).
+        </p>
+
+        <h3>1. Setup</h3>
+        <p>You'll need the redis package:</p>
+
+        <p><strong>Bash</strong></p>
+        <div class="code-block">
+            <pre><span class="command">npm install redis</span></pre>
+        </div>
+
+        <h3>2. Client and Data Insertion</h3>
+
+        <p><strong>JavaScript</strong></p>
+
+        <div class="code-block">
+            <pre><span class="tag">import</span> { <span class="tag">createClient</span> } <span class="tag">from</span> <span class="string">'redis'</span>;
+
+<span class="comment">// Connect to Redis</span>
+<span class="tag">const</span> <span class="tag">client</span> = <span class="tag">createClient</span><span class="symbol">()</span>;
+<span class="tag">client</span>.<span class="tag">on</span><span class="symbol">(</span><span class="string">'error'</span>, <span class="symbol">(</span><span class="tag">err</span><span class="symbol">)</span> => <span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="string">'Redis Client Error'</span>, <span class="tag">err</span><span class="symbol">))</span>;
+<span class="tag">await</span> <span class="tag">client</span>.<span class="tag">connect</span><span class="symbol">()</span>;
+
+<span class="comment">// Sample product data</span>
+<span class="tag">const</span> <span class="tag">productData</span> = <span class="symbol">{</span>
+  <span class="tag">name</span>: <span class="string">"Noise-Cancelling Earbuds"</span>,
+  <span class="tag">price</span>: <span class="number">129.99</span>,
+  <span class="tag">description</span>: <span class="string">"Small, powerful earbuds with active noise cancellation and clear sound."</span>,
+  <span class="tag">features</span>: <span class="symbol">[</span><span class="string">"ANC"</span>, <span class="string">"IPX4"</span>, <span class="string">"Touch Controls"</span><span class="symbol">]</span>
+<span class="symbol">}</span>;
+
+<span class="comment">// Insert the JSON document</span>
+<span class="tag">await</span> <span class="tag">client</span>.<span class="tag">json</span>.<span class="tag">set</span><span class="symbol">(</span><span class="string">'product:501'</span>, <span class="string">'$'</span>, <span class="tag">productData</span><span class="symbol">)</span>;
+<span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="string">'JSON document inserted.'</span><span class="symbol">)</span>;
+</pre>
+        </div>
+
+        <h3>3. Creating the Index (In Node.js)</h3>
+        <p>
+            You can define the schema programmatically using the client's ft.create
+            method.
+        </p>
+
+        <p><strong>JavaScript</strong></p>
+
+        <div class="code-block">
+            <pre><span class="tag">const</span> <span class="tag">indexName</span> = <span class="string">'idx:products_node'</span>;
+
+<span class="tag">try</span> {
+  <span class="tag">await</span> <span class="tag">client</span>.<span class="tag">ft</span>.<span class="tag">create</span><span class="symbol">(</span><span class="tag">indexName</span>, <span class="symbol">{</span>
+    <span class="comment">// Defines the scope of the index</span>
+    <span class="tag">ON</span>: <span class="string">'JSON'</span>,
+    <span class="tag">PREFIX</span>: <span class="string">'product:'</span>,
+    <span class="comment">// Defines the schema fields</span>
+    <span class="tag">SCHEMA</span>: {
+      <span class="string">'$.name'</span>: { <span class="tag">type</span>: <span class="string">'TEXT'</span>, <span class="tag">AS</span>: <span class="string">'name'</span>, <span class="tag">WEIGHT</span>: <span class="number">5.0</span> },
+      <span class="string">'$.price'</span>: { <span class="tag">type</span>: <span class="string">'NUMERIC'</span>, <span class="tag">AS</span>: <span class="string">'price'</span> },
+      <span class="string">'$.description'</span>: { <span class="tag">type</span>: <span class="string">'TEXT'</span>, <span class="tag">AS</span>: <span class="string">'desc'</span> },
+      <span class="string">'$.features[*]'</span>: { <span class="tag">type</span>: <span class="string">'TAG'</span>, <span class="tag">AS</span>: <span class="string">'features'</span> },
+    <span class="symbol">}</span>
+  <span class="symbol">})</span>;
+  <span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="string">`Index </span><span class="tag">${indexName}</span><span class="string"> created successfully.`</span><span class="symbol">)</span>;
+<span class="symbol">}</span> <span class="tag">catch</span> <span class="symbol">(</span><span class="tag">e</span><span class="symbol">)</span> {
+  <span class="comment">// RediSearch throws an error if the index already exists.</span>
+  <span class="tag">if</span> <span class="symbol">(</span><span class="tag">e</span>.<span class="tag">message</span>.<span class="tag">includes</span><span class="symbol">(</span><span class="string">'Index already exists'</span><span class="symbol">))</span> {
+    <span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="string">`Index </span><span class="tag">${indexName}</span><span class="string"> already exists.`</span><span class="symbol">)</span>;
+  <span class="symbol">}</span> <span class="tag">else</span> {
+    <span class="tag">throw</span> <span class="tag">e</span>;
+  <span class="symbol">}</span>
+<span class="symbol">}</span>
+</pre>
+        </div>
+
+        <h3>4. Searching the Index (In Node.js)</h3>
+        <p>The ft.search method executes the query and returns results.</p>
+
+        <p><strong>JavaScript</strong></p>
+
+        <div class="code-block">
+            <pre><span class="comment">// --- 4.1: Search for "earbuds" in the name or description ---</span>
+<span class="tag">const</span> <span class="tag">queryText</span> = <span class="string">'@name|desc:earbuds'</span>;
+<span class="tag">const</span> <span class="tag">resultsText</span> = <span class="tag">await</span> <span class="tag">client</span>.<span class="tag">ft</span>.<span class="tag">search</span><span class="symbol">(</span><span class="tag">indexName</span>, <span class="tag">queryText</span><span class="symbol">)</span>;
+
+<span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="string">`\nResults for "</span><span class="tag">${queryText}</span><span class="string>":`</span><span class="symbol">)</span>;
+<span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="tag">resultsText</span><span class="symbol">)</span>;
+
+<span class="comment">/* Example Output Structure:
+{
+  total: 1,
+  documents: [
+    {
+      id: 'product:501',
+      value: { $: {
+          name: 'Noise-Cancelling Earbuds',
+          price: 129.99,
+          // ... other fields ...
+      }}
+    }
+  ]
+}
+*/</span>
+
+<span class="comment">// --- 4.2: Search by Tag and Price Range ---</span>
+<span class="comment">// Find products with the "ANC" tag AND a price greater than $100</span>
+<span class="tag">const</span> <span class="tag">queryFilter</span> = <span class="string">'@features:{ANC} @price:[100 +inf]'</span>;
+<span class="tag">const</span> <span class="tag">resultsFilter</span> = <span class="tag">await</span> <span class="tag">client</span>.<span class="tag">ft</span>.<span class="tag">search</span><span class="symbol">(</span><span class="tag">indexName</span>, <span class="tag">queryFilter</span><span class="symbol">)</span>;
+
+<span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="string">`\nResults for "</span><span class="tag">${queryFilter}</span><span class="string>":`</span><span class="symbol">)</span>;
+<span class="tag">console</span>.<span class="tag">log</span><span class="symbol">(</span><span class="tag">resultsFilter</span><span class="symbol">)</span>;
+</pre>
+        </div>
+    </div>
+</body>
+
+</html>

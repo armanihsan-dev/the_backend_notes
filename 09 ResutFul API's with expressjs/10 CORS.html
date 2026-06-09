@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CORS Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --header-color: #fff;
+        --code-bg: #1e1e1e;
+        --code-text: #d4d4d4;
+        --code-keyword: #569cd6;
+        --code-string: #ce9178;
+        --code-comment: #6a9955;
+        --code-variable: #9cdcfe;
+        --code-property: #c586c0;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--header-color);
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 1.5rem;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+        margin-top: 3rem;
+      }
+
+      h3 {
+        font-size: 1.5rem;
+        margin-top: 2rem;
+      }
+
+      strong {
+        color: var(--header-color);
+      }
+
+      pre {
+        background-color: var(--code-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin-bottom: 2rem;
+      }
+
+      code {
+        font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco',
+          monospace;
+        color: var(--code-text);
+      }
+
+      /* VS Code Theme */
+      .keyword {
+        color: var(--code-keyword);
+      }
+      .string {
+        color: var(--code-string);
+      }
+      .comment {
+        color: var(--code-comment);
+      }
+      .variable {
+        color: var(--code-variable);
+      }
+      .property {
+        color: var(--code-property);
+      }
+      .number {
+        color: var(--code-property);
+      }
+
+      .line {
+        display: block;
+        min-height: 1em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Cross-Origin Resource Sharing (CORS)</h1>
+    <p>
+      Cross-Origin Resource Sharing (CORS) is a security mechanism that allows
+      web pages to request resources from a different domain than the one that
+      served the original page. It's a key part of web security because it
+      enforces the same-origin policy, which is a fundamental security concept
+      in browsers.
+    </p>
+
+    <hr />
+
+    <h2>Introduction and Pre-CORS Problems</h2>
+    <p>
+      CORS was introduced around 2004 and standardized as a W3C recommendation
+      in 2014. Before CORS, web browsers enforced a strict same-origin policy,
+      which meant a script on a web page could only make requests to the same
+      origin (combination of protocol, domain, and port) that served the page.
+    </p>
+    <p>
+      This policy prevented many types of cross-site attacks, but it also made
+      it impossible for legitimate applications to access resources from
+      different domains. For example, a web page at
+      <code>https://example.com</code> could not use JavaScript to make an API
+      call to <code>https://api.thirdparty.com</code>. Developers often had to
+      resort to cumbersome workarounds, such as using JSONP (JSON with Padding),
+      which was less secure and more complex to manage.
+    </p>
+
+    <hr />
+
+    <h2>Why Browsers Use CORS</h2>
+    <p>
+      Browsers use CORS to enhance the security of the web. Without it, a
+      malicious script on a different domain could, for instance, make requests
+      to your bank's website using your credentials (cookies) and perform
+      actions on your behalf without you knowing. This is known as a Cross-Site
+      Request Forgery (CSRF) attack. CORS provides a controlled and secure way
+      for servers to explicitly permit cross-origin requests, allowing for
+      modern web development practices like fetching data from a REST API or
+      loading fonts from a CDN, while still protecting against unauthorized
+      requests.
+    </p>
+
+    <hr />
+
+    <h2>How CORS Works</h2>
+    <p>
+      CORS operates by adding new HTTP headers that allow servers to specify who
+      is allowed to access their resources. The process can be broken down into
+      two main types of requests:
+    </p>
+
+    <h3>Simple Requests</h3>
+    <p>
+      These are GET, HEAD, or POST requests with specific content types (e.g.,
+      application/x-www-form-urlencoded). For these requests, the browser sends
+      the request with an <code>Origin</code> header indicating the source of
+      the request. The server then responds with an
+      <code>Access-Control-Allow-Origin</code> header, which tells the browser
+      whether the request is allowed. If the origin is not allowed, the browser
+      blocks the response.
+    </p>
+
+    <div style="width: 100%; display: flex ; align-items: center; justify-content: center;">
+      <img
+        src="./images/CORS simple request.png"
+        width="50%"
+        height="300px"
+        alt=""
+      />
+    </div>
+    <hr />
+
+    <h2>Working with CORS in Express.js</h2>
+    <p>
+      Working with CORS in an Express.js application is straightforward. The
+      most common method is to use the <code>cors</code> middleware package.
+    </p>
+
+    <h3>Install the middleware:</h3>
+    <pre><code><span class="line"><span class="keyword">npm</span> install <span class="property">cors</span></span></code></pre>
+
+    <h3>Use it in your Express application:</h3>
+
+    <h4>Simple Usage:</h4>
+    <p>
+      To allow all origins, simply add the middleware to your application. This
+      is useful for public APIs.
+    </p>
+    <pre><code><span class="line"><span class="keyword">const</span> <span class="variable">express</span> = <span class="keyword">require</span>(<span class="string">'express'</span>);</span>
+<span class="line"><span class="keyword">const</span> <span class="variable">cors</span> = <span class="keyword">require</span>(<span class="string">'cors'</span>);</span>
+<span class="line"><span class="keyword">const</span> <span class="variable">app</span> = <span class="variable">express</span>();</span>
+<span class="line"><span class="variable">app</span>.<span class="property">use</span>(<span class="variable">cors</span>()); <span class="comment">// Allow all origins</span></span>
+<span class="line"></span>
+<span class="line"><span class="variable">app</span>.<span class="property">get</span>(<span class="string">'/data'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {</span>
+<span class="line">  <span class="variable">res</span>.<span class="property">json</span>({ <span class="variable">message</span>: <span class="string">'Hello from the API!'</span> });</span>
+<span class="line">});</span>
+<span class="line"></span>
+<span class="line"><span class="variable">app</span>.<span class="property">listen</span>(<span class="number">3000</span>, () => {</span>
+<span class="line">  <span class="variable">console</span>.<span class="property">log</span>(<span class="string">'Server is running on port 3000'</span>);</span>
+<span class="line">});</span></code></pre>
+
+    <h4>Configured Usage:</h4>
+    <p>
+      To allow only specific origins, you can pass an options object to the
+      <code>cors</code> middleware. This is the more secure and recommended
+      approach for private or sensitive APIs.
+    </p>
+    <pre><code><span class="line"><span class="keyword">const</span> <span class="variable">express</span> = <span class="keyword">require</span>(<span class="string">'express'</span>);</span>
+<span class="line"><span class="keyword">const</span> <span class="variable">cors</span> = <span class="keyword">require</span>(<span class="string">'cors'</span>);</span>
+<span class="line"><span class="keyword">const</span> <span class="variable">app</span> = <span class="variable">express</span>();</span>
+<span class="line"></span>
+<span class="line"><span class="keyword">const</span> <span class="variable">corsOptions</span> = {</span>
+<span class="line">  <span class="variable">origin</span>: <span class="string">'http://localhost:8080'</span>, <span class="comment">// Replace with your frontend URL</span></span>
+<span class="line">  <span class="variable">optionsSuccessStatus</span>: <span class="number">200</span> </span>
+<span class="line">};</span>
+<span class="line"></span>
+<span class="line"><span class="variable">app</span>.<span class="property">use</span>(<span class="variable">cors</span>(<span class="variable">corsOptions</span>));</span>
+<span class="line"></span>
+<span class="line"><span class="variable">app</span>.<span class="property">get</span>(<span class="string">'/data'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {</span>
+<span class="line">  <span class="variable">res</span>.<span class="property">json</span>({ <span class="variable">message</span>: <span class="string">'This is secure data.'</span> });</span>
+<span class="line">});</span>
+<span class="line"></span>
+<span class="line"><span class="variable">app</span>.<span class="property">listen</span>(<span class="number">3000</span>, () => {</span>
+<span class="line">  <span class="variable">console</span>.<span class="property">log</span>(<span class="string">'Server is running on port 3000'</span>);</span>
+<span class="line">});</span></code></pre>
+    <p>
+      The <code>cors</code> middleware automatically handles all the necessary
+      CORS headers and preflight requests for you, making it easy to manage
+      cross-origin requests in your Express application.
+    </p>
+
+    <hr />
+
+    <h2>Explanation of Key Concepts</h2>
+
+    <h3>Origin</h3>
+    <p>
+      In the context of web security and CORS, an <strong>origin</strong> is the
+      unique combination of three parts of a URL:
+    </p>
+    <ul>
+      <li>
+        <strong>Protocol:</strong> (e.g., <code>http://</code>,
+        <code>https://</code>)
+      </li>
+      <li>
+        <strong>Domain Name:</strong> (e.g., <code>example.com</code>,
+        <code>localhost</code>)
+      </li>
+      <li>
+        <strong>Port Number:</strong> (e.g., <code>:8080</code>,
+        <code>:443</code>)
+      </li>
+    </ul>
+    <p>
+      The same-origin policy is a fundamental browser security mechanism that
+      restricts how a document or script from one origin can interact with a
+      resource from another. For example,
+      <code>http://example.com:8080</code> is a different origin from
+      <code>http://example.com:3000</code> because the port numbers are
+      different.
+    </p>
+
+    <h3>Difference between the Two Headers</h3>
+    <p>
+      Both
+      <code>res.setHeader('Access-Control-Allow-Origin', ...)</code> commands
+      are used in a server-side response to control which origins are allowed to
+      access the requested resource. The key difference lies in the level of
+      access they grant.
+    </p>
+
+    <h4><code>res.setHeader('Access-Control-Allow-Origin', '*');</code></h4>
+    <p>
+      This header is a <strong>wildcard</strong> that allows
+      <strong>any</strong> origin to access the resource. It's the most
+      permissive setting. While convenient for public APIs or resources with no
+      sensitive data, it's generally considered less secure for private or
+      authenticated APIs because it allows any website on the internet to make
+      requests to your server. This could be a security risk.
+    </p>
+
+    <h4>
+      <code
+        >res.setHeader('Access-Control-Allow-Origin',
+        'http://127.0.0.1:5500');</code
+      >
+    </h4>
+    <p>
+      This header explicitly allows <strong>only one specific origin</strong> to
+      access the resource. The browser will check if the origin of the request
+      matches <code>http://127.0.0.1:5500</code>. If it does, the request is
+      allowed; otherwise, it is blocked by the browser. This is the most secure
+      approach for an API because you are explicitly whitelisting the domains
+      that are permitted to interact with your resources. It ensures that only
+      your trusted frontend application can make cross-origin requests.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Eviction Policies - Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Dark Theme Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VSCode Dark Theme Background */
+        color: #d4d4d4; /* Light text for contrast */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background-color: #252526; /* Slightly lighter inner background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings and Icons */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VSCode Blue for structure */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+        border-bottom: none;
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: #c586c0;
+      } /* VSCode Magenta */
+
+      /* Code Block Styling (VSCode Blackish Theme) */
+      .code-section {
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+        overflow-x: auto;
+        border: 1px solid #3c3c3c;
+      }
+
+      .code-section pre {
+        margin: 0;
+        font-family: Consolas, 'Courier New', monospace;
+        font-size: 0.95em;
+      }
+
+      .code-section .language-bash,
+      .code-section .language-conf {
+        color: #d4d4d4;
+      }
+
+      /* Syntax Highlighting Imitation */
+      .keyword {
+        color: #569cd6;
+      } /* Blue for commands/keywords */
+      .string {
+        color: #ce9178;
+      } /* Orange/Brown for strings */
+      .number {
+        color: #b5cea8;
+      } /* Green for numbers */
+      .comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .prompt {
+        color: #c586c0;
+      } /* Magenta for prompt */
+      .output {
+        color: #f9f9f9;
+      } /* Light white for output */
+      .error {
+        color: #f44747;
+      } /* Red for errors */
+      .variable {
+        color: #9cdcfe;
+      } /* Light blue for variables */
+
+      /* Special text and emphasis */
+      .term {
+        color: #4ec9b0; /* VSCode Cyan/Teal for technical terms */
+        font-weight: 700;
+        font-family: Consolas, 'Courier New', monospace;
+        padding: 1px 4px;
+        border-radius: 3px;
+      }
+
+      strong {
+        color: #ffd700; /* Gold for important emphasis */
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #333333;
+        border: 1px solid #3c3c3c;
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border: 1px solid #444444;
+      }
+      th {
+        background-color: #4a4a4a;
+        color: #9cdcfe;
+        font-weight: 900;
+      }
+      tr:nth-child(even) {
+        background-color: #383838;
+      }
+
+      .emoji {
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1><span class="emoji">🧠</span> Redis Eviction Policy Explained</h1>
+      <p>
+        Redis Eviction Policies are rules that determine which keys to remove
+        when the Redis instance reaches its configured **maximum memory limit**
+        (<span class="term">maxmemory</span>). Since Redis is an **in-memory
+        data store**, this mechanism is crucial for using it as a fixed-size
+        cache to prevent **out-of-memory errors** and ensure continuous
+        operation.
+      </p>
+      <p>
+        When a client command attempts to add new data and the memory usage
+        exceeds the <span class="term">maxmemory</span> limit, Redis executes
+        the chosen eviction policy to free up space. This policy is set using
+        the <span class="term">maxmemory-policy</span> configuration directive.
+      </p>
+
+      <hr />
+
+      <h2><span class="emoji">🛠️</span> Available Eviction Policies</h2>
+      <p>
+        Redis offers several policies, which can be grouped into two main
+        categories: those that consider **all keys** and those that consider
+        only **volatile keys** (keys that have an expiration or Time-To-Live,
+        **TTL**, set).
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Policy Category</th>
+            <th>Policy Name</th>
+            <th>Eviction Logic</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>No Eviction</strong></td>
+            <td><span class="term">noeviction</span></td>
+            <td>
+              <strong>No keys are evicted</strong>. Instead, write commands that
+              would cause more memory to be used are blocked and return an
+              error. Read-only commands still work.
+            </td>
+          </tr>
+          <tr>
+            <td rowspan="3"><strong>All Keys Policies</strong></td>
+            <td><span class="term">allkeys-lru</span></td>
+            <td>
+              Evicts the **Least Recently Used (LRU)** keys out of **all keys**,
+              regardless of whether they have a TTL set.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="term">allkeys-lfu</span></td>
+            <td>
+              Evicts the **Least Frequently Used (LFU)** keys out of **all
+              keys**, regardless of whether they have a TTL set.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="term">allkeys-random</span></td>
+            <td>Evicts keys **randomly** from **all keys**.</td>
+          </tr>
+          <tr>
+            <td rowspan="4"><strong>Volatile Keys Policies</strong></td>
+            <td><span class="term">volatile-lru</span></td>
+            <td>
+              Evicts the **Least Recently Used (LRU)** keys only among those
+              that **have a TTL set** (volatile keys).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="term">volatile-lfu</span></td>
+            <td>
+              Evicts the **Least Frequently Used (LFU)** keys only among those
+              that **have a TTL set** (volatile keys).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="term">volatile-ttl</span></td>
+            <td>
+              Evicts volatile keys with the **shortest remaining Time-To-Live
+              (TTL)**.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="term">volatile-random</span></td>
+            <td>
+              Evicts keys **randomly** only among those that **have a TTL set**
+              (volatile keys).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2><span class="emoji">💡</span> Key Mechanisms Explained</h2>
+
+      <h3>Least Recently Used (LRU) and Least Frequently Used (LFU)</h3>
+      <ul>
+        <li>
+          <strong>LRU</strong> (<span class="term">allkeys-lru</span> /
+          <span class="term">volatile-lru</span>): This strategy assumes that a
+          key that hasn't been accessed for the longest time is the least likely
+          to be needed again. Redis uses an **approximated LRU algorithm** which
+          works by sampling a small number of keys (default is 5) and evicting
+          the oldest key among the sample. This is an efficient way to achieve
+          near-perfect LRU without high overhead.
+        </li>
+        <li>
+          <strong>LFU</strong> (<span class="term">allkeys-lfu</span> /
+          <span class="term">volatile-lfu</span>): This strategy is generally
+          better for preserving **hot data**. It tracks an approximate frequency
+          counter for each key. Keys that have been used the least number of
+          times are evicted first, on the assumption that frequently accessed
+          keys are more valuable.
+        </li>
+      </ul>
+
+      <h3>Volatile vs. Allkeys</h3>
+      <p>
+        The difference between the <span class="term">allkeys-***</span> and
+        <span class="term">volatile-***</span> policies is whether the eviction
+        scope is **all keys** in the database or only the **volatile keys**
+        (those created with an expiration time, e.g., using
+        <span class="term">EXPIRE</span> or <span class="term">SETEX</span>).
+      </p>
+      <ul>
+        <li>
+          If you are using Redis purely as a cache where all keys are temporary,
+          an <span class="term">allkeys</span> policy is a good choice.
+        </li>
+        <li>
+          If you have a mix of permanent data (no TTL) and cache data (with
+          TTL), a <span class="term">volatile</span> policy allows you to
+          **protect your permanent keys** from being evicted.
+        </li>
+      </ul>
+
+      <h3>Default and Recommended Policies</h3>
+      <ul>
+        <li>
+          The historical default for Redis is often
+          <span class="term">noeviction</span>, but the common default in
+          managed services like AWS ElastiCache is
+          <span class="term">volatile-lru</span>.
+        </li>
+        <li>
+          <span class="term">allkeys-lru</span> is often the **recommended
+          starting point** when using Redis as a general-purpose cache, as it
+          reliably keeps the most recently used data in memory.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h1>Checking Current Max Memory Limit</h1>
+      <p>
+        You can check the current maximum memory limit and the associated
+        eviction policy in Redis using the
+        <span class="term">CONFIG GET</span> command via the
+        <span class="term">redis-cli</span>.
+      </p>
+      <p>The two primary configuration parameters you'll want to check are:</p>
+      <ul>
+        <li>
+          <span class="term">maxmemory</span>: The memory limit set in bytes.
+        </li>
+        <li>
+          <span class="term">maxmemory-policy</span>: The eviction policy that
+          is activated when the limit is reached.
+        </li>
+      </ul>
+
+      <h2>1. Using <span class="term">CONFIG GET</span></h2>
+      <p>
+        Connect to your Redis instance using the command-line interface (<span
+          class="term"
+          >redis-cli</span
+        >) and run the following commands:
+      </p>
+
+      <h3>A. Check the Max Memory Limit</h3>
+      <p>
+        The <span class="term">maxmemory</span> directive returns the memory
+        limit in bytes.
+      </p>
+      <div class="code-section">
+        <pre><span class="prompt">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="keyword">CONFIG GET</span> <span class="variable">maxmemory</span></pre>
+        <p><strong>Example Output:</strong></p>
+        <pre><span class="output">1) "maxmemory"
+2) "0"</span></pre>
+        <p>
+          <strong>Result 2: "<span class="term">0</span>"</strong> - This is the
+          **default value**, which means **no explicit memory limit is set**.
+          Redis will continue to consume memory until the operating system runs
+          out and potentially kills the process.
+        </p>
+        <p>
+          <strong>Result 2: "<span class="term">536870912</span>"</strong> -
+          This value (536,870,912 bytes) would indicate the limit is set to
+          **512 MB**.
+        </p>
+      </div>
+
+      <h3>B. Check the Eviction Policy</h3>
+      <p>
+        The <span class="term">maxmemory-policy</span> directive returns the
+        name of the eviction policy in use.
+      </p>
+      <div class="code-section">
+        <pre><span class="prompt">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="keyword">CONFIG GET</span> <span class="variable">maxmemory-policy</span></pre>
+        <p><strong>Example Output:</strong></p>
+        <pre><span class="output">1) "maxmemory-policy"
+2) "noeviction"</span></pre>
+        <p>
+          <strong>Result 2: "<span class="term">noeviction</span>"</strong> -
+          This is the **default policy** when
+          <span class="term">maxmemory</span> is 0. If
+          <span class="term">maxmemory</span> is set to a non-zero value and
+          this policy is active, all write commands will return an
+          <span class="term">OOM</span> (Out Of Memory) error when the limit is
+          hit.
+        </p>
+        <p>
+          <strong>Result 2: "<span class="term">allkeys-lru</span>"</strong> -
+          This indicates the policy is set to evict the **Least Recently Used**
+          keys from **all** keys when the limit is reached.
+        </p>
+      </div>
+
+      <h2>2. Using <span class="term">INFO</span></h2>
+      <p>
+        You can also retrieve memory information as part of the general server
+        diagnostics using the <span class="term">INFO</span> command.
+      </p>
+      <div class="code-section">
+        <pre><span class="prompt">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="keyword">INFO</span> <span class="variable">memory</span></pre>
+      </div>
+      <p>Look for the following fields in the output:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="term">maxmemory</span></td>
+            <td>The configured maximum memory limit in bytes.</td>
+          </tr>
+          <tr>
+            <td><span class="term">used_memory</span></td>
+            <td>The total number of bytes currently allocated by Redis.</td>
+          </tr>
+          <tr>
+            <td><span class="term">used_memory_human</span></td>
+            <td>
+              The <span class="term">used_memory</span> value displayed in
+              human-readable format (e.g., <span class="term">1.23G</span>).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong><span class="emoji">📝</span> Note on Configuration</strong>
+      </p>
+      <p>
+        The <span class="term">CONFIG GET</span> command shows the **current
+        runtime configuration**. If you set a value with
+        <span class="term">CONFIG SET</span> (e.g.,
+        <span class="term">CONFIG SET maxmemory 512mb</span>), this change is
+        immediate but will be lost when Redis restarts unless you also use
+        <span class="term">CONFIG REWRITE</span> to persist the change to the
+        <span class="term">redis.conf</span> file.
+      </p>
+
+      <hr />
+
+      <h1>Setting Max Memory and Eviction Policy</h1>
+      <p>
+        You have two main ways to set the
+        <span class="term">maxmemory</span> limit and the
+        <span class="term">maxmemory-policy</span> (eviction policy) in Redis:
+        **Runtime Configuration** and **Configuration File**.
+      </p>
+      <p>
+        The recommended best practice is to set these values in the
+        configuration file to ensure the settings persist after a server
+        restart.
+      </p>
+
+      <h2>
+        1. Runtime Configuration (Using <span class="term">CONFIG SET</span>)
+      </h2>
+      <p>
+        This method modifies the configuration on a running Redis instance
+        immediately, without requiring a restart.
+      </p>
+
+      <h3>A. Set the Max Memory Limit</h3>
+      <p>
+        The <span class="term">maxmemory</span> value can be set in bytes, or
+        using a human-readable format like <span class="term">KB</span>,
+        <span class="term">MB</span>, or <span class="term">GB</span>.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Unit</th>
+            <th>Example</th>
+            <th>Bytes Equivalent</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="term">KB</span></td>
+            <td><span class="term">100kb</span></td>
+            <td><span class="number">102,400</span></td>
+          </tr>
+          <tr>
+            <td><span class="term">MB</span></td>
+            <td><span class="term">256mb</span></td>
+            <td><span class="number">268,435,456</span></td>
+          </tr>
+          <tr>
+            <td><span class="term">GB</span></td>
+            <td><span class="term">2gb</span></td>
+            <td><span class="number">2,147,483,648</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <p><strong>Example Command (Setting limit to 512 MB):</strong></p>
+      <div class="code-section">
+        <pre><span class="prompt">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="keyword">CONFIG SET</span> <span class="variable">maxmemory</span> <span class="string">512mb</span>
+<span class="output">OK</span></pre>
+      </div>
+
+      <h3>B. Set the Eviction Policy</h3>
+      <p>
+        Choose one of the policies (e.g., <span class="term">allkeys-lru</span>)
+        and set it using <span class="term">CONFIG SET</span>:
+      </p>
+      <p>
+        <strong
+          >Example Command (Setting policy to All Keys - Least Recently
+          Used):</strong
+        >
+      </p>
+      <div class="code-section">
+        <pre><span class="prompt">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="keyword">CONFIG SET</span> <span class="variable">maxmemory-policy</span> <span class="string">allkeys-lru</span>
+<span class="output">OK</span></pre>
+      </div>
+
+      <h3>C. Persist Changes (Crucial Step!)</h3>
+      <p>
+        Changes made via <span class="term">CONFIG SET</span> are lost upon
+        server restart unless you explicitly save them to the configuration file
+        using <span class="term">CONFIG REWRITE</span>.
+      </p>
+      <div class="code-section">
+        <pre><span class="prompt">redis-cli</span>
+<span class="prompt">127.0.0.1:6379></span> <span class="keyword">CONFIG REWRITE</span>
+<span class="output">OK</span></pre>
+      </div>
+      <p>
+        <strong>Note:</strong> If you are using a managed service (like AWS
+        ElastiCache, Azure Cache for Redis, or a cloud provider's Redis), you
+        typically configure these settings through the provider's console/API,
+        not via <span class="term">redis-cli</span>.
+      </p>
+
+      <h2>2. Configuration File Method</h2>
+      <p>
+        This is the standard, permanent way to configure Redis. You modify the
+        <span class="term">redis.conf</span> file, and the settings take effect
+        when Redis starts.
+      </p>
+      <p><strong>Steps:</strong></p>
+      <ol>
+        <li>
+          Locate the <span class="term">redis.conf</span> file. The location
+          varies by installation, but is often found at
+          <span class="term">/etc/redis/redis.conf</span> or in the Redis
+          installation directory.
+        </li>
+        <li>
+          Edit the file and find or add the following two directives. Uncomment
+          them if they are commented out (often indicated by a
+          <span class="term">#</span> at the start of the line).
+        </li>
+      </ol>
+
+      <h3>A. Set Max Memory:</h3>
+      <p>Specify the limit. Using the human-readable format is recommended.</p>
+      <div class="code-section">
+        <pre><span class="comment"># Set the max memory limit to 1 Gigabyte</span>
+<span class="variable">maxmemory</span> <span class="string">1gb</span></pre>
+      </div>
+
+      <h3>B. Set Eviction Policy:</h3>
+      <p>
+        Specify your desired eviction policy.
+        <span class="term">allkeys-lru</span> is a common and effective choice
+        for general caching.
+      </p>
+      <div class="code-section">
+        <pre><span class="comment"># Set the eviction policy to allkeys-lru</span>
+<span class="variable">maxmemory-policy</span> <span class="string">allkeys-lru</span></pre>
+      </div>
+
+      <h3>C. Restart Redis</h3>
+      <p>
+        For the changes in the <span class="term">redis.conf</span> file to take
+        effect, you must restart the Redis server service:
+      </p>
+      <div class="code-section">
+        <pre><span class="keyword">sudo systemctl restart</span> <span class="variable">redis-server</span>
+<span class="comment"># OR (depending on your system)</span>
+<span class="keyword">sudo service</span> <span class="variable">redis restart</span></pre>
+      </div>
+
+      <hr />
+
+      <h2>Recommended Policy Choices</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Use Case</th>
+            <th>Recommended Policy</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>General-Purpose Caching</td>
+            <td><span class="term">allkeys-lru</span></td>
+            <td>
+              Evicts the least-used items from **all** keys, maintaining the
+              hottest data.
+            </td>
+          </tr>
+          <tr>
+            <td>LFU-Optimized Caching</td>
+            <td><span class="term">allkeys-lfu</span></td>
+            <td>
+              Better than LRU if some keys are used frequently but not recently
+              (e.g., a few popular landing pages).
+            </td>
+          </tr>
+          <tr>
+            <td>Mixed Data (Permanent + Cache)</td>
+            <td><span class="term">volatile-lru</span></td>
+            <td>
+              Only evicts keys that have an explicit expiration (<span
+                class="term"
+                >TTL</span
+              >) set, protecting your permanent data.
+            </td>
+          </tr>
+          <tr>
+            <td>TTL-Based Prioritization</td>
+            <td><span class="term">volatile-ttl</span></td>
+            <td>
+              Evicts keys that are closest to expiring, making space for new
+              data while ensuring time-sensitive keys live out their intended
+              duration.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2>
+        <span class="emoji">🚫</span> What Happens If
+        <span class="term">maxmemory-policy</span> is Set to
+        <span class="term">noeviction</span>?
+      </h2>
+      <p>
+        When <span class="term">maxmemory-policy</span> is set to
+        <span class="term">noeviction</span> (which is the default), Redis
+        **will not remove any keys** when the memory limit is reached.
+      </p>
+      <p>Instead:</p>
+      <ul>
+        <li>
+          Redis **refuses to accept new write operations** that require more
+          memory.
+        </li>
+        <li>
+          It throws an <span class="term">OOM</span> (Out Of Memory) error:
+          <div class="code-section">
+            <pre><span class="error">(error) OOM command not allowed when used memory > 'maxmemory'.</span></pre>
+          </div>
+        </li>
+        <li>Read operations will still succeed.</li>
+      </ul>
+      <p>
+        This is useful when you want **strict control over key deletion**, but
+        it requires careful memory monitoring.
+      </p>
+    </div>
+  </body>
+</html>

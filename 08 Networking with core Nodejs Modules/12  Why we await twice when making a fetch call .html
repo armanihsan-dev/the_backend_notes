@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket Notes</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap');
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h2 {
+        color: #61dafb;
+        border-bottom: 2px solid #444;
+        padding-bottom: 5px;
+      }
+
+      p,
+      ul,
+      li {
+        margin-bottom: 1em;
+      }
+
+      .highlight {
+        color: #f7b731;
+        font-weight: bold;
+      }
+
+      .code-section {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        padding: 15px;
+        overflow-x: auto;
+        border: 1px solid #333;
+      }
+
+      pre {
+        margin: 0;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 14px;
+        color: #d4d4d4;
+      }
+
+      .code-comment {
+        color: #6a9955;
+      }
+
+      .code-string {
+        color: #ce9178;
+      }
+
+      .code-keyword {
+        color: #c586c0;
+      }
+
+      .code-variable {
+        color: #9cdcfe;
+      }
+
+      .code-function {
+        color: #dcdcaa;
+      }
+
+      .code-number {
+        color: #b5cea8;
+      }
+
+      ul {
+        list-style-type: '👉 ';
+        padding-left: 20px;
+      }
+
+      .summary {
+        background-color: #2a2a2a;
+        border-left: 4px solid #61dafb;
+        padding: 15px;
+        margin-top: 20px;
+        border-radius: 4px;
+      }
+
+      .fix-option {
+        background-color: #2a2a2a;
+        border-left: 4px solid #4caf50;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body style="padding-inline: 200px">
+    <h2>1. What happens when you don’t call socket.end()</h2>
+    <div class="code-section">
+      <pre>
+<span class="code-function">socket</span>.<span class="code-function">write</span>(
+  <span class="code-string">`HTTP/1.1 200 OK\r\n`</span> +
+  <span class="code-string">`Access-Control-Allow-Origin: *\r\n`</span> +
+  <span class="code-string">`\r\nHiii`</span>
+);<span class="code-comment">// no socket.end()</span>
+        </pre>
+    </div>
+    <p>
+      <span class="highlight">👉</span> You’ve written headers + body "Hiii",
+      but never told the browser that the response is finished.
+    </p>
+    <p>In HTTP, either you need to set:</p>
+    <ul>
+      <li>
+        <span class="highlight">Content-Length</span> → so the client knows
+        exactly how many bytes to read, OR
+      </li>
+      <li>
+        use <span class="highlight">Transfer-Encoding: chunked</span> → so the
+        client knows when chunks stop, OR
+      </li>
+      <li>
+        close the connection (<span class="highlight">socket.end()</span>) →
+        which signals “response complete”.
+      </li>
+    </ul>
+    <p>
+      If you don’t do any of these, the browser (and
+      <span class="highlight">fetch()</span>) will wait forever thinking “more
+      data might still come”.
+    </p>
+    <p>
+      That’s why your <span class="highlight">await response.text()</span> never
+      resolves — the stream is never ended.
+    </p>
+    <img
+      src="./images/Without Socket.end.png"
+      width="100%"
+      height="600px"
+      alt=""
+    />
+    <p>
+      The image shows a client computer waiting for a response from a server.
+      The connection between them is represented by an unfinished pipe,
+      symbolizing that the server never sent a signal to close the connection or
+      specify the content length. This causes the client to wait indefinitely,
+      illustrating why <strong>response.body() </strong> never resolves.
+    </p>
+    <br />
+
+    <h2>2. Why do we await twice with fetch()?</h2>
+    <div class="code-section">
+      <pre>
+<span class="code-keyword">const</span> <span class="code-variable">response</span> = <span class="code-keyword">await</span> <span class="code-function">fetch</span>(<span class="code-string">'http://localhost:4000'</span>);
+<span class="code-keyword">const</span> <span class="code-variable">data</span> = <span class="code-keyword">await</span> <span class="code-variable">response</span>.<span class="code-function">text</span>();
+        </pre>
+    </div>
+    <p>There are two levels here:</p>
+    <p>(a) <span class="highlight">await fetch(...)</span></p>
+    <ul>
+      <li>This resolves when the headers have been received.</li>
+      <li>
+        At this point, you get a <span class="highlight">Response</span> object.
+      </li>
+      <li>But the body is still a stream, not yet read.</li>
+    </ul>
+    <p>
+      (b) <span class="highlight">await response.text()</span> (or
+      <span class="highlight">.json()</span>,
+      <span class="highlight">.arrayBuffer()</span>,
+      <span class="highlight">.blob()</span>)
+    </p>
+    <ul>
+      <li>This reads the body stream until it’s done.</li>
+      <li>Only after the body is fully consumed will this resolve.</li>
+    </ul>
+    <p>So essentially:</p>
+    <ul>
+      <li>First await = wait for headers (server has responded).</li>
+      <li>
+        Second await = wait for body (server has sent all data and ended the
+        stream).
+      </li>
+    </ul>
+
+    <br />
+
+    <h2>3. Why your code hangs</h2>
+    <p>
+      Because you never <span class="highlight">socket.end()</span> and you
+      didn’t specify <span class="highlight">Content-Length</span>, the body
+      never signals “I’m finished”.
+    </p>
+    <p>
+      So <span class="highlight">response.text()</span> is waiting forever for
+      the rest of the body.
+    </p>
+
+    <div class="fix-option">
+      <p>
+        ✅
+        <span class="highlight"
+          >Fix option 1 (simple: close socket after sending):</span
+        >
+      </p>
+      <div class="code-section">
+        <pre>
+<span class="code-function">socket</span>.<span class="code-function">write</span>(
+  <span class="code-string">`HTTP/1.1 200 OK\r\n`</span> +
+  <span class="code-string">`Content-Length: 4\r\n`</span> +
+  <span class="code-string">`Content-Type: text/plain\r\n`</span> +
+  <span class="code-string">`Access-Control-Allow-Origin: *\r\n\r\n`</span> +
+  <span class="code-string">`Hiii`</span>
+);
+<span class="code-function">socket</span>.<span class="code-function">end</span>();
+            </pre>
+      </div>
+    </div>
+
+    <div class="fix-option">
+      <p>✅ <span class="highlight">Fix option 2 (chunked transfer):</span></p>
+      <div class="code-section">
+        <pre>
+<span class="code-function">socket</span>.<span class="code-function">write</span>(
+  <span class="code-string">`HTTP/1.1 200 OK\r\n`</span> +
+  <span class="code-string">`Transfer-Encoding: chunked\r\n`</span> +
+  <span class="code-string">`Access-Control-Allow-Origin: *\r\n\r\n`</span>
+);
+<span class="code-function">socket</span>.<span class="code-function">write</span>(<span class="code-string">"4\r\nHiii\r\n"</span>); <span class="code-comment">// 4 bytes, then data</span>
+<span class="code-function">socket</span>.<span class="code-function">write</span>(<span class="code-string">"0\r\n\r\n"</span>);     <span class="code-comment">// end of chunks</span>
+            </pre>
+      </div>
+    </div>
+
+    <br />
+
+    <div class="summary">
+      <h3>🔑 Summary:</h3>
+      <ul>
+        <li>
+          <span class="highlight">await fetch()</span> = wait for headers.
+        </li>
+        <li>
+          <span class="highlight">await response.text()</span> = wait for body
+          stream.
+        </li>
+      </ul>
+      <p>
+        If you don’t end the socket (or define content-length / chunked
+        encoding), the body never finishes → promise never resolves.
+      </p>
+    </div>
+  </body>
+</html>

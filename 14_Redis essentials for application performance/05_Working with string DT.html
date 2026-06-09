@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis String CRUD Operations</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Dark Theme (Blakish) */
+      body {
+        background-color: #1e1e1e; /* VSCode Dark Background */
+        color: #d4d4d4; /* Light Text */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 25px;
+        margin: 0;
+      }
+
+      /* General Content Styling */
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6; /* VSCode Blue for headings */
+        border-bottom: 2px solid #569cd650;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+      h2 {
+        font-size: 1.6em;
+      }
+      h3 {
+        font-size: 1.2em;
+      }
+      p {
+        margin-bottom: 15px;
+      }
+      strong {
+        color: #ce9178;
+      } /* VSCode Orange/Red for emphasis */
+
+      /* Lists */
+      ul {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+      }
+      th,
+      td {
+        padding: 10px;
+        border: 1px solid #3c3c3c;
+        text-align: left;
+      }
+      th {
+        background-color: #252526; /* VSCode Panel/Header background */
+        color: #d4d4d4;
+        font-weight: 700;
+      }
+      td {
+        background-color: #1f1f1f;
+      }
+      .code-col {
+        color: #9cdcfe; /* Light Blue for commands/syntax */
+      }
+      .desc-col {
+        color: #d4d4d4;
+      }
+
+      /* Code Block Styling (VSCode Dark Theme) */
+      pre {
+        background-color: #1f1f1f; /* Slightly lighter black for code */
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        border: 1px solid #3c3c3c;
+      }
+
+      /* Syntax Highlighting Mock */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .string {
+        color: #ce9178;
+      } /* Orange/Red */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .output {
+        color: #d7ba7d;
+      } /* Output color */
+      .key-action {
+        color: #4ec9b0;
+        font-weight: bold;
+      } /* Teal/Green */
+    </style>
+  </head>
+  <body>
+    <h1>
+      <span class="variable">📄</span> Working with Redis Strings: CRUD
+      Operations via `redis-cli`
+    </h1>
+    <p>
+      This guide details the **CRUD (Create, Read, Update, Delete)** operations
+      for Redis Strings using `redis-cli` with clear syntax, examples, and
+      functional explanations.
+    </p>
+
+    <hr />
+
+    <section>
+      <h2>
+        1. <span class="key-action">📝</span> Create/Update (C & U) Operations:
+        `SET`
+      </h2>
+      <p>
+        The <span class="keyword">SET</span> command is the primary way to
+        create or fully replace a String value associated with a key. Because it
+        **overwrites** the value if the key already exists, it handles both
+        initial **Creation** and a full **Update**.
+      </p>
+
+      <h3>Syntax and Example</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Syntax</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="keyword">SET</span></td>
+            <td class="code-col">SET &lt;key&gt; &lt;value&gt;</td>
+            <td class="desc-col">
+              Sets the string value of a key. Overwrites the value if the key
+              already exists.
+            </td>
+            <td class="code-col">SET user:1:status "online"</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">SETNX</span></td>
+            <td class="code-col">SETNX &lt;key&gt; &lt;value&gt;</td>
+            <td class="desc-col">
+              <strong>SET</strong> if <strong>N</strong>ot
+              E<strong>X</strong>ists. Only sets the key if it doesn't already
+              exist.
+            </td>
+            <td class="code-col">SETNX user:2:status "offline"</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>How It Works: `SET`</h4>
+      <ul>
+        <li>
+          **Creation**: If <span class="variable">user:1:status</span> does not
+          exist, Redis creates it and stores the value
+          <span class="string">"online"</span>.
+        </li>
+        <li>
+          **Update**: If <span class="variable">user:1:status</span> already
+          exists (e.g., value is <span class="string">"offline"</span>), Redis
+          **replaces** the value entirely with
+          <span class="string">"online"</span>.
+        </li>
+      </ul>
+
+      <h3>Incremental Updates</h3>
+      <p>
+        Redis provides specific commands to treat a String as a number and
+        perform **atomic updates**.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Syntax</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="keyword">INCR</span></td>
+            <td class="code-col">INCR &lt;key&gt;</td>
+            <td class="desc-col">
+              Atomically increments the integer value of the key by
+              <strong>1</strong>.
+            </td>
+            <td class="code-col">INCR page:views</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">INCRBY</span></td>
+            <td class="code-col">INCRBY &lt;key&gt; &lt;amount&gt;</td>
+            <td class="desc-col">
+              Atomically increments the integer value of the key by the
+              specified amount.
+            </td>
+            <td class="code-col">INCRBY user:1:score 15</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">APPEND</span></td>
+            <td class="code-col">APPEND &lt;key&gt; &lt;string&gt;</td>
+            <td class="desc-col">
+              Appends the value to an existing key's string. Creates the key if
+              it doesn't exist.
+            </td>
+            <td class="code-col">APPEND email:subject " (URGENT)"</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>How It Works: `INCR`</h4>
+      <ul>
+        <li>
+          If <span class="variable">page:views</span> doesn't exist, Redis
+          initializes it to <span class="output">0</span>, then increments it to
+          <span class="output">1</span>, returning
+          <span class="output">1</span>.
+        </li>
+        <li>
+          If the value is <span class="string">"9"</span>, it is incremented to
+          <span class="string">"10"</span>, returning
+          <span class="output">10</span>. This operation is **atomic** (safe
+          from race conditions).
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>2. <span class="key-action">📖</span> Read (R) Operations: `GET`</h2>
+      <p>
+        The <span class="keyword">GET</span> command is the **fundamental way**
+        to retrieve the value stored at a specific key.
+      </p>
+
+      <h3>Syntax and Example</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Syntax</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="keyword">GET</span></td>
+            <td class="code-col">GET &lt;key&gt;</td>
+            <td class="desc-col">
+              Returns the string value associated with the key.
+            </td>
+            <td class="code-col">GET user:1:status</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">MGET</span></td>
+            <td class="code-col">MGET &lt;key1&gt; &lt;key2&gt; ...</td>
+            <td class="desc-col">Returns the values of all specified keys.</td>
+            <td class="code-col">MGET user:1:name user:2:name</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">GETSET</span></td>
+            <td class="code-col">GETSET &lt;key&gt; &lt;new_value&gt;</td>
+            <td class="desc-col">
+              Atomically sets a new value and returns the **old** value.
+            </td>
+            <td class="code-col">GETSET process:lock "new_owner"</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>How It Works: `GET`</h4>
+      <ul>
+        <li>
+          If the key exists and holds a String, Redis returns the value (e.g.,
+          <span class="string">"online"</span>).
+        </li>
+        <li>
+          If the key does not exist, Redis returns
+          <span class="output">(nil)</span>.
+        </li>
+        <li>
+          If the key exists but holds a different data type (e.g., a List or
+          Set), Redis returns an **error**.
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>3. <span class="key-action">🗑️</span> Delete (D) Operation: `DEL`</h2>
+      <p>
+        While <span class="keyword">DEL</span> can remove **any data type** in
+        Redis, it is essential for the **Delete** operation on Strings.
+      </p>
+
+      <h3>Syntax and Example</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Syntax</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="keyword">DEL</span></td>
+            <td class="code-col">DEL &lt;key1&gt; &lt;key2&gt; ...</td>
+            <td class="desc-col">
+              Removes the specified keys. A key is ignored if it does not exist.
+            </td>
+            <td class="code-col">DEL user:1:status page:views</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>How It Works: `DEL`</h4>
+      <ul>
+        <li>Redis attempts to locate the specified keys.</li>
+        <li>
+          Any keys that are found are completely **removed** from the database,
+          along with their associated String value.
+        </li>
+        <li>The command returns the **number of keys that were removed**.</li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>4. Time-to-Live (TTL) Operations</h2>
+      <p>
+        While not strictly CRUD, controlling the lifespan of a key is
+        **fundamental to using Strings for caching**.
+      </p>
+
+      <h3>Syntax and Example</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>Syntax</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="keyword">EXPIRE</span></td>
+            <td class="code-col">EXPIRE &lt;key&gt; &lt;seconds&gt;</td>
+            <td class="desc-col">
+              Sets a timeout on key. After the specified number of seconds, the
+              key will be automatically deleted.
+            </td>
+            <td class="code-col">EXPIRE auth:token:123 3600</td>
+          </tr>
+          <tr>
+            <td><span class="keyword">TTL</span></td>
+            <td class="code-col">TTL &lt;key&gt;</td>
+            <td class="desc-col">
+              Returns the remaining time to live (TTL) in seconds for a key.
+            </td>
+            <td class="code-col">TTL auth:token:123</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>How It Works: `EXPIRE`</h4>
+      <p>
+        The <span class="keyword">EXPIRE</span> command sets a **volatile flag**
+        on the key. Once the time runs out, Redis performs the
+        <span class="keyword">DEL</span> operation automatically, making it
+        perfect for **temporary data** like session tokens or cached results.
+      </p>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>
+        <span class="variable">⚡</span> Summary Example Flow (Combined Session)
+      </h2>
+      <p>Here is a quick session combining all String operations:</p>
+      <pre>
+<span class="comment"># 1. CREATE</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">SET</span> <span class="variable">user:current:name</span> <span class="string">"John"</span>
+<span class="output">OK</span>
+
+<span class="comment"># 2. READ</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">GET</span> <span class="variable">user:current:name</span>
+<span class="output">"John"</span>
+
+<span class="comment"># 3. INCREMENT (Update)</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">INCR</span> <span class="variable">job:queue:counter</span>
+<span class="output">(integer) 1</span>
+
+<span class="comment"># 4. APPEND (Update)</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">APPEND</span> <span class="variable">user:current:name</span> <span class="string">" Doe"</span>
+<span class="output">(integer) 8</span>
+
+<span class="comment"># 5. READ Updated value</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">GET</span> <span class="variable">user:current:name</span>
+<span class="output">"John Doe"</span>
+
+<span class="comment"># 6. SET Expiration</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">EXPIRE</span> <span class="variable">user:current:name</span> <span class="variable">60</span>
+<span class="output">(integer) 1</span>
+
+<span class="comment"># 7. DELETE</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">DEL</span> <span class="variable">user:current:name</span>
+<span class="output">(integer) 1</span>
+
+<span class="comment"># 8. READ (Confirm Deletion)</span>
+<span class="variable">127.0.0.1:6379></span> <span class="keyword">GET</span> <span class="variable">user:current:name</span>
+<span class="output">(nil)</span>
+        </pre>
+    </section>
+  </body>
+</html>

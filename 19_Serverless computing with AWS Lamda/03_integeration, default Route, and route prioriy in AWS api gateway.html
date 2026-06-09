@@ -1,0 +1,603 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AWS API Gateway Integration & Routing</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet"/>
+<style>
+:root{--bg-primary:#09090b;--bg-secondary:#18181b;--bg-tertiary:#27272a;--text-primary:#f4f4f5;--text-secondary:#a1a1aa;--accent:#34d399;--accent-dim:rgba(52,211,153,0.1);--border:#27272a}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.6;display:flex;min-height:100vh}
+.sidebar{width:280px;background:var(--bg-primary);border-right:1px solid var(--border);position:fixed;height:100vh;padding:2rem;overflow-y:auto;top:0;left:0;z-index:10}
+.logo{font-size:1.25rem;font-weight:700;margin-bottom:2rem;color:var(--accent);letter-spacing:-0.05em;display:flex;align-items:center;gap:10px}
+.nav-link{display:block;color:var(--text-secondary);text-decoration:none;padding:0.5rem 0;font-size:0.95rem;transition:all 0.2s;border-left:2px solid transparent;padding-left:12px;margin-left:-12px}
+.nav-link:hover,.nav-link.active{color:var(--text-primary);border-left-color:var(--accent);background:linear-gradient(90deg,var(--bg-secondary) 0%,transparent 100%)}
+.nav-section{margin-bottom:2rem}
+.nav-title{text-transform:uppercase;font-size:0.75rem;color:#52525b;font-weight:700;margin-bottom:0.8rem;letter-spacing:0.1em}
+.main-content{margin-left:280px;padding:4rem 6rem;max-width:1200px;width:100%}
+section{margin-bottom:5rem;scroll-margin-top:2rem}
+h1{font-size:3rem;margin-bottom:1rem;letter-spacing:-0.05em;line-height:1.1}
+h2{font-size:2rem;margin-top:2rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:0.5rem;color:var(--text-primary);letter-spacing:-0.02em}
+h3{font-size:1.4rem;margin-top:2.5rem;margin-bottom:1rem;color:var(--accent);font-weight:600}
+h4{color:var(--text-primary);margin-top:1.5rem;margin-bottom:0.5rem;font-size:1.1rem}
+p{margin-bottom:1.25rem;color:var(--text-secondary)}
+strong{color:var(--text-primary);font-weight:600}
+pre{background:var(--bg-secondary)!important;border:1px solid var(--border);border-radius:8px;margin:1.5rem 0;padding:1.5rem!important;overflow-x:auto}
+code{font-family:'JetBrains Mono',monospace!important;font-size:0.9rem}
+p code,li code{background:var(--bg-tertiary);padding:0.2rem 0.4rem;border-radius:4px;color:var(--accent);font-size:0.85em;border:1px solid var(--border)}
+.note-box{background:var(--bg-secondary);border-left:4px solid var(--accent);padding:1.5rem;border-radius:0 8px 8px 0;margin:2rem 0}
+.note-title{font-weight:700;color:var(--accent);margin-bottom:0.5rem;display:flex;align-items:center;gap:8px;text-transform:uppercase;font-size:0.8rem;letter-spacing:0.05em}
+ul,ol{margin-left:1.5rem;margin-bottom:1.5rem;color:var(--text-secondary)}
+li{margin-bottom:0.5rem}
+.badge{display:inline-block;background:var(--accent-dim);color:var(--accent);padding:0.2rem 0.6rem;border-radius:4px;font-size:0.8rem;font-weight:600;margin-right:0.5rem;text-transform:uppercase;letter-spacing:0.05em}
+table{width:100%;border-collapse:collapse;margin:1.5rem 0;background:var(--bg-secondary);border-radius:8px;overflow:hidden}
+th,td{padding:1rem;text-align:left;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+th{background:var(--bg-tertiary);color:var(--accent);font-weight:600;text-transform:uppercase;font-size:0.8rem;letter-spacing:0.05em}
+tr:last-child td{border-bottom:none}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin:2rem 0}
+.card{background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:3px solid var(--accent)}
+@media(max-width:768px){body{flex-direction:column}.sidebar{position:relative;width:100%;height:auto;border-right:none;border-bottom:1px solid var(--border);padding:1rem}.nav-section{display:none}.main-content{margin-left:0;padding:2rem 1.5rem}h1{font-size:2rem}.grid-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav class="sidebar">
+<div class="logo"><i class="fa-solid fa-plug"></i> AWS GATEWAY</div>
+<div class="nav-section">
+<div class="nav-title">I. Integration</div>
+<a href="#integration" class="nav-link active">What is Integration?</a>
+<a href="#types" class="nav-link">Integration Types</a>
+<a href="#before-after" class="nav-link">Before vs After</a>
+<a href="#steps" class="nav-link">How to Add</a>
+</div>
+<div class="nav-section">
+<div class="nav-title">II. Default Route</div>
+<a href="#default" class="nav-link">What is Default Route?</a>
+<a href="#default-work" class="nav-link">How It Works</a>
+<a href="#default-examples" class="nav-link">Examples</a>
+<a href="#default-when" class="nav-link">When to Use</a>
+</div>
+<div class="nav-section">
+<div class="nav-title">III. Route Priority</div>
+<a href="#priority" class="nav-link">Priority System</a>
+<a href="#priority-flow" class="nav-link">Evaluation Flow</a>
+<a href="#priority-example" class="nav-link">Real-World Example</a>
+<a href="#priority-best" class="nav-link">Best Practices</a>
+</div>
+</nav>
+
+<main class="main-content">
+<section id="header">
+<span class="badge">AWS Guide</span>
+<h1>API GATEWAY INTEGRATION & ROUTING</h1>
+<p>COMPLETE GUIDE TO INTEGRATIONS, DEFAULT ROUTES, AND PRIORITY</p>
+</section>
+
+<section id="integration">
+<h2>WHAT IS INTEGRATION IN API GATEWAY?</h2>
+<p><strong>Integration</strong> is the connection between your API Gateway route and the backend service that actually processes the request. It's the bridge that makes your API functional.</p>
+
+<div class="note-box">
+<span class="note-title"><i class="fa-solid fa-lightbulb"></i> Simple Definition</span>
+<p>Think of integration as the <strong>"what happens next"</strong> after API Gateway receives a request. Without integration, your API is just an empty shell that can't do anything useful.</p>
+</div>
+
+<h3>Visual Flow</h3>
+<pre><code class="language-text">User calls: https://api.example.com/users/123
+                    ↓
+          API Gateway (route: /users/{id})
+                    ↓
+          INTEGRATION (connects to...)
+                    ↓
+          Your Backend (Lambda, EC2, etc.)
+                    ↓
+          Returns response to user</code></pre>
+</section>
+
+<section id="types">
+<h2>TYPES OF INTEGRATIONS</h2>
+
+<h3>1. Lambda Function (Most Common)</h3>
+<p>Connects your API directly to AWS Lambda serverless functions.</p>
+<pre><code class="language-javascript">// When user calls your API, Lambda runs this code
+exports.handler = async (event) => {
+    const userId = event.pathParameters.id;
+    
+    // Your business logic here
+    const user = await getUserFromDatabase(userId);
+    
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+            id: userId, 
+            name: user.name,
+            email: user.email 
+        })
+    };
+};</code></pre>
+
+<div class="card">
+<h4>✅ Best For:</h4>
+<ul>
+<li>Serverless architectures</li>
+<li>Event-driven applications</li>
+<li>Pay-per-use pricing model</li>
+<li>Auto-scaling requirements</li>
+</ul>
+</div>
+
+<h3>2. HTTP Endpoint (Your Express.js on EC2)</h3>
+<p>Routes requests to an existing HTTP server running on EC2, containers, or on-premises.</p>
+<pre><code class="language-text">API Gateway → http://your-ec2-ip:3000/users/123
+
+Example:
+GET /users/123 → http://10.0.1.50:3000/api/users/123</code></pre>
+
+<div class="card">
+<h4>✅ Best For:</h4>
+<ul>
+<li>Existing REST APIs</li>
+<li>Legacy systems integration</li>
+<li>Third-party API proxying</li>
+<li>Microservices on containers</li>
+</ul>
+</div>
+
+<h3>3. AWS Service (Direct Integration)</h3>
+<p>Directly connects to AWS services like DynamoDB, SQS, SNS without Lambda.</p>
+<pre><code class="language-text">API Gateway → DynamoDB (read/write directly)
+API Gateway → SQS (send messages)
+API Gateway → S3 (upload/download files)</code></pre>
+
+<div class="card">
+<h4>✅ Best For:</h4>
+<ul>
+<li>Simple CRUD operations</li>
+<li>Queue message publishing</li>
+<li>Reducing Lambda costs</li>
+<li>Low-latency requirements</li>
+</ul>
+</div>
+
+<h3>4. Mock Integration (For Testing)</h3>
+<p>Returns predefined responses without calling any backend. Perfect for development and testing.</p>
+<pre><code class="language-json">{
+  "statusCode": 200,
+  "body": {
+    "message": "This is a mock response",
+    "data": {
+      "id": 123,
+      "name": "Test User"
+    }
+  }
+}</code></pre>
+
+<div class="card">
+<h4>✅ Best For:</h4>
+<ul>
+<li>Frontend development before backend is ready</li>
+<li>API documentation examples</li>
+<li>Testing API Gateway configuration</li>
+<li>Prototyping</li>
+</ul>
+</div>
+</section>
+
+<section id="before-after">
+<h2>BEFORE VS AFTER INTEGRATION</h2>
+
+<div class="grid-2">
+<div class="card" style="border-left-color:#ef4444">
+<h4>❌ Without Integration</h4>
+<pre><code class="language-text">GET /users/123 
+    ↓
+API Gateway 
+    ↓
+??? (Error: 404 or 500)
+    ↓
+No response or error</code></pre>
+<p>Your API route exists but does nothing. Requests fail with errors.</p>
+</div>
+
+<div class="card">
+<h4>✅ With Integration</h4>
+<pre><code class="language-text">GET /users/123 
+    ↓
+API Gateway 
+    ↓
+Lambda Function 
+    ↓
+Database Query
+    ↓
+Returns User Data</code></pre>
+<p>Your API is fully functional and returns actual data.</p>
+</div>
+</div>
+</section>
+
+<section id="steps">
+<h2>HOW TO ADD INTEGRATION</h2>
+
+<div class="note-box">
+<span class="note-title"><i class="fa-solid fa-list-check"></i> Console Steps</span>
+<ol>
+<li><strong>Create a route</strong> (e.g., <code>GET /users/{id}</code>)</li>
+<li><strong>Attach integration</strong> to that route</li>
+<li><strong>Choose integration type:</strong>
+<ul>
+<li>Lambda (for serverless)</li>
+<li>HTTP (for EC2/Express)</li>
+<li>AWS Service (for DynamoDB, etc.)</li>
+</ul>
+</li>
+<li><strong>Configure the target</strong> (Lambda name, HTTP URL, etc.)</li>
+<li><strong>Deploy your API</strong></li>
+</ol>
+</div>
+
+<h3>Why It Matters</h3>
+<p>Adding integration makes your API <strong>actually work</strong>. Without it, you just have empty routes. With integration, you connect your frontend to your backend logic and data.</p>
+
+<div class="note-box">
+<span class="note-title"><i class="fa-solid fa-key"></i> Key Takeaway</span>
+<p><strong>Integration is the bridge</strong> between your API endpoint and the code/service that does the real work!</p>
+</div>
+</section>
+
+<section id="default">
+<h2>WHAT IS A DEFAULT ROUTE?</h2>
+<p>A <strong>default route</strong> (also called a catch-all or fallback route) is a route that handles any requests that don't match any of your other defined routes.</p>
+
+<h3>Simple Analogy</h3>
+<div class="grid-2">
+<div class="card">
+<h4>Regular Routes</h4>
+<p>Specific departments in a building (Sales, Support, HR)</p>
+</div>
+<div class="card">
+<h4>Default Route</h4>
+<p>A general receptionist who says "I'll help you" when you don't know which department to ask for</p>
+</div>
+</div>
+</section>
+
+<section id="default-work">
+<h2>HOW DEFAULT ROUTE WORKS</h2>
+
+<h3>Visual Example</h3>
+<pre><code class="language-text">Incoming Requests:
+┌─────────────────┐
+│ /users/123      │ ──→ Matches → Users Route
+├─────────────────┤
+│ /orders/456     │ ──→ Matches → Orders Route
+├─────────────────┤
+│ /products/789   │ ──→ Matches → Products Route
+├─────────────────┤
+│ /random/stuff   │ ──→ NO MATCH → DEFAULT ROUTE
+└─────────────────┘</code></pre>
+
+<div class="grid-2">
+<div class="card" style="border-left-color:#ef4444">
+<h4>❌ Without Default Route</h4>
+<pre><code class="language-text">GET /unknown/path
+       ↓
+API Gateway checks all routes
+       ↓
+No matching route found
+       ↓
+Returns 403 Forbidden or 404</code></pre>
+</div>
+
+<div class="card">
+<h4>✅ With Default Route</h4>
+<pre><code class="language-text">GET /unknown/path
+       ↓
+API Gateway checks all routes
+       ↓
+No matching route found
+       ↓
+FALLS BACK TO DEFAULT ROUTE
+       ↓
+Returns custom response</code></pre>
+</div>
+</div>
+</section>
+
+<section id="default-examples">
+<h2>COMMON DEFAULT ROUTE EXAMPLES</h2>
+
+<h3>1. Proxy Default Route (Catch-All)</h3>
+<pre><code class="language-text">Route: /{proxy+}
+Method: ANY
+Purpose: Catches EVERYTHING not matched elsewhere</code></pre>
+
+<h3>2. 404 Handler Default Route</h3>
+<pre><code class="language-javascript">// Lambda function for default route
+exports.handler = async (event) => {
+    return {
+        statusCode: 404,
+        body: JSON.stringify({
+            error: "Route not found",
+            path: event.rawPath,
+            message: "The requested resource does not exist"
+        })
+    };
+};</code></pre>
+
+<h3>3. Redirect Default Route</h3>
+<pre><code class="language-javascript">// Redirect to homepage
+exports.handler = async (event) => {
+    return {
+        statusCode: 301,
+        headers: {
+            Location: "https://example.com"
+        }
+    };
+};</code></pre>
+
+<h3>Configuration in AWS Console</h3>
+<pre><code class="language-text">Routes:
+├── GET /users/*          (specific)
+├── POST /orders/*        (specific)
+├── GET /products/*       (specific)
+└── $default             (default route - catches everything else)</code></pre>
+</section>
+
+<section id="default-when">
+<h2>WHY USE A DEFAULT ROUTE?</h2>
+
+<table>
+<thead>
+<tr>
+<th>Reason</th>
+<th>Explanation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prevent 403 Errors</td>
+<td>Without default route, unmatched requests get 403 Forbidden</td>
+</tr>
+<tr>
+<td>Better UX</td>
+<td>Show custom "Not Found" page instead of generic error</td>
+</tr>
+<tr>
+<td>Analytics</td>
+<td>Track how many users hit invalid routes</td>
+</tr>
+<tr>
+<td>Future-Proofing</td>
+<td>Handle new routes gracefully without breaking</td>
+</tr>
+<tr>
+<td>Security</td>
+<td>Log and monitor unexpected requests</td>
+</tr>
+</tbody>
+</table>
+
+<h3>When to Use Default Route</h3>
+<div class="grid-2">
+<div class="card">
+<h4>✅ Good Use Cases</h4>
+<ul>
+<li>Single Page Applications (SPAs) - serve index.html for all routes</li>
+<li>API versioning fallback</li>
+<li>Custom 404 pages</li>
+<li>Legacy route handling</li>
+</ul>
+</div>
+<div class="card" style="border-left-color:#ef4444">
+<h4>❌ Avoid When</h4>
+<ul>
+<li>You want strict API contracts</li>
+<li>Security requires explicit allow-listing</li>
+<li>You're building a public API that should be predictable</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section id="priority">
+<h2>ROUTE PRIORITY IN AWS API GATEWAY</h2>
+<p>Route priority determines the <strong>order</strong> in which routing rules are evaluated when a request hits your custom domain. Think of it as a ranking system where rules with higher importance (lower numbers) get checked first.</p>
+
+<h3>🎯 How Priority Works</h3>
+<div class="note-box">
+<span class="note-title"><i class="fa-solid fa-sort-numeric-down"></i> Priority Rules</span>
+<ul>
+<li><strong>Lower number = Higher priority</strong></li>
+<li>Priority 1 is evaluated <strong>before</strong> priority 50</li>
+<li>Priority 100 is evaluated <strong>after</strong> priority 50</li>
+<li>Valid priority range: <strong>1 to 1,000,000</strong></li>
+</ul>
+</div>
+
+<pre><code class="language-text">Priority Order:
+1 (First) → 10 → 50 → 100 → 500 → 1000000 (Last)</code></pre>
+</section>
+
+<section id="priority-flow">
+<h2>THE EVALUATION FLOW</h2>
+<p>When a request arrives, API Gateway:</p>
+
+<ol>
+<li>Looks at all routing rules in <strong>priority order</strong> (lowest to highest)</li>
+<li>Checks each rule's <strong>conditions</strong> (headers, base path, or both)</li>
+<li>Stops at the <strong>FIRST match</strong> - executes that rule's action</li>
+<li>If no rules match, falls back to API mappings (depending on routing mode)</li>
+</ol>
+
+<h3>📋 Key Rules About Priority</h3>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Unique priorities</td>
+<td>No two rules can have the same priority number</td>
+</tr>
+<tr>
+<td>Leave gaps</td>
+<td>Use 10, 20, 30 instead of 1,2,3 - makes reordering easier</td>
+</tr>
+<tr>
+<td>Default/catch-all</td>
+<td>Use a high number (e.g., 500) for rules with no conditions</td>
+</tr>
+<tr>
+<td>First match wins</td>
+<td>Evaluation stops at first matching rule</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section id="priority-example">
+<h2>💡 REAL-WORLD EXAMPLE</h2>
+<h3>Scenario: API Versioning with A/B Testing</h3>
+
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Conditions</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>10</td>
+<td>Header: x-version = beta</td>
+<td>Route to Beta API</td>
+</tr>
+<tr>
+<td>20</td>
+<td>Header: x-version = v2</td>
+<td>Route to V2 API</td>
+</tr>
+<tr>
+<td>30</td>
+<td>Path starts with /v2/*</td>
+<td>Route to V2 API</td>
+</tr>
+<tr>
+<td>40</td>
+<td>Path starts with /v1/*</td>
+<td>Route to V1 API</td>
+</tr>
+<tr>
+<td>500</td>
+<td>No conditions (catch-all)</td>
+<td>Route to V1 API</td>
+</tr>
+</tbody>
+</table>
+
+<h3>What Happens:</h3>
+<table>
+<thead>
+<tr>
+<th>Request</th>
+<th>Path</th>
+<th>Headers</th>
+<th>Result</th>
+<th>Why?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>#1</td>
+<td>/api/users</td>
+<td>x-version: beta</td>
+<td>Beta API</td>
+<td>Priority 10 matches first</td>
+</tr>
+<tr>
+<td>#2</td>
+<td>/v2/orders</td>
+<td>(none)</td>
+<td>V2 API</td>
+<td>Priority 30 matches</td>
+</tr>
+<tr>
+<td>#3</td>
+<td>/v1/products</td>
+<td>(none)</td>
+<td>V1 API</td>
+<td>Priority 40 matches</td>
+</tr>
+<tr>
+<td>#4</td>
+<td>/unknown</td>
+<td>(none)</td>
+<td>V1 API</td>
+<td>Falls to catch-all (500)</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section id="priority-best">
+<h2>🎯 BEST PRACTICES</h2>
+
+<div class="grid-2">
+<div class="card">
+<h4>✅ Do This</h4>
+<ul>
+<li><strong>Leave gaps</strong> between priorities (10, 20, 30) - gives room to insert new rules</li>
+<li><strong>Use high numbers</strong> for catch-all rules (500+) - ensures specific rules match first</li>
+<li><strong>Test in non-production</strong> first - priority changes impact live traffic immediately</li>
+<li><strong>Monitor with logs</strong> - Use <code>$context.customDomain.routingRuleIdMatched</code></li>
+</ul>
+</div>
+<div class="card" style="border-left-color:#ef4444">
+<h4>❌ Avoid This</h4>
+<ul>
+<li>Using consecutive numbers (1,2,3,4) - hard to reorder</li>
+<li>Changing priorities in production without testing</li>
+<li>Having overlapping conditions without clear priority</li>
+<li>Forgetting to add a catch-all rule</li>
+</ul>
+</div>
+</div>
+
+<h3>⚠️ Important Notes</h3>
+<div class="note-box">
+<span class="note-title"><i class="fa-solid fa-exclamation-triangle"></i> Critical Points</span>
+<ul>
+<li><strong>Evaluation stops at first match</strong> - Even if a request matches multiple rules, only the highest priority (lowest number) matching rule executes</li>
+<li><strong>Conditions must ALL match</strong> - If a rule has multiple conditions, they must ALL be true</li>
+<li><strong>No match = 403</strong> - Without a default/catch-all rule, unmatched requests return 403 Forbidden</li>
+<li><strong>Changes take effect immediately</strong> - Reordering rules instantly affects traffic</li>
+</ul>
+</div>
+</section>
+
+<footer style="margin-top:4rem;border-top:1px solid var(--border);padding-top:2rem;color:var(--text-secondary);font-size:0.9rem">
+<p>AWS API Gateway Documentation</p>
+<p>Integration, Default Routes & Priority Guide</p>
+<p>Built with 💚</p>
+</footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<script>
+document.querySelectorAll('.nav-link').forEach(link=>{
+link.addEventListener('click',function(){
+document.querySelectorAll('.nav-link').forEach(l=>l.classList.remove('active'));
+this.classList.add('active');
+});
+});
+</script>
+</body>
+</html>

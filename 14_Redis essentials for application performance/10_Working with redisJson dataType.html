@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RedisJSON Notes</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>RedisJSON & JSONPath in Node.js</h1>
+      </header>
+
+      <p class="intro">
+        <span class="highlight">RedisJSON</span> (provided by the Redis Stack or
+        the ReJSON module) allows you to store, update, and retrieve JSON
+        documents inside Redis, leveraging its speed while enabling complex
+        document manipulation via <span class="highlight">JSONPath</span>.
+        <br />
+        Here is a comprehensive guide on working with RedisJSON in Node.js using
+        the modern <span class="highlight">node-redis client</span>.
+      </p>
+
+      <section id="setup">
+        <h2>💾 Setting Up RedisJSON</h2>
+        <p>
+          Before you start, ensure your Redis server is running the Redis Stack
+          (which includes the ReJSON module).
+        </p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">import</span> { createClient } <span class="keyword">from</span> <span class="string">"redis"</span>;
+
+<span class="comment">// Connect to Redis</span>
+<span class="keyword">async function</span> <span class="function-name">connectClient</span>() {
+    <span class="keyword">const</span> client = <span class="function-name">createClient</span>();
+    client.<span class="property">on</span>(<span class="string">'error'</span>, <span class="variable">err</span> => <span class="function-name">console</span>.<span class="property">error</span>(<span class="string">'Redis Client Error:'</span>, <span class="variable">err</span>));
+    <span class="keyword">await</span> client.<span class="function-name">connect</span>();
+    <span class="keyword">return</span> client;
+}
+</pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section id="basics">
+        <h2>1. Basics: Setting and Getting JSON</h2>
+        <p>
+          The core commands are <span class="command">JSON.SET</span> and
+          <span class="command">JSON.GET</span>. In the Node.js client, these
+          are accessed via <span class="method">client.json.set()</span> and
+          <span class="method">client.json.get()</span>.
+        </p>
+
+        <h3>📌 Syntax & Definition</h3>
+        <p>
+          <span class="method">client.json.set(key, path, value)</span>: Sets
+          the <span class="variable">value</span> at a specific
+          <span class="variable">path</span> within the JSON document stored at
+          <span class="variable">key</span>.
+        </p>
+        <p>
+          <strong>Path:</strong> This is a
+          <span class="highlight">JSONPath expression</span> that indicates
+          where in the document to place the value. For setting the **entire
+          document**, you must use the root path dollar sign:
+          <span class="path-symbol">$</span> or
+          <span class="path-symbol">. (dot)</span>.
+        </p>
+
+        <h3>📝 Example: Setting Data</h3>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">setJsonExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> key = <span class="string">'user:201'</span>;
+    <span class="keyword">const</span> userProfile = {
+        <span class="property">name</span>: <span class="string">"Alice"</span>,
+        <span class="property">age</span>: <span class="number">30</span>,
+        <span class="property">address</span>: {
+            <span class="property">city</span>: <span class="string">"New York"</span>,
+            <span class="property">zip</span>: <span class="number">10001</span>
+        },
+        <span class="property">skills</span>: [<span class="string">"Node.js"</span>, <span class="string">"Redis"</span>, <span class="string">"JSONPath"</span>]
+    };
+
+    <span class="comment">// Store the entire object at the root path '$'</span>
+    <span class="keyword">const</span> setResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">set</span>(<span class="variable">key</span>, <span class="string">'$'</span>, <span class="variable">userProfile</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`JSON SET result: ${setResult}`</span>);
+    <span class="comment">// Output: JSON SET result: OK</span>
+}
+</pre>
+        </div>
+
+        <h3>📝 Example: Getting Data (Entire Document)</h3>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">getJsonExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> key = <span class="string">'user:201'</span>;
+
+    <span class="comment">// Retrieve the entire document. The path is optional here,</span>
+    <span class="comment">// but internally it defaults to the root path '$'.</span>
+    <span class="keyword">const</span> profile = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">key</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">`Full Profile:`</span>, <span class="variable">profile</span>);
+    <span class="comment">// Output: Full Profile: { name: 'Alice', age: 30, address: { city: 'New York', zip: 10001 }, skills: [ 'Node.js', 'Redis', 'JSONPath' ] }</span>
+}
+</pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section id="jsonpath">
+        <h2>2. Deep Dive: JSONPath</h2>
+        <p>
+          <span class="highlight">JSONPath</span> is an expression language for
+          addressing specific elements, or nodes, in a JSON document. It's the
+          key to working efficiently with RedisJSON.
+        </p>
+
+        <h3>🔑 Key JSONPath Syntax Elements</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Element</th>
+              <th>Definition</th>
+              <th>Example Path</th>
+              <th>Resulting Element</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path-symbol">$</td>
+              <td>Root object/element.</td>
+              <td>$</td>
+              <td>The whole JSON object.</td>
+            </tr>
+            <tr>
+              <td class="path-symbol">.name</td>
+              <td>Property selector (dot notation).</td>
+              <td>$.name</td>
+              <td>The value of the name key at the root.</td>
+            </tr>
+            <tr>
+              <td class="path-symbol">['name']</td>
+              <td>Property selector (bracket notation).</td>
+              <td>$.['name']</td>
+              <td>Same as above.</td>
+            </tr>
+            <tr>
+              <td class="path-symbol">[index]</td>
+              <td>Array index selector.</td>
+              <td>$.skills[0]</td>
+              <td>The first element in the skills array.</td>
+            </tr>
+            <tr>
+              <td class="path-symbol">.*</td>
+              <td>All elements/properties at the current level.</td>
+              <td>$.address.*</td>
+              <td>Values of city and zip.</td>
+            </tr>
+            <tr>
+              <td class="path-symbol">..</td>
+              <td>Deep scan/recursive descent.</td>
+              <td>..zip</td>
+              <td>Finds the zip property anywhere in the document.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>📝 Example: Getting Specific Properties</h3>
+        <p>
+          You provide the key and the path (or an array of paths) in the get
+          options:
+        </p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">getSpecificPathsExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> key = <span class="string">'user:201'</span>;
+
+    <span class="comment">// 1. Get a single property (Name)</span>
+    <span class="keyword">const</span> nameResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">key</span>, { <span class="property">path</span>: <span class="string">'$.name'</span> });
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">`Name:`</span>, <span class="variable">nameResult</span>);
+    <span class="comment">// Output: Name: "Alice"</span>
+
+    <span class="comment">// 2. Get a nested property (City)</span>
+    <span class="keyword">const</span> cityResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">key</span>, { <span class="property">path</span>: <span class="string">'$.address.city'</span> });
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">`City:`</span>, <span class="variable">cityResult</span>);
+    <span class="comment">// Output: City: "New York"</span>
+
+    <span class="comment">// 3. Get an array element (First skill)</span>
+    <span class="keyword">const</span> skillResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">key</span>, { <span class="property">path</span>: <span class="string">'$.skills[0]'</span> });
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">`First Skill:`</span>, <span class="variable">skillResult</span>);
+    <span class="comment">// Output: First Skill: "Node.js"</span>
+}
+</pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section id="modifying">
+        <h2>3. Modifying Data with JSONPath</h2>
+        <p>
+          RedisJSON provides commands for **atomic modification** without
+          retrieving and re-setting the entire document.
+        </p>
+
+        <h3>📌 Key Modification Commands</h3>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Node.js Method</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="command">JSON.SET</td>
+              <td class="method">client.json.set(key, path, value)</td>
+              <td>Update or create a specific value at a path.</td>
+            </tr>
+            <tr>
+              <td class="command">JSON.DEL</td>
+              <td class="method">client.json.del(key, path)</td>
+              <td>Delete a specific value/element at a path.</td>
+            </tr>
+            <tr>
+              <td class="command">JSON.ARRAPPEND</td>
+              <td class="method">
+                client.json.arrAppend(key, path, ...values)
+              </td>
+              <td>Append elements to an array at a path.</td>
+            </tr>
+            <tr>
+              <td class="command">JSON.NUMINCRBY</td>
+              <td class="method">client.json.numIncrBy(key, path, value)</td>
+              <td>Increment a number at a path.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>📝 Example: Modifying Data</h3>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">modifyJsonExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> key = <span class="string">'user:201'</span>;
+
+    <span class="comment">// 1. Increment a value (Age)</span>
+    <span class="keyword">const</span> ageResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">numIncrBy</span>(<span class="variable">key</span>, <span class="string">'$.age'</span>, <span class="number">5</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`New Age (after +5): ${ageResult}`</span>);
+    <span class="comment">// Output: New Age (after +5): [ 35 ]</span>
+
+    <span class="comment">// 2. Update a nested value (City)</span>
+    <span class="keyword">const</span> updateResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">set</span>(<span class="variable">key</span>, <span class="string">'$.address.city'</span>, <span class="string">'San Francisco'</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`City Update Result: ${updateResult}`</span>);
+    <span class="comment">// Output: City Update Result: OK</span>
+
+    <span class="comment">// 3. Append to an array (Add a skill)</span>
+    <span class="keyword">const</span> appendResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrAppend</span>(<span class="variable">key</span>, <span class="string">'$.skills'</span>, <span class="string">'GraphQL'</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`New Skills Array Length: ${appendResult}`</span>);
+    <span class="comment">// Output: New Skills Array Length: 4</span>
+
+    <span class="comment">// 4. Delete an element (Remove the first skill)</span>
+    <span class="keyword">const</span> delResult = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">del</span>(<span class="variable">key</span>, <span class="string">'$.skills[0]'</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`Delete Result (1=success): ${delResult}`</span>);
+    <span class="comment">// Output: Delete Result (1=success): 1</span>
+}
+</pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section id="combined-example">
+        <h2>🚀 Putting It All Together</h2>
+        <p>
+          Here is a complete, runnable example (assuming you have a Redis server
+          running locally).
+        </p>
+
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">import</span> { createClient } <span class="keyword">from</span> <span class="string">"redis"</span>;
+
+<span class="keyword">async function</span> <span class="function-name">runRedisJsonDemo</span>() {
+    <span class="keyword">const</span> client = <span class="function-name">createClient</span>();
+    client.<span class="property">on</span>(<span class="string">'error'</span>, <span class="variable">err</span> => <span class="function-name">console</span>.<span class="property">error</span>(<span class="string">'Redis Client Error:'</span>, <span class="variable">err</span>));
+    <span class="keyword">await</span> client.<span class="function-name">connect</span>();
+
+    <span class="keyword">const</span> key = <span class="string">'employee:123'</span>;
+    
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'--- 1. SET Initial Data ---'</span>);
+    <span class="keyword">const</span> employeeData = {
+        <span class="property">name</span>: <span class="string">"Bob"</span>,
+        <span class="property">department</span>: <span class="string">"Engineering"</span>,
+        <span class="property">salary</span>: <span class="number">80000</span>,
+        <span class="property">projects</span>: [<span class="string">"Project Alpha"</span>, <span class="string">"Project Beta"</span>]
+    };
+    <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">set</span>(<span class="variable">key</span>, <span class="string">'$'</span>, <span class="variable">employeeData</span>);
+
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'\n--- 2. GET Specific Path (Department) ---'</span>);
+    <span class="comment">// Using JSONPath '$.department' to select the value of the 'department' key</span>
+    <span class="keyword">const</span> dept = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">key</span>, { <span class="property">path</span>: <span class="string">'$.department'</span> });
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`Employee's Department: ${dept}`</span>);
+    <span class="comment">// Output: "Engineering"</span>
+
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'\n--- 3. Array APPEND (Add a Project) ---'</span>);
+    <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrAppend</span>(<span class="variable">key</span>, <span class="string">'$.projects'</span>, <span class="string">'Project Gamma'</span>);
+    
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'\n--- 4. Number INCREMENT (Give a Raise) ---'</span>);
+    <span class="comment">// Increment salary by 5000</span>
+    <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">numIncrBy</span>(<span class="variable">key</span>, <span class="string">'$.salary'</span>, <span class="number">5000</span>);
+    
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'\n--- 5. GET Final Document ---'</span>);
+    <span class="keyword">const</span> finalData = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">key</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'Final Employee Data:'</span>, <span class="variable">finalData</span>);
+    <span class="comment">/*
+        Output: Final Employee Data: {
+          name: 'Bob',
+          department: 'Engineering',
+          salary: 85000,
+          projects: [ 'Project Alpha', 'Project Beta', 'Project Gamma' ]
+        }
+    */</span>
+
+    <span class="keyword">await</span> client.<span class="function-name">del</span>(<span class="variable">key</span>); <span class="comment">// Clean up the key</span>
+    <span class="keyword">await</span> client.<span class="function-name">quit</span>();
+}
+
+<span class="comment">// runRedisJsonDemo().catch(console.error);</span>
+
+<span class="function-name">console</span>.<span class="property">log</span>(<span class="string">"Run the runRedisJsonDemo function to see the output!"</span>);
+</pre>
+        </div>
+        <p class="final-note">
+          This covers the essential concepts of RedisJSON, its syntax in
+          Node.js, and the power of JSONPath for granular data access and
+          manipulation.
+          <br /><br />
+          The following sections cover **advanced features** of JSONPath:
+          filtering arrays and the deep scan operator (..). These are powerful
+          tools for retrieving specific data without knowing the exact structure
+          or index.
+        </p>
+      </section>
+
+      <hr />
+
+      <section id="advanced-jsonpath">
+        <h2>🔎 Advanced JSONPath Features</h2>
+
+        <h3>
+          1. Array Filtering (<span class="path-symbol"
+            >[?(&lt;expression&gt;)]</span
+          >)
+        </h3>
+        <p>
+          This feature allows you to select only the array elements that satisfy
+          a specific condition. It's often referred to as a **filter
+          expression**.
+        </p>
+
+        <h4>📌 Syntax & Definition</h4>
+        <ul>
+          <li>
+            <span class="path-symbol">[?(&lt;expression&gt;)]</span>: The filter
+            expression always starts with
+            <span class="path-symbol">?()</span> and uses the current element
+            (<span class="path-symbol">@</span>) to check a condition.
+          </li>
+          <li>
+            <span class="path-symbol">@</span>: Represents the current node
+            being processed by the filter.
+          </li>
+        </ul>
+
+        <h4>📝 Example Setup</h4>
+        <p>
+          Let's assume we have a key named
+          <span class="highlight">inventory</span> storing a list of products:
+        </p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">const</span> inventoryKey = <span class="string">'store:inventory'</span>;
+<span class="keyword">const</span> inventoryData = {
+    <span class="property">products</span>: [
+        { <span class="property">id</span>: <span class="number">101</span>, <span class="property">name</span>: <span class="string">"Laptop"</span>, <span class="property">price</span>: <span class="number">1200</span>, <span class="property">stock</span>: <span class="number">5</span> },
+        { <span class="property">id</span>: <span class="number">102</span>, <span class="property">name</span>: <span class="string">"Mouse"</span>, <span class="property">price</span>: <span class="number">25</span>, <span class="property">stock</span>: <span class="number">50</span> },
+        { <span class="property">id</span>: <span class="number">103</span>, <span class="property">name</span>: <span class="string">"Keyboard"</span>, <span class="property">price</span>: <span class="number">80</span>, <span class="property">stock</span>: <span class="number">12</span> },
+        { <span class="property">id</span>: <span class="number">104</span>, <span class="property">name</span>: <span class="string">"Monitor"</span>, <span class="property">price</span>: <span class="number">300</span>, <span class="property">stock</span>: <span class="number">0</span> } <span class="comment">// Out of stock</span>
+    ]
+};
+<span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">set</span>(<span class="variable">inventoryKey</span>, <span class="string">'$'</span>, <span class="variable">inventoryData</span>);
+</pre>
+        </div>
+
+        <h4>📝 Example: Filtering</h4>
+        <p>
+          <strong>Goal:</strong> Retrieve all products that are currently **in
+          stock** (where stock is greater than 0).
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>JSONPath Expression</th>
+              <th>Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path-symbol">$.products[?(@.stock > 0)]</td>
+              <td>
+                Selects all elements in the
+                <span class="variable">products</span> array where the
+                <span class="variable">stock</span> property of the current
+                element (<span class="path-symbol">@.stock</span>) is greater
+                than <span class="number">0</span>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">filterArrayExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> inventoryKey = <span class="string">'store:inventory'</span>;
+    
+    <span class="comment">// Path: $.products[?(@.stock > 0)]</span>
+    <span class="keyword">const</span> inStockProducts = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">inventoryKey</span>, {
+        <span class="property">path</span>: <span class="string">'$.products[?(@.stock > 0)]'</span>
+    });
+    
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'In-Stock Products:'</span>, <span class="variable">inStockProducts</span>);
+    <span class="comment">/* Output: 
+    [
+        {"id":101,"name":"Laptop","price":1200,"stock":5},
+        {"id":102,"name":"Mouse","price":25,"stock":50},
+        {"id":103,"name":"Keyboard","price":80,"stock":12}
+    ] 
+    */</span>
+}
+</pre>
+        </div>
+
+        <h3 style="margin-top: 30px">
+          2. Deep Scan Operator (<span class="path-symbol">..</span>)
+        </h3>
+        <p>
+          The deep scan operator allows you to search for a property anywhere in
+          the document's hierarchy, regardless of its depth.
+        </p>
+
+        <h4>📌 Syntax & Definition</h4>
+        <ul>
+          <li>
+            <span class="path-symbol">..</span>: Searches for the subsequent
+            element/property name **recursively** from the current point
+            downward.
+          </li>
+        </ul>
+
+        <h4>📝 Example Setup</h4>
+        <p>
+          Let's assume a nested structure for an organization's employee list:
+        </p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">const</span> orgKey = <span class="string">'org:structure'</span>;
+<span class="keyword">const</span> orgData = {
+    <span class="property">company</span>: <span class="string">"TechCorp"</span>,
+    <span class="property">teams</span>: [
+        { 
+            <span class="property">name</span>: <span class="string">"Backend"</span>,
+            <span class="property">members</span>: [{ <span class="property">id</span>: <span class="number">1</span>, <span class="property">role</span>: <span class="string">"Engineer"</span> }] 
+        },
+        { 
+            <span class="property">name</span>: <span class="string">"Frontend"</span>,
+            <span class="property">members</span>: [{ <span class="property">id</span>: <span class="number">2</span>, <span class="property">role</span>: <span class="string">"Lead"</span> }, { <span class="property">id</span>: <span class="number">3</span>, <span class="property">role</span>: <span class="string">"Engineer"</span> }] 
+        }
+    ]
+};
+<span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">set</span>(<span class="variable">orgKey</span>, <span class="string">'$'</span>, <span class="variable">orgData</span>);
+</pre>
+        </div>
+
+        <h4>📝 Example: Deep Scan</h4>
+        <p>
+          <strong>Goal:</strong> Retrieve all employee **IDs** regardless of
+          which team they belong to.
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>JSONPath Expression</th>
+              <th>Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path-symbol">$.teams..id</td>
+              <td>
+                Starts at <span class="path-symbol">$.teams</span>, then
+                recursively searches (<span class="path-symbol">..</span>) for
+                any nested property named <span class="variable">id</span>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">deepScanExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> orgKey = <span class="string">'org:structure'</span>;
+
+    <span class="comment">// Path: $..id</span>
+    <span class="keyword">const</span> allIds = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">orgKey</span>, {
+        <span class="property">path</span>: <span class="string">'$..id'</span>
+    });
+    
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'All IDs found:'</span>, <span class="variable">allIds</span>);
+    <span class="comment">// Output: [ 1, 2, 3 ]</span>
+    
+    <span class="comment">// Note: The Deep Scan can also be used with filtering!</span>
+    <span class="comment">// Path: $..[?(@.role == "Lead")]</span>
+    <span class="keyword">const</span> leadEmployee = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">orgKey</span>, {
+        <span class="property">path</span>: <span class="string">'$..[?(@.role == "Lead")]'</span>
+    });
+
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'Lead Employee:'</span>, <span class="variable">leadEmployee</span>);
+    <span class="comment">/* Output:
+    [
+      { id: 2, role: 'Lead' }
+    ]
+    */</span>
+}
+</pre>
+        </div>
+
+        <h3 style="margin-top: 30px">🛠️ Combined Usage Example</h3>
+        <p>You can combine these features to perform powerful queries.</p>
+        <p>
+          <strong>Goal:</strong> Find the **price** of any product with a
+          **stock count greater than 10**, anywhere in the inventory structure.
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>JSONPath Expression</th>
+              <th>Breakdown</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path-symbol">$.products[?(@.stock > 10)].price</td>
+              <td>
+                1. <span class="path-symbol">$.products</span>: Start with the
+                products array. 2.
+                <span class="path-symbol">[?(@.stock > 10)]</span>: Filter array
+                to items where stock &gt; 10. 3.
+                <span class="path-symbol">.price</span>: Select the price
+                property from the filtered items.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">combinedExample</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> inventoryKey = <span class="string">'store:inventory'</span>;
+    
+    <span class="keyword">const</span> highStockPrices = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">get</span>(<span class="variable">inventoryKey</span>, {
+        <span class="property">path</span>: <span class="string">'$.products[?(@.stock > 10)].price'</span>
+    });
+    
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="string">'Prices of high-stock items:'</span>, <span class="variable">highStockPrices</span>);
+    <span class="comment">// Output: [ 25, 80 ] (From Mouse and Keyboard)</span>
+}
+</pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section id="array-operations">
+        <h2>Common Array Operations in RedisJSON</h2>
+        <p>
+          Working with arrays in RedisJSON documents is extremely efficient, as
+          it provides dedicated commands for managing arrays atomically—meaning
+          you can modify the array without reading, deserializing, modifying,
+          and rewriting the entire JSON document.
+        </p>
+
+        <h3>1. Array Setup and Core Operations</h3>
+        <p>We will use a common JSON structure for demonstration:</p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="comment">// Key: 'user:tasks'</span>
+<span class="keyword">const</span> initialData = {
+    <span class="property">user</span>: <span class="string">"Charlie"</span>,
+    <span class="property">todos</span>: [<span class="string">"Buy groceries"</span>, <span class="string">"Finish report"</span>, <span class="string">"Call plumber"</span>],
+    <span class="property">completed</span>: []
+};
+<span class="comment">// client.json.set('user:tasks', '$', initialData);</span>
+</pre>
+        </div>
+
+        <h4>
+          ✅
+          <span class="method"
+            >client.json.arrAppend(key, path, ...values)</span
+          >
+        </h4>
+        <p>
+          <strong>Definition:</strong> Appends one or more
+          <span class="variable">values</span> to the **end** of the array
+          located at the specified <span class="variable">path</span>.
+        </p>
+        <p>
+          <strong>Path:</strong> Targets the array itself (e.g.,
+          <span class="path-symbol">$.todos</span>).
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Code</th>
+              <th>Result (Length)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Append one item</td>
+              <td class="method">
+                client.json.arrAppend('user:tasks', '$.todos', 'Email boss')
+              </td>
+              <td>4</td>
+            </tr>
+            <tr>
+              <td>Append multiple items</td>
+              <td class="method">
+                client.json.arrAppend('user:tasks', '$.completed', 'Nap', 'Eat')
+              </td>
+              <td>2</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>
+          ✅
+          <span class="method"
+            >client.json.arrInsert(key, path, index, ...values)</span
+          >
+        </h4>
+        <p>
+          <strong>Definition:</strong> Inserts one or more
+          <span class="variable">values</span> into the array at a specified
+          **zero-based** <span class="variable">index</span>.
+        </p>
+        <ul>
+          <li>
+            An index of <span class="number">0</span> inserts at the beginning.
+          </li>
+          <li>
+            An index of <span class="number">-1</span> inserts **before** the
+            last element.
+          </li>
+          <li>
+            An index equal to the current array length inserts at the end (same
+            as <span class="method">arrAppend</span>).
+          </li>
+        </ul>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Code</th>
+              <th>Array State (<span class="path-symbol">$.todos</span>)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Insert at start</td>
+              <td class="method">
+                client.json.arrInsert('user:tasks', '$.todos', 0, 'New priority
+                task')
+              </td>
+              <td>["New priority task", "Buy groceries", ...]</td>
+            </tr>
+            <tr>
+              <td>Insert in middle</td>
+              <td class="method">
+                client.json.arrInsert('user:tasks', '$.todos', 2, 'Mid-task
+                break')
+              </td>
+              <td>[..., "Finish report", "Mid-task break", "Call plumber"]</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>
+          ✅ <span class="method">client.json.arrPop(key, path, index?)</span>
+        </h4>
+        <p>
+          <strong>Definition:</strong> **Removes and returns** the element at a
+          specific <span class="variable">index</span>. If
+          <span class="variable">index</span> is omitted, it defaults to the
+          **last** element (pop from the end).
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Action</th>
+              <th>Code</th>
+              <th>Returned Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Pop last item</td>
+              <td class="method">
+                client.json.arrPop('user:tasks', '$.todos')
+              </td>
+              <td>"Call plumber" (original value)</td>
+            </tr>
+            <tr>
+              <td>Pop first item</td>
+              <td class="method">
+                client.json.arrPop('user:tasks', '$.todos', 0)
+              </td>
+              <td>"Buy groceries"</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>
+          ✅
+          <span class="method"
+            >client.json.arrTrim(key, path, start, stop)</span
+          >
+        </h4>
+        <p>
+          <strong>Definition:</strong> **Trims** the array to contain only the
+          elements between the <span class="variable">start</span> and
+          <span class="variable">stop</span> indices (**inclusive**). Elements
+          outside this range are removed.
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Array State</th>
+              <th>Start</th>
+              <th>Stop</th>
+              <th>Result (<span class="path-symbol">$.todos</span>)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>["A", "B", "C", "D"]</td>
+              <td>1</td>
+              <td>2</td>
+              <td>["B", "C"]</td>
+            </tr>
+            <tr>
+              <td>["A", "B", "C", "D"]</td>
+              <td>0</td>
+              <td>0</td>
+              <td>["A"]</td>
+            </tr>
+            <tr>
+              <td>["A", "B", "C", "D"]</td>
+              <td>1</td>
+              <td>-1</td>
+              <td>["B", "C", "D"]</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>2. Array Metadata and Utility</h3>
+
+        <h4>✅ <span class="method">client.json.arrLen(key, path)</span></h4>
+        <p>
+          <strong>Definition:</strong> Returns the **length** (number of
+          elements) of the array located at the
+          <span class="variable">path</span>.
+        </p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="comment">// If $.todos has 3 items</span>
+<span class="keyword">const</span> len = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrLen</span>(<span class="string">'user:tasks'</span>, <span class="string">'$.todos'</span>); 
+<span class="function-name">console</span>.<span class="property">log</span>(<span class="variable">len</span>); <span class="comment">// Output: [ 3 ] (note: array response, even for a single value)</span>
+</pre>
+        </div>
+
+        <h4>
+          ✅
+          <span class="method"
+            >client.json.arrIndex(key, path, value, start?, stop?)</span
+          >
+        </h4>
+        <p>
+          <strong>Definition:</strong> Returns the zero-based **index** of the
+          **first appearance** of <span class="variable">value</span> in the
+          array. Optional <span class="variable">start</span> and
+          <span class="variable">stop</span> indices for search range.
+        </p>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="comment">// Assume $.todos is ["Buy groceries", "Finish report", "Call plumber"]</span>
+<span class="keyword">const</span> index = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrIndex</span>(<span class="string">'user:tasks'</span>, <span class="string">'$.todos'</span>, <span class="string">'Finish report'</span>);
+<span class="function-name">console</span>.<span class="property">log</span>(<span class="variable">index</span>); <span class="comment">// Output: [ 1 ]</span>
+</pre>
+        </div>
+
+        <h3>3. Deleting Elements</h3>
+
+        <h4>✅ <span class="method">client.json.del(key, path)</span></h4>
+        <p>
+          <strong>Definition:</strong> Deletes the value/element located at the
+          specified <span class="variable">path</span>. When targeting an array
+          element (e.g., <span class="path-symbol">$.todos[1]</span>), that
+          element is removed, and the array is shifted.
+        </p>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Action</th>
+              <th>Effect</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path-symbol">$.todos[1]</td>
+              <td class="method">
+                client.json.del('user:tasks', '$.todos[1]')
+              </td>
+              <td>Deletes "Finish report" (index 1). The array shrinks.</td>
+            </tr>
+            <tr>
+              <td class="path-symbol">$.completed</td>
+              <td class="method">
+                client.json.del('user:tasks', '$.completed')
+              </td>
+              <td>
+                Deletes the entire <span class="variable">completed</span> array
+                property.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🚀 Complete Array Example</h3>
+        <div class="code-container">
+          <div class="language-tag">JavaScript</div>
+          <pre class="code-block">
+<span class="keyword">async function</span> <span class="function-name">arrayWorkflow</span>(<span class="variable">client</span>) {
+    <span class="keyword">const</span> key = <span class="string">'list:demo'</span>;
+    
+    <span class="comment">// START: [10, 20, 30]</span>
+    <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">set</span>(<span class="variable">key</span>, <span class="string">'$'</span>, { <span class="property">numbers</span>: [<span class="number">10</span>, <span class="number">20</span>, <span class="number">30</span>] });
+
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`Initial Array: ${JSON.stringify(await client.json.get(key, { path: '$.numbers' }))}`</span>);
+    
+    <span class="comment">// 1. ARRAPPEND: Add 40 to the end</span>
+    <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrAppend</span>(<span class="variable">key</span>, <span class="string">'$.numbers'</span>, <span class="number">40</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`After Append: ${JSON.stringify(await client.json.get(key, { path: '$.numbers' }))}`</span>);
+    <span class="comment">// Array is now: [10, 20, 30, 40]</span>
+
+    <span class="comment">// 2. ARRINSERT: Insert 15 at index 1</span>
+    <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrInsert</span>(<span class="variable">key</span>, <span class="string">'$.numbers'</span>, <span class="number">1</span>, <span class="number">15</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`After Insert: ${JSON.stringify(await client.json.get(key, { path: '$.numbers' }))}`</span>);
+    <span class="comment">// Array is now: [10, 15, 20, 30, 40]</span>
+
+    <span class="comment">// 3. ARRPOP: Remove the element at index 3 (which is 30)</span>
+    <span class="keyword">const</span> poppedValue = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrPop</span>(<span class="variable">key</span>, <span class="string">'$.numbers'</span>, <span class="number">3</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`Popped Value: ${poppedValue}`</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`After Pop: ${JSON.stringify(await client.json.get(key, { path: '$.numbers' }))}`</span>);
+    <span class="comment">// Array is now: [10, 15, 20, 40]</span>
+
+    <span class="comment">// 4. ARRLEN: Get the new length</span>
+    <span class="keyword">const</span> length = <span class="keyword">await</span> client.<span class="property">json</span>.<span class="function-name">arrLen</span>(<span class="variable">key</span>, <span class="string">'$.numbers'</span>);
+    <span class="function-name">console</span>.<span class="property">log</span>(<span class="template-string">`Final Length: ${length[0]}`</span>);
+    
+    <span class="keyword">await</span> client.<span class="function-name">del</span>(<span class="variable">key</span>);
+}
+<span class="comment">// arrayWorkflow(client).catch(console.error);</span>
+</pre>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

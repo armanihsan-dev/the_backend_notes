@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CloudFront Cache Invalidation</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>CloudFront Cache Invalidation</h1>
+
+    <p>
+      CloudFront is Amazon Web Services' (AWS) Content Delivery Network (CDN)
+      service. Cache invalidation is the mechanism used to **force the removal
+      of content** from CloudFront's edge caches before its set expiration time
+      (Time-to-Live or TTL) is reached.
+    </p>
+    <p>
+      This is critical when you need users to immediately see updated content
+      from your origin server (e.g., an updated image, a new CSS file, or a
+      major bug fix).
+    </p>
+
+    <h2>1. The Need for Invalidation</h2>
+
+    <p>
+      CloudFront caches content in **Edge Locations** (global data centers) for
+      a specific duration, determined by the content's TTL, typically set via
+      <code class="str">Cache-Control</code> or
+      <code class="str">Expires</code> headers from your origin.
+    </p>
+
+    <ul>
+      <li>
+        <strong>Expiration (TTL):</strong> This is the **primary** way caching
+        is managed. Once the TTL expires, the next request for the object will
+        trigger CloudFront to send a request to the origin to check for a newer
+        version (a process called revalidation).
+      </li>
+      <li>
+        <strong>Invalidation:</strong> This is an **on-demand action** used to
+        remove or mark cached content as **stale immediately**, bypassing the
+        TTL. You use it when you update content on your origin server and need
+        the changes to propagate globally right away.
+      </li>
+    </ul>
+
+    <h2>2. The Invalidation Process</h2>
+
+    <p>
+      When you submit an invalidation request, CloudFront doesn't physically
+      delete the files from every edge location instantly. Instead, it marks
+      them as **invalid or stale**.
+    </p>
+
+    <p>The process generally follows these steps:</p>
+
+    <h3>Request Submission</h3>
+    <ul>
+      <li>
+        You initiate an invalidation request using the AWS Management Console,
+        the AWS Command Line Interface (CLI), or an AWS SDK (API call). You
+        specify the **object paths** you want to invalidate.
+      </li>
+      <li>
+        <strong>Specificity:</strong> You can invalidate specific files (e.g.,
+        <code class="str">/images/logo.png</code>) or use a wildcard (<code
+          class="str"
+          >*</code
+        >) to invalidate a directory or all content (e.g.,
+        <code class="str">/js/*</code> or <code class="str">/*</code>).
+      </li>
+    </ul>
+
+    <h3>Propagation and Re-caching</h3>
+    <ul>
+      <li>
+        <strong>Propagation:</strong> CloudFront receives the request and sends
+        a message to all of its Edge Locations globally, informing them that the
+        specified content paths are no longer valid.
+      </li>
+      <li>
+        <strong>Status Change:</strong> The status of the invalidation request
+        changes to **In Progress** and eventually to **Completed**. This
+        typically takes a few minutes to propagate across the entire network.
+      </li>
+      <li>
+        <strong>First Viewer Request (Post-Invalidation):</strong> The next time
+        a viewer requests one of the invalidated objects:
+        <ul>
+          <li>
+            The Edge Location finds the object but sees it is marked as
+            stale/invalid.
+          </li>
+          <li>
+            It immediately **forwards the request to your Origin Server**.
+          </li>
+          <li>
+            The Origin Server returns the latest version of the file to the Edge
+            Location.
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>Re-caching:</strong> The Edge Location stores the new version in
+        its cache and serves it to the viewer, starting a new TTL period for the
+        updated object. Subsequent requests will be served directly from the
+        cache again.
+      </li>
+    </ul>
+
+    <h2>3. Best Practice: Versioning vs. Invalidation</h2>
+
+    <p>
+      While invalidation is effective, it is an asynchronous process that can
+      take time to complete, and AWS charges for the number of invalidation
+      paths submitted above a certain free tier.
+    </p>
+    <p>
+      The recommended best practice to manage content updates is **File
+      Versioning** (or cache-busting):
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Strategy</th>
+          <th>Mechanism</th>
+          <th>CloudFront Action</th>
+          <th>Best For</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Versioning</strong></td>
+          <td>
+            Change the file name/path every time the content changes (e.g.,
+            <code>/js/app.v1.js</code> to <code>/js/app.v2.js</code>).
+          </td>
+          <td>
+            CloudFront treats the new URL as a completely **new object** and
+            fetches it from the origin on the first request. The old version
+            simply remains in the cache until its natural TTL expires.
+          </td>
+          <td>
+            <strong>Static assets</strong> (CSS, JS, images). It's instant and
+            avoids invalidation costs.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Invalidation</strong></td>
+          <td>
+            Explicitly tell CloudFront to mark an existing file path as stale.
+          </td>
+          <td>
+            CloudFront is forced to go back to the origin for the **next**
+            request for that specific path.
+          </td>
+          <td>
+            **Infrequently changing files** where the URL cannot be changed
+            (like the root <code>index.html</code>) or emergency removal of
+            content.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      In short, invalidations are an event-driven override of the standard
+      expiration (TTL)-based cache management.
+    </p>
+
+    <hr />
+
+    <h1>Working with CloudFront Invalidation via Node.js SDK</h1>
+
+    <p>
+      ...managing CloudFront cache invalidation in a Node.js environment using
+      the <code class="str">@aws-sdk/client-cloudfront</code> package. This
+      approach uses the AWS SDK v3, which relies on a service client and a
+      specific Command for each action.
+    </p>
+
+    <h2>📦 1. Installation</h2>
+
+    <p>First, ensure you have the correct package installed:</p>
+
+    <pre>
+        <code class="bash">
+<span class="kw">npm install</span> @aws-sdk/client-cloudfront
+        </code>
+    </pre>
+
+    <h2>⚙️ 2. Essential Components & Definitions</h2>
+
+    <p>
+      To create an invalidation request, you primarily use three components:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>CloudFrontClient</code></td>
+          <td>
+            The main client object. It is initialized once and handles
+            configuration (region, credentials, etc.) for all subsequent
+            CloudFront API calls.
+          </td>
+        </tr>
+        <tr>
+          <td><code>CreateInvalidationCommand</code></td>
+          <td>
+            The specific command used to submit a cache invalidation request to
+            CloudFront.
+          </td>
+        </tr>
+        <tr>
+          <td><code>InvalidationBatch</code></td>
+          <td>
+            The core data structure containing the request details: the list of
+            paths to invalidate and a unique reference ID.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Key Parameters for <code>InvalidationBatch</code></h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>CallerReference</code></td>
+          <td><code>string</code></td>
+          <td>Yes</td>
+          <td>
+            A unique, case-sensitive identifier for the invalidation request. A
+            timestamp (like <code>Date.now().toString()</code>) is often used to
+            guarantee uniqueness.
+          </td>
+        </tr>
+        <tr>
+          <td><code>Paths</code></td>
+          <td><code>object</code></td>
+          <td>Yes</td>
+          <td>Contains the list of file paths to invalidate.</td>
+        </tr>
+        <tr>
+          <td><code>Paths.Quantity</code></td>
+          <td><code>number</code></td>
+          <td>Yes</td>
+          <td>The number of paths in the <code>Paths.Items</code> array.</td>
+        </tr>
+        <tr>
+          <td><code>Paths.Items</code></td>
+          <td><code>string[]</code></td>
+          <td>Yes</td>
+          <td>
+            An array of file paths to invalidate (e.g.,
+            <code>["/index.html", "/assets/*"]</code>). Paths must start with a
+            <code>/</code>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>💻 3. Node.js Invalidation Example</h2>
+
+    <p>
+      The following is a clear example function in Node.js that handles both
+      specific file invalidation and full distribution invalidation using a
+      wildcard.
+    </p>
+
+    <pre>
+        <code class="javascript">
+<span class="kw">import</span> {
+  <span class="prop">CloudFrontClient</span>,
+  <span class="prop">CreateInvalidationCommand</span>,
+  <span class="prop">CreateInvalidationCommandInput</span>,
+} <span class="kw">from</span> <span class="str">"@aws-sdk/client-cloudfront"</span>;
+
+<span class="cmt">// Replace with your actual distribution ID</span>
+<span class="kw">const</span> <span class="prop">CLOUDFRONT_DISTRIBUTION_ID</span> = <span class="str">"E3R4EXAMPLEID123"</span>;
+
+<span class="cmt">// 1. Initialize the client (Note: CloudFront is a global service, </span>
+<span class="cmt">//    but the client usually defaults to us-east-1 if no region is specified).</span>
+<span class="kw">const</span> <span class="prop">client</span> = <span class="kw">new</span> <span class="prop">CloudFrontClient</span>({});
+
+/**
+ * Creates an invalidation request for the specified paths on a CloudFront distribution.
+ * * <span class="type">@param</span> <span class="prop">paths</span> An array of strings representing the cache paths to invalidate.
+ */
+<span class="kw">async function</span> <span class="dir">createCloudFrontInvalidation</span>(<span class="prop">paths</span>: <span class="type">string</span>[]): <span class="type">Promise</span>&lt;<span class="type">void</span>&gt; {
+  <span class="cmt">// Ensure paths are prefixed with a leading slash, as required by CloudFront API</span>
+  <span class="kw">const</span> <span class="prop">correctedPaths</span> = <span class="prop">paths</span>.<span class="dir">map</span>(<span class="prop">path</span> =&gt; <span class="prop">path</span>.<span class="dir">startsWith</span>(<span class="str">'/'</span>) ? <span class="prop">path</span> : <span class="str">`/${path}`</span>);
+
+  <span class="cmt">// 2. Define the input parameters for the command</span>
+  <span class="kw">const</span> <span class="prop">params</span>: <span class="prop">CreateInvalidationCommandInput</span> = {
+    <span class="prop">DistributionId</span>: <span class="prop">CLOUDFRONT_DISTRIBUTION_ID</span>,
+    <span class="prop">InvalidationBatch</span>: {
+      <span class="cmt">// Use a unique reference (e.g., timestamp) to identify this request</span>
+      <span class="prop">CallerReference</span>: <span class="dir">String</span>(<span class="dir">Date</span>.<span class="dir">now</span>()),
+      <span class="prop">Paths</span>: {
+        <span class="prop">Quantity</span>: <span class="prop">correctedPaths</span>.<span class="prop">length</span>,
+        <span class="prop">Items</span>: <span class="prop">correctedPaths</span>,
+      },
+    },
+  };
+
+  <span class="kw">try</span> {
+    <span class="cmt">// 3. Create and send the command</span>
+    <span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">CreateInvalidationCommand</span>(<span class="prop">params</span>);
+    <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Invalidation initiated successfully."</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Invalidation ID:"</span>, <span class="prop">response</span>.<span class="prop">Invalidation</span>?.<span class="prop">Id</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Status:"</span>, <span class="prop">response</span>.<span class="prop">Invalidation</span>?.<span class="prop">Status</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Location:"</span>, <span class="prop">response</span>.<span class="prop">Location</span>);
+
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">"Error creating CloudFront invalidation:"</span>, <span class="prop">error</span>);
+    <span class="cmt">// You might throw the error or handle it gracefully</span>
+    <span class="kw">throw</span> <span class="prop">error</span>; 
+  }
+}
+
+<span class="cmt">// --- USAGE EXAMPLES ---</span>
+
+/** * Case A: Invalidate Specific Files
+ * This is useful for single-file updates like a logo or a CSS file.
+ */
+<span class="kw">async function</span> <span class="dir">invalidateSpecificFiles</span>() {
+  <span class="kw">const</span> <span class="prop">specificPaths</span> = [
+    <span class="str">"/index.html"</span>,
+    <span class="str">"/assets/images/logo.png"</span>,
+    <span class="str">"/js/app.js"</span>,
+  ];
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"--- Invalidating Specific Files ---"</span>);
+  <span class="kw">await</span> <span class="dir">createCloudFrontInvalidation</span>(<span class="prop">specificPaths</span>);
+}
+
+/** * Case B: Invalidate a Whole Directory or Entire Distribution
+ * Use the wildcard character (*).
+ * Invalidate all files in the distribution (recommended path for a full flush).
+ */
+<span class="kw">async function</span> <span class="dir">invalidateEntireDistribution</span>() {
+  <span class="cmt">// The path "/*" invalidates all files under the distribution root.</span>
+  <span class="kw">const</span> <span class="prop">wildcardPath</span> = [<span class="str">"/*"</span>]; 
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"\n--- Invalidating Entire Distribution (/*) ---"</span>);
+  <span class="kw">await</span> <span class="dir">createCloudFrontInvalidation</span>(<span class="prop">wildcardPath</span>);
+}
+
+<span class="cmt">// Run the examples</span>
+<span class="cmt">// invalidateSpecificFiles();</span>
+<span class="cmt">// invalidateEntireDistribution(); </span>
+
+<span class="cmt">// Example of invalidating a folder and all its contents</span>
+<span class="kw">async function</span> <span class="dir">invalidateFolder</span>() {
+  <span class="kw">const</span> <span class="prop">folderPath</span> = [<span class="str">"/blog/posts/*"</span>]; 
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"\n--- Invalidating the 'blog/posts' directory ---"</span>);
+  <span class="kw">await</span> <span class="dir">createCloudFrontInvalidation</span>(<span class="prop">folderPath</span>);
+}
+
+<span class="cmt">// invalidateFolder();</span>
+        </code>
+    </pre>
+
+    <h3>Important Notes on Invalidation Paths:</h3>
+
+    <ul>
+      <li>
+        <strong>Leading Slash:</strong> All paths in the
+        <code class="prop">Items</code> array **must** begin with a forward
+        slash (<code class="str">/</code>).
+      </li>
+      <li>
+        <strong>Wildcard (<code class="str">*</code>):</strong> CloudFront
+        supports a single wildcard (<code class="str">*</code>) at the end of
+        the path.
+        <ul>
+          <li>
+            To invalidate **all files** in your distribution, use the path:
+            <code class="str">/*</code>
+          </li>
+          <li>
+            To invalidate all files in a specific folder, use:
+            <code class="str">/folder-name/*</code>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </body>
+</html>

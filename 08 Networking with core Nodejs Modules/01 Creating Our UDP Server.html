@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UDP Server & Client in Node.js</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap');
+
+        :root {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --header-color: #bb86fc;
+            --code-bg: #1e1e1e;
+            --comment-color: #6a9955;
+            --keyword-color: #569cd6;
+            --string-color: #ce9178;
+            --function-color: #dcdcaa;
+            --variable-color: #9cdcfe;
+            --number-color: #b5cea8;
+            --operator-color: #c586c0;
+            --block-bg: #2d2d2d;
+            --border-color: #444;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+            background-color: var(--block-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        h1, h2, h3 {
+            color: var(--header-color);
+            font-weight: 700;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 5px;
+            margin-top: 25px;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        strong {
+            color: var(--header-color);
+        }
+
+        .code-block {
+            background-color: var(--code-bg);
+            border-radius: 6px;
+            padding: 5px;
+            margin: 20px 0;
+            overflow-x: auto;
+            white-space: pre;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .language-js .token.comment { color: var(--comment-color); }
+        .language-js .token.keyword { color: var(--keyword-color); }
+        .language-js .token.string { color: var(--string-color); }
+        .language-js .token.function { color: var(--function-color); }
+        .language-js .token.variable, .language-js .token.constant { color: var(--variable-color); }
+        .language-js .token.number { color: var(--number-color); }
+        .language-js .token.operator { color: var(--operator-color); }
+        .language-js .token.punctuation { color: var(--text-color); }
+        .language-js .token.property { color: var(--text-color); }
+
+        .language-bash .token.comment { color: var(--comment-color); }
+        .language-bash .token.command { color: var(--variable-color); }
+        .language-bash .token.arguments { color: var(--text-color); }
+
+        .code-label {
+            display: block;
+            background-color: #333;
+            color: #eee;
+            padding: 5px 10px;
+            border-radius: 4px 4px 0 0;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: -15px;
+            position: relative;
+            top: 20px
+        }
+        
+        pre code {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>All about UDP-Server in nodejs</h1>
+        <p>A <strong>UDP server</strong> is a program that listens for and responds to UDP packets from clients, while a <strong>UDP client</strong> is a program that sends UDP packets to a server. Unlike TCP, UDP is a connectionless protocol, meaning there's no persistent connection established between the client and server.</p>
+        <p>A <strong>UDP request</strong> is a UDP packet sent by a client to a server, typically containing a query or data. A <strong>UDP response</strong> is a UDP packet sent by the server back to the client, containing the requested information or an acknowledgment.</p>
+
+        <h2>Node.js UDP Module</h2>
+        <p>Node.js provides the built-in <strong>dgram</strong> module for creating UDP servers and clients. The dgram module provides an API for sending and receiving datagrams (UDP packets).</p>
+        <div class="">
+    <h1>What is a Datagram in UDP?</h1>
+    <p>A <span class="highlight">datagram</span> is the basic unit of data sent over a UDP (User Datagram Protocol) connection.</p>
+    <p>Unlike TCP, UDP is connectionless, so it doesn’t establish or maintain a session between sender and receiver. Instead, it just sends self-contained packets of information called datagrams.</p>
+    <p>Each datagram is independent — meaning if you send 10 datagrams, they may arrive out of order, get lost, or be duplicated.</p>
+    <p>Think of a UDP datagram like a sealed envelope that contains both the letter (data) and the addressing information needed to deliver it.</p>
+
+    <h2>What a Single UDP Datagram Contains</h2>
+    <p>A single UDP datagram consists of two main parts:</p>
+
+    <ul>
+        <li>
+            <strong>Header (8 bytes total)</strong>
+            <p><strong>Source Port (16 bits)</strong> → The port of the sending application.</p>
+            <p><strong>Destination Port (16 bits)</strong> → The port of the receiving application (e.g., UDP server).</p>
+            <p><strong>Length (16 bits)</strong> → The total length of the UDP header + data in bytes.</p>
+            <p><strong>Checksum (16 bits)</strong> → Error-checking to verify data integrity (optional in IPv4, mandatory in IPv6).</p>
+        </li>
+        <li>
+            <strong>Data (Payload)</strong>
+            <p>This is the actual application message you want to send (e.g., a text message, command, JSON, binary data, etc).</p>
+            <p class="note">Maximum payload size is usually 65,507 bytes (65,535 - 8 byte header - 20 byte IP header).</p>
+        </li>
+    </ul>
+
+    <h2>In a UDP Server context</h2>
+    <p>When a UDP server receives a datagram, it gets:</p>
+    <ul>
+        <li>The data payload (the actual message).</li>
+        <li>The sender’s IP address and port number (from the transport layer), which it can use to send a reply.</li>
+    </ul>
+    <img src="./images/Single Datagram.png" width="100%" height="600px" alt="Single Datagram Unit">
+</div>
+        <h2>Creating a UDP Server in Node.js</h2>
+        <p>To create a UDP server in Node.js, you'll use the dgram module. Here's a breakdown of the key steps and syntax:</p>
+
+        <h3>Require the dgram module:</h3>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token keyword">const</span> <span class="token variable">dgram</span> <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'dgram'</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h3>Create a socket:</h3>
+        <p>Use <code>dgram.createSocket()</code> to create a new UDP socket. The argument 'udp4' specifies an IPv4 socket.</p>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token keyword">const</span> <span class="token variable">server</span> <span class="token operator">=</span> <span class="token function">dgram.createSocket</span><span class="token punctuation">(</span><span class="token string">'udp4'</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h3>Handle incoming messages:</h3>
+        <p>The <code>server.on('message', ...)</code> event is triggered whenever the server receives a UDP packet.</p>
+        <ul>
+            <li><strong>msg:</strong> The incoming message data as a Buffer.</li>
+            <li><strong>rinfo:</strong> An object containing the remote address information of the client (address, port, etc.).</li>
+        </ul>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'message'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">msg</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Server received: </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">msg</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string"> from </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token comment">// Send a response back to the client</span>
+  <span class="token keyword">const</span> <span class="token variable">response</span> <span class="token operator">=</span> <span class="token class-name">Buffer</span><span class="token punctuation">.</span><span class="token function">from</span><span class="token punctuation">(</span><span class="token string">'Hello from the server!'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">send</span><span class="token punctuation">(</span><span class="token variable">response</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+    <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span> <span class="token keyword">else</span> <span class="token punctuation">{</span>
+      <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">'Response sent!'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h3>Handle server listening:</h3>
+        <p>The <code>server.on('listening', ...)</code> event is fired when the server is ready to accept incoming datagrams. You can get the server's address and port using <code>server.address()</code>.</p>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'listening'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token keyword">const</span> <span class="token variable">address</span> <span class="token operator">=</span> <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">address</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`UDP Server listening on </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">address</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">address</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h3>Bind the server to a port:</h3>
+        <p>Use <code>server.bind()</code> to start listening for packets on a specific port. This is the final step to make the server active and ready to receive requests.</p>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token keyword">const</span> <span class="token variable">PORT</span> <span class="token operator">=</span> <span class="token number">41234</span><span class="token punctuation">;</span>
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token variable">PORT</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h2>Example: Complete UDP Server</h2>
+        <p>Here's a complete, commented example combining all the steps.</p>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token comment">// server.js</span>
+<span class="token keyword">const</span> <span class="token variable">dgram</span> <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'dgram'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword">const</span> <span class="token variable">server</span> <span class="token operator">=</span> <span class="token function">dgram.createSocket</span><span class="token punctuation">(</span><span class="token string">'udp4'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword">const</span> <span class="token variable">PORT</span> <span class="token operator">=</span> <span class="token number">41234</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Event fired when the server starts listening</span>
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'listening'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token keyword">const</span> <span class="token variable">address</span> <span class="token operator">=</span> <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">address</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`UDP Server listening on </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">address</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">address</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Event fired when a message is received from a client</span>
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'message'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">msg</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Server received: </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">msg</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string"> from </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  
+  <span class="token comment">// Create a response message to send back</span>
+  <span class="token keyword">const</span> <span class="token variable">response</span> <span class="token operator">=</span> <span class="token class-name">Buffer</span><span class="token punctuation">.</span><span class="token function">from</span><span class="token punctuation">(</span><span class="token string">'ACK: Message received!'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  
+  <span class="token comment">// Send the response back to the client</span>
+  <span class="token comment">// The parameters are: message, offset, length, port, address</span>
+  <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">send</span><span class="token punctuation">(</span><span class="token variable">response</span><span class="token punctuation">,</span> <span class="token number">0</span><span class="token punctuation">,</span> <span class="token variable">response</span><span class="token punctuation">.</span><span class="token property-access">length</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+    <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+      <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token string">'Error sending response:'</span><span class="token punctuation">,</span> <span class="token variable">err</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span> <span class="token keyword">else</span> <span class="token punctuation">{</span>
+      <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">'Response sent back to client.'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">}</span>
+  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Event fired on error</span>
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'error'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Server error:</span><span class="token string">\n</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">err</span><span class="token punctuation">.</span><span class="token property-access">stack</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">close</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Bind the server to the specified port</span>
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token variable">PORT</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h2>Example: UDP Client to connect to the Server</h2>
+        <p>To test the server, you'll need a client. Here's a simple Node.js UDP client that sends a message to the server and handles the response.</p>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token comment">// client.js</span>
+<span class="token keyword">const</span> <span class="token variable">dgram</span> <span class="token operator">=</span> <span class="token function">require</span><span class="token punctuation">(</span><span class="token string">'dgram'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword">const</span> <span class="token variable">client</span> <span class="token operator">=</span> <span class="token function">dgram.createSocket</span><span class="token punctuation">(</span><span class="token string">'udp4'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token keyword">const</span> <span class="token variable">SERVER_PORT</span> <span class="token operator">=</span> <span class="token number">41234</span><span class="token punctuation">;</span>
+<span class="token keyword">const</span> <span class="token variable">SERVER_HOST</span> <span class="token operator">=</span> <span class="token string">'localhost'</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Message to send to the server</span>
+<span class="token keyword">const</span> <span class="token variable">message</span> <span class="token operator">=</span> <span class="token class-name">Buffer</span><span class="token punctuation">.</span><span class="token function">from</span><span class="token punctuation">(</span><span class="token string">'Hello UDP Server!'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Send the message to the server</span>
+<span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">send</span><span class="token punctuation">(</span><span class="token variable">message</span><span class="token punctuation">,</span> <span class="token variable">SERVER_PORT</span><span class="token punctuation">,</span> <span class="token variable">SERVER_HOST</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token punctuation">{</span>
+    <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token string">'Error sending message:'</span><span class="token punctuation">,</span> <span class="token variable">err</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">close</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token punctuation">}</span> <span class="token keyword">else</span> <span class="token punctuation">{</span>
+    <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">'Message sent to server.'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token punctuation">}</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Event fired when a message is received from the server</span>
+<span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'message'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">msg</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Client received: </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">msg</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string"> from </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">close</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// Close the client after receiving the response</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Event fired on error</span>
+<span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'error'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Client error:</span><span class="token string">\n</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">err</span><span class="token punctuation">.</span><span class="token property-access">stack</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">close</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</code></pre>
+        </div>
+
+        <p>To run this, save the code into two files (server.js and client.js), open two separate terminal windows, and run the server first:</p>
+        <span class="code-label">Bash</span>
+        <div class="code-block">
+            <pre><code class="language-bash"><span class="token command">node</span> server.js</code></pre>
+        </div>
+        <p>Then, in the second terminal, run the client:</p>
+        <span class="code-label">Bash</span>
+        <div class="code-block">
+            <pre><code class="language-bash"><span class="token command">node</span> client.js</code></pre>
+        </div>
+        <p>You will see the output in both terminals, demonstrating the client-server communication.</p>
+
+        <hr>
+
+        <h2>Events of `dgram.createSocket('udp4')`</h2>
+        <p>When you create a UDP socket in Node.js using <code>const server = dgram.createSocket('udp4');</code>, the <code>server</code> object is an <code>EventEmitter</code> that emits several events at different stages of its lifecycle. Here are the key events and when they trigger.</p>
+
+        <h3>`listening`</h3>
+        <p>This event triggers when the UDP socket successfully starts listening for incoming datagrams on a specified port and address. It's emitted after you call <code>server.bind()</code>.</p>
+        <h4>Example:</h4>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'listening'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token keyword">const</span> <span class="token variable">address</span> <span class="token operator">=</span> <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">address</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Server is now listening on </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">address</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">address</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token number">41234</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// The 'listening' event is emitted after this line executes successfully.</span></code></pre>
+        </div>
+
+        <h3>`message`</h3>
+        <p>This is the most common and important event. It triggers whenever the server receives a new UDP datagram (a message) from a client. The callback function receives two arguments: the <code>msg</code> (the message content as a Buffer) and <code>rinfo</code> (remote address information).</p>
+        <h4>Example:</h4>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'message'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">msg</span><span class="token punctuation">,</span> <span class="token variable">rinfo</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Received message from </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">address</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">:</span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">rinfo</span><span class="token punctuation">.</span><span class="token property-access">port</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Message content: </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">msg</span><span class="token punctuation">.</span><span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token comment">// This event triggers immediately upon receiving a packet from a client.</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+
+        <h3>`error`</h3>
+        <p>This event triggers if any error occurs with the socket. This could be due to issues like a failed bind operation (e.g., the port is already in use) or a network-related problem. When an error event is emitted, the socket won't be automatically closed unless you explicitly call <code>server.close()</code>.</p>
+        <h4>Example:</h4>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'error'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">err</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">error</span><span class="token punctuation">(</span><span class="token template-string"><span class="token string">`Socket error: </span><span class="token interpolation"><span class="token interpolation-punctuation punctuation">${</span><span class="token variable">err</span><span class="token punctuation">.</span><span class="token property-access">stack</span><span class="token interpolation-punctuation punctuation">}</span></span><span class="token string">`</span></span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">close</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// It's a good practice to close the socket on error.</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</code></pre>
+        </div>
+
+        <h3>`close`</h3>
+        <p>This event triggers when the socket is closed and no longer accepting new packets. This happens after you call <code>server.close()</code>. This event indicates that the process of shutting down the socket has been completed.</p>
+        <h4>Example:</h4>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">'close'</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">'Socket has been closed.'</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// A close can be triggered manually:</span>
+<span class="token comment">// server.close(); </span>
+
+<span class="token comment">// or as a result of a an error or the process terminating.</span></code></pre>
+        </div>
+        
+        <hr>
+
+        <h2>What is `server.bind()`</h2>
+        <p><code>server.bind()</code> is a method provided by Node.js's <code>dgram</code> module to bind a UDP socket to a specific address and port, making it ready to listen for incoming data.</p>
+
+        <h3>How It Works</h3>
+        <p>When you create a UDP socket with <code>dgram.createSocket()</code>, it's just an object in memory and isn't yet connected to the network. The <code>server.bind()</code> method performs the essential step of associating the socket with a <strong>network interface (IP address)</strong> and a <strong>port number</strong> on your machine. This makes the socket a <strong>listening server</strong>, allowing it to receive UDP datagrams sent to that specific IP address and port.</p>
+
+        <h3>Syntax</h3>
+        <p>The <code>server.bind()</code> method can be used in a few different ways:</p>
+        <ul>
+            <li><strong>`server.bind(port)`:</strong> Binds the socket to the specified port and an arbitrary available IP address.</li>
+        </ul>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token number">41234</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+        <ul>
+            <li><strong>`server.bind(port, address)`:</strong> Binds the socket to a specific port and a particular address (e.g., '127.0.0.1' for localhost or '0.0.0.0' to listen on all available network interfaces).</li>
+        </ul>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token number">41234</span><span class="token punctuation">,</span> <span class="token string">'127.0.0.0'</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+        <ul>
+            <li><strong>`server.bind(options)`:</strong> An object containing port, address, and an optional exclusive flag. This is the most flexible way.</li>
+        </ul>
+        <span class="code-label">JavaScript</span>
+        <div class="code-block">
+            <pre><code class="language-js"><span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token punctuation">{</span>
+  <span class="token literal-property property">port</span><span class="token operator">:</span> <span class="token number">41234</span><span class="token punctuation">,</span>
+  <span class="token literal-property property">address</span><span class="token operator">:</span> <span class="token string">'0.0.0.0'</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+        </div>
+        <h3>Why it's Important</h3>
+        <ul>
+            <li><strong>Establishing an Endpoint:</strong> It creates the "listening post" for your UDP server on the network. Without calling <code>server.bind()</code>, the server cannot receive any data.</li>
+            <li><strong>Triggering the 'listening' Event:</strong> After a successful call to <code>server.bind()</code>, the socket emits the 'listening' event. This is the signal that your server is ready to handle requests.</li>
+            <li><strong>Handling Errors:</strong> If the bind operation fails (e.g., the specified port is already in use), an 'error' event is emitted. The application must handle this to prevent unexpected crashes.</li>
+        </ul>
+
+        <hr>
+
+        <h2>UDP Server and Client Communication</h2>
+        <img src="images/UDP server.png" width="100%" height="700px" alt="">
+        <p>As shown in the image, the fundamental concept is that the <strong>UDP client</strong> sends a <strong>datagram</strong> (a self-contained packet of data) to the <strong>UDP server</strong> without first establishing a connection. The server, which is listening on a specific port, receives this datagram and can then send a response datagram back to the client's address and port. This is a key difference from TCP, which requires a connection handshake before any data is sent.</p>
+    </div>
+</body>
+</html>

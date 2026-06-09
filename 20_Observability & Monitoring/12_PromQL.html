@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PromQL Complete Guide | From Zero to Hero</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-terminal"></i> PROMQL</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Foundation</div>
+        <a href="#what" class="nav-link">What is PromQL?</a>
+        <a href="#data-types" class="nav-link">Data Types Overview</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Data Types</div>
+        <a href="#scalar" class="nav-link">Scalar</a>
+        <a href="#string" class="nav-link">String</a>
+        <a href="#instant-vector" class="nav-link">Instant Vector</a>
+        <a href="#range-vector" class="nav-link">Range Vector</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Functions</div>
+        <a href="#rate" class="nav-link">rate() Explained</a>
+        <a href="#reading-result" class="nav-link">Reading a Result</a>
+        <a href="#aggregation" class="nav-link">Aggregation</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus</span>
+        <h1>PROMQL</h1>
+        <p>PROMETHEUS QUERY LANGUAGE — FROM ZERO TO HERO</p>
+      </section>
+
+      <!-- ─── WHAT ───────────────────────────────────────────── -->
+      <section id="what">
+        <h2>WHAT IS PROMQL?</h2>
+
+        <p>
+          PromQL (Prometheus Query Language) is the query language used to
+          extract and analyze metrics stored in Prometheus. Think of it as
+          <strong>SQL for time-series data</strong> — but specifically designed
+          for monitoring and observability.
+        </p>
+
+        <h3>What Problem Does It Solve?</h3>
+        <p>Imagine you have millions of data points coming from your servers every second. PromQL lets you ask questions like:</p>
+
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--accent)">
+            <h4 style="color:var(--accent);margin-top:0"><i class="fa-solid fa-circle-question"></i> Questions You Can Ask</h4>
+            <ul style="margin-bottom:0">
+              <li>"What was the average CPU usage in the last hour?"</li>
+              <li>"Which endpoints are showing 5xx errors right now?"</li>
+              <li>"How much has memory grown compared to yesterday?"</li>
+              <li>"What is the p99 latency of my checkout API?"</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #3b82f6">
+            <h4 style="color:#3b82f6;margin-top:0"><i class="fa-solid fa-database"></i> Data It Works With</h4>
+            <ul style="margin-bottom:0">
+              <li>CPU usage over time</li>
+              <li>Memory consumption</li>
+              <li>HTTP request rates</li>
+              <li>Error counts</li>
+              <li>Custom business metrics</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── DATA TYPES OVERVIEW ────────────────────────────── -->
+      <section id="data-types">
+        <h2>DATA TYPES OVERVIEW</h2>
+
+        <p>PromQL has 4 data types. Understanding them is the key to writing correct queries.</p>
+
+        <table>
+          <thead>
+            <tr><th>Type</th><th>What It Is</th><th>Example</th><th>Result Type</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Scalar</strong></td>
+              <td>A plain number, no labels</td>
+              <td><code>10 + 5</code></td>
+              <td>scalar</td>
+            </tr>
+            <tr>
+              <td><strong>String</strong></td>
+              <td>A text value</td>
+              <td><code>"hello"</code></td>
+              <td>string</td>
+            </tr>
+            <tr>
+              <td><strong>Instant Vector</strong></td>
+              <td>One value per series, right now</td>
+              <td><code>node_cpu_usage</code></td>
+              <td>vector</td>
+            </tr>
+            <tr>
+              <td><strong>Range Vector</strong></td>
+              <td>Multiple values per series, over time</td>
+              <td><code>node_cpu_usage[5m]</code></td>
+              <td>matrix</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── SCALAR ─────────────────────────────────────────── -->
+      <section id="scalar">
+        <h2>1. SCALAR — JUST A NUMBER</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Think of It As
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            A calculator display. You see <strong>42</strong>. That's it. No
+            context, no history, no "when" — just a plain number.
+          </p>
+        </div>
+
+        <h3>Real-World Analogy</h3>
+        <p>
+          Someone asks: "How many fingers am I holding up?" You answer:
+          <strong>"3"</strong> — not "3 at 2:30 PM". Just 3. That's a scalar.
+        </p>
+
+        <h3>Examples</h3>
+        <pre><code class="language-promql"># Simple math → scalar
+10 + 5
+# Returns: 15
+
+# Counting series → scalar
+count(http_requests_total)
+# Returns: 42</code></pre>
+
+        <h3>How to Identify a Scalar</h3>
+        <table>
+          <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+          <tbody>
+            <tr><td>Does it have labels (server, method, etc.)?</td><td>❌ No</td></tr>
+            <tr><td>Does it have a timestamp?</td><td>❌ No</td></tr>
+            <tr><td>Is it just a plain number?</td><td>✅ Yes</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── STRING ─────────────────────────────────────────── -->
+      <section id="string">
+        <h2>2. STRING — TEXT VALUE</h2>
+
+        <pre><code class="language-promql">"hello world"
+# Returns: "hello world"</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-circle-info"></i> Rarely Used</span>
+          <p style="margin-bottom:0">
+            Strings are rarely used in daily PromQL work — mostly for metadata
+            and labels. Focus your energy on Instant Vectors and Range Vectors.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── INSTANT VECTOR ─────────────────────────────────── -->
+      <section id="instant-vector">
+        <h2>3. INSTANT VECTOR — ONE VALUE PER SERIES, RIGHT NOW</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6">
+            <i class="fa-solid fa-book"></i> Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            A <strong>vector</strong> in math is a list of values. In PromQL, an
+            <strong>Instant Vector</strong> is a list of
+            <em>(metric + labels) → single value</em> pairs, all captured at
+            the <strong>same point in time</strong>.
+          </p>
+          <p style="color:var(--text-secondary);margin-bottom:0">
+            Think of it as a <strong>column in a spreadsheet</strong> — each row
+            is a different time series, and the column holds exactly one number
+            per row, taken right now.
+          </p>
+        </div>
+
+        <!-- SVG: Instant Vector diagram -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;overflow-x:auto">
+          <svg viewBox="0 0 620 220" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:620px;display:block;margin:0 auto;font-family:'JetBrains Mono',monospace">
+            <!-- Title -->
+            <text x="310" y="22" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700" letter-spacing="1">INSTANT VECTOR — SNAPSHOT AT ONE POINT IN TIME</text>
+
+            <!-- Time axis -->
+            <line x1="60" y1="170" x2="580" y2="170" stroke="#3f3f46" stroke-width="1.5"/>
+            <text x="310" y="195" text-anchor="middle" fill="#71717a" font-size="11">time</text>
+
+            <!-- NOW marker -->
+            <line x1="480" y1="40" x2="480" y2="170" stroke="#34d399" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <text x="480" y="35" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">NOW</text>
+
+            <!-- Series A: past dots (faded) + NOW dot -->
+            <circle cx="120" cy="130" r="4" fill="#3f3f46"/>
+            <circle cx="200" cy="118" r="4" fill="#3f3f46"/>
+            <circle cx="280" cy="105" r="4" fill="#3f3f46"/>
+            <circle cx="360" cy="115" r="4" fill="#3f3f46"/>
+            <circle cx="480" cy="95" r="7" fill="#34d399"/>
+            <text x="496" y="91" fill="#34d399" font-size="11" font-weight="700">45</text>
+            <text x="30" y="99" fill="#a1a1aa" font-size="10">server=A</text>
+
+            <!-- Series B: past dots (faded) + NOW dot -->
+            <circle cx="120" cy="148" r="4" fill="#3f3f46"/>
+            <circle cx="200" cy="155" r="4" fill="#3f3f46"/>
+            <circle cx="280" cy="143" r="4" fill="#3f3f46"/>
+            <circle cx="360" cy="150" r="4" fill="#3f3f46"/>
+            <circle cx="480" cy="138" r="7" fill="#3b82f6"/>
+            <text x="496" y="134" fill="#3b82f6" font-size="11" font-weight="700">62</text>
+            <text x="30" y="142" fill="#a1a1aa" font-size="10">server=B</text>
+
+            <!-- Series C: past dots (faded) + NOW dot -->
+            <circle cx="120" cy="158" r="4" fill="#3f3f46"/>
+            <circle cx="200" cy="162" r="4" fill="#3f3f46"/>
+            <circle cx="280" cy="155" r="4" fill="#3f3f46"/>
+            <circle cx="360" cy="160" r="4" fill="#3f3f46"/>
+            <circle cx="480" cy="155" r="7" fill="#f59e0b"/>
+            <text x="496" y="151" fill="#f59e0b" font-size="11" font-weight="700">38</text>
+            <text x="30" y="159" fill="#a1a1aa" font-size="10">server=C</text>
+
+            <!-- Legend -->
+            <circle cx="200" cy="210" r="4" fill="#3f3f46"/>
+            <text x="210" y="214" fill="#71717a" font-size="10">past data (ignored)</text>
+            <circle cx="370" cy="210" r="6" fill="#34d399"/>
+            <text x="382" y="214" fill="#34d399" font-size="10">value returned (NOW)</text>
+          </svg>
+        </div>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Think of It As
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            A <strong>class photo taken right now</strong>. You see every
+            student's face (each series) at this exact moment (one value each).
+          </p>
+        </div>
+
+        <h3>Real-World Analogy</h3>
+        <p>You're a manager checking server room monitors right now:</p>
+        <table>
+          <thead><tr><th>Server</th><th>Temperature RIGHT NOW</th></tr></thead>
+          <tbody>
+            <tr><td>Server A</td><td>45°C</td></tr>
+            <tr><td>Server B</td><td>62°C</td></tr>
+            <tr><td>Server C</td><td>38°C</td></tr>
+            <tr><td>Server D</td><td style="color:var(--danger)">91°C ⚠️</td></tr>
+          </tbody>
+        </table>
+        <p>That table is an instant vector — one value per server, at this instant.</p>
+
+        <h3>How It Looks in Prometheus</h3>
+        <pre><code class="language-promql"># Simple query — returns instant vector
+node_cpu_usage</code></pre>
+        <pre><code class="language-text"># Returns:
+node_cpu_usage{server="A"} → 45
+node_cpu_usage{server="B"} → 62
+node_cpu_usage{server="C"} → 38
+node_cpu_usage{server="D"} → 91</code></pre>
+
+        <h3>How to Identify an Instant Vector</h3>
+        <table>
+          <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+          <tbody>
+            <tr><td>Does it have labels?</td><td>✅ Yes</td></tr>
+            <tr><td>Does each series have ONE value?</td><td>✅ Yes</td></tr>
+            <tr><td>Are you seeing "current" values?</td><td>✅ Yes</td></tr>
+            <tr><td>Is there NO time range like [5m]?</td><td>✅ Yes</td></tr>
+            <tr><td>Result type in Prometheus UI?</td><td>✅ "vector"</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── RANGE VECTOR ───────────────────────────────────── -->
+      <section id="range-vector">
+        <h2>4. RANGE VECTOR — MULTIPLE VALUES OVER TIME</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6">
+            <i class="fa-solid fa-book"></i> Definition
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            A <strong>Range Vector</strong> is a list of
+            <em>(metric + labels) → multiple values over time</em> pairs. Instead
+            of one value per series, you get a <strong>slice of history</strong> —
+            every data point Prometheus scraped within the time window.
+          </p>
+          <p style="color:var(--text-secondary);margin-bottom:0">
+            Think of it as a <strong>spreadsheet with multiple columns</strong> —
+            each row is a time series, but now each row holds a whole list of
+            timestamped values, not just one. This is why it's also called a
+            <strong>matrix</strong> in Prometheus.
+          </p>
+        </div>
+
+        <!-- SVG: Range Vector diagram -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;overflow-x:auto">
+          <svg viewBox="0 0 620 230" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:620px;display:block;margin:0 auto;font-family:'JetBrains Mono',monospace">
+            <!-- Title -->
+            <text x="310" y="22" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700" letter-spacing="1">RANGE VECTOR — ALL POINTS INSIDE THE WINDOW [5m]</text>
+
+            <!-- Shaded window region -->
+            <rect x="180" y="35" width="300" height="145" fill="rgba(52,211,153,0.06)" rx="4"/>
+            <line x1="180" y1="35" x2="180" y2="180" stroke="#34d399" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <line x1="480" y1="35" x2="480" y2="180" stroke="#34d399" stroke-width="1.5" stroke-dasharray="5,3"/>
+            <text x="330" y="52" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">← [5m] window →</text>
+
+            <!-- Time axis -->
+            <line x1="60" y1="180" x2="580" y2="180" stroke="#3f3f46" stroke-width="1.5"/>
+            <text x="310" y="205" text-anchor="middle" fill="#71717a" font-size="11">time</text>
+
+            <!-- NOW marker -->
+            <text x="480" y="32" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">NOW</text>
+
+            <!-- Series A dots — outside window (faded) -->
+            <circle cx="80" cy="130" r="4" fill="#3f3f46"/>
+            <circle cx="130" cy="120" r="4" fill="#3f3f46"/>
+            <!-- Series A dots — inside window (lit) -->
+            <circle cx="220" cy="108" r="6" fill="#34d399"/>
+            <circle cx="280" cy="95" r="6" fill="#34d399"/>
+            <circle cx="340" cy="105" r="6" fill="#34d399"/>
+            <circle cx="400" cy="88" r="6" fill="#34d399"/>
+            <circle cx="480" cy="78" r="6" fill="#34d399"/>
+            <text x="28" y="108" fill="#a1a1aa" font-size="10">server=A</text>
+
+            <!-- Series B dots — outside window (faded) -->
+            <circle cx="80" cy="155" r="4" fill="#3f3f46"/>
+            <circle cx="130" cy="148" r="4" fill="#3f3f46"/>
+            <!-- Series B dots — inside window (lit) -->
+            <circle cx="220" cy="145" r="6" fill="#3b82f6"/>
+            <circle cx="280" cy="138" r="6" fill="#3b82f6"/>
+            <circle cx="340" cy="150" r="6" fill="#3b82f6"/>
+            <circle cx="400" cy="142" r="6" fill="#3b82f6"/>
+            <circle cx="480" cy="135" r="6" fill="#3b82f6"/>
+            <text x="28" y="148" fill="#a1a1aa" font-size="10">server=B</text>
+
+            <!-- Legend -->
+            <circle cx="170" cy="220" r="4" fill="#3f3f46"/>
+            <text x="180" y="224" fill="#71717a" font-size="10">outside window (ignored)</text>
+            <circle cx="370" cy="220" r="6" fill="#34d399"/>
+            <text x="382" y="224" fill="#34d399" font-size="10">inside window (ALL returned)</text>
+          </svg>
+        </div>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Think of It As
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            A <strong>video recording</strong> of the classroom over 5 minutes.
+            You see every student's movement, every second — not just a snapshot.
+          </p>
+        </div>
+
+        <h3>Real-World Analogy</h3>
+        <p>You're reviewing server temperature <strong>history</strong>:</p>
+        <table>
+          <thead><tr><th>Server</th><th>Temperature over last 5 minutes</th></tr></thead>
+          <tbody>
+            <tr><td>Server A</td><td>45°, 47°, 52°, 49°, 44°, 46°</td></tr>
+            <tr><td>Server B</td><td>62°, 61°, 63°, 60°, 62°, 65°</td></tr>
+          </tbody>
+        </table>
+
+        <h3>How It Looks in Prometheus</h3>
+        <pre><code class="language-promql"># The [5m] is what makes it a range vector
+node_cpu_usage[5m]</code></pre>
+        <pre><code class="language-text"># Returns:
+node_cpu_usage{server="A"} → 45@10:00, 47@10:01, 52@10:02, 49@10:03, 44@10:04
+node_cpu_usage{server="B"} → 62@10:00, 61@10:01, 63@10:02, 60@10:03, 62@10:04</code></pre>
+
+        <h3>How to Identify a Range Vector</h3>
+        <table>
+          <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+          <tbody>
+            <tr><td>Does it have labels?</td><td>✅ Yes</td></tr>
+            <tr><td>Does each series have MULTIPLE values?</td><td>✅ Yes</td></tr>
+            <tr><td>Does it have [time] like [5m] or [1h]?</td><td>✅ Yes</td></tr>
+            <tr><td>Can you graph it directly?</td><td>❌ No — needs processing first</td></tr>
+            <tr><td>Result type in Prometheus UI?</td><td>✅ "matrix"</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> You Can't Graph a Range Vector Directly
+          </span>
+          <p style="margin-bottom:0">
+            A range vector is raw data. You must wrap it in a function like
+            <code>rate()</code>, <code>avg_over_time()</code>, or
+            <code>max_over_time()</code> to turn it into something graphable.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── RATE ───────────────────────────────────────────── -->
+      <section id="rate">
+        <h2>HOW rate() WORKS</h2>
+
+        <p>
+          The <code>rate()</code> function calculates how fast a counter is
+          increasing <strong>per second</strong> over a specified time window.
+        </p>
+
+        <h3>Step-by-Step Walkthrough</h3>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-1"></i> The Time Window [1m]</span>
+          <p style="margin-bottom:0">
+            When you write <code>[1m]</code>, Prometheus looks back at the
+            <strong>last 1 minute</strong> of data from the current moment.
+          </p>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-2"></i> What Data Points Are Included</span>
+          <pre><code class="language-text">Current time: 10:04:30
+
+Time:     10:03:30    10:04:00    10:04:30 (now)
+               ↑           ↑           ↑
+               └───────────┴───────────┘
+                     Last 1 minute window</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-3"></i> Concrete Calculation</span>
+          <p>Scenario: counter tracking total HTTP requests (only goes up):</p>
+          <table style="margin-bottom:1rem">
+            <thead><tr><th>Time</th><th>Total Requests So Far</th></tr></thead>
+            <tbody>
+              <tr><td>10:03:00</td><td>1,000</td></tr>
+              <tr><td>10:03:15</td><td>1,030</td></tr>
+              <tr><td>10:03:30</td><td>1,070</td></tr>
+              <tr><td>10:03:45</td><td>1,120</td></tr>
+              <tr><td>10:04:00</td><td>1,180</td></tr>
+              <tr><td>10:04:15</td><td>1,250</td></tr>
+              <tr><td>10:04:30</td><td>1,330</td></tr>
+            </tbody>
+          </table>
+          <pre><code class="language-text">Query: rate(http_requests_total[1m]) at 10:04:30
+
+Step 1 — Window: 10:03:30 → 10:04:30
+  Start value: 1,070
+  End value:   1,330
+
+Step 2 — Increase:
+  1,330 - 1,070 = 260 requests
+
+Step 3 — Divide by seconds:
+  260 / 60 = 4.33 requests per second</code></pre>
+          <p style="margin-bottom:0">
+            <strong>Result:</strong> Over the last minute, requests came in at
+            an average rate of <strong>4.33 per second</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── READING RESULT ─────────────────────────────────── -->
+      <section id="reading-result">
+        <h2>READING A PROMQL RESULT</h2>
+
+        <p>Let's decode a real result you'd see in Prometheus:</p>
+
+        <pre><code class="language-text">{instance="localhost:4000", job="my-express-app", method="GET", path="/fancy", status_code="200"}
+→ 0.06666666666666665</code></pre>
+
+        <h3>What Does 0.0666 Mean?</h3>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> It's Requests Per Second
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>0.0666</code> = approximately <strong>1 request every 15 seconds</strong>
+          </p>
+        </div>
+
+        <h3>Breaking It Down</h3>
+        <table>
+          <thead><tr><th>Time Window</th><th>Requests Expected</th></tr></thead>
+          <tbody>
+            <tr><td>Per second</td><td>0.066 requests</td></tr>
+            <tr><td>Per 15 seconds</td><td>~1 request</td></tr>
+            <tr><td>Per minute</td><td>~4 requests (0.066 × 60)</td></tr>
+            <tr><td>Per 3 minutes</td><td>~12 requests (4 × 3)</td></tr>
+          </tbody>
+        </table>
+
+        <h3>How Prometheus Calculated This</h3>
+        <p>Query used: <code>rate(http_requests_total[3m])</code></p>
+        <pre><code class="language-text">Step 1 — Look back 3 minutes (180 seconds)
+  3 minutes ago: counter = 1,000
+  Now:           counter = 1,012
+
+Step 2 — Calculate increase
+  1,012 - 1,000 = 12 requests
+
+Step 3 — Divide by window in seconds
+  12 / 180 = 0.0666 requests per second</code></pre>
+
+        <h3>What This Tells You</h3>
+        <table>
+          <thead><tr><th>Question</th><th>Answer</th></tr></thead>
+          <tbody>
+            <tr><td>Is my API busy?</td><td>Not really — 1 request every 15 seconds</td></tr>
+            <tr><td>What if this drops to 0?</td><td>Your API might be down or not receiving traffic</td></tr>
+            <tr><td>What if this spikes to 10?</td><td>Sudden traffic surge!</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Convert to Human-Readable Units</h3>
+        <pre><code class="language-promql"># Requests per minute (multiply by 60)
+rate(http_requests_total[3m]) * 60
+# Returns: 4 (requests per minute)
+
+# Requests per hour (multiply by 3600)
+rate(http_requests_total[3m]) * 3600
+# Returns: 240 (requests per hour)</code></pre>
+      </section>
+
+      <!-- ─── AGGREGATION ────────────────────────────────────── -->
+      <section id="aggregation">
+        <h2>AGGREGATION ACROSS LABELS</h2>
+
+        <p>Use <code>sum()</code> to combine multiple series into one:</p>
+
+        <pre><code class="language-promql"># Total requests across ALL endpoints
+sum(http_requests_total)
+
+# Total requests grouped by method
+sum(http_requests_total) by (method)
+
+# Error rate across all services
+sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+/
+sum(rate(http_requests_total[5m]))</code></pre>
+
+        <div
+          class="note-box"
+          style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem"
+        >
+          <span class="note-title" style="color:var(--accent);font-size:1rem">
+            💡 Golden Rule
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            Remember the data type flow:
+          </p>
+          <pre style="margin:0;background:var(--bg-secondary)"><code class="language-text">metric_name        → Instant Vector (one value now)
+metric_name[5m]    → Range Vector   (many values, can't graph)
+rate(metric[5m])   → Instant Vector (one rate value, can graph)
+sum(rate(...))     → Instant Vector (aggregated, can graph)</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>PromQL Complete Guide</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

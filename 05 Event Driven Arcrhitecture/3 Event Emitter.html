@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Events and Emitters in Node.js</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            text-align: center;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 1.8em;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        h3 {
+            font-size: 1.4em;
+            color: #34495e;
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 5px;
+        }
+
+        .code-block {
+            background-color: #282a36; /* Darker background for code */
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Preferred coding font, if available */
+            font-size: 0.9em;
+            line-height: 1.4;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            tab-size: 4;
+            -moz-tab-size: 4;
+        }
+
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Syntax Highlighting Colors */
+        .code-block .keyword { color: #8be9fd; } /* const, function, if, else, return, new, require */
+        .code-block .string { color: #f1fa8c; } /* '...', "...", `...` */
+        .code-block .method { color: #ff79c6; } /* console.log, emit, on, etc. */
+        .code-block .variable { color: #bd93f9; } /* myEmitter, orderProcessor, err, data etc. */
+        .code-block .comment { color: #6272a4; font-style: italic; } /* // comments */
+        .code-block .number { color: #ffb86c; } /* 123, 150.75, 45.00, etc. */
+        .code-block .operator { color: #ff79c6; } /* =, >, typeof */
+        .code-block .punctuation { color: #cccccc; } /* (){}[],; */
+        .code-block .builtin { color: #50fa7b; } /* Error */
+        .code-block .property { color: #f8f8f2; } /* .value, .message, .stdout, .stderr, .on, .emit etc. */
+
+
+        .output-block {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border-left: 5px solid #4CAF50;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        strong {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .note {
+            background-color: #fefce8;
+            border-left: 5px solid #fbc02d;
+            padding: 15px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            color: #8d6e63;
+        }
+
+        .key-takeaways ul {
+            list-style-type: circle;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .key-takeaways li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Understanding Events and Emitters in Node.js</h1>
+
+        <h2>What are Events? (The General Concept)</h2>
+        <p>In programming, an <strong>event</strong> is essentially a signal that something has happened. Think of it like real-world events:</p>
+        <ul>
+            <li>A user clicks a button. (Click event)</li>
+            <li>A file finishes loading. (Load event)</li>
+            <li>Data arrives over a network. (Data event)</li>
+            <li>An error occurs. (Error event)</li>
+        </ul>
+        <p>When an event occurs, we often want to react to it. This reaction is performed by a piece of code called an <strong>event handler</strong> (or listener, or callback function).</p>
+        <p>So, in simple terms: <strong>Something happens (an event), and we want to run some code in response to it (the event handler).</strong></p>
+
+        <h2>Why Do We Need Emitters? (The General Concept)</h2>
+        <p>Now, how do we manage these events and their handlers? This is where an <strong>emitter</strong> comes in. An emitter is an object that:</p>
+        <ul>
+            <li><strong>Emits</strong> (or "fires" or "triggers") events. It's the source of the signal.</li>
+            <li><strong>Manages listeners</strong> that are registered to specific events. It knows which functions need to be called when a particular event occurs.</li>
+        </ul>
+        <p>Think of an emitter as a central dispatcher. If you want to know when "Event X" happens, you tell the dispatcher, "Hey, when Event X happens, please call my function `myEventHandler`." Later, when someone tells the dispatcher, "Event X just happened!", the dispatcher then calls all the functions that registered for Event X.</p>
+        <p>This pattern is known as the <strong>Observer Pattern</strong> (or Publish-Subscribe Pattern). The emitter is the "publisher," and the listeners are the "subscribers" or "observers."</p>
+
+        <h2>Why Do We Need Event Emitters in Node.js?</h2>
+        <p>Node.js is built around an <strong>asynchronous, non-blocking I/O model</strong>. This is a fancy way of saying that Node.js doesn't wait around for things to finish (like reading a file or making a network request). Instead, it sets them off and continues doing other work. When the long-running operation does finish, it signals that completion. How does it signal? <strong>Through events!</strong></p>
+        <p>Here's why event emitters are fundamental in Node.js:</p>
+        <ul>
+            <li><strong>Asynchronous Operations:</strong> Many built-in Node.js modules (like `fs` for file system, `http` for web servers, `net` for networking, `stream` for data streams) heavily rely on events to signal completion, data arrival, errors, etc. Because these operations are non-blocking, you can't just `return` a value immediately. Instead, you listen for an event that indicates the operation's outcome.</li>
+            <li><strong>Decoupling:</strong> Event emitters help decouple different parts of your application. One part can emit an event without knowing which other parts are listening, and listeners can react without knowing who emitted the event. This makes your code more modular and easier to maintain.</li>
+            <li><strong>Scalability:</strong> The event-driven architecture is highly efficient for handling many concurrent operations, which is crucial for server-side applications.</li>
+            <li><strong>Custom Events:</strong> Beyond built-in events, you can create your own custom events within your application logic. This allows you to design highly flexible and reactive systems.</li>
+        </ul>
+
+        <h2>The `EventEmitter` Class in Node.js</h2>
+        <p>Node.js provides a core module called `events` which exports the `EventEmitter` class. This class is the foundation for almost all event-driven patterns in Node.js. Many built-in objects (like HTTP servers, streams, file system watches) inherit from `EventEmitter` or implement its interface.</p>
+
+        <h3>Getting Started: Creating an Emitter</h3>
+        <p>To use `EventEmitter`, you first need to import it and create an instance:</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="keyword">const</span> <span class="variable">EventEmitter</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'events'</span>)<span class="punctuation">;</span> <span class="comment">// Import the EventEmitter class</span>
+
+<span class="comment">// Create a new instance of EventEmitter</span>
+<span class="keyword">const</span> <span class="variable">myEmitter</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">EventEmitter</span>()<span class="punctuation">;</span></code></pre>
+        </div>
+
+        <h3>Core `EventEmitter` Methods</h3>
+        <p>Here are the most commonly used methods of the `EventEmitter` class:</p>
+
+        <h4>1. `emitter.on(eventName, listener)` / `emitter.addListener(eventName, listener)`</h4>
+        <ul>
+            <li><strong>Definition:</strong> Registers a new listener function to be called every time a specific `eventName` is emitted.</li>
+            <li><strong>Syntax:</strong> `myEmitter.on('myEvent', () => { /* code to execute */ });`</li>
+            <li><strong>Explanation:</strong> This is how you "subscribe" to an event. When `myEvent` is emitted, the provided arrow function (or any regular function) will be executed. You can register multiple listeners for the same event, and they will be called in the order they were registered.</li>
+        </ul>
+
+        <h4>Practical Example 1: Basic Custom Event</h4>
+        <p>Let's create a simple scenario where we log a message when a 'userLoggedIn' event occurs.</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="comment">// 01_basic_on.js</span>
+<span class="keyword">const</span> <span class="variable">EventEmitter</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'events'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">myEmitter</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">EventEmitter</span>()<span class="punctuation">;</span>
+
+<span class="comment">// 1. Register a listener for the 'userLoggedIn' event</span>
+<span class="variable">myEmitter</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'userLoggedIn'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'User has successfully logged in!'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="comment">// 2. Register another listener for the same event</span>
+<span class="variable">myEmitter</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'userLoggedIn'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Notifying all services about the login...'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="comment">// 3. Emit the 'userLoggedIn' event</span>
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Attempting to log in user...'</span>)<span class="punctuation">;</span>
+<span class="variable">myEmitter</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'userLoggedIn'</span>)<span class="punctuation">;</span>
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Login process finished.'</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <div class="output-block">
+            <pre><code class="language-text">Output:
+Attempting to log in user...
+User has successfully logged in!
+Notifying all services about the login...
+Login process finished.</code></pre>
+        </div>
+        <p><strong>Explanation:</strong></p>
+        <ul>
+            <li>We define two separate functions that will react to the `userLoggedIn` event using `myEmitter.on()`.</li>
+            <li>When `myEmitter.emit('userLoggedIn')` is called, both registered listeners are executed sequentially.</li>
+        </ul>
+
+        <h4>2. `emitter.emit(eventName[, ...args])`</h4>
+        <ul>
+            <li><strong>Definition:</strong> Synchronously calls all the listeners registered for the specified `eventName`, in the order they were registered.</li>
+            <li><strong>Syntax:</strong> `myEmitter.emit('myEvent', arg1, arg2, ...);`</li>
+            <li><strong>Explanation:</strong> This is how you "trigger" or "fire" an event. Any additional arguments passed after `eventName` will be passed on to the listener functions.</li>
+        </ul>
+
+        <h4>Practical Example 2: Passing Data with Events</h4>
+        <p>Events are often used to pass data related to what happened.</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="comment">// 02_emit_with_data.js</span>
+<span class="keyword">const</span> <span class="variable">EventEmitter</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'events'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">orderProcessor</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">EventEmitter</span>()<span class="punctuation">;</span>
+
+<span class="variable">orderProcessor</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'orderPlaced'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">orderId</span><span class="punctuation">,</span> <span class="variable">customerName</span><span class="punctuation">,</span> <span class="variable">totalAmount</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">`New order received! ID: </span><span class="variable">${orderId}</span><span class="string">, Customer: </span><span class="variable">${customerName}</span><span class="string">, Amount: $</span><span class="variable">${totalAmount}</span><span class="string">`</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">orderProcessor</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'orderPlaced'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">orderId</span><span class="punctuation">,</span> <span class="variable">customerName</span><span class="punctuation">,</span> <span class="variable">totalAmount</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="keyword">if</span> <span class="punctuation">(</span><span class="variable">totalAmount</span> <span class="operator">></span> <span class="number">100</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+        <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">`VIP Order! Initiating express shipping for order ID </span><span class="variable">${orderId}</span><span class="string">.`</span>)<span class="punctuation">;</span>
+    <span class="punctuation">}</span> <span class="keyword">else</span> <span class="punctuation">{</span>
+        <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">`Standard order. Processing for order ID </span><span class="variable">${orderId}</span><span class="string">.`</span>)<span class="punctuation">;</span>
+    <span class="punctuation">}</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Simulating an order placement...'</span>)<span class="punctuation">;</span>
+<span class="comment">// Emit the 'orderPlaced' event with relevant data</span>
+<span class="variable">orderProcessor</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'orderPlaced'</span><span class="punctuation">,</span> <span class="string">'ORD12345'</span><span class="punctuation">,</span> <span class="string">'Alice Smith'</span><span class="punctuation">,</span> <span class="number">150.75</span>)<span class="punctuation">;</span>
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'\nSimulating another order placement...'</span>)<span class="punctuation">;</span>
+<span class="variable">orderProcessor</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'orderPlaced'</span><span class="punctuation">,</span> <span class="string">'ORD67890'</span><span class="punctuation">,</span> <span class="string">'Bob Johnson'</span><span class="punctuation">,</span> <span class="number">45.00</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <div class="output-block">
+            <pre><code class="language-text">Output:
+Simulating an order placement...
+New order received! ID: ORD12345, Customer: Alice Smith, Amount: $150.75
+VIP Order! Initiating express shipping for order ID ORD12345.
+
+Simulating another order placement...
+New order received! ID: ORD67890, Customer: Bob Johnson, Amount: $45
+Standard order. Processing for order ID ORD67890.</code></pre>
+        </div>
+        <p><strong>Explanation:</strong></p>
+        <ul>
+            <li>When `orderProcessor.emit('orderPlaced', ...)` is called, the arguments `orderId`, `customerName`, and `totalAmount` are passed directly to all registered listeners for `orderPlaced`.</li>
+            <li>Each listener can then use this data to perform its specific task.</li>
+        </ul>
+
+        <h4>3. `emitter.once(eventName, listener)`</h4>
+        <ul>
+            <li><strong>Definition:</strong> Adds a one-time listener function for the specified `eventName`. The listener is invoked only the first time the event is emitted, and then it's automatically removed.</li>
+            <li><strong>Syntax:</strong> `myEmitter.once('setupComplete', () => { /* code to execute once */ });`</li>
+            <li><strong>Explanation:</strong> Useful for initialization tasks or actions that should only happen a single time when a specific event occurs.</li>
+        </ul>
+
+        <h4>Practical Example 3: One-Time Setup</h4>
+        <p>Imagine a system where a setup process should only run once after an initial configuration event.</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="comment">// 03_once_event.js</span>
+<span class="keyword">const</span> <span class="variable">EventEmitter</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'events'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">appManager</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">EventEmitter</span>()<span class="punctuation">;</span>
+
+<span class="variable">appManager</span><span class="punctuation">.</span><span class="method">once</span>(<span class="string">'appInitialized'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Application has been initialized for the first and only time.'</span>)<span class="punctuation">;</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Database connections established, configurations loaded.'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">appManager</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'appStarted'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'App is running and ready for requests.'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Starting application...'</span>)<span class="punctuation">;</span>
+<span class="variable">appManager</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'appInitialized'</span>)<span class="punctuation">;</span> <span class="comment">// This will trigger the 'once' listener</span>
+<span class="variable">appManager</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'appStarted'</span>)<span class="punctuation">;</span>
+
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'\nAttempting to re-initialize (will not run `once` listener again):'</span>)<span class="punctuation">;</span>
+<span class="variable">appManager</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'appInitialized'</span>)<span class="punctuation">;</span> <span class="comment">// This will *not* trigger the 'once' listener again</span>
+<span class="variable">appManager</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'appStarted'</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <div class="output-block">
+            <pre><code class="language-text">Output:
+Starting application...
+Application has been initialized for the first and only time.
+Database connections established, configurations loaded.
+App is running and ready for requests.
+
+Attempting to re-initialize (will not run `once` listener again):
+App is running and ready for requests.</code></pre>
+        </div>
+        <p><strong>Explanation:</strong></p>
+        <ul>
+            <li>The `appInitialized` listener registered with `once` runs only the first time `appInitialized` is emitted.</li>
+            <li>Subsequent emissions of `appInitialized` do nothing because the listener was automatically removed after its first execution.</li>
+            <li>The `appStarted` listener, registered with `on`, runs every time its event is emitted.</li>
+        </ul>
+
+        <h4>4. `emitter.removeListener(eventName, listener)` / `emitter.off(eventName, listener)`</h4>
+        <ul>
+            <li><strong>Definition:</strong> Removes a specific listener function from the listener array for the specified `eventName`. The listener <strong>must</strong> be the exact same function instance that was originally registered.</li>
+            <li><strong>Syntax:</strong> `myEmitter.removeListener('data', myDataHandler);`</li>
+            <li><strong>Explanation:</strong> This is how you "unsubscribe" from an event. It's crucial when you no longer want a particular function to react to an event, preventing memory leaks in long-running applications.</li>
+        </ul>
+
+        <h4>Practical Example 4: Dynamically Removing Listeners</h4>
+        <p>Let's say a specific notification should only occur a limited number of times.</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="comment">// 04_remove_listener.js</span>
+<span class="keyword">const</span> <span class="variable">EventEmitter</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'events'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">notifier</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">EventEmitter</span>()<span class="punctuation">;</span>
+
+<span class="keyword">let</span> <span class="variable">notificationCount</span> <span class="operator">=</span> <span class="number">0</span><span class="punctuation">;</span>
+
+<span class="keyword">function</span> <span class="method">userActivityHandler</span><span class="punctuation">()</span> <span class="punctuation">{</span>
+    <span class="variable">notificationCount</span><span class="operator">++</span><span class="punctuation">;</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">`User activity detected! (Count: </span><span class="variable">${notificationCount}</span><span class="string">)`</span>)<span class="punctuation">;</span>
+
+    <span class="comment">// After 3 activities, stop notifying for this specific handler</span>
+    <span class="keyword">if</span> <span class="punctuation">(</span><span class="variable">notificationCount</span> <span class="operator">>=</span> <span class="number">3</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+        <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Reached max activity notifications. Removing handler.'</span>)<span class="punctuation">;</span>
+        <span class="variable">notifier</span><span class="punctuation">.</span><span class="method">removeListener</span>(<span class="string">'userActivity'</span><span class="punctuation">,</span> <span class="variable">userActivityHandler</span>)<span class="punctuation">;</span>
+    <span class="punctuation">}</span>
+<span class="punctuation">}</span>
+
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'userActivity'</span><span class="punctuation">,</span> <span class="variable">userActivityHandler</span>)<span class="punctuation">;</span> <span class="comment">// Register the handler</span>
+
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'anotherEvent'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'This is another event listener.'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Simulating user activities...'</span>)<span class="punctuation">;</span>
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'userActivity'</span>)<span class="punctuation">;</span> <span class="comment">// 1</span>
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'anotherEvent'</span>)<span class="punctuation">;</span>
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'userActivity'</span>)<span class="punctuation">;</span> <span class="comment">// 2</span>
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'userActivity'</span>)<span class="punctuation">;</span> <span class="comment">// 3 (handler will be removed after this)</span>
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'anotherEvent'</span>)<span class="punctuation">;</span>
+<span class="variable">notifier</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'userActivity'</span>)<span class="punctuation">;</span> <span class="comment">// This will *not* trigger userActivityHandler</span></code></pre>
+        </div>
+        <div class="output-block">
+            <pre><code class="language-text">Output:
+Simulating user activities...
+User activity detected! (Count: 1)
+This is another event listener.
+User activity detected! (Count: 2)
+User activity detected! (Count: 3)
+Reached max activity notifications. Removing handler.
+This is another event listener.</code></pre>
+        </div>
+        <p><strong>Explanation:</strong></p>
+        <ul>
+            <li>We define a named function `userActivityHandler` to ensure we have a reference to the exact same function instance when we call `removeListener`.</li>
+            <li>After the `userActivityHandler` is called 3 times, `removeListener` is invoked, effectively unsubscribing it from the `userActivity` event.</li>
+            <li>Subsequent emissions of `userActivity` will no longer call `userActivityHandler`, but `anotherEvent` listeners are unaffected.</li>
+        </ul>
+        <div class="note">
+            <strong>Important Note for `removeListener`:</strong> You <strong>must</strong> pass the exact same function reference to `removeListener` that you passed to `on` or `once`. If you use anonymous functions (e.g., `notifier.on('event', () => {})`), you won't be able to remove them easily because each `() => {}` creates a <em>new</em> function instance.
+        </div>
+
+        <h2>Error Handling with Event Emitters</h2>
+        <p>A special case for `EventEmitter` is the `'error'` event. If an `EventEmitter` instance emits an `'error'` event and there is <strong>no listener</strong> registered for it, Node.js will throw the error as an uncaught exception, which will typically crash your application.</p>
+        <p>It is <strong>crucial</strong> to always have an `'error'` listener if you expect your emitter to potentially emit errors.</p>
+
+        <h4>Practical Example 5: Handling Errors</h4>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="comment">// 05_error_handling.js</span>
+<span class="keyword">const</span> <span class="variable">EventEmitter</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'events'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">dataProcessor</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">EventEmitter</span>()<span class="punctuation">;</span>
+
+<span class="comment">// Good practice: Always listen for 'error' events</span>
+<span class="variable">dataProcessor</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'error'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">err</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">error</span>(<span class="string">'An error occurred during data processing:'</span><span class="punctuation">,</span> <span class="variable">err</span><span class="punctuation">.</span><span class="property">message</span>)<span class="punctuation">;</span>
+    <span class="comment">// Depending on the error, you might want to:</span>
+    <span class="comment">// - Log more details</span>
+    <span class="comment">// - Gracefully shut down</span>
+    <span class="comment">// - Attempt recovery</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">dataProcessor</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'dataReady'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">data</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Data ready:'</span><span class="punctuation">,</span> <span class="variable">data</span>)<span class="punctuation">;</span>
+    <span class="keyword">if</span> <span class="punctuation">(</span><span class="operator">!</span><span class="variable">data</span> <span class="operator">||</span> <span class="keyword">typeof</span> <span class="variable">data</span><span class="punctuation">.</span><span class="property">value</span> <span class="operator">===</span> <span class="string">'undefined'</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+        <span class="variable">dataProcessor</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'error'</span><span class="punctuation">,</span> <span class="keyword">new</span> <span class="builtin">Error</span>(<span class="string">'Invalid data format received.'</span>))<span class="punctuation">;</span>
+    <span class="punctuation">}</span> <span class="keyword">else</span> <span class="punctuation">{</span>
+        <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Processing data with value:'</span><span class="punctuation">,</span> <span class="variable">data</span><span class="punctuation">.</span><span class="property">value</span>)<span class="punctuation">;</span>
+    <span class="punctuation">}</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Simulating data processing...'</span>)<span class="punctuation">;</span>
+<span class="variable">dataProcessor</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'dataReady'</span><span class="punctuation">,</span> <span class="punctuation">{</span> <span class="property">value</span><span class="punctuation">:</span> <span class="number">123</span> <span class="punctuation">}</span>)<span class="punctuation">;</span> <span class="comment">// Valid data</span>
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'\nSimulating invalid data processing...'</span>)<span class="punctuation">;</span>
+<span class="variable">dataProcessor</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'dataReady'</span><span class="punctuation">,</span> <span class="punctuation">{</span> <span class="property">message</span><span class="punctuation">:</span> <span class="string">'no value'</span> <span class="punctuation">}</span>)<span class="punctuation">;</span> <span class="comment">// Invalid data, will emit error</span>
+<span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'\nSimulating another valid data processing...'</span>)<span class="punctuation">;</span>
+<span class="variable">dataProcessor</span><span class="punctuation">.</span><span class="method">emit</span>(<span class="string">'dataReady'</span><span class="punctuation">,</span> <span class="punctuation">{</span> <span class="property">value</span><span class="punctuation">:</span> <span class="number">456</span> <span class="punctuation">}</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <div class="output-block">
+            <pre><code class="language-text">Output:
+Simulating data processing...
+Data ready: { value: 123 }
+Processing data with value: 123
+
+Simulating invalid data processing...
+Data ready: { message: 'no value' }
+An error occurred during data processing: Invalid data format received.
+
+Simulating another valid data processing...
+Data ready: { value: 456 }
+Processing data with value: 456</code></pre>
+        </div>
+        <p><strong>Explanation:</strong></p>
+        <ul>
+            <li>We set up an `error` listener. When `dataProcessor.emit('error', new Error(...))` is called, this listener catches the error.</li>
+            <li>If the `error` listener was absent when `dataProcessor.emit('error', ...)` was called, the Node.js process would have terminated immediately.</li>
+        </ul>
+
+        <h2>Real-World Node.js Examples Where Emitters Are Used</h2>
+
+        <h3>HTTP Servers (`http` module):</h3>
+        <p>An `http.Server` instance is an `EventEmitter`.</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="keyword">const</span> <span class="variable">http</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'http'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">server</span> <span class="operator">=</span> <span class="variable">http</span><span class="punctuation">.</span><span class="method">createServer</span>()<span class="punctuation">;</span>
+
+<span class="variable">server</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'request'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="comment">// Handle incoming HTTP requests</span>
+    <span class="variable">res</span><span class="punctuation">.</span><span class="method">end</span>(<span class="string">'Hello World'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">server</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'listening'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Server is listening on port 3000'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">server</span><span class="punctuation">.</span><span class="method">listen</span>(<span class="number">3000</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <p>Here, `request` and `listening` are events emitted by the `server` object.</p>
+
+        <h3>Streams (`stream` module):</h3>
+        <p>All streams (readable, writable, duplex, transform) are `EventEmitters`.</p>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="keyword">const</span> <span class="variable">fs</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'fs'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">readStream</span> <span class="operator">=</span> <span class="variable">fs</span><span class="punctuation">.</span><span class="method">createReadStream</span>(<span class="string">'myfile.txt'</span>)<span class="punctuation">;</span>
+
+<span class="variable">readStream</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'data'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">chunk</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Received data chunk:'</span><span class="punctuation">,</span> <span class="variable">chunk</span><span class="punctuation">.</span><span class="method">toString</span>())<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">readStream</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'end'</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">'Finished reading file.'</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">readStream</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'error'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">err</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+    <span class="method">console</span><span class="punctuation">.</span><span class="method">error</span>(<span class="string">'Error reading file:'</span><span class="punctuation">,</span> <span class="variable">err</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <p>`data`, `end`, and `error` are common events emitted by readable streams.</p>
+
+        <h3>Child Processes (`child_process` module):</h3>
+        <div class="code-block">
+            <pre><code class="language-javascript"><span class="keyword">const</span> <span class="punctuation">{</span> <span class="variable">spawn</span> <span class="punctuation">}</span> <span class="operator">=</span> <span class="keyword">require</span>(<span class="string">'child_process'</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">ls</span> <span class="operator">=</span> <span class="method">spawn</span>(<span class="string">'ls'</span><span class="punctuation">,</span> <span class="punctuation">[</span><span class="string">'-lh'</span><span class="punctuation">,</span> <span class="string">'/usr'</span><span class="punctuation">]</span>)<span class="punctuation">;</span>
+
+<span class="variable">ls</span><span class="punctuation">.</span><span class="property">stdout</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'data'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">data</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">`stdout: </span><span class="variable">${data}</span><span class="string">`</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">ls</span><span class="punctuation">.</span><span class="property">stderr</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'data'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">data</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="method">console</span><span class="punctuation">.</span><span class="method">error</span>(<span class="string">`stderr: </span><span class="variable">${data}</span><span class="string">`</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span>
+
+<span class="variable">ls</span><span class="punctuation">.</span><span class="method">on</span>(<span class="string">'close'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">code</span><span class="punctuation">)</span> <span class="operator">=></span> <span class="punctuation">{</span>
+  <span class="method">console</span><span class="punctuation">.</span><span class="method">log</span>(<span class="string">`child process exited with code </span><span class="variable">${code}</span><span class="string">`</span>)<span class="punctuation">;</span>
+<span class="punctuation">}</span>)<span class="punctuation">;</span></code></pre>
+        </div>
+        <p>Here, `stdout`, `stderr`, and the `ls` process itself are emitting events like `data` and `close`.</p>
+
+        <h2>Summary and Benefits</h2>
+        <p>In essence, event emitters provide a powerful and idiomatic way to handle asynchronous operations and design decoupled, reactive systems in Node.js.</p>
+        <div class="key-takeaways">
+            <h3>Key Takeaways:</h3>
+            <ul>
+                <li><strong>Events are signals:</strong> Something happened.</li>
+                <li><strong>Listeners/Handlers are reactions:</strong> Code that runs when an event occurs.</li>
+                <li><strong>Emitters manage events and listeners:</strong> They trigger events and ensure the right listeners are called.</li>
+                <li><strong>Node.js heavily uses event emitters:</strong> Due to its non-blocking, asynchronous nature, events are the primary way to communicate outcomes of operations.</li>
+                <li><strong>Decoupling:</strong> Emitters allow different parts of your application to communicate without direct knowledge of each other.</li>
+                <li><strong>Scalability:</strong> The event-driven model is efficient for handling many concurrent tasks.</li>
+                <li><strong>Always handle `'error'` events!</strong></li>
+            </ul>
+        </div>
+        <p>By understanding and utilizing `EventEmitter`, you unlock a fundamental pattern for building robust and efficient Node.js applications. Keep practicing with examples, and you'll soon find them intuitive!</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAuth 2.0 Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for Blakish Theme */
+      body {
+        background-color: #1e1e1e; /* VS Code Dark background */
+        color: #d4d4d4; /* Light text color */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #252526; /* Slightly lighter container for contrast */
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code Blue for headings/keywords */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+        font-weight: 900;
+      }
+
+      h2::before {
+        content: '• ';
+        color: #ffd700; /* Gold for emphasis */
+      }
+
+      /* Lists and Paragraphs */
+      p,
+      li {
+        font-size: 16px;
+      }
+
+      ul {
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Emphasis and Emojis */
+      strong {
+        color: #4ec9b0; /* VS Code Teal for strong text */
+        font-weight: 700;
+      }
+
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      /* VS Code Code Block Styling */
+      .code-block {
+        background-color: #1e1e1e; /* Dark background for code */
+        color: #d4d4d4;
+        padding: 5px;
+        border-radius: 6px;
+        overflow-x: auto;
+        border: 1px solid #3c3c3c;
+        font-family: Consolas, 'Courier New', monospace; /* Monospaced font for code */
+        font-size: 14px;
+      }
+
+      .code-block strong {
+        color: #c586c0; /* VS Code Magenta for function/special keywords in code */
+      }
+
+      .role-term {
+        color: #ffd700; /* Gold for role names */
+        font-weight: 700;
+      }
+
+      .flow-step {
+        color: #9cdcfe; /* Light Blue for flow steps */
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1><span class="emoji">🛡️</span> OAuth (Open Authorization) Notes</h1>
+
+      <p>
+        <strong>OAuth (Open Authorization)</strong> is an open standard(
+        <strong>protocol</strong> ) that was developed to solve the problem of
+        sharing access to protected resources (like a user's photos or contact
+        list) on one service with a third-party application without sharing the
+        user's login credentials (username and password). In simpler terms, it
+        provides a mechanism for **secure delegated access**.
+      </p>
+
+      <h2><span class="emoji">🔑</span> Key Problem Solved by OAuth</h2>
+      <p>
+        Before OAuth, if a third-party application needed to access a user's
+        data on a service (e.g., a photo printing service needing access to a
+        user's Google Photos), the user had to provide their
+        <strong>username and password</strong> for that service directly to the
+        third-party application.
+      </p>
+      <p>This was a major security risk because the third-party application:</p>
+      <ul>
+        <li>Could store and potentially misuse the user's credentials.</li>
+        <li>
+          Gained full, unrestricted access to all the user's data on that
+          service, not just the data it needed.
+        </li>
+        <li>
+          Maintained access permanently, until the user changed their password.
+        </li>
+      </ul>
+      <p>
+        OAuth solves this by using <strong>Access Tokens</strong> with
+        <strong>limited scope</strong> and <strong>limited lifetime</strong> to
+        grant access instead of passwords.
+      </p>
+
+      <h2><span class="emoji">📚</span> Terminologies of OAuth</h2>
+      <p>The OAuth 2.0 framework defines four main roles:</p>
+      <ul>
+        <li>
+          <strong class="role-term">Resource Owner:</strong> The entity
+          (typically the end-user) who owns the protected resources (data) and
+          has the ability to grant access to them.
+        </li>
+        <li>
+          <strong class="role-term">Client:</strong> The application (e.g., a
+          photo printing app, a website, a mobile app) that wants to access the
+          Resource Owner's protected resources.
+        </li>
+        <li>
+          <strong class="role-term">Resource Server:</strong> The server hosting
+          the protected resources (e.g., the API that serves the user's photos).
+          It accepts and validates access tokens.
+        </li>
+        <li>
+          <strong class="role-term">Authorization Server:</strong> The server
+          that authenticates the Resource Owner and issues Access Tokens to the
+          Client after getting the Resource Owner's authorization. (Often, the
+          Authorization Server and Resource Server are part of the same service
+          provider, like Google or Facebook).
+        </li>
+        <li>
+          <strong class="role-term">Access Token:</strong> A credential issued
+          by the Authorization Server to the Client, which the Client uses to
+          access the protected resources on the Resource Server on behalf of the
+          Resource Owner. It has a specific scope and a limited lifetime.
+        </li>
+        <li>
+          <strong class="role-term">Scope:</strong> Defines the limitations of
+          the access granted (e.g., 'read-only access to calendar' or 'write
+          access to photos').
+        </li>
+      </ul>
+
+      <h2>
+        <span class="emoji">🌐</span> How OAuth Connects Two Different
+        Applications
+      </h2>
+      <p>
+        OAuth is an **authorization layer** that sits between the third-party
+        application (<strong class="role-term">Client</strong>) and the
+        application hosting the user data (<strong class="role-term"
+          >Resource Server</strong
+        >).
+      </p>
+      <p>
+        It connects them by enabling the Client to obtain an
+        <strong>Access Token</strong> from the data host's
+        <strong class="role-term">Authorization Server</strong>. This token is
+        the key that opens a specific, pre-approved door to the Resource Server.
+      </p>
+      <ol>
+        <li class="flow-step">
+          User Initiation: The user interacts with the Client application (App
+          A) and clicks a button like "Connect with Google."
+        </li>
+        <li class="flow-step">
+          Redirection to Authorization Server: App A sends the user's browser to
+          the Authorization Server (Google).
+        </li>
+        <li class="flow-step">
+          Authentication & Consent: The user logs in to Google and is presented
+          with a **consent screen** asking if they grant App A the requested
+          scope of access (e.g., read contacts).
+        </li>
+        <li class="flow-step">
+          Token Issuance: If the user consents, Google issues an Access Token to
+          App A.
+        </li>
+        <li class="flow-step">
+          Access Granted: App A (Client) presents this Access Token to the
+          Google API (Resource Server) to access the contacts. The Resource
+          Server validates the token and only grants access to the specific
+          resources defined by the token's scope.
+        </li>
+      </ol>
+      <p>
+        Crucially, App A (Client) **never sees the user's login credentials**
+        for Google. The connection is established via the secure, limited-use
+        Access Token.
+      </p>
+
+      <h2>
+        <span class="emoji">⚙️</span> How OAuth Works Behind the Scenes
+        (Authorization Code Flow)
+      </h2>
+      <p>
+        The **Authorization Code Grant Flow** is the most common and secure
+        method for web and mobile applications.
+      </p>
+      <p>Here is a simplified flow:</p>
+      <ol>
+        <li class="flow-step">
+          Authorization Request: The Client sends the Resource Owner's browser
+          to the Authorization Server with its
+          <span class="code-block">client_id</span>, requested
+          <span class="code-block">scope</span>, and a
+          <span class="code-block">redirect_uri</span>.
+        </li>
+        <li class="flow-step">
+          Authentication & Consent: The Authorization Server authenticates the
+          Resource Owner (user logs in) and asks for permission (consent) for
+          the requested scope.
+        </li>
+        <li class="flow-step">
+          Authorization Code Grant: If consent is given, the Authorization
+          Server sends the Resource Owner's browser back to the Client's
+          registered <span class="code-block">redirect_uri</span> with a
+          short-lived **Authorization Code** in the URL.
+        </li>
+        <li class="flow-step">
+          Code Exchange (Back Channel): The Client (securely, from its server)
+          sends a request directly to the Authorization Server's **Token
+          Endpoint**. This request includes the Authorization Code, its
+          <span class="code-block">client_id</span>, and its
+          <span class="code-block">client_secret</span> (a private key) to
+          authenticate itself.
+        </li>
+        <li class="flow-step">
+          Access Token Response: The Authorization Server validates the code and
+          the Client's secret. If valid, it returns an **Access Token** (and
+          optionally a Refresh Token) to the Client.
+        </li>
+        <li class="flow-step">
+          Protected Resource Access: The Client uses the Access Token to make
+          requests to the Resource Server (API) on behalf of the Resource Owner.
+        </li>
+        <li class="flow-step">
+          Resource Response: The Resource Server validates the Access Token and,
+          if valid, returns the requested resource (data) to the Client.
+        </li>
+      </ol>
+
+      <h2><span class="emoji">🎯</span> Use Cases of OAuth</h2>
+      <p>
+        OAuth is the foundation for **delegated access** and is used widely
+        across the internet:
+      </p>
+      <ul>
+        <li>
+          **"Sign in with..." Buttons (Social Login):** When a user signs up for
+          a new website using "Sign in with Google," "Log in with Facebook," or
+          "Continue with Apple." This authenticates the user's identity (often
+          combined with **OpenID Connect**) and allows the new website to access
+          basic profile information (name, email) without getting the user's
+          password.
+        </li>
+        <li>
+          **Third-Party App Integrations:**
+          <ul>
+            <li>
+              A printing service requesting access to a user's photos on Google
+              Photos.
+            </li>
+            <li>
+              A scheduling app requesting access to a user's events on Google
+              Calendar or Microsoft Outlook.
+            </li>
+            <li>
+              A data analytics tool requesting read access to a user's data on
+              Salesforce.
+            </li>
+          </ul>
+        </li>
+        <li>
+          **Device Authorization (IoT/Smart TVs):** Allowing applications on
+          input-constrained devices (like a Smart TV app or a headless device)
+          to access a user's account by providing a short code that the user
+          enters on a separate, easily accessible device (like their phone or
+          computer).
+        </li>
+        <li>
+          **Machine-to-Machine Communication:** Automated processes or
+          microservices accessing protected APIs using their own credentials
+          instead of a user's.
+        </li>
+      </ul>
+
+      <h2>
+        <span class="emoji">💡</span> What is Meant by "OAuth is a Standard
+        Protocol"
+      </h2>
+      <p>
+        A protocol is a set of rules that defines how computers communicate. A
+        standard protocol is one that is agreed upon by different organizations
+        and is widely adopted.
+      </p>
+      <p>
+        When it is said that "OAuth is a standard protocol," it means two
+        primary things:
+      </p>
+
+      <h3>
+        <span class="emoji">🏛️</span> It is an Open, Agreed-Upon Set of Rules
+        (Standard)
+      </h3>
+      <ul>
+        <li>
+          <strong>Public Specification:</strong> OAuth is governed by the
+          <strong>Internet Engineering Task Force (IETF)</strong> and is defined
+          in several **Request for Comments (RFCs)** documents (primarily
+          <span class="code-block">RFC 6749</span> for OAuth 2.0). This means
+          the rules are public, peer-reviewed, and agreed upon by industry
+          experts.
+        </li>
+        <li>
+          <strong>Interoperability:</strong> Because it's a standard, any
+          company (like Google, Facebook, Microsoft) can implement OAuth
+          according to the same established set of rules. This guarantees
+          <strong>interoperability</strong>, meaning a third-party application
+          written to comply with the OAuth standard can securely interact with
+          any service that also follows the standard.
+        </li>
+        <li>
+          <strong>Avoids Vendor Lock-in:</strong> It prevents a single company
+          from controlling the authorization process, ensuring a consistent and
+          expected behavior across different service providers.
+        </li>
+      </ul>
+
+      <h3>
+        <span class="emoji">🔒</span> It is a Defined Process for Authorization
+        (Protocol)
+      </h3>
+      <ul>
+        <li>
+          <strong>Defined Steps:</strong> A protocol establishes a clear
+          sequence of communication. OAuth defines the **specific steps** that
+          the different parties (<strong class="role-term">Client</strong>,
+          <strong class="role-term">Resource Owner</strong>,
+          <strong class="role-term">Authorization Server</strong>,
+          <strong class="role-term">Resource Server</strong>) must follow to
+          safely delegate access.
+        </li>
+        <li>
+          <strong>Specific Terminology and Messages:</strong> The protocol
+          mandates the use of specific terms (like
+          <span class="code-block">Access Token</span>,
+          <span class="code-block">Scope</span>,
+          <span class="code-block">Redirect URI</span>) and defines the exact
+          format of the messages (HTTP requests and responses) that must be
+          exchanged at each step.
+        </li>
+      </ul>
+      <p>
+        In essence, calling OAuth a <strong>standard protocol</strong> means
+        it's the official, universally accepted instruction manual for safely
+        and securely granting limited access to a user's data on one service
+        from another application,
+        <strong>without ever sharing the user's password</strong>.
+      </p>
+      <a href="https://datatracker.ietf.org/doc/html/rfc6749">Learn more</a>
+    </div>
+  </body>
+</html>
+

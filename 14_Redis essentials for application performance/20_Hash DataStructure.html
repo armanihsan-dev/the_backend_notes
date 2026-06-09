@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Hashes Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="default.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>Redis Hashes Data Type 🧩</h1>
+      </header>
+
+      <section class="notes-section">
+        <h2 id="section-1">1. Redis Hashes Overview 🧩</h2>
+
+        <h3>Definition</h3>
+        <p>
+          A **Redis Hash** is essentially a **map (or dictionary)** that stores
+          a collection of **field-value pairs** under a single key.
+        </p>
+        <ul>
+          <li>
+            <strong>Key:</strong> The name of the Redis Hash (e.g.,
+            <code>user:101</code>).
+          </li>
+          <li>
+            <strong>Field:</strong> A unique string within the Hash (e.g.,
+            <code>username</code>, <code>email</code>, <code>last_login</code>).
+          </li>
+          <li>
+            <strong>Value:</strong> The data associated with the field (e.g.,
+            <code>"alice"</code>, <code>"a@example.com"</code>,
+            <code>"2025-11-28"</code>).
+          </li>
+        </ul>
+
+        <h3>How It Works</h3>
+        <ul>
+          <li>
+            <strong>Modeling Objects:</strong> Hashes are perfect for storing a
+            **record or object**, such as a user profile, a product, or a
+            configuration block. Instead of creating separate Redis keys for
+            <code>user:101:name</code> and <code>user:101:email</code>, you
+            store them all under the single key <code>user:101</code>.
+          </li>
+          <li>
+            <strong>Efficiency:</strong> From a memory perspective, bundling
+            many related fields into a single Hash key is generally more
+            **memory-efficient** than storing them as separate String keys,
+            especially for small hashes.
+          </li>
+          <li>
+            <strong>Time Complexity:</strong> Basic operations like setting or
+            getting a single field are $O(1)$ (**constant time**), making them
+            **extremely fast**.
+          </li>
+        </ul>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-2">
+          2. Working with Redis Hashes via <code>redis-cli</code>
+        </h2>
+
+        <p>
+          These commands are used for direct interaction with the Redis server.
+        </p>
+
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Action</th>
+              <th>Syntax</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>HSET</strong></td>
+              <td>
+                Set a single field-value pair. Creates the Hash if it doesn't
+                exist.
+              </td>
+              <td><code>HSET key field value</code></td>
+              <td><code>HSET user:201 name "Bob" email "b@test.com"</code></td>
+            </tr>
+            <tr>
+              <td><strong>HGET</strong></td>
+              <td>Get the value associated with a specific field.</td>
+              <td><code>HGET key field</code></td>
+              <td><code>HGET user:201 name</code></td>
+            </tr>
+            <tr>
+              <td><strong>HMSET</strong></td>
+              <td>
+                [Deprecated] Set multiple field-value pairs at once. **HSET is
+                now preferred.**
+              </td>
+              <td><code>HMSET key field1 val1 field2 val2 ...</code></td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td><strong>HMGET</strong></td>
+              <td>Get the values for multiple fields at once.</td>
+              <td><code>HMGET key field1 field2 ...</code></td>
+              <td><code>HMGET user:201 name email</code></td>
+            </tr>
+            <tr>
+              <td><strong>HGETALL</strong></td>
+              <td>
+                Get all fields and values in the Hash. (Use with caution on very
+                large hashes.)
+              </td>
+              <td><code>HGETALL key</code></td>
+              <td><code>HGETALL user:201</code></td>
+            </tr>
+            <tr>
+              <td><strong>HDEL</strong></td>
+              <td>Delete one or more fields from the Hash.</td>
+              <td><code>HDEL key field1 [field2 ...]</code></td>
+              <td><code>HDEL user:201 email</code></td>
+            </tr>
+            <tr>
+              <td><strong>HEXISTS</strong></td>
+              <td>
+                Check if a specific field exists in the Hash. (Returns 1 or 0).
+              </td>
+              <td><code>HEXISTS key field</code></td>
+              <td><code>HEXISTS user:201 name</code></td>
+            </tr>
+            <tr>
+              <td><strong>HLEN</strong></td>
+              <td>Get the number of fields in the Hash.</td>
+              <td><code>HLEN key</code></td>
+              <td><code>HLEN user:201</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3><code>redis-cli</code> Example Flow</h3>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">></span> <span class="command">HSET</span> <span class="key">product:456</span> <span class="key">name</span> <span class="string">"Wireless Mouse"</span> <span class="key">price</span> <span class="number">25.99</span> <span class="key">stock</span> <span class="number">100</span>
+<span class="number">(integer) 3</span>
+<span class="operator">></span> <span class="command">HGET</span> <span class="key">product:456</span> <span class="key">name</span>
+<span class="string">"Wireless Mouse"</span>
+<span class="operator">></span> <span class="command">HMGET</span> <span class="key">product:456</span> <span class="key">price</span> <span class="key">stock</span>
+<span class="number">1)</span> <span class="string">"25.99"</span>
+<span class="number">2)</span> <span class="string">"100"</span>
+<span class="operator">></span> <span class="command">HGETALL</span> <span class="key">product:456</span>
+<span class="number">1)</span> <span class="string">"name"</span>
+<span class="number">2)</span> <span class="string">"Wireless Mouse"</span>
+<span class="number">3)</span> <span class="string">"price"</span>
+<span class="number">4)</span> <span class="string">"25.99"</span>
+<span class="number">5)</span> <span class="string">"stock"</span>
+<span class="number">6)</span> <span class="string">"100"</span>
+<span class="operator">></span> <span class="command">HLEN</span> <span class="key">product:456</span>
+<span class="number">(integer) 3</span>
+<span class="operator">></span> <span class="command">HDEL</span> <span class="key">product:456</span> <span class="key">stock</span>
+<span class="number">(integer) 1</span>
+<span class="operator">></span> <span class="command">HEXISTS</span> <span class="key">product:456</span> <span class="key">stock</span>
+<span class="number">(integer) 0</span>
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-3">3. Working with Redis Hashes in Node.js</h2>
+
+        <p>
+          We'll use the popular **ioredis** library for the Node.js examples.
+        </p>
+        <p>First, install the library:</p>
+        <div class="code-block bash-code install-code">
+          <span class="comment"># Bash</span>
+          <pre><span class="command">npm install ioredis</span></pre>
+        </div>
+
+        <h3>Node.js Syntax Example</h3>
+        <div class="code-block js-code">
+          <span class="comment"># JavaScript</span>
+          <pre>
+<span class="keyword">const</span> <span class="variable">Redis</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'ioredis'</span>);
+<span class="keyword">const</span> <span class="variable">redis</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">Redis</span>();
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function-name">handleRedisHashes</span>() {
+    <span class="keyword">const</span> <span class="variable-name">hashKey</span> <span class="operator">=</span> <span class="string">'user:999'</span>;
+
+    <span class="comment">// 1. HSET: Set multiple field-value pairs (ioredis supports setting multiple pairs directly with HSET)</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"--- HSET ---"</span>);
+    <span class="comment">// Syntax: HSET key field1 value1 field2 value2 ...</span>
+    <span class="keyword">let</span> <span class="variable-name">setResponse</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hset</span>(<span class="variable-name">hashKey</span>, 
+        <span class="string">'id'</span>, <span class="string">'999'</span>, 
+        <span class="string">'username'</span>, <span class="string">'AlexK'</span>, 
+        <span class="string">'status'</span>, <span class="string">'active'</span>,
+        <span class="string">'points'</span>, <span class="number">500</span>
+    );
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Fields set: ${</span><span class="variable-name">setResponse</span><span class="string">}`</span>); <span class="comment">// Output: (Number of fields added/updated)</span>
+
+    <span class="comment">// 2. HGET: Get a single field</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- HGET ---"</span>);
+    <span class="keyword">let</span> <span class="variable-name">username</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hget</span>(<span class="variable-name">hashKey</span>, <span class="string">'username'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Username: ${</span><span class="variable-name">username</span><span class="string">}`</span>); <span class="comment">// Output: AlexK</span>
+
+    <span class="comment">// 3. HMGET: Get multiple fields</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- HMGET ---"</span>);
+    <span class="comment">// Returns an array: [value1, value2, ...]</span>
+    <span class="keyword">let</span> [<span class="variable">status</span>, <span class="variable">points</span>] <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hmget</span>(<span class="variable-name">hashKey</span>, <span class="string">'status'</span>, <span class="string">'points'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Status: ${</span><span class="variable">status</span><span class="string">}, Points: ${</span><span class="variable">points</span><span class="string">}`</span>); <span class="comment">// Output: active, 500</span>
+
+    <span class="comment">// 4. HGETALL: Get all fields and values</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- HGETALL ---"</span>);
+    <span class="comment">// Returns a JavaScript object {field1: value1, field2: value2, ...}</span>
+    <span class="keyword">let</span> <span class="variable-name">userProfile</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hgetall</span>(<span class="variable-name">hashKey</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"Full Profile:"</span>, <span class="variable-name">userProfile</span>); 
+
+    <span class="comment">// 5. HDEL: Delete a field</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- HDEL ---"</span>);
+    <span class="keyword">let</span> <span class="variable-name">deletedCount</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hdel</span>(<span class="variable-name">hashKey</span>, <span class="string">'points'</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Fields deleted: ${</span><span class="variable-name">deletedCount</span><span class="string">}`</span>); <span class="comment">// Output: 1</span>
+
+    <span class="comment">// 6. HINCRBY: Increment a field's integer value (Atomically)</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- HINCRBY ---"</span>);
+    <span class="comment">// Note: HINCRBY initializes the field to 0 if it doesn't exist</span>
+    <span class="keyword">let</span> <span class="variable-name">newPoints</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hincrby</span>(<span class="variable-name">hashKey</span>, <span class="string">'score'</span>, <span class="number">10</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`New score: ${</span><span class="variable-name">newPoints</span><span class="string">}`</span>); <span class="comment">// Output: 10</span>
+    
+    <span class="variable-name">newPoints</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">redis</span>.<span class="method">hincrby</span>(<span class="variable-name">hashKey</span>, <span class="string">'score'</span>, <span class="number">5</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`New score: ${</span><span class="variable-name">newPoints</span><span class="string">}`</span>); <span class="comment">// Output: 15 (10 + 5)</span>
+    
+    <span class="variable">redis</span>.<span class="method">quit</span>();
+}
+
+<span class="function-name">handleRedisHashes</span>();
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-4">4. Advanced Hash Operations</h2>
+
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Action</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>HINCRBY</strong></td>
+              <td>Increment</td>
+              <td>
+                Atomically increments the integer value of a field by the given
+                number (e.g., increasing a score).
+              </td>
+            </tr>
+            <tr>
+              <td><strong>HINCRBYFLOAT</strong></td>
+              <td>Increment Float</td>
+              <td>
+                Atomically increments the float value of a field by the given
+                float number (e.g., updating a balance).
+              </td>
+            </tr>
+            <tr>
+              <td><strong>HKEYS</strong></td>
+              <td>Get Fields</td>
+              <td>
+                Returns a list of all field names in the Hash (no values).
+              </td>
+            </tr>
+            <tr>
+              <td><strong>HVALS</strong></td>
+              <td>Get Values</td>
+              <td>
+                Returns a list of all values in the Hash (no field names).
+              </td>
+            </tr>
+            <tr>
+              <td><strong>HSETNX</strong></td>
+              <td>Set If Not Exist</td>
+              <td>
+                Sets a field and value only if the field **does not already
+                exist** in the Hash.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>
+          Redis Hashes are a fantastic way to keep your data organized and your
+          Redis commands clean.
+        </p>
+      </section>
+
+      <hr />
+
+      <footer class="notes-footer">
+        <p>End of Redis Hashes Notes</p>
+      </footer>
+    </div>
+  </body>
+</html>

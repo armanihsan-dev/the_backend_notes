@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cloudflare & Name Servers Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>What is Cloudflare?</h1>
+    <p>
+      Cloudflare is a <strong>global security + performance layer</strong> that
+      sits between your users and your server.
+    </p>
+
+    <h3>In simple words:</h3>
+    <p>
+      Cloudflare protects, accelerates, and hides your server from the internet.
+    </p>
+
+    <h2>1️⃣ What Cloudflare actually does</h2>
+
+    <p><strong>Without Cloudflare:</strong></p>
+    <pre><code><span class="prop">User</span> <span class="op">─────►</span> <span class="str">Your Server (IP exposed)</span></code></pre>
+
+    <p><strong>With Cloudflare:</strong></p>
+    <pre><code><span class="prop">User</span> <span class="op">─►</span> <span class="kw">Cloudflare</span> <span class="op">─►</span> <span class="str">Your Server (IP hidden)</span></code></pre>
+
+    <p>
+      Using Cloudflare for <strong>DNS management</strong> means you let
+      Cloudflare handle how your domain name (like <code>example.com</code>) is
+      translated into server IP addresses, instead of your domain registrar or
+      another DNS provider—and you get security and performance features on top
+      of basic DNS.
+    </p>
+
+    <p>Let’s break it down clearly.</p>
+
+    <h2>1️⃣ What DNS management actually is</h2>
+    <p>DNS (Domain Name System) is basically the internet’s phonebook.</p>
+    <p>When someone visits:</p>
+    <pre><code><span class="mono">example.com</span></code></pre>
+    <p>DNS answers:</p>
+    <pre><code><span class="op">→</span> <span class="cmt">This domain points to</span> <span class="lit">203.0.113.10</span> <span class="cmt">(your server)</span></code></pre>
+
+    <p><strong>DNS management means:</strong></p>
+    <ul>
+      <li>Creating and editing DNS records (A, AAAA, CNAME, MX, TXT, etc.)</li>
+      <li>Deciding where traffic should go</li>
+      <li>Controlling how fast and how safely those lookups happen</li>
+    </ul>
+
+    <h2>2️⃣ What changes when you use Cloudflare for DNS</h2>
+    <p>
+      Instead of using your registrar’s DNS (GoDaddy, Namecheap, etc.), you:
+    </p>
+    <p>👉 <strong>Change your domain’s nameservers to Cloudflare’s</strong></p>
+    <p>After that:</p>
+    <ul>
+      <li>Cloudflare becomes the authoritative DNS provider</li>
+      <li>All DNS queries go through Cloudflare first</li>
+    </ul>
+
+    <h2>3️⃣ What Cloudflare adds beyond normal DNS</h2>
+    <h3>🔹 Fast global DNS</h3>
+    <ul>
+      <li>Cloudflare has hundreds of global data centers</li>
+      <li>DNS responses are served from the nearest location</li>
+      <li><strong>Result:</strong> faster site loading</li>
+    </ul>
+
+    <h3>🔹 Proxy (orange cloud) vs DNS-only</h3>
+    <p>In Cloudflare DNS, each record can be:</p>
+
+    <p><span class="orange-cloud">🟠 Proxied (orange cloud ON)</span></p>
+    <p><code>Visitor → Cloudflare → Your server</code></p>
+    <p>Your real IP is hidden. You get:</p>
+    <ul>
+      <li>DDoS protection</li>
+      <li>WAF (Web Application Firewall)</li>
+      <li>CDN caching</li>
+      <li>Rate limiting</li>
+    </ul>
+
+    <p><span class="grey-cloud">⚪ DNS-only (orange cloud OFF)</span></p>
+    <p><code>Visitor → Your server directly</code></p>
+    <p>Used for: APIs, SSH subdomains, Mail servers.</p>
+
+    <h2>4️⃣ Example: without vs with Cloudflare</h2>
+
+    <h3>❌ Without Cloudflare</h3>
+    <pre><code><span class="prop">User</span> <span class="op">→</span> <span class="kw">DNS provider</span> <span class="op">→</span> <span class="str">Your server (IP visible)</span></code></pre>
+    <p>
+      <strong>Problems:</strong> Server IP exposed, No DDoS protection, Slower
+      DNS resolution.
+    </p>
+
+    <h3>✅ With Cloudflare DNS</h3>
+    <pre><code><span class="prop">User</span> <span class="op">→</span> <span class="kw">Cloudflare DNS</span> <span class="op">→</span> <span class="dir">Cloudflare proxy</span> <span class="op">→</span> <span class="str">Your server</span></code></pre>
+    <p>
+      <strong>Benefits:</strong> IP hidden, Automatic DDoS mitigation, Faster +
+      cached responses, Extra security layers.
+    </p>
+
+    <h2>5️⃣ Common DNS records you manage in Cloudflare</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Record</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>A</code></td>
+          <td>Domain → IPv4 address</td>
+        </tr>
+        <tr>
+          <td><code>AAAA</code></td>
+          <td>Domain → IPv6 address</td>
+        </tr>
+        <tr>
+          <td><code>CNAME</code></td>
+          <td>Alias to another domain</td>
+        </tr>
+        <tr>
+          <td><code>MX</code></td>
+          <td>Email routing</td>
+        </tr>
+        <tr>
+          <td><code>TXT</code></td>
+          <td>Verification, SPF, DKIM</td>
+        </tr>
+        <tr>
+          <td><code>SRV</code></td>
+          <td>Service-based routing</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>6️⃣ Real-world use cases</h2>
+    <p>Cloudflare DNS is commonly used when:</p>
+    <ul>
+      <li>You want to hide your backend IP</li>
+      <li>You need DDoS protection</li>
+      <li>You want faster DNS + CDN</li>
+      <li>
+        You’re hosting:
+        <strong
+          >Node.js / Express apps, Next.js frontends, APIs, Dockerized backends,
+          VPS servers.</strong
+        >
+      </li>
+    </ul>
+    <p>
+      Given you work with Node.js, Nginx, Docker, and deployment, this is
+      exactly the right DNS setup for production.
+    </p>
+
+    <h2>7️⃣ One-line summary</h2>
+    <p>
+      <em
+        >Using Cloudflare for DNS management means Cloudflare controls your
+        domain’s DNS records and optionally proxies traffic through its global
+        network to provide speed, security, and reliability.</em
+      >
+    </p>
+
+    <hr />
+
+    <h1>What are Name Servers?</h1>
+    <p>
+      Name servers are the servers that store DNS records for your domain and
+      answer the question:
+    </p>
+    <p><strong>“Where should traffic for this domain go?”</strong></p>
+    <p>Think of them as the official source of truth for a domain’s DNS.</p>
+
+    <h2>1️⃣ Simple definition (no jargon)</h2>
+    <p>A name server is a server that:</p>
+    <ul>
+      <li>Knows the DNS records of a domain</li>
+      <li>
+        Responds when the internet asks: <br /><code
+          >“What is the IP of example.com?”</code
+        >
+      </li>
+    </ul>
+    <p>
+      If your name servers don’t know the answer, your site doesn’t exist on the
+      internet.
+    </p>
+
+    <h2>2️⃣ Real-life analogy</h2>
+    <p>Imagine DNS like a country’s address system:</p>
+    <ul>
+      <li><strong>Domain name</strong> → person’s name</li>
+      <li><strong>IP address</strong> → home address</li>
+      <li><strong>Name server</strong> → government record office</li>
+    </ul>
+    <p>
+      When someone looks you up, the system asks:
+      <em>“Which office has this person’s address?”</em> That office =
+      <strong>name server</strong>.
+    </p>
+
+    <h2>3️⃣ How name servers work (step-by-step)</h2>
+    <p>When a user visits <code>example.com</code>:</p>
+    <pre><code><span class="lit">1.</span> <span class="prop">Browser asks:</span> <span class="str">Where is example.com?</span>
+<span class="lit">2.</span> <span class="prop">Root DNS says:</span> <span class="str">Ask .com servers</span>
+<span class="lit">3.</span> <span class="prop">.com servers say:</span> <span class="str">Ask these name servers:</span>
+   <span class="op">→</span> <span class="kw">ns1.cloudflare.com</span>
+   <span class="op">→</span> <span class="kw">ns2.cloudflare.com</span>
+<span class="lit">4.</span> <span class="prop">Those name servers reply:</span>
+   <span class="mono">example.com → 203.0.113.10</span></code></pre>
+
+    <h2>4️⃣ Types of name servers (important)</h2>
+    <h3>🔹 Authoritative name servers</h3>
+    <ul>
+      <li>These are the real ones that matter.</li>
+      <li>Store actual DNS records (A, CNAME, MX, etc.)</li>
+      <li>Final authority for a domain</li>
+    </ul>
+    <pre><code><span class="cmt">// Example:</span>
+<span class="kw">ns1.cloudflare.com</span>
+<span class="kw">ns2.cloudflare.com</span></code></pre>
+
+    <h3>🔹 Recursive resolvers (not your name servers)</h3>
+    <ul>
+      <li>Used by ISPs, Google DNS (8.8.8.8), etc.</li>
+      <li>They ask authoritative name servers on behalf of users</li>
+      <li>They <strong>do NOT</strong> own your domain’s records</li>
+    </ul>
+
+    <h2>5️⃣ Where you set name servers</h2>
+    <p>
+      You set name servers at your <strong>domain registrar</strong> (e.g.,
+      Namecheap, GoDaddy, Google Domains).
+    </p>
+    <p>If you switch to Cloudflare, you change:</p>
+    <pre><code><span class="op">From:</span>
+<span class="type">ns1.namecheap.com</span>
+<span class="type">ns2.namecheap.com</span>
+
+<span class="op">To:</span>
+<span class="kw">ns1.cloudflare.com</span>
+<span class="kw">ns2.cloudflare.com</span></code></pre>
+    <p>After that: <strong>Cloudflare becomes your DNS authority.</strong></p>
+
+    <h2>6️⃣ Why name servers are so important</h2>
+    <ul>
+      <li>❌ <strong>Are wrong</strong> → site/email breaks</li>
+      <li>❌ <strong>Don’t respond</strong> → domain goes offline</li>
+      <li>❌ <strong>Don’t match DNS records</strong> → chaos</li>
+    </ul>
+    <p><strong>Correct name servers = internet can find you.</strong></p>
+
+    <h2>7️⃣ Cloudflare + name servers (key link)</h2>
+    <p>When you “use Cloudflare for DNS”:</p>
+    <ul>
+      <li>You replace your registrar’s name servers</li>
+      <li>Cloudflare’s name servers answer DNS queries</li>
+      <li>
+        Cloudflare controls:
+        <strong
+          >DNS records, Proxying (orange cloud), Security & performance.</strong
+        >
+      </li>
+    </ul>
+
+    <h2>8️⃣ One-line summary</h2>
+    <p>
+      <em
+        >Name servers tell the internet which DNS provider is responsible for
+        your domain and where its DNS records live.</em
+      >
+    </p>
+  </body>
+</html>

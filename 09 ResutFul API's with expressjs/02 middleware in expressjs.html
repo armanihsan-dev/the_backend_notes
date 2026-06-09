@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Express.js Middleware</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc;
+        border-bottom: 2px solid #bb86fc;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      p {
+        margin-bottom: 1rem;
+      }
+
+      .code-block {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        white-space: pre;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 14px;
+      }
+
+      .code-block .keyword {
+        color: #569cd6;
+      }
+      .code-block .string {
+        color: #ce9178;
+      }
+      .code-block .comment {
+        color: #6a9955;
+      }
+      .code-block .variable {
+        color: #9cdcfe;
+      }
+      .code-block .function {
+        color: #dcdcaa;
+      }
+      .code-block .number {
+        color: #b5cea8;
+      }
+      .code-block .parameter {
+        color: #4fc1ff;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      strong {
+        color: #ffd54f;
+      }
+
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+
+      li {
+        background-color: #1e1e1e;
+        border-left: 4px solid #bb86fc;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Express.js Middleware</h1>
+    <p>
+      Middleware in Express.js is a function that has access to the request
+      object (req), the response object (res), and the next function in the
+      application’s request-response cycle. It can execute any code, make
+      changes to the request and response objects, end the request-response
+      cycle, or call the next middleware function in the stack.
+    </p>
+
+    <h2>Middleware Execution</h2>
+    <p>
+      Middleware is executed in the order it's defined. When a request comes in,
+      Express routes it to the first middleware function. If that function calls
+      next(), the request is passed on to the next middleware function in the
+      stack, and so on. If a middleware function does not call next(), it's
+      expected to handle and end the request-response cycle itself (e.g., by
+      sending a response with res.send()), and no subsequent middleware
+      functions will be executed for that request.
+    </p>
+
+    <h2>Syntax and Definition</h2>
+    <p>The basic syntax for a middleware function is:</p>
+    <div class="code-block">
+      <pre><span class="keyword">function</span> <span class="function">myMiddleware</span>(<span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) {
+  <span class="comment">// Your middleware logic here</span>
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">'Middleware executed!'</span>);
+  <span class="function">next</span>(); <span class="comment">// Call next to pass control to the next middleware</span>
+}</pre>
+    </div>
+    <p>
+      <strong>req:</strong> The request object, containing information about the
+      HTTP request.
+    </p>
+    <p>
+      <strong>res:</strong> The response object, used to send a response back to
+      the client.
+    </p>
+    <p>
+      <strong>next:</strong> A function that, when called, executes the next
+      middleware function in the stack.
+    </p>
+    <p>
+      You use app.use() to apply middleware at the application level, or you can
+      apply it to specific routes.
+    </p>
+
+    <h3>Example:</h3>
+    <p>
+      Here's an example of a simple logging middleware that logs the URL of
+      every incoming request.
+    </p>
+    <div class="code-block">
+      <pre><span class="keyword">const</span> <span class="variable">express</span> = <span class="function">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> = <span class="function">express</span>();
+<span class="keyword">const</span> <span class="variable">port</span> = <span class="number">3000</span>;
+
+<span class="comment">// This is our custom middleware</span>
+<span class="keyword">const</span> <span class="variable">requestLogger</span> = (<span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) => {
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Request received for URL: </span><span class="variable">${req.originalUrl}</span><span class="string">`</span>);
+  <span class="function">next</span>(); <span class="comment">// Don't forget this!</span>
+};
+
+<span class="comment">// Use the middleware for all incoming requests</span>
+<span class="variable">app</span>.<span class="function">use</span>(<span class="variable">requestLogger</span>);
+
+<span class="comment">// Define a simple route</span>
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/'</span>, (<span class="parameter">req</span>, <span class="parameter">res</span>) => {
+  <span class="variable">res</span>.<span class="function">send</span>(<span class="string">'Hello World!'</span>);
+});
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="variable">port</span>, () => {
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Server running at http://localhost:</span><span class="variable">${port}</span><span class="string">`</span>);
+});</pre>
+    </div>
+    <p>
+      When you visit http://localhost:3000, the requestLogger middleware runs
+      first, logs the request URL, and then calls next(), which allows the
+      app.get('/') route handler to execute and send the "Hello World!"
+      response.
+    </p>
+
+    <h2>Types of Middleware</h2>
+    <p>Express.js has several types of middleware:</p>
+    <ul>
+      <li>
+        <strong>Application-level Middleware:</strong> This middleware is bound
+        to an instance of the app object using app.use() or app.METHOD(). It's
+        executed for every request to the application.
+      </li>
+      <li>
+        <strong>Router-level Middleware:</strong> This works in the same way as
+        application-level middleware but is bound to an instance of
+        express.Router(). This is useful for grouping middleware and routes for
+        specific parts of an application.
+      </li>
+      <li>
+        <strong>Built-in Middleware:</strong> Express has built-in middleware
+        functions for handling static files, JSON, and URL-encoded data.
+        <ul>
+          <li>
+            <strong>express.static():</strong> Serves static assets like images,
+            CSS files, and JavaScript files.
+          </li>
+          <li>
+            <strong>express.json():</strong> Parses incoming requests with JSON
+            payloads.
+          </li>
+          <li>
+            <strong>express.urlencoded():</strong> Parses incoming requests with
+            URL-encoded payloads.
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>Error-handling Middleware:</strong> This middleware has four
+        arguments: (err, req, res, next). It's specifically designed to handle
+        errors that occur during the request-response cycle. It's defined last
+        in the middleware stack.
+      </li>
+      <li>
+        <strong>Third-party Middleware:</strong> These are external modules
+        installed via npm to add extra functionality, such as body-parser (often
+        replaced by express.json() now), cors for Cross-Origin Resource Sharing,
+        or morgan for HTTP request logging. You install them with npm install
+        and then require() them in your application.
+      </li>
+    </ul>
+
+    <h1>Error-handling Middleware</h1>
+    <p>
+      Error-handling middleware is a special type of middleware in Express.js
+      that is executed specifically when an error occurs during the
+      request-response cycle. It's designed to catch and handle errors that
+      might be thrown by other middleware or route handlers.
+    </p>
+
+    <h2>When Error-handling Middleware is Executed</h2>
+    <p>
+      This type of middleware is executed when you call the next() function with
+      an error object as its argument, like next(err). Express recognizes this
+      signature and skips all subsequent regular middleware and route handlers,
+      jumping directly to the first error-handling middleware in the stack.
+    </p>
+    <p>
+      <strong>Important Note:</strong> To function correctly as error-handling
+      middleware, it must have four arguments: (err, req, res, next). If you
+      define it with fewer arguments, Express will treat it as a regular
+      middleware function.
+    </p>
+
+    <h3>Example and Usage</h3>
+    <p>
+      Error-handling middleware is typically defined at the very end of your
+      middleware stack, after all other app.use() and route definitions. This
+      ensures that it's the last thing to be called, only after all other parts
+      of your application have had a chance to run.
+    </p>
+    <p>Here's a breakdown of a typical setup:</p>
+    <p>Define a regular route or middleware that can throw an error.</p>
+    <div class="code-block">
+      <pre><span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/error-route'</span>, (<span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) => {
+  <span class="comment">// Simulate an error</span>
+  <span class="keyword">const</span> <span class="variable">err</span> = <span class="keyword">new</span> <span class="variable">Error</span>(<span class="string">'Something went wrong!'</span>);
+  <span class="variable">err</span>.<span class="variable">status</span> = <span class="number">500</span>;
+  <span class="function">next</span>(<span class="variable">err</span>); <span class="comment">// Pass the error to the next middleware</span>
+});</pre>
+    </div>
+    <p>Define the error-handling middleware.</p>
+    <div class="code-block">
+      <pre><span class="variable">app</span>.<span class="function">use</span>((<span class="parameter">err</span>, <span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) => {
+  <span class="comment">// Set a default status code and message if not already defined</span>
+  <span class="variable">res</span>.<span class="function">status</span>(<span class="variable">err</span>.<span class="variable">status</span> || <span class="number">500</span>);
+  <span class="variable">res</span>.<span class="function">send</span>({
+    <span class="variable">error</span>: {
+      <span class="variable">message</span>: <span class="variable">err</span>.<span class="variable">message</span>,
+      <span class="variable">status</span>: <span class="variable">err</span>.<span class="variable">status</span> || <span class="number">500</span>
+    }
+  });
+});</pre>
+    </div>
+    <p>
+      In this example, when a user accesses /error-route, the route handler
+      creates an Error object and passes it to next(). Express sees the error
+      and skips any other middleware defined after this route, jumping directly
+      to the error-handling middleware. This final middleware then sends a
+      structured JSON response back to the client with the error details.
+    </p>
+
+    <h2>How to handle error with error handler middleware</h2>
+    <p>
+      To handle errors with error-handling middleware in Express.js, you define
+      a special middleware function that takes four arguments: (err, req, res,
+      next). This function must be placed at the very end of your middleware
+      stack. When any other middleware or route handler encounters an error, it
+      calls next(err), which causes Express to skip all subsequent normal
+      middleware and jump directly to your error-handling function.
+    </p>
+
+    <h3>Steps to Implement Error-Handling Middleware</h3>
+    <p>
+      <strong>Define the Error-Handling Function:</strong> Create a function
+      with the signature (err, req, res, next). This is the key that tells
+      Express it's an error handler. The err parameter will contain the error
+      object that was passed to next().
+    </p>
+    <div class="code-block">
+      <pre><span class="variable">app</span>.<span class="function">use</span>((<span class="parameter">err</span>, <span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) => {
+  <span class="comment">// Logic to handle the error</span>
+});</pre>
+    </div>
+    <p>
+      <strong>Place it Last:</strong> Ensure the error-handling middleware is
+      the last app.use() call in your application's setup. This is crucial
+      because middleware is executed in the order it's defined.
+    </p>
+    <div class="code-block">
+      <pre><span class="keyword">const</span> <span class="variable">express</span> = <span class="function">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> = <span class="function">express</span>();
+
+<span class="comment">// Normal middleware and routes come first</span>
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/'</span>, (<span class="parameter">req</span>, <span class="parameter">res</span>) => {
+  <span class="variable">res</span>.<span class="function">send</span>(<span class="string">'Welcome to the homepage!'</span>);
+});
+
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/broken-route'</span>, (<span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) => {
+  <span class="comment">// Simulate an error</span>
+  <span class="keyword">const</span> <span class="variable">error</span> = <span class="keyword">new</span> <span class="variable">Error</span>(<span class="string">'This route is broken!'</span>);
+  <span class="variable">error</span>.<span class="variable">status</span> = <span class="number">500</span>;
+  <span class="function">next</span>(<span class="variable">error</span>); <span class="comment">// Pass the error to the next middleware</span>
+});
+
+<span class="comment">// The error handler middleware comes last</span>
+<span class="variable">app</span>.<span class="function">use</span>((<span class="parameter">err</span>, <span class="parameter">req</span>, <span class="parameter">res</span>, <span class="parameter">next</span>) => {
+  <span class="function">console</span>.<span class="function">error</span>(<span class="variable">err</span>.<span class="variable">stack</span>); <span class="comment">// Log the stack trace for debugging</span>
+  <span class="keyword">const</span> <span class="variable">statusCode</span> = <span class="variable">err</span>.<span class="variable">status</span> || <span class="number">500</span>;
+  <span class="variable">res</span>.<span class="function">status</span>(<span class="variable">statusCode</span>).<span class="function">send</span>({
+    <span class="variable">error</span>: {
+      <span class="variable">message</span>: <span class="variable">err</span>.<span class="variable">message</span> || <span class="string">'An unexpected error occurred.'</span>,
+      <span class="variable">status</span>: <span class="variable">statusCode</span>
+    }
+  });
+});
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="number">3000</span>, () => {
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">'Server running on port 3000'</span>);
+});</pre>
+    </div>
+    <p>
+      <strong>Trigger the Error Handler:</strong> In any of your normal routes
+      or middleware, if an error occurs (e.g., a database connection fails, a
+      file is not found, or an external API call fails), you simply call
+      next(err). Express will then take care of routing the request to the error
+      handler.
+    </p>
+    <p>
+      This method allows you to centralize your error logic, preventing
+      repetitive try...catch blocks in every route and ensuring a consistent
+      response format for errors.
+    </p>
+    <img src="./images/middleware.png" width="45%" height="400px" alt="" />
+  </body>
+</html>

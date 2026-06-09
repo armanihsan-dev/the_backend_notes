@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Schema Validation Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Global Styles */
+      :root {
+        /* VS Code Dark Theme Colors */
+        --bg-color: #1e1e1e; /* Editor Background */
+        --text-color: #d4d4d4; /* Default Text */
+        --heading-color: #569cd6; /* Blue for Headings/Keywords */
+        --comment-color: #6a9955; /* Green for Comments */
+        --string-color: #ce9178; /* Orange for Strings */
+        --keyword-color: #569cd6; /* Blue for Keywords */
+        --function-color: #dcdcaa; /* Yellow for Functions */
+        --number-color: #b5cea8; /* Light Green for Numbers */
+        --bullet-color: #4ec9b0; /* Teal/Cyan for List Markers */
+        --code-bg-color: #1e1e1e;
+        --code-border-color: #333333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #252526; /* Slightly lighter background for the content area */
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2 {
+        color: var(--heading-color);
+        border-bottom: 2px solid #333333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ffd700; /* Gold for emphasis */
+      }
+
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 10px;
+        position: relative;
+      }
+
+      ul li::before {
+        content: '•';
+        color: var(--bullet-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* VS Code Code Block Styling */
+      pre {
+        background-color: var(--code-bg-color);
+        color: var(--text-color);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        border: 1px solid var(--code-border-color);
+        font-family: 'Fira Code', monospace; /* VS Code often uses a monospaced font */
+        font-size: 14px;
+      }
+
+      /* Language Label */
+      .language-label {
+        color: #dcdcaa; /* Function/Type color */
+        margin-bottom: 5px;
+        display: block;
+        font-style: italic;
+      }
+
+      /* Code Syntax Highlighting (Manual) */
+      .c,
+      .k {
+        color: var(--keyword-color);
+      } /* const, require, async, await, try, catch, finally, collMod */
+      .s {
+        color: var(--string-color);
+      } /* Strings */
+      .f {
+        color: var(--function-color);
+      } /* function, console.log */
+      .n {
+        color: #9cdcfe;
+      } /* Class/Type names (MongoClient) */
+      .o {
+        color: var(--text-color);
+      } /* Operators (. , :) */
+      .i {
+        color: var(--number-color);
+      } /* Numbers */
+      .com {
+        color: var(--comment-color);
+      } /* Comments */
+      .prop {
+        color: #c8c8c8;
+      } /* Property names */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Adding Basic Schema Validation on MongoDB Collection from Node.js</h1>
+      <p>
+        Adding basic <strong>schema validation</strong> to a
+        <strong>MongoDB collection</strong> from <strong>Node.js</strong> code
+        involves using the <span class="f">db.createCollection()</span> method
+        or the <span class="f">db.command()</span> method with the
+        <span class="k">collMod</span> command, specifying a
+        <span class="prop">validator</span> option.
+      </p>
+      <p>
+        Here's a breakdown and an example using the
+        <strong>mongodb native driver</strong> in Node.js.
+      </p>
+
+      <h2>1. Schema Validation Concepts in MongoDB</h2>
+      <p>
+        MongoDB's schema validation allows you to enforce
+        <strong>data structure and content rules</strong> on a per-collection
+        basis. When an insert or update operation attempts to modify a document
+        that violates the validation rules, MongoDB can reject the operation.
+      </p>
+
+      <p>Key concepts:</p>
+      <ul>
+        <li>
+          <strong><span class="prop">validator</span>:</strong> An object
+          containing the validation rules (e.g., using
+          <strong>JSON Schema</strong> or MQL operators).
+        </li>
+        <li>
+          <strong><span class="prop">validationAction</span>:</strong> Specifies
+          what MongoDB does when a validation error occurs.
+          <ul>
+            <li>
+              <span class="s">"error"</span> (Default): Rejects the insert or
+              update operation.
+            </li>
+            <li>
+              <span class="s">"warn"</span>: Allows the operation but logs a
+              warning to the MongoDB log.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong><span class="prop">validationLevel</span>:</strong> Specifies
+          which operations the validation rules apply to.
+          <ul>
+            <li>
+              <span class="s">"strict"</span> (Default): Applies rules to all
+              inserts and updates.
+            </li>
+            <li>
+              <span class="s">"moderate"</span>: Applies rules to inserts and
+              updates of existing valid documents. It skips validation for
+              updates to existing invalid documents.
+            </li>
+            <li><span class="s">"off"</span>: Disables validation.</li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2>2. Implementing Validation in Node.js</h2>
+      <p>
+        You'll typically use the <strong>mongodb native driver</strong> to
+        connect to your database.
+      </p>
+
+      <h3>Prerequisites</h3>
+      <ul>
+        <li>A running MongoDB instance.</li>
+        <li>
+          A Node.js project with the <strong>mongodb package</strong> installed
+          (<span class="k">npm install mongodb</span>).
+        </li>
+      </ul>
+
+      <h3>Example: Creating a New Collection with Validation</h3>
+      <p>
+        This example creates a new collection named
+        <span class="s">users</span> and ensures that:
+      </p>
+      <ul>
+        <li>
+          The <span class="prop">name</span> field exists and is a string.
+        </li>
+        <li>
+          The <span class="prop">age</span> field exists, is an integer, and is
+          <span class="i">≥18</span>.
+        </li>
+      </ul>
+
+      <span class="language-label">JavaScript</span>
+      <pre>
+<span class="c">const</span> { <span class="n">MongoClient</span> } <span class="c">=</span> <span class="f">require</span>(<span class="s">'mongodb'</span>)<span class="o">;</span>
+
+<span class="com">// Connection URI (Update with your actual connection string)</span>
+<span class="c">const</span> <span class="prop">uri</span> <span class="c">=</span> <span class="s">"mongodb://localhost:27017"</span><span class="o">;</span> 
+<span class="c">const</span> <span class="prop">client</span> <span class="c">=</span> <span class="n">new</span> <span class="n">MongoClient</span>(<span class="prop">uri</span>)<span class="o">;</span>
+
+<span class="k">async</span> <span class="k">function</span> <span class="f">createCollectionWithValidation</span>() <span class="o">{</span>
+<span class="o">    </span><span class="k">try</span> <span class="o">{</span>
+<span class="o">    </span><span class="k">await</span> <span class="prop">client</span><span class="o">.</span><span class="f">connect</span>()<span class="o">;</span>
+<span class="o">    </span><span class="f">console</span><span class="o">.</span><span class="f">log</span>(<span class="s">"Connected successfully to MongoDB server"</span>)<span class="o">;</span>
+
+<span class="o">    </span><span class="c">const</span> <span class="prop">db</span> <span class="c">=</span> <span class="prop">client</span><span class="o">.</span><span class="f">db</span>(<span class="s">"myDatabase"</span>)<span class="o">;</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">collectionName</span> <span class="c">=</span> <span class="s">"users"</span><span class="o">;</span>
+
+<span class="com">    // 1. Define the Validator using JSON Schema</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">userValidator</span> <span class="c">=</span> <span class="o">{</span>
+<span class="o">    </span><span class="prop">$jsonSchema</span><span class="o">: {</span>
+<span class="com">    // Documents must be an object (standard for MongoDB)</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"object"</span><span class="o">,</span> 
+<span class="o">    </span><span class="prop">required</span><span class="o">: [</span><span class="s">"name"</span><span class="o">,</span> <span class="s">"age"</span><span class="o">],</span>
+<span class="o">    </span><span class="prop">properties</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">name</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"string"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">description</span><span class="o">:</span> <span class="s">"must be a string and is required"</span>
+<span class="o">    </span><span class="o">},</span>
+<span class="o">    </span><span class="prop">age</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"int"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">minimum</span><span class="o">:</span> <span class="i">18</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">description</span><span class="o">:</span> <span class="s">"must be an integer >= 18 and is required"</span>
+<span class="o">    </span><span class="o">},</span>
+<span class="o">    </span><span class="prop">email</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"string"</span><span class="o">,</span>
+<span class="com">    // Pattern for basic email format validation</span>
+<span class="o">    </span><span class="prop">pattern</span><span class="o">:</span> <span class="s">"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">description</span><span class="o">:</span> <span class="s">"must be a string matching an email format"</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">    </span><span class="o">};</span>
+
+<span class="com">    // 2. Options for Collection Creation</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">options</span> <span class="c">=</span> <span class="o">{</span>
+<span class="o">    </span><span class="prop">validator</span><span class="o">:</span> <span class="prop">userValidator</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">validationAction</span><span class="o">:</span> <span class="s">"error"</span><span class="o">,</span> <span class="com">// Reject invalid documents</span>
+<span class="o">    </span><span class="prop">validationLevel</span><span class="o">:</span> <span class="s">"strict"</span> <span class="com">// Apply rules to all inserts/updates</span>
+<span class="o">    </span><span class="o">};</span>
+
+<span class="com">    // 3. Execute the collection creation command</span>
+<span class="o">    </span><span class="k">await</span> <span class="prop">db</span><span class="o">.</span><span class="f">createCollection</span>(<span class="prop">collectionName</span><span class="o">,</span> <span class="prop">options</span>)<span class="o">;</span>
+
+<span class="o">    </span><span class="f">console</span><span class="o">.</span><span class="f">log</span>(<span class="s">`Collection '<span class="c">${collectionName}</span>' created with schema validation.`</span>)<span class="o">;</span>
+
+<span class="com">    // --- Test the validation ---</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">usersCollection</span> <span class="c">=</span> <span class="prop">db</span><span class="o">.</span><span class="f">collection</span>(<span class="prop">collectionName</span>)<span class="o">;</span>
+<span class="o">    </span>
+<span class="com">    // 1. Valid Document (Succeeds)</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">validDoc</span> <span class="c">=</span> <span class="o">{</span> <span class="prop">name</span><span class="o">:</span> <span class="s">"Alice"</span><span class="o">,</span> <span class="prop">age</span><span class="o">:</span> <span class="i">25</span><span class="o">,</span> <span class="prop">email</span><span class="o">:</span> <span class="s">"alice@example.com"</span> <span class="o">};</span>
+<span class="o">    </span><span class="k">await</span> <span class="prop">usersCollection</span><span class="o">.</span><span class="f">insertOne</span>(<span class="prop">validDoc</span>)<span class="o">;</span>
+<span class="o">    </span><span class="f">console</span><span class="o">.</span><span class="f">log</span>(<span class="s">"✅ Valid document inserted."</span>)<span class="o">;</span>
+
+<span class="com">    // 2. Invalid Document (Fails - age &lt; 18)</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">invalidAgeDoc</span> <span class="c">=</span> <span class="o">{</span> <span class="prop">name</span><span class="o">:</span> <span class="s">"Charlie"</span><span class="o">,</span> <span class="prop">age</span><span class="o">:</span> <span class="i">10</span> <span class="o">};</span>
+<span class="o">    </span><span class="k">try</span> <span class="o">{</span>
+<span class="o">    </span><span class="k">await</span> <span class="prop">usersCollection</span><span class="o">.</span><span class="f">insertOne</span>(<span class="prop">invalidAgeDoc</span>)<span class="o">;</span>
+<span class="o">    </span><span class="o">}</span> <span class="k">catch</span> (<span class="prop">error</span>) <span class="o">{</span>
+<span class="com">    // The error message will confirm the validation failure</span>
+<span class="o">    </span><span class="f">console</span><span class="o">.</span><span class="f">error</span>(<span class="s">"❌ Invalid document rejected (Age too young):"</span><span class="o">,</span> <span class="prop">error</span><span class="o">.</span><span class="prop">message</span>)<span class="o">;</span>
+<span class="o">    </span><span class="o">}</span>
+
+<span class="com">    // 3. Invalid Document (Fails - name missing)</span>
+<span class="o">    </span><span class="c">const</span> <span class="prop">missingFieldDoc</span> <span class="c">=</span> <span class="o">{</span> <span class="prop">age</span><span class="o">:</span> <span class="i">30</span> <span class="o">};</span>
+<span class="o">    </span><span class="k">try</span> <span class="o">{</span>
+<span class="o">    </span><span class="k">await</span> <span class="prop">usersCollection</span><span class="o">.</span><span class="f">insertOne</span>(<span class="prop">missingFieldDoc</span>)<span class="o">;</span>
+<span class="o">    </span><span class="o">}</span> <span class="k">catch</span> (<span class="prop">error</span>) <span class="o">{</span>
+<span class="com">    // The error message will confirm the validation failure</span>
+<span class="o">    </span><span class="f">console</span><span class="o">.</span><span class="f">error</span>(<span class="s">"❌ Invalid document rejected (Name missing):"</span><span class="o">,</span> <span class="prop">error</span><span class="o">.</span><span class="prop">message</span>)<span class="o">;</span>
+<span class="o">    </span><span class="o">}</span>
+
+
+<span class="o">    </span><span class="o">}</span> <span class="k">catch</span> (<span class="prop">e</span>) <span class="o">{</span>
+<span class="o">    </span><span class="f">console</span><span class="o">.</span><span class="f">error</span>(<span class="s">"An error occurred:"</span><span class="o">,</span> <span class="prop">e</span>)<span class="o">;</span>
+<span class="o">    </span><span class="o">}</span> <span class="k">finally</span> <span class="o">{</span>
+<span class="o">    </span><span class="k">await</span> <span class="prop">client</span><span class="o">.</span><span class="f">close</span>()<span class="o">;</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">}</span>
+
+<span class="com">// createCollectionWithValidation();</span>
+        </pre>
+
+      <h2>3. Modifying Validation on an Existing Collection</h2>
+      <p>
+        If the collection already exists, you use the
+        <span class="f">db.command()</span> method with the
+        <span class="k">collMod</span> command.
+      </p>
+
+      <span class="language-label">JavaScript</span>
+      <pre>
+<span class="com">// ... (inside an async function after connecting to the database)</span>
+
+<span class="c">const</span> <span class="prop">existingCollectionName</span> <span class="c">=</span> <span class="s">"products"</span><span class="o">;</span>
+<span class="c">const</span> <span class="prop">db</span> <span class="c">=</span> <span class="prop">client</span><span class="o">.</span><span class="f">db</span>(<span class="s">"myDatabase"</span>)<span class="o">;</span>
+
+<span class="com">// New Validator for products</span>
+<span class="c">const</span> <span class="prop">productValidator</span> <span class="c">=</span> <span class="o">{</span>
+<span class="o">    </span><span class="prop">$jsonSchema</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"object"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">required</span><span class="o">: [</span><span class="s">"price"</span><span class="o">,</span> <span class="s">"quantity"</span><span class="o">],</span>
+<span class="o">    </span><span class="prop">properties</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">price</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"double"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">minimum</span><span class="o">:</span> <span class="i">0</span><span class="o">,</span>
+<span class="o">    </span><span class="o">},</span>
+<span class="o">    </span><span class="prop">quantity</span><span class="o">: {</span>
+<span class="o">    </span><span class="prop">bsonType</span><span class="o">:</span> <span class="s">"int"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">minimum</span><span class="o">:</span> <span class="i">1</span><span class="o">,</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">    </span><span class="o">}</span>
+<span class="o">};</span>
+
+<span class="com">// Use the collMod command to update the validation rules</span>
+<span class="c">const</span> <span class="prop">modificationResult</span> <span class="c">=</span> <span class="k">await</span> <span class="prop">db</span><span class="o">.</span><span class="f">command</span>(<span class="o">{</span>
+<span class="o">    </span><span class="prop">collMod</span><span class="o">:</span> <span class="prop">existingCollectionName</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">validator</span><span class="o">:</span> <span class="prop">productValidator</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">validationAction</span><span class="o">:</span> <span class="s">"error"</span><span class="o">,</span>
+<span class="o">    </span><span class="prop">validationLevel</span><span class="o">:</span> <span class="s">"strict"</span>
+<span class="o">}</span>)<span class="o">;</span>
+
+<span class="f">console</span><span class="o">.</span><span class="f">log</span>(<span class="s">`Validation successfully modified for collection '<span class="c">${existingCollectionName}</span>'.`</span>)<span class="o">;</span>
+        </pre>
+    </div>
+  </body>
+</html>

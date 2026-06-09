@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>S3 Transfer Progress - Blackish Theme Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>🚀 Understanding <code class="dir">@aws-sdk/lib-storage</code></h1>
+
+    <h2>Definition</h2>
+    <p>
+      The <code class="dir">@aws-sdk/lib-storage</code> library provides the
+      <strong><code class="prop">Upload</code></strong> and
+      <strong><code class="type">Download</code></strong> classes, which are
+      high-level utilities for managing file transfers to and from Amazon S3.
+    </p>
+
+    <ul>
+      <li>
+        <strong><code class="prop">Upload Class</code>:</strong> It simplifies
+        the S3 <strong>Multipart Upload</strong> process. For large files
+        (usually over <code class="lit">16MB</code> by default, but
+        customizable), it automatically splits the file into smaller parts,
+        uploads them in parallel, manages retries, and finally completes the
+        upload. This parallelization significantly speeds up large file
+        transfers.
+      </li>
+      <li>
+        <strong
+          ><code class="type">Download Class</code> (Less
+          Common/Documented):</strong
+        >
+        In AWS SDK v3, file downloads are typically done with the S3 client's
+        <code class="dir">GetObjectCommand</code>, which streams the
+        <code class="prop">body</code>. While a
+        <code class="type">Download</code> class was introduced, direct progress
+        reporting in Node.js for downloads is more commonly and reliably
+        achieved by listening to events on the
+        <code class="prop">Body</code> stream returned by
+        <code class="dir">GetObjectCommand</code>.
+      </li>
+    </ul>
+
+    <h2>
+      The Core Mechanism: <code class="prop">httpUploadProgress</code> Event
+    </h2>
+    <p>
+      The key to tracking progress for uploads is the
+      <strong><code class="prop">httpUploadProgress</code></strong> event
+      emitted by the <code class="prop">Upload</code> instance.
+    </p>
+
+    <h3>Event Data (Progress Object)</h3>
+    <p>
+      The progress event listener receives an object with the following crucial
+      properties:
+    </p>
+
+    <table class="progress-table">
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong><code class="prop">loaded</code></strong>
+          </td>
+          <td><code class="type">number</code></td>
+          <td>The <strong>number of bytes uploaded</strong> so far.</td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code class="prop">total</code></strong>
+          </td>
+          <td><code class="type">number</code></td>
+          <td>
+            The <strong>total number of bytes</strong> to be uploaded (the file
+            size). (<strong><code class="op">Caveat Below</code></strong
+            >)
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code class="prop">part</code></strong>
+          </td>
+          <td><code class="type">number</code></td>
+          <td>
+            The current part number being uploaded in the Multipart Upload.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      <strong
+        >⚠️ Important Caveat for <code class="prop">total</code> in
+        Node.js:</strong
+      >
+      When uploading a Node.js <code class="type">Stream</code> (like a file
+      stream), the <code class="prop">total</code> property on the progress
+      event may be <code class="op">undefined</code> until the entire stream
+      size is known. If you know the file size beforehand (e.g., from
+      <code class="dir">fs.statSync(filePath).size</code>), it is best to use
+      that value for accurate percentage calculation, especially in Node.js
+      environments.
+    </p>
+
+    <hr />
+
+    <h1>⬆️ Implementation: File Upload Progress (Node.js/JavaScript)</h1>
+    <p>
+      To calculate percentage and bandwidth, we need to track the
+      <code class="prop">loaded</code> bytes, the
+      <code class="prop">total</code> bytes, and the time elapsed.
+    </p>
+
+    <h2>1. Setup</h2>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">Upload</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/lib-storage"</span>;
+<span class="kw">import</span> { <span class="prop">S3Client</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+<span class="kw">import</span> <span class="op">*</span> <span class="kw">as</span> <span class="prop">fs</span> <span class="kw">from</span> <span class="str">"fs"</span>;
+<span class="kw">import</span> <span class="op">*</span> <span class="kw">as</span> <span class="prop">path</span> <span class="kw">from</span> <span class="str">"path"</span>;
+
+<span class="cmt">// 1. Initialize S3 Client</span>
+<span class="kw">const</span> <span class="prop">s3Client</span> = <span class="kw">new</span> <span class="prop">S3Client</span>({ <span class="prop">region</span>: <span class="str">"your-aws-region"</span> });
+
+<span class="cmt">// 2. Define Upload Parameters</span>
+<span class="kw">const</span> <span class="prop">filePath</span> = <span class="prop">path</span>.<span class="dir">join</span>(<span class="dir">__dirname</span>, <span class="str">"large-file.zip"</span>); <span class="cmt">// Replace with your file path</span>
+<span class="kw">const</span> <span class="prop">fileStream</span> = <span class="prop">fs</span>.<span class="dir">createReadStream</span>(<span class="prop">filePath</span>);
+<span class="kw">const</span> <span class="prop">fileTotalSize</span> = <span class="prop">fs</span>.<span class="dir">statSync</span>(<span class="prop">filePath</span>).<span class="prop">size</span>;
+
+<span class="kw">const</span> <span class="prop">uploadParams</span> = {
+  <span class="prop">Bucket</span>: <span class="str">"your-s3-bucket-name"</span>,
+  <span class="prop">Key</span>: <span class="str">"uploads/my-file.zip"</span>,
+  <span class="prop">Body</span>: <span class="prop">fileStream</span>,
+};</code></pre>
+
+    <h2>2. Tracking Progress and Bandwidth</h2>
+    <p>
+      The logic for calculating bandwidth involves tracking the change in
+      <code class="prop">loaded</code> bytes and the time interval between
+      progress events.
+    </p>
+    <pre><code class="javascript"><span class="cmt">// Function to format bytes into a human-readable string (e.g., 1.5 MB)</span>
+<span class="kw">const</span> <span class="dir">formatBytes</span> = (<span class="prop">bytes</span>, <span class="prop">decimals</span> = <span class="lit">2</span>) => {
+  <span class="kw">if</span> (<span class="prop">bytes</span> === <span class="lit">0</span>) <span class="kw">return</span> <span class="str">'0 Bytes'</span>;
+  <span class="kw">const</span> <span class="prop">k</span> = <span class="lit">1024</span>;
+  <span class="kw">const</span> <span class="prop">dm</span> = <span class="prop">decimals</span> <span class="op">&lt;</span> <span class="lit">0</span> <span class="op">?</span> <span class="lit">0</span> <span class="op">:</span> <span class="prop">decimals</span>;
+  <span class="kw">const</span> <span class="prop">sizes</span> = [<span class="str">'Bytes'</span>, <span class="str">'KB'</span>, <span class="str">'MB'</span>, <span class="str">'GB'</span>, <span class="str">'TB'</span>, <span class="str">'PB'</span>, <span class="str">'EB'</span>, <span class="str">'ZB'</span>, <span class="str">'YB'</span>];
+  <span class="kw">const</span> <span class="prop">i</span> = <span class="prop">Math</span>.<span class="dir">floor</span>(<span class="prop">Math</span>.<span class="dir">log</span>(<span class="prop">bytes</span>) <span class="op">/</span> <span class="prop">Math</span>.<span class="dir">log</span>(<span class="prop">k</span>));
+  <span class="kw">return</span> <span class="prop">parseFloat</span>((<span class="prop">bytes</span> <span class="op">/</span> <span class="prop">Math</span>.<span class="dir">pow</span>(<span class="prop">k</span>, <span class="prop">i</span>)).<span class="dir">toFixed</span>(<span class="prop">dm</span>)) <span class="op">+</span> <span class="str">' '</span> <span class="op">+</span> <span class="prop">sizes</span>[<span class="prop">i</span>];
+};
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">uploadFileWithProgress</span>() {
+    <span class="kw">let</span> <span class="prop">lastLoaded</span> = <span class="lit">0</span>;
+    <span class="kw">let</span> <span class="prop">lastTime</span> = <span class="dir">Date</span>.<span class="dir">now</span>();
+
+    <span class="kw">try</span> {
+        <span class="kw">const</span> <span class="prop">parallelUploads3</span> = <span class="kw">new</span> <span class="prop">Upload</span>({
+            <span class="prop">client</span>: <span class="prop">s3Client</span>,
+            <span class="prop">params</span>: <span class="prop">uploadParams</span>,
+            <span class="cmt">// queueSize: 4, // Number of concurrent parts to upload</span>
+            <span class="cmt">// partSize: 1024 * 1024 * 5, // 5MB part size (minimum for S3)</span>
+        });
+
+        <span class="cmt">// 💡 The 'httpUploadProgress' event provides the progress updates</span>
+        <span class="prop">parallelUploads3</span>.<span class="dir">on</span>(<span class="str">"httpUploadProgress"</span>, (<span class="prop">progress</span>) => {
+            <span class="kw">const</span> <span class="prop">now</span> = <span class="dir">Date</span>.<span class="dir">now</span>();
+            <span class="kw">const</span> <span class="prop">loaded</span> = <span class="prop">progress</span>.<span class="prop">loaded</span> <span class="op">||</span> <span class="lit">0</span>;
+            <span class="kw">const</span> <span class="prop">total</span> = <span class="prop">progress</span>.<span class="prop">total</span> <span class="op">||</span> <span class="prop">fileTotalSize</span>; <span class="cmt">// Use known size as fallback</span>
+
+            <span class="cmt">// --- Bandwidth Calculation ---</span>
+            <span class="kw">const</span> <span class="prop">bytesSinceLastEvent</span> = <span class="prop">loaded</span> <span class="op">-</span> <span class="prop">lastLoaded</span>;
+            <span class="kw">const</span> <span class="prop">timeSinceLastEvent</span> = <span class="prop">now</span> <span class="op">-</span> <span class="prop">lastTime</span>; <span class="cmt">// in milliseconds</span>
+            
+            <span class="cmt">// Bandwidth in Bytes per second (B/s)</span>
+            <span class="kw">const</span> <span class="prop">bandwidthBps</span> = <span class="prop">bytesSinceLastEvent</span> <span class="op">/</span> (<span class="prop">timeSinceLastEvent</span> <span class="op">/</span> <span class="lit">1000</span>); 
+            <span class="kw">const</span> <span class="prop">formattedBandwidth</span> = <span class="dir">formatBytes</span>(<span class="prop">bandwidthBps</span>) <span class="op">+</span> <span class="str">'/s'</span>;
+
+            <span class="cmt">// --- Percentage Calculation ---</span>
+            <span class="kw">const</span> <span class="prop">percentage</span> = <span class="prop">total</span> <span class="op">&gt;</span> <span class="lit">0</span> <span class="op">?</span> ((<span class="prop">loaded</span> <span class="op">/</span> <span class="prop">total</span>) <span class="op">*</span> <span class="lit">100</span>).<span class="dir">toFixed</span>(<span class="lit">2</span>) <span class="op">:</span> <span class="str">'N/A'</span>;
+            
+            <span class="cmt">// --- Output Progress ---</span>
+            <span class="dir">console</span>.<span class="dir">log</span>(
+                <span class="str">`Progress: <span class="prop">${formatBytes(loaded)}</span>/<span class="prop">${formatBytes(total)}</span> `</span> <span class="op">+</span>
+                <span class="str">`(<span class="prop">${percentage}</span>%) - Bandwidth: <span class="prop">${formattedBandwidth}</span>`</span>
+            );
+
+            <span class="cmt">// Update trackers for the next event</span>
+            <span class="prop">lastLoaded</span> = <span class="prop">loaded</span>;
+            <span class="prop">lastTime</span> = <span class="prop">now</span>;
+        });
+
+        <span class="kw">const</span> <span class="prop">result</span> = <span class="kw">await</span> <span class="prop">parallelUploads3</span>.<span class="dir">done</span>();
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"\n✅ Upload Complete!"</span>, <span class="prop">result</span>);
+    } <span class="kw">catch</span> (<span class="prop">e</span>) {
+        <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">"Upload failed:"</span>, <span class="prop">e</span>);
+    }
+}
+
+<span class="dir">uploadFileWithProgress</span>();</code></pre>
+
+    <hr />
+
+    <h1>⬇️ Implementation: File Download Progress (Node.js/JavaScript)</h1>
+    <p>
+      For downloads, you use the standard S3 client's
+      <code class="dir">GetObjectCommand</code> which returns a readable stream
+      as the <code class="prop">Body</code>. You can track the progress by
+      listening to the <code class="prop">data</code> event on the stream.
+    </p>
+
+    <h2>1. Setup</h2>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">GetObjectCommand</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+<span class="kw">import</span> <span class="op">*</span> <span class="kw">as</span> <span class="prop">fs</span> <span class="kw">from</span> <span class="str">"fs"</span>;
+<span class="cmt">// ... (s3Client and formatBytes function from above are needed) ...</span>
+<span class="kw">const</span> <span class="prop">downloadParams</span> = {
+    <span class="prop">Bucket</span>: <span class="str">"your-s3-bucket-name"</span>,
+    <span class="prop">Key</span>: <span class="str">"uploads/my-file.zip"</span>, <span class="cmt">// The key of the file to download</span>
+};
+<span class="kw">const</span> <span class="prop">downloadFilePath</span> = <span class="prop">path</span>.<span class="dir">join</span>(<span class="dir">__dirname</span>, <span class="str">"downloaded-file.zip"</span>);</code></pre>
+
+    <h2>2. Tracking Progress and Bandwidth</h2>
+    <p>
+      We need to first get the total file size from the S3 object metadata and
+      then listen to the stream's <code class="prop">data</code> event.
+    </p>
+    <pre><code class="javascript"><span class="kw">async</span> <span class="kw">function</span> <span class="dir">downloadFileWithProgress</span>() {
+    <span class="kw">let</span> <span class="prop">loadedBytes</span> = <span class="lit">0</span>;
+    <span class="kw">let</span> <span class="prop">lastLoaded</span> = <span class="lit">0</span>;
+    <span class="kw">let</span> <span class="prop">lastTime</span> = <span class="dir">Date</span>.<span class="dir">now</span>();
+
+    <span class="kw">try</span> {
+        <span class="cmt">// 1. Get the object to determine total size</span>
+        <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="kw">new</span> <span class="prop">GetObjectCommand</span>(<span class="prop">downloadParams</span>));
+        <span class="kw">const</span> <span class="prop">totalSize</span> = <span class="prop">response</span>.<span class="prop">ContentLength</span> <span class="op">||</span> <span class="lit">0</span>; 
+        
+        <span class="kw">if</span> (<span class="prop">totalSize</span> === <span class="lit">0</span>) {
+            <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Could not determine file size. Progress will not be calculated."</span>);
+        }
+
+        <span class="kw">const</span> <span class="prop">fileWriteStream</span> = <span class="prop">fs</span>.<span class="dir">createWriteStream</span>(<span class="prop">downloadFilePath</span>);
+        <span class="kw">const</span> <span class="prop">bodyStream</span> = <span class="prop">response</span>.<span class="prop">Body</span>;
+
+        <span class="kw">if</span> (<span class="prop">bodyStream</span>) {
+            <span class="cmt">// 💡 The 'data' event on the stream provides chunks of the downloaded file</span>
+            <span class="prop">bodyStream</span>.<span class="dir">on</span>(<span class="str">'data'</span>, (<span class="prop">chunk</span>) => {
+                <span class="kw">const</span> <span class="prop">now</span> = <span class="dir">Date</span>.<span class="dir">now</span>();
+                <span class="prop">loadedBytes</span> <span class="op">+=</span> <span class="prop">chunk</span>.<span class="prop">length</span>;
+
+                <span class="cmt">// --- Bandwidth Calculation ---</span>
+                <span class="kw">const</span> <span class="prop">bytesSinceLastEvent</span> = <span class="prop">loadedBytes</span> <span class="op">-</span> <span class="prop">lastLoaded</span>;
+                <span class="kw">const</span> <span class="prop">timeSinceLastEvent</span> = <span class="prop">now</span> <span class="op">-</span> <span class="prop">lastTime</span>; <span class="cmt">// in milliseconds</span>
+                
+                <span class="cmt">// Bandwidth in Bytes per second (B/s)</span>
+                <span class="kw">const</span> <span class="prop">bandwidthBps</span> = <span class="prop">bytesSinceLastEvent</span> <span class="op">/</span> (<span class="prop">timeSinceLastEvent</span> <span class="op">/</span> <span class="lit">1000</span>); 
+                <span class="kw">const</span> <span class="prop">formattedBandwidth</span> = <span class="dir">formatBytes</span>(<span class="prop">bandwidthBps</span>) <span class="op">+</span> <span class="str">'/s'</span>;
+
+                <span class="cmt">// --- Percentage Calculation ---</span>
+                <span class="kw">const</span> <span class="prop">percentage</span> = <span class="prop">totalSize</span> <span class="op">&gt;</span> <span class="lit">0</span> <span class="op">?</span> ((<span class="prop">loadedBytes</span> <span class="op">/</span> <span class="prop">totalSize</span>) <span class="op">*</span> <span class="lit">100</span>).<span class="dir">toFixed</span>(<span class="lit">2</span>) <span class="op">:</span> <span class="str">'N/A'</span>;
+
+                <span class="cmt">// --- Output Progress ---</span>
+                <span class="cmt">// \r is used to overwrite the current line in the console for a clean progress bar look</span>
+                <span class="dir">process</span>.<span class="dir">stdout</span>.<span class="dir">write</span>(
+                    <span class="str">`\rProgress: <span class="prop">${formatBytes(loadedBytes)}</span>/<span class="prop">${formatBytes(totalSize)}</span> `</span> <span class="op">+</span>
+                    <span class="str">`(<span class="prop">${percentage}</span>%) - Bandwidth: <span class="prop">${formattedBandwidth}</span>`</span>
+                );
+
+                <span class="cmt">// Update trackers for the next event</span>
+                <span class="prop">lastLoaded</span> = <span class="prop">loadedBytes</span>;
+                <span class="prop">lastTime</span> = <span class="prop">now</span>;
+            });
+
+            <span class="cmt">// Pipe the stream to the local file writer and wait for it to finish</span>
+            <span class="kw">await</span> <span class="kw">new</span> <span class="prop">Promise</span>((<span class="prop">resolve</span>, <span class="prop">reject</span>) => {
+                <span class="prop">bodyStream</span>.<span class="dir">on</span>(<span class="str">'error'</span>, <span class="prop">reject</span>);
+                <span class="prop">fileWriteStream</span>.<span class="dir">on</span>(<span class="str">'finish'</span>, <span class="prop">resolve</span>);
+                <span class="prop">bodyStream</span>.<span class="dir">pipe</span>(<span class="prop">fileWriteStream</span>);
+            });
+            
+            <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"\n✅ Download Complete!"</span>);
+            <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`File saved to: <span class="prop">${downloadFilePath}</span>`</span>);
+        }
+    } <span class="kw">catch</span> (<span class="prop">e</span>) {
+        <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">"Download failed:"</span>, <span class="prop">e</span>);
+    }
+}
+
+<span class="dir">downloadFileWithProgress</span>();</code></pre>
+
+    <hr />
+
+    <h1>🛠️ Summary of How It Works</h1>
+
+    <table class="progress-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>How It Works</th>
+          <th>Calculation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Loaded Bytes</strong></td>
+          <td>
+            The <code class="prop">loaded</code> property from the
+            <code class="prop">httpUploadProgress</code> event (<code
+              class="type"
+              >Upload</code
+            >) or accumulating <code class="prop">chunk.length</code> from the
+            stream's <code class="prop">data</code> event (<code class="type"
+              >Download</code
+            >).
+          </td>
+          <td>
+            <code class="prop">progress.loaded</code> or
+            <code class="prop">loadedBytes</code> <span class="op">+=</span>
+            <code class="prop">chunk.length</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Total Size</strong></td>
+          <td>
+            The <code class="prop">total</code> property on the progress event
+            (<code class="type">Upload</code>) or the
+            <code class="prop">ContentLength</code> property from the S3
+            response metadata (<code class="type">Download</code>).
+          </td>
+          <td>
+            <code class="prop">progress.total</code> or
+            <code class="prop">response.ContentLength</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Percentage</strong></td>
+          <td>Standard ratio calculation.</td>
+          <td>$100 \times \frac{\text{Loaded Bytes}}{\text{Total Size}}$</td>
+        </tr>
+        <tr>
+          <td><strong>Bandwidth</strong></td>
+          <td>
+            The transfer rate calculated by dividing the bytes transferred since
+            the last event by the time elapsed between events.
+          </td>
+          <td>
+            $\frac{\text{Loaded Bytes} - \text{Last Loaded Bytes}}{\text{Current
+            Time} - \text{Last Time}} \text{ in B/ms}$ (then convert to B/s)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

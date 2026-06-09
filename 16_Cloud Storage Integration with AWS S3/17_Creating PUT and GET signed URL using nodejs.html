@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS S3 Signed URLs Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* CSS provided by the user */
+      /* General Blackish Theme */
+      :root {
+        --color-bg: #05050b; /* Dark background, similar to VS Code */
+        --color-surface: #1b1b1f; /* Slightly lighter for containers/code blocks */
+        --color-text: #cccccc; /* Light gray text */
+        --color-primary: #569cd6; /* VS Code blue for keywords/titles */
+        --color-secondary: #dcdcaa; /* VS Code yellow for strings/definitions */
+        --color-accent: #c586c0; /* VS Code magenta for functions/directives */
+        --color-heading: #9cdcfe; /* Lighter blue for main headings */
+        --color-violation: #f08080; /* Light coral for warnings/violations */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-surface);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.6em;
+      }
+
+      h3 {
+        font-size: 1.3em;
+        color: var(--color-primary);
+      }
+
+      /* Paragraphs and Emphasis */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--color-secondary);
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ul {
+        list-style: disc;
+        margin-left: 20px;
+        padding: 0;
+      }
+
+      /* Code Sections (VS Code Blackish Theme) */
+      pre {
+        background-color: var(--color-surface);
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        border: 1px solid #333;
+        margin: 20px 0;
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: var(--color-text);
+        background-color: var(--color-surface);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+
+      pre code {
+        padding: 0;
+        background-color: transparent;
+      }
+
+      /* VS Code Syntax Highlighting Simulation */
+      .kw {
+        color: var(--color-primary);
+      } /* Keyword (const, import, if, etc.) */
+      .str {
+        color: var(--color-secondary);
+      } /* String literal */
+      .dir {
+        color: var(--color-accent);
+      } /* Directive/function name */
+      .prop {
+        color: #4ec9b0;
+      } /* Property/variable name */
+      .op {
+        color: #f08080;
+      } /* Violation/Error */
+      .cmt {
+        color: #6a9955;
+      } /* Comment */
+      .mono {
+        color: #4ec9b0;
+      } /* Monospace for URLs/URIs */
+      .type {
+        color: #808080;
+      } /* Types/Comments */
+      .lit {
+        color: #b5cea8;
+      } /* Numbers/Boolean literals */
+
+      /* Tables for Key Components */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2c2c2c;
+      }
+      th,
+      td {
+        border: 1px solid #444;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #383838;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+      td code {
+        background-color: #383838;
+      }
+    </style>
+  </head>
+  <body>
+    <h2><span class="kw">🔐</span> What are AWS S3 Signed URLs?</h2>
+
+    <p>
+      AWS S3 Signed URLs (also known as
+      <span class="prop">pre-signed URLs</span>) are URLs that you can
+      <span class="dir">generate</span> to
+      <strong class="kw">grant temporary access</strong> to a specific S3 object
+      (a file) to a user who does not have AWS security credentials or
+      permissions to access it normally.
+    </p>
+
+    <h3>Key Concepts:</h3>
+    <ul>
+      <li>
+        <strong>Temporary Access:</strong> The most important feature is the
+        <code class="prop">X-Amz-Expires</code> parameter, which defines how
+        long the URL remains valid (e.g., <span class="lit">1</span> hour,
+        <span class="lit">1</span> day). Once the expiry time is reached, the
+        URL will no longer work.
+      </li>
+      <li>
+        <strong>Specific Action:</strong> A signed URL is typically generated
+        for a specific HTTP method, such as:
+        <ul>
+          <li>
+            <code class="dir">GET</code>: To allow someone to
+            <strong class="kw">download</strong> a private object.
+          </li>
+          <li>
+            <code class="dir">PUT</code>: To allow someone to
+            <strong class="kw">upload</strong> a file directly to a specific
+            location in your bucket (without needing your credentials).
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>Security:</strong> Access is controlled by the security
+        credentials of the IAM user or role that
+        <strong class="kw">generates</strong> the URL, and it is validated by
+        the signature included in the URL.
+      </li>
+    </ul>
+
+    <h2><span class="kw">🛠️</span> How are S3 Signed URLs Created?</h2>
+
+    <p>
+      The short answer, as demonstrated by your example code, is that
+      <strong class="kw"
+        >S3 Signed URLs are created on your computer/server, not by sending a
+        request to the AWS S3 server to generate them</strong
+      >.
+    </p>
+
+    <p>
+      This process is a core part of AWS security called
+      <strong class="prop">Signature Version 4 (SigV4)</strong>.
+    </p>
+
+    <p>
+      The overall process happens entirely on your application server (or your
+      local computer, if you run the script there) using your
+      <code class="prop">AWS Access Key ID</code> and
+      <code class="prop">Secret Access Key</code>. Creating our own
+      <code class="dir">signurl</code> function :
+    </p>
+
+    <pre>
+        <code>
+<span class="kw">import</span> <span class="prop">crypto</span> <span class="kw">from</span> <span class="str">"crypto"</span>;
+
+<span class="kw">const</span> <span class="prop">region</span> <span class="op">=</span> <span class="str">"eu-north-1"</span>;
+<span class="kw">const</span> <span class="prop">service</span> <span class="op">=</span> <span class="str">"s3"</span>;
+<span class="kw">const</span> <span class="prop">algorithm</span> <span class="op">=</span> <span class="str">"AWS4-HMAC-SHA256"</span>;
+
+<span class="cmt">// read once</span>
+<span class="kw">const</span> <span class="prop">accessKeyId</span> <span class="op">=</span> <span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">AWS_ACCESS_KEY_ID</span>;
+<span class="kw">const</span> <span class="prop">secretAccessKey</span> <span class="op">=</span> <span class="prop">process</span>.<span class="prop">env</span>.<span class="prop">AWS_SECRET_ACCESS_KEY</span>;
+
+<span class="kw">if</span> (<span class="op">!</span><span class="prop">accessKeyId</span> <span class="op">||</span> <span class="op">!</span><span class="prop">secretAccessKey</span>) {
+  <span class="kw">throw</span> <span class="kw">new</span> <span class="dir">Error</span>(<span class="str">"AWS credentials are missing in environment variables"</span>);
+}
+
+<span class="kw">export</span> <span class="kw">function</span> <span class="dir">getSignedS3Url</span>({
+  <span class="prop">method</span> <span class="op">=</span> <span class="str">"GET"</span>,
+  <span class="prop">bucketName</span>,
+  <span class="prop">objectKey</span>,
+  <span class="prop">expiresInSeconds</span> <span class="op">=</span> <span class="lit">3600</span>,
+}) {
+  <span class="kw">const</span> <span class="prop">now</span> <span class="op">=</span> <span class="kw">new</span> <span class="dir">Date</span>();
+  <span class="kw">const</span> <span class="prop">amzDate</span> <span class="op">=</span> <span class="prop">now</span>.<span class="dir">toISOString</span>().<span class="dir">replace</span>(<span class="op">/</span><span class="str">[:-]|\.\d{3}</span><span class="op">/g</span>, <span class="str">""</span>);
+  <span class="kw">const</span> <span class="prop">dateStamp</span> <span class="op">=</span> <span class="prop">amzDate</span>.<span class="dir">slice</span>(<span class="lit">0</span>, <span class="lit">8</span>);
+
+  <span class="kw">const</span> <span class="prop">credentialScope</span> <span class="op">=</span> <span class="str">`${</span><span class="prop">dateStamp</span><span class="str">}/${</span><span class="prop">region</span><span class="str">}/${</span><span class="prop">service</span><span class="str">}/aws4_request`</span>;
+  <span class="kw">const</span> <span class="prop">host</span> <span class="op">=</span> <span class="str">`${</span><span class="prop">bucketName</span><span class="str">}.s3.${</span><span class="prop">region</span><span class="str">}.amazonaws.com`</span>;
+  <span class="kw">const</span> <span class="prop">canonicalUri</span> <span class="op">=</span> <span class="str">`/${</span><span class="dir">encodeURIComponent</span>(<span class="prop">objectKey</span>)<span class="str">}`</span>;
+
+  <span class="kw">const</span> <span class="prop">queryParams</span> <span class="op">=</span> {
+    <span class="str">"X-Amz-Algorithm"</span>: <span class="prop">algorithm</span>,
+    <span class="str">"X-Amz-Credential"</span>: <span class="str">`${</span><span class="prop">accessKeyId</span><span class="str">}/${</span><span class="prop">credentialScope</span><span class="str">}`</span>,
+    <span class="str">"X-Amz-Date"</span>: <span class="prop">amzDate</span>,
+    <span class="str">"X-Amz-Expires"</span>: <span class="prop">expiresInSeconds</span>,
+    <span class="str">"X-Amz-SignedHeaders"</span>: <span class="str">"host"</span>,
+  };
+
+  <span class="kw">const</span> <span class="prop">canonicalQueryString</span> <span class="op">=</span> <span class="dir">Object</span>.<span class="dir">keys</span>(<span class="prop">queryParams</span>)
+    .<span class="dir">sort</span>()
+    .<span class="dir">map</span>(
+      <span class="prop">key</span> <span class="op">=></span>
+        <span class="str">`${</span><span class="dir">encodeURIComponent</span>(<span class="prop">key</span>)<span class="str">}=${</span><span class="dir">encodeURIComponent</span>(<span class="prop">queryParams</span>[<span class="prop">key</span>])<span class="str">}`</span>
+    )
+    .<span class="dir">join</span>(<span class="str">"&"</span>);
+
+  <span class="kw">const</span> <span class="prop">canonicalHeaders</span> <span class="op">=</span> <span class="str">`host:${</span><span class="prop">host</span><span class="str">}\n`</span>;
+  <span class="kw">const</span> <span class="prop">signedHeaders</span> <span class="op">=</span> <span class="str">"host"</span>;
+  <span class="kw">const</span> <span class="prop">payloadHash</span> <span class="op">=</span> <span class="str">"UNSIGNED-PAYLOAD"</span>;
+
+  <span class="kw">const</span> <span class="prop">canonicalRequest</span> <span class="op">=</span> [
+    <span class="prop">method</span>,
+    <span class="prop">canonicalUri</span>,
+    <span class="prop">canonicalQueryString</span>,
+    <span class="prop">canonicalHeaders</span>,
+    <span class="prop">signedHeaders</span>,
+    <span class="prop">payloadHash</span>,
+  ].<span class="dir">join</span>(<span class="str">"\n"</span>);
+
+  <span class="kw">const</span> <span class="prop">hashedCanonicalRequest</span> <span class="op">=</span> <span class="prop">crypto</span>
+    .<span class="dir">createHash</span>(<span class="str">"sha256"</span>)
+    .<span class="dir">update</span>(<span class="prop">canonicalRequest</span>)
+    .<span class="dir">digest</span>(<span class="str">"hex"</span>);
+
+  <span class="kw">const</span> <span class="prop">stringToSign</span> <span class="op">=</span> [
+    <span class="prop">algorithm</span>,
+    <span class="prop">amzDate</span>,
+    <span class="prop">credentialScope</span>,
+    <span class="prop">hashedCanonicalRequest</span>,
+  ].<span class="dir">join</span>(<span class="str">"\n"</span>);
+
+  <span class="kw">const</span> <span class="prop">hmac</span> <span class="op">=</span> (<span class="prop">key</span>, <span class="prop">data</span>) <span class="op">=></span>
+    <span class="prop">crypto</span>.<span class="dir">createHmac</span>(<span class="str">"sha256"</span>, <span class="prop">key</span>).<span class="dir">update</span>(<span class="prop">data</span>).<span class="dir">digest</span>();
+
+  <span class="kw">const</span> <span class="prop">signingKey</span> <span class="op">=</span> <span class="dir">hmac</span>(
+    <span class="dir">hmac</span>(
+      <span class="dir">hmac</span>(
+        <span class="dir">hmac</span>(<span class="str">"AWS4"</span> <span class="op">+</span> <span class="prop">secretAccessKey</span>, <span class="prop">dateStamp</span>),
+        <span class="prop">region</span>
+      ),
+      <span class="prop">service</span>
+    ),
+    <span class="str">"aws4_request"</span>
+  );
+
+  <span class="kw">const</span> <span class="prop">signature</span> <span class="op">=</span> <span class="prop">crypto</span>
+    .<span class="dir">createHmac</span>(<span class="str">"sha256"</span>, <span class="prop">signingKey</span>)
+    .<span class="dir">update</span>(<span class="prop">stringToSign</span>)
+    .<span class="dir">digest</span>(<span class="str">"hex"</span>);
+
+  <span class="kw">return</span> <span class="str">`https://${</span><span class="prop">host</span><span class="str">}${</span><span class="prop">canonicalUri</span><span class="str">}?${</span><span class="prop">canonicalQueryString</span><span class="str">}&X-Amz-Signature=${</span><span class="prop">signature</span><span class="str">}`</span>;
+}
+
+<h2>Example usage</h2>
+<span class="kw">const</span> <span class="prop">url</span> <span class="op">=</span> <span class="dir">getSignedS3Url</span>({
+    <span class="prop">bucketName</span>: <span class="str">"storifyy-prod-user-uploads"</span>,
+    <span class="prop">objectKey</span>: <span class="str">"fancy.jpg"</span>,
+});
+
+
+<span class="cmt">//uploading signed-url</span>
+<span class="kw">const</span> <span class="prop">upload_url</span> <span class="op">=</span> <span class="dir">getSignedS3Url</span>({
+    <span class="prop">bucketName</span>: <span class="str">"storifyy-prod-user-uploads"</span>,
+    <span class="prop">objectKey</span>: <span class="str">"rohee.jpg"</span>,
+    <span class="prop">method</span>: <span class="str">"PUT"</span>
+});
+
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="prop">upload_url</span>);
+        </code>
+    </pre>
+
+    <h3>Step-by-Step Breakdown (Based on Your Code Example):</h3>
+    <p>
+      Your JavaScript code follows the exact steps of the AWS
+      <strong class="prop">Signature Version 4</strong> signing process for a
+      URL request:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Code Section</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="lit">1</span>. Create the Canonical Request</td>
+          <td><code class="prop">canonicalRequest</code></td>
+          <td>
+            This is a standardized string that contains all the essential parts
+            of the request (HTTP method, URI, query parameters, headers, and
+            payload hash).
+          </td>
+        </tr>
+        <tr>
+          <td><span class="lit">2</span>. Create the String to Sign</td>
+          <td><code class="prop">stringToSign</code></td>
+          <td>
+            This string combines the <code class="prop">algorithm</code> (<code
+              class="mono"
+              >AWS4-HMAC-SHA256</code
+            >), the timestamp, the credential scope (the region, service, and
+            date), and a hash of the
+            <strong class="kw">Canonical Request</strong>.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="lit">3</span>. Calculate the Signing Key</td>
+          <td><code class="prop">signingKey</code></td>
+          <td>
+            This is a complex, chained
+            <code class="prop">HMAC-SHA256</code> process that uses your
+            <strong class="kw">Secret Access Key</strong> along with the date,
+            region, and service to create a unique temporary key. This is the
+            most secure step as it incorporates your secret.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="lit">4</span>. Calculate the Signature</td>
+          <td><code class="prop">signature</code></td>
+          <td>
+            The final signature is calculated by taking the
+            <strong class="kw">String to Sign</strong> and signing it with the
+            <strong class="kw">Signing Key</strong> using
+            <code class="prop">HMAC-SHA256</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="lit">5</span>. Construct the Final URL</td>
+          <td>The <code class="kw">return</code> statement</td>
+          <td>
+            The final URL is constructed by taking the original S3 endpoint, all
+            the query parameters (including
+            <code class="prop">X-Amz-Algorithm</code>,
+            <code class="prop">X-Amz-Date</code>,
+            <code class="prop">X-Amz-Expires</code>, etc.), and appending the
+            final <strong class="kw">Signature</strong> as the
+            <code class="prop">X-Amz-Signature</code> query parameter.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Conclusion on Creation</h3>
+
+    <p>
+      When a user tries to access the generated signed URL, the S3 server
+      receives the request and performs the exact same calculation using the
+      <code class="prop">X-Amz-Date</code>,
+      <code class="prop">X-Amz-Credential</code>, and other parameters.
+    </p>
+
+    <ul>
+      <li>
+        <strong class="kw">If the signature</strong> the S3 server calculates
+        <strong class="kw"
+          >matches the <code class="prop">X-Amz-Signature</code> provided in the
+          URL</strong
+        >, and the expiration time has not passed, S3 grants the access
+        (downloads the file or allows the upload).
+      </li>
+      <li>
+        <strong class="kw">If the signatures don't match</strong>, or if the URL
+        has expired, the request is denied with an
+        <code class="op">Access Denied</code> error.
+      </li>
+    </ul>
+
+    <p>
+      This <strong class="kw">decentralized creation method</strong> means your
+      application can generate signed URLs very quickly without waiting for a
+      network round-trip to the AWS server.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Creating an HTTPS Express Server</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Variables for VS Code Dark theme approximation */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code background */
+        --text-color: #d4d4d4; /* Default text color */
+        --heading-color: #569cd6; /* Light blue for headings/steps */
+        --code-bg: #252526; /* Slightly lighter dark for code blocks */
+        --code-text: #dcdcdc; /* General code text (white) */
+        --keyword-color: #c586c0; /* Purple for keywords (e.g., const, import) */
+        --string-color: #ce9178; /* Orange for strings (e.g., "Hello Secure World 🔒") */
+        --comment-color: #6a9955; /* Green for comments */
+        --variable-color: #9cdcfe; /* Light blue for variables/functions (e.g., app, express) */
+        --number-color: #b5cea8; /* Greenish for numbers */
+        --note-color: #ffcc00; /* Yellow for warnings/notes */
+        --primary-font: 'Nunito', sans-serif;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: var(--primary-font);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      h1 {
+        color: var(--heading-color);
+        font-size: 2.5em;
+        margin-bottom: 30px;
+        font-weight: 700;
+      }
+
+      h2 {
+        color: var(--heading-color);
+        font-size: 1.8em;
+        margin-top: 30px;
+        margin-bottom: 15px;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #3c3c3c;
+        font-weight: 700;
+      }
+
+      strong {
+        color: var(--variable-color); /* Highlight key terms */
+      }
+
+      .note-box {
+        background-color: #333333;
+        border-left: 5px solid var(--note-color);
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+        font-style: italic;
+      }
+
+      .warning-box {
+        background-color: #4a1e1e;
+        border-left: 5px solid #ff4d4d;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+        color: #ff4d4d;
+        font-weight: 700;
+      }
+
+      /* VS Code style code blocks */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 1em;
+      }
+
+      code.inline {
+        background-color: var(--code-bg);
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: var(--code-text);
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      }
+
+      /* Syntax Highlighting Classes for the example code */
+
+      /* General code text */
+      .code-text {
+        color: var(--code-text);
+      }
+      /* Keywords (const, import, from, new, etc.) */
+      .keyword {
+        color: var(--keyword-color);
+      }
+      /* Strings */
+      .string {
+        color: var(--string-color);
+      }
+      /* Comments */
+      .comment {
+        color: var(--comment-color);
+      }
+      /* Variables, functions, types */
+      .variable {
+        color: var(--variable-color);
+      }
+      /* Numbers, Booleans */
+      .number {
+        color: var(--number-color);
+      }
+      /* Command line prompt */
+      .cli {
+        color: var(--note-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Creating an HTTPS Express Server Using OpenSSL</h1>
+
+      <h2>Step 1: Generate SSL Certificate and Key with OpenSSL</h2>
+      <p>Run the following command in your terminal:</p>
+      <pre><code class="code-block"><span class="cli">openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365</span></code></pre>
+
+      <p>This creates:</p>
+      <ul>
+        <li><code class="inline">key.pem</code>: Your private key</li>
+        <li>
+          <code class="inline">cert.pem</code>: Your self-signed SSL certificate
+        </li>
+      </ul>
+
+      <div class="note-box">
+        <strong>Note:</strong> You'll be prompted for details like Country,
+        State, etc. You can skip them by pressing Enter.
+      </div>
+
+      <h2>Step 2: Update Your Express Code to Use HTTPS</h2>
+      <p>Replace your HTTP server code with the following code:</p>
+
+      <pre>
+            <code class="code-block">
+                <span class="comment">// index.js</span>
+                <span class="keyword">import</span> <span class="variable">express</span> <span class="keyword">from</span> <span class="string">"express"</span>;
+                <span class="keyword">import</span> <span class="variable">https</span> <span class="keyword">from</span> <span class="string">"https"</span>;
+                <span class="keyword">import</span> <span class="variable">fs</span> <span class="keyword">from</span> <span class="string">"fs"</span>;
+
+                <span class="keyword">const</span> <span class="variable">app</span> = <span class="variable">express</span>();
+
+                <span class="variable">app</span>.get(<span class="string">"/"</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+                  <span class="variable">res</span>.send(<span class="string">"Hello Secure World 🔒"</span>);
+                });
+
+                <span class="keyword">const</span> <span class="variable">PORT</span> = <span class="number">4000</span>;
+
+                <span class="keyword">const</span> <span class="variable">sslOptions</span> = {
+                  <span class="variable">key</span>: <span class="variable">fs</span>.readFileSync(<span class="string">"./key.pem"</span>),
+                  <span class="variable">cert</span>: <span class="variable">fs</span>.readFileSync(<span class="string">"./cert.pem"</span>)
+                };
+
+                <span class="variable">https</span>.createServer(<span class="variable">sslOptions</span>, <span class="variable">app</span>).listen(<span class="variable">PORT</span>, () => {
+                  <span class="variable">console</span>.log(<span class="string">`🚀 HTTPS server running at https://localhost:${PORT}`</span>);
+                });
+            </code>
+        </pre>
+
+      <h2>Step 3: Run Your Server</h2>
+      <p>Run the server with the command:</p>
+      <pre><code class="code-block"><span class="cli">node index.js</span></code></pre>
+
+      <h2>Step 4: Visit in Your Browser</h2>
+      <p>Open your browser and navigate to:</p>
+      <pre><code class="code-block"><span class="cli">https://localhost:4000</span></code></pre>
+
+      <div class="warning-box">
+        <span style="font-size: 1.2em">⚠️</span> **You'll see a security
+        warning** because the certificate is self-signed. Click **"Advanced"** →
+        **"Proceed"**.
+      </div>
+    </div>
+  </body>
+</html>

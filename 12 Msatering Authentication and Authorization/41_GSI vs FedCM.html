@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Federated Authentication & FedCM Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Typography */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VS Code Dark background */
+        color: #d4d4d4; /* Light grey text */
+        margin: 0;
+        padding: 40px 20px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner container */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Headings */
+      h2 {
+        font-weight: 800;
+        color: #569cd6; /* VS Code blue for main headings */
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+        display: flex;
+        align-items: center;
+      }
+
+      h2 .emoji {
+        margin-right: 10px;
+        font-size: 1.2em;
+      }
+
+      h3 {
+        font-weight: 700;
+        color: #4ec9b0; /* VS Code green/teal for subheadings */
+        margin-top: 25px;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #dcdcaa; /* VS Code yellow for keywords/bold text */
+        font-weight: 600;
+      }
+
+      /* List Styles */
+      ul {
+        list-style-type: '→  ';
+        padding-left: 20px;
+        margin-bottom: 20px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Table Styles (GSI vs FedCM) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #1e1e1e; /* Darker background for table */
+        border: 1px solid #333;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border: 1px solid #333;
+      }
+
+      th {
+        background-color: #333; /* Dark header */
+        color: #c586c0; /* VS Code purple */
+        font-weight: 700;
+      }
+
+      td {
+        color: #d4d4d4;
+      }
+
+      /* Code Block Styling (VS Code-like) */
+      .code-block {
+        background-color: #1e1e1e; /* VS Code background */
+        padding: 15px;
+        border-radius: 4px;
+        margin: 20px 0;
+        overflow-x: auto;
+        border-left: 3px solid #569cd6;
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0;
+        font-family: 'Consolas', 'Monaco', monospace; /* Use a monospaced font for code */
+        font-size: 14px;
+        color: #d4d4d4;
+      }
+
+      .code-block .keyword {
+        color: #569cd6; /* blue */
+      }
+
+      .code-block .string {
+        color: #ce9178; /* orange/brown */
+      }
+
+      .code-block .comment {
+        color: #6a9955; /* green */
+      }
+
+      /* Links and URLs */
+      .url {
+        color: #4fc1ff; /* Light blue/cyan for links */
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .url:hover {
+        text-decoration: underline;
+      }
+
+      /* Specific styles for the explanation parts */
+      .explanation {
+        border-left: 4px solid #c586c0;
+        padding-left: 15px;
+        background-color: #2a2a2b;
+        padding: 15px;
+        margin-top: 15px;
+        border-radius: 4px;
+      }
+      .explanation h3 {
+        color: #c586c0;
+        margin-top: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2><span class="emoji">🔐</span> What is Federated Authentication?</h2>
+      <p>
+        <strong>Federated authentication</strong> is a system that allows a user
+        to access multiple independent applications or services across different
+        domains (or companies) using a
+        <strong>single set of credentials</strong> provided by a trusted third
+        party, known as the <strong>Identity Provider (IdP)</strong>.
+      </p>
+      <p>
+        In essence, a website (the <strong>Service Provider</strong> or
+        <strong>Relying Party</strong>) delegates the responsibility of
+        authenticating the user to the IdP. Instead of creating and managing a
+        new account and password for every site, the user can sign in using an
+        existing account (like Google or Facebook).
+      </p>
+
+      <h3>Key Components:</h3>
+      <ul>
+        <li><strong>User:</strong> The person trying to access a service.</li>
+        <li>
+          <strong>Identity Provider (IdP):</strong> Manages the user's digital
+          identity and credentials (e.g., Google, Okta).
+        </li>
+        <li>
+          <strong>Service Provider (SP) or Relying Party (RP):</strong> The
+          website or application the user wants to access.
+        </li>
+      </ul>
+
+      <h2><span class="emoji">💻</span> GSI vs. FedCM</h2>
+      <p>
+        <strong>Google Identity Services (GSI)</strong> and
+        <strong>Federated Credential Management (FedCM)</strong> are both
+        mechanisms related to using a Google account as an Identity Provider for
+        signing into third-party websites.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Google Identity Services (GSI)</th>
+            <th>Federated Credential Management (FedCM)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Type</strong></td>
+            <td>
+              A <strong>library and API suite</strong> from Google (built on
+              OAuth 2.0/OpenID Connect) for authentication and authorization.
+            </td>
+            <td>
+              A <strong>standard browser API</strong> designed as part of the
+              Privacy Sandbox initiative to manage federated sign-in flows.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Mechanism</strong></td>
+            <td>
+              Relied heavily on <strong>third-party cookies</strong>, cross-site
+              iframes, and redirects to maintain the sign-in state across
+              different websites.
+            </td>
+            <td>
+              The <strong>browser</strong> acts as a secure intermediary between
+              the Relying Party and the Identity Provider.
+              <strong>It does not use third-party cookies or redirects.</strong>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>User Interface (UI)</strong></td>
+            <td>
+              The sign-in prompts (like the "One Tap" prompt) are created and
+              displayed by the GSI JavaScript library, which runs on the
+              website.
+            </td>
+            <td>
+              The sign-in prompts are <strong>browser-mediated</strong> and
+              displayed by the browser itself, giving users more visual control
+              and consistency.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Privacy</strong></td>
+            <td>
+              Prone to being used for cross-site tracking because of its
+              reliance on third-party cookies/iframes (even when not Google's
+              intent).
+            </td>
+            <td>
+              <strong>Privacy-preserving by design.</strong> The browser only
+              contacts the IdP <strong>after</strong> the user gives explicit
+              consent via the browser's UI.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Future</strong></td>
+            <td>
+              <strong>Deprecated</strong> as a standalone solution for the core
+              sign-in flow and is migrating to use FedCM APIs internally.
+            </td>
+            <td>
+              The <strong>future standard</strong> for federated identity,
+              especially for Google Sign-In on Chrome.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>
+        <span class="emoji">🔒</span> FedCM vs. GSI: Which is More Secure?
+      </h2>
+      <p>
+        <strong>FedCM is generally considered more secure</strong> than the
+        traditional GSI implementation (which relied on third-party cookies and
+        iframes), especially from a
+        <strong>privacy and user tracking</strong> perspective.
+      </p>
+
+      <h3>Why FedCM is more secure:</h3>
+      <ul>
+        <li>
+          <strong>Elimination of Third-Party Tracking:</strong> Traditional GSI
+          flows could be used for cross-site tracking because the IdP could know
+          which websites the user was visiting by reading its third-party
+          cookies or watching iframes load.
+          <strong>FedCM completely removes this risk</strong> by having the
+          browser mediate the flow and only communicate with the IdP after the
+          user interacts with the browser's UI and gives consent.
+        </li>
+        <li>
+          <strong>Browser Mediation:</strong> The browser controls and renders
+          the sign-in prompt. This prevents
+          <strong>phishing attacks</strong> where a malicious website might try
+          to fake a sign-in pop-up, as the user knows the authentic dialog is
+          controlled by the browser, not the website itself.
+        </li>
+        <li>
+          <strong>Cross-Origin Isolation:</strong> FedCM is designed to work in
+          a way that provides
+          <strong>more security and privacy isolation</strong> between the IdP
+          and the Relying Party, making it harder for one to infer information
+          about the user's activity on the other.
+        </li>
+      </ul>
+      <div>
+        <h2>GSI Flow</h2>
+        <img src="images/GSI.png" alt="GSI flow" width="100%" height="700px" />
+        <h2>FedCM Flow</h2>
+        <img src="images/FedCM.png" alt="fedCM" width="100%" height="700px" />
+      </div>
+
+      <h2>
+        <span class="emoji">✈️</span> Why Google Chrome is Migrating to FedCM
+      </h2>
+      <p>
+        Google Chrome (and other browsers) is migrating to FedCM primarily due
+        to the <strong>deprecation of third-party cookies</strong> as part of
+        the broader <strong>Privacy Sandbox</strong> initiative.
+      </p>
+
+      <ul>
+        <li>
+          <strong>Phasing Out Third-Party Cookies:</strong> The traditional
+          method for federated identity (including GSI's "One Tap" feature)
+          often relied on third-party cookies to check if a user was already
+          logged into the IdP. As Chrome phases out third-party cookies to
+          enhance user privacy, a new mechanism is needed to allow federated
+          sign-in to function.
+          <strong>FedCM provides a privacy-preserving replacement.</strong>
+        </li>
+        <li>
+          <strong>Increased User Privacy:</strong> FedCM is designed to prevent
+          the Identity Provider from passively tracking the user's navigation
+          across different sites. The browser explicitly requests credentials
+          from the IdP only when needed and with user consent.
+        </li>
+        <li>
+          <strong>Improved User Experience:</strong> By using a standardized,
+          browser-mediated UI, the sign-in prompt is cleaner, more consistent,
+          and less disruptive across different websites, addressing the "NASCAR
+          problem" of cluttered login pages with multiple buttons.
+        </li>
+      </ul>
+      <p>
+        Google is automatically migrating existing GSI implementations to use
+        FedCM under the hood to ensure a continued, secure, and private sign-in
+        experience after third-party cookies are fully restricted.
+      </p>
+
+      <h2><span class="emoji">🖼️</span> What is an iFrame?</h2>
+      <p>
+        That's a very important question, as the concept of the
+        <strong>iframe</strong> is central to understanding the security and
+        privacy issues that FedCM is designed to solve!
+      </p>
+      <p>
+        Here is a detailed explanation of what an iframe is and how it relates
+        to federated authentication and tracking.
+      </p>
+
+      <h3>What is an iFrame?</h3>
+      <p>
+        An <strong>iframe</strong> (short for <strong>Inline Frame</strong>) is
+        an HTML element used to embed another HTML document (a separate,
+        complete web page) within the current one.
+      </p>
+      <p>
+        Think of an iframe as a
+        <strong
+          >mini-browser window embedded right inside the main webpage.</strong
+        >
+      </p>
+
+      <h3>Key Characteristics:</h3>
+      <ul>
+        <li>
+          <strong>Separate Document:</strong> The content inside the iframe is a
+          completely separate HTML document, with its own independent Document
+          Object Model (DOM), CSS, and JavaScript.
+        </li>
+        <li>
+          <strong>Source URL:</strong> An iframe uses a
+          <code>src</code> attribute to point to the URL of the content it
+          should display.
+        </li>
+        <li>
+          <strong>Isolation:</strong> The content inside the iframe is generally
+          isolated from the parent page by the browser's
+          <strong>Same-Origin Policy</strong>—meaning a script on the parent
+          page cannot directly read data from an iframe whose source is a
+          different website, and vice-versa.
+        </li>
+      </ul>
+
+      <h3>Common Uses of iFrames:</h3>
+      <ul>
+        <li>
+          <strong>Embedding Multimedia:</strong> Embedding a YouTube video
+          player or a Spotify playlist onto a blog.
+        </li>
+        <li>
+          <strong>Displaying Maps:</strong> Embedding a Google Map showing a
+          business location.
+        </li>
+        <li>
+          <strong>Third-Party Widgets:</strong> Integrating things like payment
+          forms (e.g., Stripe) or social media feeds.
+        </li>
+      </ul>
+
+      <h2>
+        <span class="emoji">💔</span> The Problem with "Cross-Site iFrames" and
+        Tracking
+      </h2>
+      <p>
+        The term <strong>"cross-site iframe"</strong> is used when the domain of
+        the parent page is different from the domain of the content loaded
+        inside the iframe. This is where the security and privacy issues arose,
+        especially in the context of older Federated Authentication systems like
+        GSI.
+      </p>
+
+      <div class="explanation">
+        <h3>1. The Old GSI/iFrame Flow (Why it was a problem)</h3>
+        <p>
+          In the traditional Google Sign-In (GSI) implementation, the prompt
+          (the "Sign in with Google" button or the "One Tap" dialog) was often
+          loaded inside a hidden or nearly invisible cross-site iframe.
+        </p>
+        <div class="code-block">
+          <pre><span class="comment">// The Relying Party (RP) Website</span>
+Website: <span class="string">example.com</span> <span class="comment">(the Relying Party)</span>
+
+<span class="comment">// The Identity Provider (IdP) content loaded in a hidden iframe</span>
+iFrame Source: <span class="string">accounts.google.com</span> <span class="comment">(the Identity Provider)</span></pre>
+        </div>
+        <p>
+          When <code>example.com</code> loaded, it would embed a hidden iframe
+          from <code>accounts.google.com</code>.
+        </p>
+
+        <p>
+          <strong>How Tracking Worked (The Problem):</strong> When the browser
+          loaded the iframe from <code>accounts.google.com</code>, the browser
+          would also send any <strong>third-party cookies</strong> it had for
+          <code>accounts.google.com</code> (which contained the user's login
+          session).
+        </p>
+        <p>
+          <strong>Passive Tracking:</strong> Simply by loading the iframe,
+          Google (the IdP) could determine that a logged-in user was currently
+          visiting <code>example.com</code>. This allowed the IdP to passively
+          track a user's activity across <strong>any</strong> website that
+          included this iframe, even if the user never clicked the sign-in
+          button.
+        </p>
+      </div>
+
+      <div class="explanation">
+        <h3>2. How FedCM Solves the iFrame Tracking Issue</h3>
+        <p>
+          <strong
+            >FedCM (Federated Credential Management) removes the need for this
+            cross-site iframe mechanism entirely for the authentication
+            check:</strong
+          >
+        </p>
+        <ul>
+          <li>
+            <strong>Browser Mediation:</strong> With FedCM, the
+            <strong>browser</strong> is the intermediary. The website tells the
+            browser, "I need credentials from Google."
+          </li>
+          <li>
+            <strong>No Passive Loading:</strong> The browser does
+            <strong
+              >not passively load a hidden Google iframe and send
+              cookies</strong
+            >. Instead, it checks its local data to see if the user is already
+            signed in to Google. The browser only communicates with the IdP's
+            server (<code>accounts.google.com</code>) <strong>after</strong> the
+            user gives explicit, visual consent via a clear, browser-controlled
+            dialog.
+          </li>
+          <li>
+            <strong>No Third-Party Cookies:</strong> By eliminating the reliance
+            on cross-site iframes and the associated third-party cookies, FedCM
+            prevents the IdP from performing cross-site tracking, making the
+            sign-in flow much more private and secure.
+          </li>
+        </ul>
+      </div>
+      <p>
+        In summary, the iframe is a standard web tool, but when used to load
+        content from a <strong>different site</strong> that relies on
+        third-party cookies for authentication, it became a major vector for the
+        cross-site tracking that modern privacy initiatives like FedCM are
+        designed to block.
+      </p>
+
+      <h2>
+        <span class="emoji">📝</span> Key Resources and Documentation (FedCM)
+      </h2>
+      <p>
+        The Federated Credential Management (FedCM) API is part of Google's
+        Privacy Sandbox initiative and is being implemented across the web,
+        including within the Google Identity Services (GSI) library.
+      </p>
+      <p>
+        Here are the key resources you should refer to, depending on whether you
+        are a website owner (Relying Party) or an Identity Provider:
+      </p>
+
+      <h3>
+        1. Google's Migration Guide (For websites already using Google Sign-In)
+      </h3>
+      <p>
+        If your website currently uses "Sign in with Google" (the GSI library),
+        this guide explains the minimal changes required for a seamless
+        transition to the FedCM-based flow:
+      </p>
+      <ul>
+        <li>
+          <strong>Migrate to FedCM (Google for Developers):</strong>
+          <a
+            class="url"
+            href="https://developers.google.com/identity/gsi/web/guides/fedcm-migration"
+            >https://developers.google.com/identity/gsi/web/guides/fedcm-migration</a
+          >
+        </li>
+        <li>
+          <strong>Key Action:</strong> This guide shows you how to enable FedCM
+          (by setting a <code>use_fedcm</code> flag) and details changes needed
+          for cross-origin iframes or custom button layouts.
+        </li>
+      </ul>
+
+      <h3>2. General FedCM Documentation (For all developers)</h3>
+      <p>
+        This documentation explains the FedCM API from a browser-agnostic
+        perspective:
+      </p>
+      <ul>
+        <li>
+          <strong>FedCM Overview (Chrome for Developers):</strong>
+          <a class="url" href="https://developer.chrome.com/docs/identity/fedcm"
+            >https://developer.chrome.com/docs/identity/fedcm</a
+          ><br />This is the main entry point to understand how FedCM benefits
+          users, Relying Parties, and Identity Providers.
+        </li>
+        <li>
+          <strong
+            >Implementing FedCM on the Relying Party side (Chrome for
+            Developers):</strong
+          >
+          <a
+            class="url"
+            href="https://developer.chrome.com/docs/identity/fedcm/implement/relying-party"
+            >https://developer.chrome.com/docs/identity/fedcm/implement/relying-party</a
+          ><br />This covers the JavaScript calls a website needs to make to
+          initiate the sign-in flow.
+        </li>
+        <li>
+          <strong
+            >W3C Federated Credential Management API Specification:</strong
+          >
+          <a class="url" href="https://www.w3.org/TR/fedcm/"
+            >https://www.w3.org/TR/fedcm/</a
+          ><br />For the most technical and up-to-date details on the browser
+          API and protocol, this is the official W3C specification document.
+        </li>
+      </ul>
+
+      <h3>3. Identity Provider (IdP) Integration</h3>
+      <p>
+        If you are building your own Identity Provider service and want it to
+        work with FedCM, you need to implement several server-side endpoints:
+      </p>
+      <ul>
+        <li>
+          <strong
+            >Implement an identity solution with FedCM on the Identity Provider
+            side (Chrome for Developers):</strong
+          >
+          <a
+            class="url"
+            href="https://developer.chrome.com/docs/identity/fedcm/implement/identity-provider"
+            >https://developer.chrome.com/docs/identity/fedcm/implement/identity-provider</a
+          ><br />This explains the required configuration files (like the
+          <code>.well-known/web-identity</code> file) and the endpoints the IdP
+          must expose to the browser.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

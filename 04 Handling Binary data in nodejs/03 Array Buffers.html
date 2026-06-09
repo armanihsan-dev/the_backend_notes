@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Understanding Buffers and Garbage Collection in JS</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+        h1 {
+            text-align: center;
+            border-bottom: none;
+            padding-bottom: 0;
+            margin-bottom: 40px;
+            color: #004085;
+        }
+        section {
+            margin-bottom: 25px;
+        }
+        p {
+            margin-bottom: 10px;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        ul.no-bullet {
+            list-style-type: none;
+            margin-left: 0;
+            padding-left: 0;
+        }
+        ul.no-bullet li {
+            margin-bottom: 8px;
+        }
+        li {
+            margin-bottom: 5px;
+        }
+        .example {
+            background-color: #e9f7ef;
+            border-left: 4px solid #4CAF50;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+        }
+        .analogy {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-top: 15px;
+            border-radius: 4px;
+            color: #856404;
+        }
+        .code-block {
+            background-color: #eee;
+            border-radius: 5px;
+            padding: 15px;
+            overflow-x: auto;
+            margin-top: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #333;
+        }
+        .code-block pre {
+            margin: 0;
+        }
+        strong {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Understanding Buffers & Garbage Collection in JavaScript</h1>
+
+        <section>
+            <h2>What is a Buffer?</h2>
+            <p>A <strong>buffer</strong> is a temporary storage area in memory. Its main job is to hold data that's being moved from one place to another. This is often needed when data is produced at a different speed than it's consumed, or when data needs to be collected before being processed.</p>
+            <p class="analogy"><em>Think of it like a waiting room for data.</em></p>
+            <h3>Examples:</h3>
+            <ul>
+                <li><strong>Video Streaming:</strong> Players buffer video ahead of time for smooth playback despite internet dips.</li>
+                <li><strong>Typing:</strong> Keystrokes are buffered before being sent to the CPU.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>What is an ArrayBuffer?</h2>
+            <p>An <strong>ArrayBuffer</strong> is a fundamental JavaScript object representing a fixed-length raw binary data buffer. It's a low-level, untyped container for a contiguous block of memory.</p>
+            <p><strong>Key Point:</strong> You cannot directly read or write individual bytes from an <code>ArrayBuffer</code>. You must use a "view" to interact with its data.</p>
+            <p class="analogy"><em>Think of an ArrayBuffer as a blank, unformatted block of clay. You need a tool (a view) to give it shape and interpret its contents.</em></p>
+        </section>
+
+        <section>
+            <h2>In Which Number Format Does ArrayBuffer Use?</h2>
+            <p>An <code>ArrayBuffer</code> itself <strong>does not impose a specific number format</strong>. It's merely a raw block of bytes.</p>
+            <p>The interpretation of these bytes into numbers (or any other data type) depends entirely on the <strong>typed array view</strong> you create on top of it.</p>
+            <h3>Examples of Typed Array Views:</h3>
+            <ul>
+                <li><code>Uint8Array</code>: Treats each byte as an unsigned 8-bit integer (0-255).</li>
+                <li><code>Int16Array</code>: Treats every two bytes as a signed 16-bit integer.</li>
+                <li><code>Float32Array</code>: Treats every four bytes as a 32-bit floating-point number (IEEE 754 standard).</li>
+                <li><code>BigInt64Array</code>: Treats every eight bytes as a 64-bit signed big integer.</li>
+            </ul>
+            <p>Therefore, the number format is determined by <strong>how you view the raw bytes</strong> in the <code>ArrayBuffer</code>, not by the <code>ArrayBuffer</code> itself.</p>
+        </section>
+
+        <section>
+            <h2>How to Create a Basic ArrayBuffer in JS</h2>
+            <h3>1. Create an ArrayBuffer</h3>
+            <p>Use the <code>new ArrayBuffer()</code> constructor, specifying the size in bytes.</p>
+            <div class="code-block">
+                <pre><code>const buffer = new ArrayBuffer(8); // creates a buffer of 8 bytes (64 bits)
+console.log(buffer); // ArrayBuffer(8)</code></pre>
+            </div>
+            <p>This creates an empty binary buffer in memory (initialized to 0s).</p>
+
+            <h3>2. Access or Modify It Using a Typed Array</h3>
+            <p>You can’t directly read or write from an <code>ArrayBuffer</code>. You need to use a typed array view.</p>
+            <div class="code-block">
+                <pre><code>const buffer = new ArrayBuffer(4); // 4 bytes
+const view = new Uint8Array(buffer); // 8-bit unsigned integers
+
+view[0] = 65;  // set first byte
+view[1] = 66;  // set second byte
+
+console.log(view);       // Uint8Array(4) [65, 66, 0, 0]
+console.log(buffer);     // ArrayBuffer(4)</code></pre>
+            </div>
+
+            <h3>3. View as Characters (using TextDecoder)</h3>
+            <div class="code-block">
+                <pre><code>const decoder = new TextDecoder("utf-8");
+console.log(decoder.decode(view)); // Outputs: 'AB' (from ASCII values 65 and 66)</code></pre>
+            </div>
+            <p class="analogy"><em><strong>Analogy:</strong> Think of <code>ArrayBuffer</code> as a raw box of memory, and typed arrays like <code>Uint8Array</code> as lenses to view/edit it.</em></p>
+
+            <h3>Bonus: Create from a String (using TextEncoder)</h3>
+            <div class="code-block">
+                <pre><code>const encoder = new TextEncoder();
+const buffer = encoder.encode("Hello"); // returns Uint8Array (which has an internal ArrayBuffer)
+
+console.log(buffer); // Uint8Array(5) [72, 101, 108, 108, 111]</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>What is Garbage Collection?</h2>
+            <p><strong>Garbage Collection (GC)</strong> is a form of <strong>automatic memory management</strong>. Its purpose is to reclaim memory that is no longer being used by a program.</p>
+            <ul>
+                <li>In languages with manual memory management (like C or C++), developers explicitly handle memory allocation and deallocation. Failure to deallocate can lead to "memory leaks."</li>
+                <li>Garbage collectors automatically identify and free up memory that is unreachable or no longer referenced, preventing memory leaks and simplifying development.</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Is JavaScript Garbage Collected? If Yes, How?</h2>
+            <p><strong>Yes, JavaScript is garbage collected.</strong> This is a fundamental feature of JavaScript engines (e.g., V8, SpiderMonkey, JavaScriptCore).</p>
+            <p>Developers generally don't need to manually manage memory in JavaScript.</p>
+            <h3>How JavaScript Garbage Collection Works (Simplified):</h3>
+            <ul class="no-bullet">
+                <li><strong>1. Roots:</strong> The GC starts from "roots" – global objects (<code>window</code>, <code>global</code>), current function calls, variables on the call stack. These are always considered reachable.</li>
+                <li><strong>2. Marking (or Tracing):</strong> It traverses the object graph from these roots, marking every object that is reachable (directly or indirectly).</li>
+                <li><strong>3. Sweeping (or Deleting):</strong> Any object that was <strong>not marked</strong> is considered "unreachable" or "garbage." The GC then reclaims the memory occupied by these unmarked objects.</li>
+            </ul>
+            <h3>Advanced GC Algorithms for Efficiency:</h3>
+            <ul class="no-bullet">
+                <li><strong>Generational Collection:</strong> Collects "young" objects (created recently) more frequently as they often become unreachable faster. "Old" objects are collected less often.</li>
+                <li><strong>Incremental Collection:</strong> Performs GC in small, manageable steps to avoid pausing the entire program and causing "jank," ensuring responsiveness.</li>
+                <li><strong>Concurrent/Parallel Collection:</strong> Some GC tasks can run alongside the main JavaScript thread (concurrently) or utilize multiple CPU cores (in parallel) to minimize performance impact.</li>
+            </ul>
+            <p><strong>In essence:</strong> JavaScript's built-in garbage collector continuously monitors memory usage and automatically frees up unneeded resources, allowing developers to focus on application logic rather than manual memory management.</p>
+        </section>
+    </div>
+</body>
+</html>

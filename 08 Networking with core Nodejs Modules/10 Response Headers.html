@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Response Headers Deep Dive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 900px;
+        margin: auto;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      .section-title {
+        color: #64b5f6; /* A gentle blue for titles */
+        font-weight: 700;
+        border-bottom: 2px solid #424242;
+        padding-bottom: 0.5rem;
+        margin-top: 2.5rem;
+      }
+      .section-title::before {
+        content: '🔹 ';
+        color: #ffd700; /* Gold for the bullet */
+      }
+      p,
+      li,
+      table {
+        color: #bdbdbd;
+      }
+      code,
+      pre {
+        font-family: 'Fira Code', 'Courier New', Courier, monospace;
+        background-color: #2b2b2b;
+        color: #d4d4d4;
+        padding: 0.15rem 0.3rem;
+        border-radius: 4px;
+      }
+      pre {
+        padding: 1rem;
+        overflow-x: auto;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      .code-block-vs {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        overflow-x: auto;
+        position: relative;
+      }
+      .code-block-vs pre {
+        background: none;
+        color: #d4d4d4;
+      }
+      .code-block-vs .comment {
+        color: #6a9955;
+      }
+      .code-block-vs .keyword {
+        color: #569cd6;
+      }
+      .code-block-vs .string {
+        color: #ce9178;
+      }
+      .code-block-vs .number {
+        color: #b5cea8;
+      }
+      .code-block-vs .constant {
+        color: #4ec9b0;
+      }
+      .code-block-vs .function {
+        color: #dcdcaa;
+      }
+      .code-block-vs .variable {
+        color: #9cdcfe;
+      }
+      .code-block-vs .operator {
+        color: #d4d4d4;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+      }
+      th,
+      td {
+        border: 1px solid #424242;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #2b2b2b;
+        color: #9cdcfe;
+      }
+      td {
+        background-color: #212121;
+      }
+      .highlight {
+        color: #ffb74d;
+      }
+      .important-note {
+        background-color: #2c2c2c;
+        border-left: 4px solid #ffd700;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        border-radius: 4px;
+      }
+      .takeaway {
+        font-size: 1.1em;
+        font-weight: bold;
+        color: #ffd700;
+        margin-top: 2rem;
+      }
+      .takeaway::before {
+        content: '👉 ';
+        color: #ffd700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="notes-container">
+      <h2 class="section-title">1. What are Response Headers?</h2>
+      <p>
+        Response headers are metadata lines the server sends to the client
+        before the actual content (body).
+      </p>
+      <p>
+        They tell the client how to interpret the body (video, text, JSON,
+        etc.), connection rules, caching, cookies, etc.
+      </p>
+      <p>They are plain text key-value pairs.</p>
+      <p><strong>Format:</strong></p>
+      <pre><code class="language-plaintext">Header-Name: Header-Value</code></pre>
+
+      <h2 class="section-title">2. Syntax of an HTTP Response</h2>
+      <p>When a server sends back a response over TCP, the format is:</p>
+      <pre><code class="language-plaintext">&lt;Status Line&gt;
+&lt;Header1&gt;: &lt;Value1&gt;
+&lt;Header2&gt;: &lt;Value2&gt;
+...
+(blank line)
+&lt;Body&gt;</code></pre>
+
+      <div class="important-note">
+        <h3>✅ Important:</h3>
+        <ul>
+          <li>
+            Headers must end with
+            <span class="highlight"
+              >CRLF (\r\n = Carriage Return + Line Feed)</span
+            >.
+          </li>
+          <li>
+            After the last header, there is a
+            <span class="highlight">blank line (\r\n\r\n)</span>.
+          </li>
+          <li>Then the body starts (binary/text content).</li>
+        </ul>
+      </div>
+
+      <h2 class="section-title">3. Common Response Headers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Header</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Content-Type</code></td>
+            <td>Type of data (text/html, application/json, video/mp4)</td>
+          </tr>
+          <tr>
+            <td><code>Content-Length</code></td>
+            <td>Exact byte length of body</td>
+          </tr>
+          <tr>
+            <td><code>Content-Disposition</code></td>
+            <td>
+              <code>inline</code> (show in browser) or
+              <code>attachment; filename=file.txt</code> (download)
+            </td>
+          </tr>
+          <tr>
+            <td><code>Access-Control-Allow-Origin</code></td>
+            <td>CORS, allows cross-domain requests</td>
+          </tr>
+          <tr>
+            <td><code>Cache-Control</code></td>
+            <td>Tells browser how to cache response</td>
+          </tr>
+          <tr>
+            <td><code>Connection</code></td>
+            <td><code>keep-alive</code> or <code>close</code></td>
+          </tr>
+          <tr>
+            <td><code>Set-Cookie</code></td>
+            <td>Send cookies</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-title">
+        4. Full Example (Node.js TCP, no http module)
+      </h2>
+      <p>
+        We’ll manually build an HTTP response with headers using
+        <code>net</code>:
+      </p>
+      <div class="code-block-vs">
+        <pre><code class="language-js"><span class="keyword">import</span> net <span class="keyword">from</span> <span class="string">"node:net"</span><span class="operator">;</span>
+<span class="keyword">import</span> <span class="operator">{</span> createReadStream <span class="operator">}</span> <span class="keyword">from</span> <span class="string">"node:fs"</span><span class="operator">;</span>
+<span class="keyword">import</span> <span class="operator">{</span> stat <span class="operator">}</span> <span class="keyword">from</span> <span class="string">"node:fs/promises"</span><span class="operator">;</span>
+
+<span class="keyword">const</span> server <span class="operator">=</span> <span class="variable">net</span><span class="operator">.</span><span class="function">createServer</span><span class="operator">(</span><span class="keyword">async</span> <span class="operator">(</span><span class="variable">socket</span><span class="operator">)</span> <span class="operator">=></span> <span class="operator">{</span>
+  <span class="variable">console</span><span class="operator">.</span><span class="function">log</span><span class="operator">(</span><span class="string">"Client connected:"</span><span class="operator">,</span> <span class="variable">socket</span><span class="operator">.</span><span class="variable">remoteAddress</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="comment">// File to serve</span>
+  <span class="keyword">const</span> filePath <span class="operator">=</span> <span class="string">"C:\\Users\\Arman ihsan\\Videos\\Screen Recordings\\demo.mp4"</span><span class="operator">;</span>
+  <span class="keyword">const</span> fileStat <span class="operator">=</span> <span class="keyword">await</span> <span class="function">stat</span><span class="operator">(</span><span class="variable">filePath</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="keyword">const</span> fileSize <span class="operator">=</span> <span class="variable">fileStat</span><span class="operator">.</span><span class="variable">size</span><span class="operator">;</span>
+
+  <span class="comment">// 🔹 Step 1: Write Status Line</span>
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">write</span><span class="operator">(</span><span class="string">"HTTP/1.1 200 OK\r\n"</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="comment">// 🔹 Step 2: Write Headers</span>
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">write</span><span class="operator">(</span><span class="string">`Content-Type: video/mp4\r\n`</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">write</span><span class="operator">(</span><span class="string">`Content-Length: ${</span><span class="variable">fileSize</span><span class="string">}\r\n`</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">write</span><span class="operator">(</span><span class="string">`Access-Control-Allow-Origin: *\r\n`</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">write</span><span class="operator">(</span><span class="string">`Connection: close\r\n`</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="comment">// (Optional) force download</span>
+  <span class="comment">// socket.write(`Content-Disposition: attachment; filename="video.mp4"\r\n`);</span>
+
+  <span class="comment">// 🔹 Step 3: Blank line (end of headers)</span>
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">write</span><span class="operator">(</span><span class="string">"\r\n"</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="comment">// 🔹 Step 4: Send body (file content)</span>
+  <span class="keyword">const</span> stream <span class="operator">=</span> <span class="function">createReadStream</span><span class="operator">(</span><span class="variable">filePath</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">stream</span><span class="operator">.</span><span class="function">pipe</span><span class="operator">(</span><span class="variable">socket</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="variable">stream</span><span class="operator">.</span><span class="function">on</span><span class="operator">(</span><span class="string">"end"</span><span class="operator">,</span> <span class="operator">(</span><span class="operator">)</span> <span class="operator">=></span> <span class="operator">{</span>
+    <span class="variable">console</span><span class="operator">.</span><span class="function">log</span><span class="operator">(</span><span class="string">"File sent successfully."</span><span class="operator">)</span><span class="operator">;</span>
+    <span class="variable">socket</span><span class="operator">.</span><span class="function">end</span><span class="operator">(</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="operator">}</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="variable">socket</span><span class="operator">.</span><span class="function">on</span><span class="operator">(</span><span class="string">"error"</span><span class="operator">,</span> <span class="operator">(</span><span class="variable">err</span><span class="operator">)</span> <span class="operator">=></span> <span class="operator">{</span>
+    <span class="variable">console</span><span class="operator">.</span><span class="function">log</span><span class="operator">(</span><span class="string">"Socket error:"</span><span class="operator">,</span> <span class="variable">err</span><span class="operator">.</span><span class="variable">message</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="operator">}</span><span class="operator">)</span><span class="operator">;</span>
+<span class="operator">}</span><span class="operator">)</span><span class="operator">;</span>
+
+<span class="variable">server</span><span class="operator">.</span><span class="function">listen</span><span class="operator">(</span><span class="number">4000</span><span class="operator">,</span> <span class="operator">(</span><span class="operator">)</span> <span class="operator">=></span> <span class="operator">{</span>
+  <span class="variable">console</span><span class="operator">.</span><span class="function">log</span><span class="operator">(</span><span class="string">"TCP server running on port 4000"</span><span class="operator">)</span><span class="operator">;</span>
+<span class="operator">}</span><span class="operator">)</span><span class="operator">;</span></code></pre>
+      </div>
+
+      <h2 class="section-title">5. What Happens Here?</h2>
+      <p>Browser connects → raw TCP socket.</p>
+      <p>Server writes:</p>
+      <pre><code class="language-plaintext">HTTP/1.1 200 OK\r\nContent-Type: video/mp4\r\nContent-Length: 123456\r\nConnection: close\r\n
+\r\n</code></pre>
+      <p>Browser reads headers until blank line.</p>
+      <p>Browser now knows the body = binary MP4 file → opens video player.</p>
+      <p>
+        If you change <code>Content-Type: application/octet-stream</code> →
+        browser will download file instead of playing.
+      </p>
+
+      <h2 class="section-title">6. Key Takeaway</h2>
+      <ul>
+        <li class="takeaway">
+          Response headers are just plain text instructions before the body.
+        </li>
+        <li class="takeaway">
+          The browser (or any HTTP client) uses them to decide what to do with
+          the body.
+        </li>
+        <li class="takeaway">
+          Without proper headers, browser may default to download, error, or
+          show garbage text.
+        </li>
+
+        
+      </ul>
+
+      <img
+        src="./images/Response Heades.png"
+        width="100%"
+        height="600px"
+        alt="Response Headers"
+      />
+    </div>
+  </body>
+</html>

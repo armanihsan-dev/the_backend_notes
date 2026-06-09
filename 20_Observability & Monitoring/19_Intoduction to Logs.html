@@ -1,0 +1,1760 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logging & Pino | Complete Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-list-check"></i> LOGGING GUIDE
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-logging" class="nav-link">What is Logging?</a>
+        <a href="#why-exists" class="nav-link">Why Logging Exists</a>
+        <a href="#traditional-vs-structured" class="nav-link"
+          >Traditional vs Structured</a
+        >
+        <a href="#metrics-vs-logs" class="nav-link"
+          >Why Logs are STILL important</a
+        >
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Pino Basics</div>
+        <a href="#installation" class="nav-link">Installation & Usage</a>
+        <a href="#log-levels" class="nav-link">Log Levels in Pino</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Advanced Pino</div>
+        <a href="#transports" class="nav-link">Pino Transports</a>
+        <a href="#redaction" class="nav-link">Redaction (Security)</a>
+        <a href="#child-loggers" class="nav-link">Child Loggers</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Express Integration</div>
+        <a href="#pino-http" class="nav-link">What is pino-http?</a>
+        <a href="#express-guide" class="nav-link">Pino with Express.js (ES6)</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">V. Pino-Pretty</div>
+        <a href="#pino-pretty-what" class="nav-link">What is Pino-Pretty?</a>
+        <a href="#pino-pretty-problem" class="nav-link">Problem It Solves</a>
+        <a href="#pino-pretty-features" class="nav-link">What It Does</a>
+        <a href="#pino-pretty-usage" class="nav-link">How to Use</a>
+        <a href="#pino-pretty-file" class="nav-link">Save Logs to File</a>
+        <a href="#pino-multi-stream" class="nav-link">pino-multi-stream</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Node.js & Observability</span>
+        <h1>SOFTWARE LOGGING & PINO</h1>
+        <p>THE COMPLETE GUIDE TO STRUCTURED LOGGING IN NODE.JS</p>
+      </section>
+
+      <section id="what-is-logging">
+        <h2>1. What is meant by Logging in Software?</h2>
+        <p>
+          Logging is the practice of recording events, states, or transactions
+          that occur during an application's execution. Think of it as your
+          application writing entries into a digital diary.
+        </p>
+
+        <p>What gets logged?</p>
+        <ul>
+          <li>Incoming requests (e.g., <code>GET /users</code>)</li>
+          <li>Database queries (e.g., <code>SELECT * FROM orders</code>)</li>
+          <li>Errors and exceptions (e.g., <code>Connection refused</code>)</li>
+          <li>User actions (e.g., User "john" logged in)</li>
+          <li>System state changes (e.g., Cache cleared)</li>
+        </ul>
+
+        <p>Example of a raw log line:</p>
+        <pre><code class="language-text">2026-04-22T10:32:00Z INFO User logged in successfully</code></pre>
+      </section>
+
+      <section id="why-exists">
+        <h2>2. Why Logging Exists</h2>
+        <p>
+          Logging exists to answer four critical questions when something goes
+          wrong or needs analysis:
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>What logs reveal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>What happened?</td>
+              <td>"Database timeout error"</td>
+            </tr>
+            <tr>
+              <td>When did it happen?</td>
+              <td>Timestamp: 10:32:00.123</td>
+            </tr>
+            <tr>
+              <td>Why did it fail?</td>
+              <td>"Invalid password hash"</td>
+            </tr>
+            <tr>
+              <td>What was the system doing?</td>
+              <td>Previous 10 log entries show a slow query</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>
+          Without logs: Debugging production issues becomes guesswork. You
+          cannot reproduce every user's exact sequence of actions locally.
+        </p>
+      </section>
+
+      <section id="traditional-vs-structured">
+        <h2>3. Problem with Traditional Logging</h2>
+        <p>
+          Traditional (unstructured) logging uses plain strings that are easy
+          for humans to read but difficult for machines to parse.
+        </p>
+
+        <p>Example of traditional log:</p>
+        <pre><code class="language-text">User Faraz logged in at 10:32 from IP 192.168.1.1
+Error connecting to database at 10:33</code></pre>
+
+        <p>The problems:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Problem</th>
+              <th>Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Hard to search</td>
+              <td>
+                Grepping for user=Faraz fails because the format is inconsistent
+              </td>
+            </tr>
+            <tr>
+              <td>Hard to analyze at scale</td>
+              <td>Counting errors requires brittle regex patterns</td>
+            </tr>
+            <tr>
+              <td>No structure</td>
+              <td>You cannot filter by level=="error" AND user=="Faraz"</td>
+            </tr>
+            <tr>
+              <td>Inconsistent format</td>
+              <td>
+                One developer writes "User X logged in", another writes "Login:
+                X"
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-circle-info"></i> Bottom line:</span
+          >
+          <p style="margin-bottom: 0">
+            Traditional logs work for small projects but break in production
+            with multiple servers and millions of requests.
+          </p>
+        </div>
+
+        <h2 style="margin-top: 3rem">4. Structured Logging</h2>
+        <p>
+          Structured logging stores logs as structured data (usually JSON)
+          instead of plain . Each log entry has predictable fields.
+        </p>
+
+        <p>Example of structured log (JSON):</p>
+        <pre><code class="language-json">{
+  "level": "info",
+  "timestamp": "2026-04-22T10:32:00Z",
+  "message": "User logged in",
+  "user": "Faraz",
+  "ip": "192.168.1.1",
+  "session_id": "abc123"
+}</code></pre>
+
+        <p>Why it's powerful:</p>
+        <ul>
+          <li>✅ Machine-parsable – Tools can index every field</li>
+          <li>✅ Queryable – <code>level:"error" AND user:"Faraz"</code></li>
+          <li>✅ Consistent – Every log has level, timestamp, message</li>
+          <li>✅ Rich con – Add any metadata without breaking parsers</li>
+        </ul>
+
+        <h3>Example (Node.js with pino)</h3>
+        <p>
+          pino is a fast, low-overhead structured logging library for Node.js.
+        </p>
+
+        <pre><code class="language-javascript">import pino from "pino";
+
+const logger = pino({
+  level: "info",
+  timestamp: pino.stdTimeFunctions.isoTime
+});
+
+// Simple log
+logger.info("Server started on port 3000");
+
+// Structured log with additional fields
+logger.info({
+  user: "Faraz",
+  action: "login",
+  ip: "192.168.1.1"
+}, "User logged in");
+
+// Error logging
+try {
+  throw new Error("Database connection failed");
+} catch (err) {
+  logger.error({
+    err: err.message,
+    query: "SELECT * FROM users",
+    user: "Faraz"
+  }, "Database error occurred");
+}</code></pre>
+
+        <p>Output (actual JSON lines):</p>
+        <pre><code class="language-json">{"level":30,"time":"2026-04-22T10:32:00.000Z","msg":"Server started on port 3000"}
+{"level":30,"time":"2026-04-22T10:32:01.000Z","user":"Faraz","action":"login","ip":"192.168.1.1","msg":"User logged in"}
+{"level":50,"time":"2026-04-22T10:32:02.000Z","err":"Database connection failed","query":"SELECT * FROM users","user":"Faraz","msg":"Database error occurred"}</code></pre>
+        <p>
+          pino is popular because it's 10x faster than alternatives like
+          Winston, making it suitable for high-throughput production systems.
+        </p>
+      </section>
+
+      <section id="metrics-vs-logs">
+        <h2>5. Why Logs are STILL important (even if you have metrics)</h2>
+        <p>
+          Many engineers think: "I have metrics (CPU, error rate, latency). Why
+          do I need logs?"
+        </p>
+        <p>Here's why logs remain irreplaceable:</p>
+
+        <h4>🧨 1. Metrics tell you what, Logs tell you why</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Metrics</th>
+              <th>Logs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Error rate = 5%</td>
+              <td>"Database timeout after 30s"</td>
+            </tr>
+            <tr>
+              <td>Latency p99 = 2s</td>
+              <td>"Query on table 'orders' missing index"</td>
+            </tr>
+            <tr>
+              <td>CPU = 90%</td>
+              <td>"Infinite loop in function calculateTax()"</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          Example: Your dashboard shows a spike in 500 errors. Metrics cannot
+          tell you it's because a specific user sent a malformed payload. Logs
+          can.
+        </p>
+
+        <h4>🧨 2. Debugging production issues</h4>
+        <p>When a bug only happens in production:</p>
+        <ul>
+          <li>You cannot attach a debugger (performance impact, security)</li>
+          <li>You cannot reproduce the exact sequence</li>
+          <li>Logs are your only witness</li>
+        </ul>
+
+        <h4>🧨 3. Edge cases & rare bugs</h4>
+        <p>
+          Metrics aggregate data → they hide outliers. One weird request in a
+          million won't move your metrics, but logs capture every single event.
+        </p>
+        <p>
+          Real example: A race condition occurs only when two specific APIs are
+          called within 50ms. Metrics show nothing unusual. Logs with timestamps
+          reveal the pattern.
+        </p>
+
+        <h4>🧨 4. Auditing & compliance</h4>
+        <p>Regulations like GDPR, HIPAA, SOC2 require:</p>
+        <ul>
+          <li>Who accessed what data?</li>
+          <li>When did they access it?</li>
+          <li>What changes did they make?</li>
+        </ul>
+        <p>Metrics cannot answer these. Logs are the audit trail.</p>
+
+        <h3>Final Comparison Table</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Aspect</th>
+              <th>Metrics</th>
+              <th>Logs</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>What it answers</td>
+              <td>"Something is wrong"</td>
+              <td>"Exactly what and why"</td>
+            </tr>
+            <tr>
+              <td>Granularity</td>
+              <td>Aggregated (averages, percentiles)</td>
+              <td>Per-event (every single request)</td>
+            </tr>
+            <tr>
+              <td>Storage cost</td>
+              <td>Low (numbers)</td>
+              <td>High (/JSON)</td>
+            </tr>
+            <tr>
+              <td>Query speed</td>
+              <td>Fast</td>
+              <td>Slower (but searchable)</td>
+            </tr>
+            <tr>
+              <td>Use case</td>
+              <td>Alerting, dashboards</td>
+              <td>Debugging, auditing, root cause</td>
+            </tr>
+            <tr>
+              <td>Example</td>
+              <td>error_rate > 0.05</td>
+              <td>{"error":"DB timeout","query":"..."}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)"
+            ><i class="fa-solid fa-car"></i> One-Line Takeaway</span
+          >
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Metrics tell you your car's check engine light is on. Logs tell you
+            it's because cylinder #3 is misfiring due to a faulty spark plug.
+            You need both to fix the problem.
+          </p>
+        </div>
+      </section>
+
+      <section id="installation">
+        <h2>Installation</h2>
+        <pre><code class="language-bash">npm install pino</code></pre>
+        <p><strong>Pino</strong> is a <strong>very fast Node.js logger</strong> that outputs JSON. It's designed for performance and low overhead in production applications.</p>
+        <h3>OR</h3>
+        <p>Pino is a logging library that's <strong>extremely fast</strong>, outputs <strong>JSON format</strong>, and is <strong>easy to use</strong> - often called the fastest JSON logger for Node.js.</p>
+        <h3>Why "Pino" ?</h3>
+        <p>"Pino" means "pine tree" in Italian - it's small, efficient, and evergreen (always relevant).</p>
+        <h2>Basic Usage</h2>
+        <pre><code class="language-javascript">import pino from "pino";
+
+const logger = pino()
+
+// Simple  message
+logger.info('Hello world');
+// With data
+logger.info({ user: 'John' }, 'User logged in');
+// Different log levels
+logger.debug('Debug message');   // Won't show by default
+logger.info('Info message');      // Shows
+logger.warn('Warning message');   // Shows
+logger.error('Error message');    // Shows</code></pre>
+
+        <p>What you'll see in the console:</p>
+        <pre><code class="language-json">{"level":30,"time":1699999999999,"pid":1234,"hostname":"my-pc","msg":"Hello world"}
+{"level":30,"time":1699999999999,"pid":1234,"hostname":"my-pc","user":"John","msg":"User logged in"}
+{"level":40,"time":1699999999999,"pid":1234,"hostname":"my-pc","msg":"Warning message"}
+{"level":50,"time":1699999999999,"pid":1234,"hostname":"my-pc","msg":"Error message"}</code></pre>
+
+        <p>To see debug messages:</p>
+        <pre><code class="language-javascript">const logger = pino({ level: 'debug' });
+logger.debug('Now this will show');</code></pre>
+      </section>
+
+      <section id="log-levels">
+        <h2>Log Levels in Pino - Complete Guide</h2>
+
+        <h3>What Are Log Levels?</h3>
+        <p>
+          Log levels are priorities assigned to log messages that determine
+          their importance and when they should be recorded. They help filter
+          noise from critical information.
+        </p>
+
+        <h3>Pino's Log Levels (from lowest to highest priority)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Level</th>
+              <th>Value</th>
+              <th>Use Case</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>trace</td>
+              <td>10</td>
+              <td>
+                Very detailed debugging, function entry/exit, variable states
+              </td>
+            </tr>
+            <tr>
+              <td>debug</td>
+              <td>20</td>
+              <td>Debugging information for developers during development</td>
+            </tr>
+            <tr>
+              <td>info</td>
+              <td>30</td>
+              <td>
+                Normal application events (user logged in, server started)
+              </td>
+            </tr>
+            <tr>
+              <td>warn</td>
+              <td>40</td>
+              <td>Suspicious but non-critical issues (deprecated API usage)</td>
+            </tr>
+            <tr>
+              <td>error</td>
+              <td>50</td>
+              <td>Errors that need attention but app continues running</td>
+            </tr>
+            <tr>
+              <td>fatal</td>
+              <td>60</td>
+              <td>Catastrophic failures that crash the application</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>How It Works</h3>
+        <p>Rule: Only messages at or above the current log level are logged.</p>
+        <p>
+          Example: If level is info (30), you'll see info, warn, error, fatal
+          but NOT debug or trace.
+        </p>
+
+        <h3>Basic Level Configuration</h3>
+        <pre><code class="language-javascript">const pino = require('pino');
+// Set minimum log level
+const logger = pino({ level: 'info' });
+logger.trace('Not shown');    // level 10 < 30 ❌
+logger.debug('Not shown');    // level 20 < 30 ❌
+logger.info('Shown');         // level 30 >= 30 ✅
+logger.warn('Shown');         // level 40 >= 30 ✅
+logger.error('Shown');        // level 50 >= 30 ✅
+logger.fatal('Shown');        // level 60 >= 30 ✅</code></pre>
+
+        <h3>Practical Use Cases</h3>
+
+        <h4>1. TRACE - Deep Debugging</h4>
+        <pre><code class="language-javascript">// Use for function entry/exit, detailed flow
+function calculateTotal(items) {
+  logger.trace({ items }, 'Entering calculateTotal');
+  
+  const total = items.reduce((sum, item) => {
+    logger.trace({ item, currentSum: sum }, 'Adding item');
+    return sum + item.price;
+  }, 0);
+  
+  logger.trace({ total }, 'Exiting calculateTotal');
+  return total;
+}</code></pre>
+
+        <h4>2. DEBUG - Development Information</h4>
+        <pre><code class="language-javascript">// Use during development, disable in production
+const logger = pino({ level: 'debug' });
+function processOrder(order) {
+  logger.debug({ orderId: order.id }, 'Processing order');
+  
+  if (order.items.length === 0) {
+    logger.debug('Order has no items, skipping');
+    return;
+  }
+  
+  // Business logic...
+  logger.debug('Order processed successfully');
+}</code></pre>
+
+        <h4>3. INFO - Normal Application Events</h4>
+        <pre><code class="language-javascript">// Track important business operations
+logger.info('Server started on port 3000');
+logger.info({ userId: 123 }, 'User registered successfully');
+logger.info({ orderId: 'ORD-789' }, 'Order placed');
+logger.info('Database connected');</code></pre>
+
+        <h4>4. WARN - Concerning But Not Fatal</h4>
+        <pre><code class="language-javascript">// Use for recoverable issues, deprecations, rate limits
+logger.warn('API rate limit at 80%');
+logger.warn({ endpoint: '/old-api' }, 'Using deprecated endpoint');
+logger.warn('User attempted invalid password 3 times');
+logger.warn('Request took 5 seconds (slower than usual)');</code></pre>
+
+        <h4>5. ERROR - Recoverable Errors</h4>
+        <pre><code class="language-javascript">// Use for operation failures that don't crash the app
+try {
+  await sendEmail(user.email);
+} catch (err) {
+  logger.error({ err, userId: user.id }, 'Failed to send email');
+  // Continue execution, maybe queue for retry
+}
+// Database query fails but app handles it
+db.query(sql).catch(err => {
+  logger.error({ err, query: sql }, 'Database query failed');
+  return fallbackData;
+});</code></pre>
+
+        <h4>6. FATAL - Application-Killing Errors</h4>
+        <pre><code class="language-javascript">// Use when app cannot continue
+function initializeApp() {
+  try {
+    connectToDatabase();
+  } catch (err) {
+    logger.fatal({ err }, 'Cannot connect to database');
+    process.exit(1); // Exit after fatal error
+  }
+}
+// Missing critical configuration
+if (!process.env.JWT_SECRET) {
+  logger.fatal('JWT_SECRET environment variable missing');
+  process.exit(1);
+}</code></pre>
+
+        <h3>Dynamic Level Changes</h3>
+        <p>Change level at runtime</p>
+        <pre><code class="language-javascript">const logger = pino({ level: 'info' });
+// Later, based on condition
+if (process.env.DEBUG === 'true') {
+  logger.level = 'debug';
+}
+logger.debug('Now visible if DEBUG=true');</code></pre>
+
+        <p>Level from environment variable</p>
+        <pre><code class="language-javascript">const level = process.env.LOG_LEVEL || 'info';
+const logger = pino({ level });
+// Usage: LOG_LEVEL=debug node app.js</code></pre>
+
+        <p>Check if level is enabled</p>
+        <pre><code class="language-javascript">if (logger.isLevelEnabled('debug')) {
+  // Expensive debug operation only runs if debug is enabled
+  const debugData = JSON.stringify(largeObject);
+  logger.debug({ data: debugData }, 'Detailed debug info');
+}</code></pre>
+
+        <p>Environment-Based Configuration</p>
+        <pre><code class="language-javascript">const pino = require('pino');
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
+let level = 'info'; // default
+if (isProduction) {
+  level = 'warn';  // Only warnings and errors in production
+} else if (isDevelopment) {
+  level = 'debug'; // Full details in development
+}
+const logger = pino({ level });
+// Usage in different environments
+logger.debug('Only in development');  // ✅ development, ❌ production
+logger.info('Normal operation');      // ✅ development, ❌ production
+logger.warn('Something suspicious');  // ✅ development, ✅ production
+logger.error('Error occurred');       // ✅ development, ✅ productio</code></pre>
+      </section>
+
+      <section id="transports">
+        <h2>Pino Transports - Complete Guide</h2>
+
+        <h3>What is a Transport?</h3>
+        <p>
+          A transport is where your logs go. It's the destination/output for
+          your log messages. Transforms the log stream and sends it somewhere -
+          console, file, network, external services, etc.
+        </p>
+
+        <h3>Why Use Transports?</h3>
+        <ul>
+          <li>
+            Separation of concerns - Logging logic separate from application
+          </li>
+          <li>Flexible outputs - Same logs to multiple destinations</li>
+          <li>Performance - Asynchronous processing doesn't block your app</li>
+          <li>Production ready - Rotate, compress, forward logs</li>
+        </ul>
+
+        <h3>Basic Transport Concepts</h3>
+        <pre><code class="language-javascript">const pino = require('pino');
+// Default transport = stdout (console)
+const logger = pino(); // Logs to console
+// Custom transport
+const transport = pino.transport({
+  target: 'pino/file'  // Built-in file transport
+});
+const logger = pino(transport);</code></pre>
+
+        <h3>Built-in Transports</h3>
+
+        <h4>1. Console (Default)</h4>
+        <pre><code class="language-javascript">// No explicit transport needed
+const logger = pino(); // Logs to process.stdout</code></pre>
+
+        <h4>2. File Transport</h4>
+        <pre><code class="language-javascript">const transport = pino.transport({
+  target: 'pino/file',
+  options: {
+    destination: './logs/app.log',  // File path
+    mkdir: true,                     // Create directory if missing
+    append: true,                    // Append to existing file
+    sync: false                      // Async writing (default)
+  }
+});
+const logger = pino(transport);</code></pre>
+
+        <h4>3. Pretty Print (Human Readable)</h4>
+        <pre><code class="language-javascript">const transport = pino.transport({
+  target: 'pino-pretty',
+  options: {
+    colorize: true,
+    translateTime: 'SYS:standard',
+    ignore: 'pid,hostname',
+    singleLine: false
+  }
+});
+const logger = pino(transport);</code></pre>
+
+        <h3>Single vs Multiple Transports</h3>
+
+        <p>Single Transport</p>
+        <pre><code class="language-javascript">// One destination
+const transport = pino.transport({
+  target: 'pino/file',
+  options: { destination: './app.log' }
+});</code></pre>
+
+        <p>Multiple Transports</p>
+        <pre><code class="language-javascript">// Multiple destinations simultaneously
+const transport = pino.transport({
+  targets:[
+    { target: 'pino/file', options: { destination: './app.log' } },
+    { target: 'pino-pretty', options: { colorize: true } },
+    { target: 'pino/file', options: { destination: 1 } } // stdout
+  ]
+});</code></pre>
+
+        <h3>Custom Transports</h3>
+
+        <p>Basic Custom Transport</p>
+        <pre><code class="language-javascript">const { Transform } = require('stream');
+// Create custom transform stream
+const myTransport = new Transform({
+  transform(chunk, enc, cb) {
+    // Modify or process log
+    const log = JSON.parse(chunk);
+    log.timestamp = new Date().toISOString();
+    
+    // Send somewhere (e.g., external API)
+    console.log('Custom:', JSON.stringify(log));
+    cb();
+  }
+});
+const logger = pino(myTransport);
+logger.info('Going through custom transport');</code></pre>
+
+        <p>External Service Transport (HTTP)</p>
+        <pre><code class="language-javascript">const transport = pino.transport({
+  target: 'pino-http',
+  options: {
+    url: 'https://log-api.example.com/ingest',
+    headers: { 'API-Key': 'your-key' }
+  }
+});</code></pre>
+
+        <h3>Level-Based Filtering in Transports</h3>
+        <pre><code class="language-javascript">// Different levels to different destinations
+const transport = pino.transport({
+  targets:[
+    {
+      target: 'pino/file',
+      level: 'error',  // Only errors to error.log
+      options: { destination: './error.log' }
+    },
+    {
+      target: 'pino/file',
+      level: 'info',   // Info and above to app.log
+      options: { destination: './app.log' }
+    },
+    {
+      target: 'pino-pretty',
+      level: 'debug',  // Only debug in development
+      options: { colorize: true }
+    }
+  ]
+});</code></pre>
+
+        <h3>Real-World Examples</h3>
+
+        <p>Production Setup</p>
+        <pre><code class="language-javascript">const pino = require('pino');
+const transport = pino.transport({
+  targets:[
+    // Errors to dedicated file
+    {
+      target: 'pino/file',
+      level: 'error',
+      options: { destination: './logs/error.log', mkdir: true }
+    },
+    // All logs to rotating file
+    {
+      target: 'pino-roll',
+      level: 'info',
+      options: { 
+        file: './logs/app.log',
+        size: '10M',
+        interval: '1d'
+      }
+    },
+    // JSON to stdout for container environments
+    {
+      target: 'pino/file',
+      level: 'info',
+      options: { destination: 1 }
+    }
+  ]
+});
+const logger = pino(transport);</code></pre>
+
+        <p>Development Setup</p>
+        <pre><code class="language-javascript">const pino = require('pino');
+// Only pretty print to console in dev
+const transport = pino.transport({
+  target: 'pino-pretty',
+  options: {
+    colorize: true,
+    translateTime: true,
+    ignore: 'pid,hostname',
+    messageFormat: '{msg}'
+  }
+});
+const logger = pino({
+  level: 'debug',
+  transport  // Pino 8.x+ syntax
+});
+logger.debug('Detailed dev info');
+logger.info('Server running');</code></pre>
+
+        <p>Microservices Setup (With Correlation IDs)</p>
+        <pre><code class="language-javascript">const pino = require('pino');
+// Transport that adds correlation ID
+const { Transform } = require('stream');
+const addCorrelationId = new Transform({
+  transform(chunk, enc, cb) {
+    const log = JSON.parse(chunk);
+    log.correlationId = process.env.CORRELATION_ID || 'unknown';
+    cb(null, JSON.stringify(log) + '\n');
+  }
+});
+const fileTransport = pino.transport({
+  target: 'pino/file',
+  options: { destination: './logs/service.log' }
+});
+// Chain transports
+addCorrelationId.pipe(fileTransport);
+const logger = pino(addCorrelationId);</code></pre>
+
+        <p>Asynchronous vs Synchronous</p>
+        <pre><code class="language-javascript">// Async (default, non-blocking) - RECOMMENDED
+const transport = pino.transport({
+  target: 'pino/file',
+  options: { 
+    destination: './app.log',
+    sync: false  // Async - doesn't block event loop
+  }
+});
+// Sync (blocking but immediate)
+const transport = pino.transport({
+  target: 'pino/file',
+  options: { 
+    destination: './app.log',
+    sync: true   // Blocks until written
+  }
+});</code></pre>
+
+        <p>Common Third-Party Transports</p>
+        <pre><code class="language-bash">npm install pino-loki pino-datadog pino-sentry</code></pre>
+
+        <pre><code class="language-javascript">// Loki (Grafana)
+const transport = pino.transport({
+  target: 'pino-loki',
+  options: {
+    batching: true,
+    host: 'http://loki:3100'
+  }
+});
+// Datadog
+const transport = pino.transport({
+  target: 'pino-datadog',
+  options: {
+    apiKey: 'your-key',
+    site: 'datadoghq.com'
+  }
+});</code></pre>
+      </section>
+
+      <section id="redaction">
+        <h2>What is Redaction?</h2>
+        <p>
+          Redaction = automatically replacing sensitive values in your logs with
+          a placeholder like <code>[Redacted]</code> or completely removing
+          them.
+        </p>
+
+        <p>Without redaction:</p>
+        <pre><code class="language-json">{"user":{"name":"John","password":"supersecret123","email":"john@example.com"}}</code></pre>
+
+        <p>With redaction:</p>
+        <pre><code class="language-json">{"user":{"name":"John","password":"[Redacted]","email":"john@example.com"}}</code></pre>
+
+        <h3>📚 Basic Setup</h3>
+        <p>Simple Array Syntax</p>
+        <pre><code class="language-javascript">const pino = require('pino');
+const logger = pino({
+  redact: ['password', 'token', 'secret']
+});
+// These will be redacted
+logger.info({ password: '12345', user: 'john' });
+logger.info({ token: 'abc123', data: 'test' });</code></pre>
+
+        <p>Object Syntax (Advanced Control)</p>
+        <pre><code class="language-javascript">const logger = pino({
+  redact: {
+    paths: ['password', 'user.password', 'headers.authorization'],
+    censor: '[HIDDEN]',      // Custom placeholder (default: '[Redacted]')
+    remove: false             // false = replace value, true = remove key entirely
+  }
+});</code></pre>
+
+        <h3>🛤️ Path Syntax (The Most Important Part)</h3>
+        <p>
+          Paths tell Pino exactly where to find sensitive data in your log
+          objects .
+        </p>
+
+        <p>Dot Notation</p>
+        <pre><code class="language-javascript">redact: ['user.password']           // { user: { password: "secret" } }
+redact: ['req.headers.authorization']  // HTTP request headers</code></pre>
+
+        <p>Bracket Notation (for hyphens or special chars)</p>
+        <pre><code class="language-javascript">redact: ['user["api-key"]']         // Property with hyphen
+redact:['headers["x-api-token"]']  // Header with hyphen</code></pre>
+
+        <p>Wildcards * (Redact all matching keys)</p>
+        <pre><code class="language-javascript">redact: ['user.*.password']         // Any nested password
+redact: ['*.password']              // Password at any level
+redact: ['data[*].secret']          // Array elements</code></pre>
+
+        <p>Array Index Notation</p>
+        <pre><code class="language-javascript">redact: ['users[0].password']       // First user's password
+redact: ['users[*].password']       // All users' passwords</code></pre>
+
+        <h3>💡 Real-World Examples</h3>
+
+        <h4>Example 1: HTTP Request Headers (pino-http)</h4>
+        <pre><code class="language-javascript">const pino = require('pino-http');
+const logger = pino({
+  redact:['req.headers.authorization', 'req.headers.cookie']
+});
+// Authorization header will be redacted automatically
+// Input: { req: { headers: { authorization: "Bearer secret123" } } }
+// Output: { req: { headers: { authorization: "[Redacted]" } } }</code></pre>
+
+        <h4>Example 2: User Data with Nested Password</h4>
+        <pre><code class="language-javascript">const logger = pino({
+  redact: {
+    paths: ['user.password', 'user.tempPassword'],
+    censor: '***REDACTED***'
+  }
+});
+logger.info({
+  event: 'signup',
+  user: {
+    id: 123,
+    name: 'John',
+    password: 'mySecretPass',
+    tempPassword: 'temp123'
+  }
+});
+// Output:
+// {
+//   "event": "signup",
+//   "user": {
+//     "id": 123,
+//     "name": "John",
+//     "password": "***REDACTED***",
+//     "tempPassword": "***REDACTED***"
+//   }
+// }</code></pre>
+
+        <h4>Example 3: Arrays of Sensitive Data</h4>
+        <pre><code class="language-javascript">const logger = pino({
+  redact: ['users[*].password', 'tokens[*]']
+});
+logger.info({
+  users:[
+    { id: 1, name: 'Alice', password: 'alice123' },
+    { id: 2, name: 'Bob', password: 'bob456' }
+  ],
+  tokens:['token1', 'token2', 'token3']
+});
+// Output:
+// {
+//   "users":[
+//     { "id": 1, "name": "Alice", "password": "[Redacted]" },
+//     { "id": 2, "name": "Bob", "password": "[Redacted]" }
+//   ],
+//   "tokens": ["[Redacted]", "[Redacted]", "[Redacted]"]
+// }</code></pre>
+
+        <h4>Example 4: Using a Censor Function</h4>
+        <pre><code class="language-javascript">const logger = pino({
+  redact: {
+    paths:['creditCard'],
+    censor: (value) => `****-****-****-${value.slice(-4)}`
+  }
+});
+logger.info({ creditCard: '4532750012345678', user: 'John' });
+// Output: { "creditCard": "****-****-****-5678", "user": "John" }</code></pre>
+
+        <h4>Example 5: Remove Keys Completely</h4>
+        <pre><code class="language-javascript">const logger = pino({
+  redact: {
+    paths: ['internalId', 'debugInfo'],
+    remove: true          // Keys disappear entirely, not just censored
+  }
+});
+logger.info({ name: 'Product', internalId: 'TOP-SECRET-123', debugInfo: { x: 1 } });
+// Output: { "name": "Product" }
+// internalId and debugInfo are GONE, not just redacted</code></pre>
+
+        <h3>⚙️ Configuration Options</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Type</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>paths</td>
+              <td>Array</td>
+              <td>Required</td>
+              <td>Array of paths to sensitive data</td>
+            </tr>
+            <tr>
+              <td>censor</td>
+              <td>String or Function</td>
+              <td>'[Redacted]'</td>
+              <td>Replacement value or function</td>
+            </tr>
+            <tr>
+              <td>remove</td>
+              <td>Boolean</td>
+              <td>false</td>
+              <td>If true, removes key entirely</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="child-loggers">
+        <h2>What are Child Loggers?</h2>
+        <p>
+          A child logger inherits properties from a parent logger and can add
+          its own con. It's used to add consistent conual information to a group
+          of log entries without repeating the same data every time.
+        </p>
+
+        <h3>Why Use Child Loggers?</h3>
+        <ul>
+          <li>Add con - Request IDs, user IDs, transaction IDs</li>
+          <li>Inherit configuration - Same log level, redact rules, etc.</li>
+          <li>Correlate logs - Easily trace related log entries</li>
+          <li>Reduce repetition - No need to pass con manually</li>
+        </ul>
+
+        <h3>Basic Child Logger Creation</h3>
+        <pre><code class="language-javascript">const pino = require('pino');
+const parent = pino();
+// Create child with additional con
+const child = parent.child({ module: 'auth' });
+child.info('User logged in');
+// Output: {"module":"auth","msg":"User logged in", ...}
+// Parent remains unaffected
+parent.info('Parent log');
+// Output: {"msg":"Parent log", ...}  // No 'module' field</code></pre>
+
+        <h3>Real-World Examples</h3>
+
+        <h4>1. Request Tracking (Express.js)</h4>
+        <pre><code class="language-javascript">const pino = require('pino');
+const logger = pino();
+app.use((req, res, next) => {
+  // Create child logger for this request
+  const requestLogger = logger.child({
+    reqId: req.id,
+    method: req.method,
+    url: req.url,
+    ip: req.ip
+  });
+  
+  // Attach to request object
+  req.logger = requestLogger;
+  
+  requestLogger.info('Request started');
+  next();
+});
+app.get('/users', (req, res) => {
+  req.logger.info('Fetching users');  // Includes reqId, method, etc.
+  // Business logic...
+  req.logger.info('Users fetched successfully');
+});</code></pre>
+
+        <h4>2. User Con</h4>
+        <pre><code class="language-javascript">class UserService {
+  constructor(userId) {
+    // Create child with user con
+    this.logger = rootLogger.child({ 
+      userId: userId,
+      service: 'UserService'
+    });
+    this.logger.debug('UserService initialized');
+  }
+  
+  async updateProfile(data) {
+    this.logger.info({ data }, 'Updating user profile');
+    try {
+      await db.update(data);
+      this.logger.info('Profile updated successfully');
+    } catch (err) {
+      this.logger.error({ err }, 'Failed to update profile');
+    }
+  }
+}
+const userService = new UserService(12345);
+userService.updateProfile({ name: 'John' });
+// All logs will include {userId:12345, service:'UserService'}</code></pre>
+
+        <h4>3. Transaction Logging</h4>
+        <pre><code class="language-javascript">const rootLogger = pino();
+function processOrder(orderId) {
+  // Create transaction-specific logger
+  const transactionLogger = rootLogger.child({
+    transactionId: orderId,
+    component: 'order-processor'
+  });
+  
+  transactionLogger.info('Order processing started');
+  
+  // All nested operations inherit the con
+  validatePayment(orderId, transactionLogger);
+  updateInventory(orderId, transactionLogger);
+  sendConfirmation(orderId, transactionLogger);
+  
+  transactionLogger.info('Order processing completed');
+}
+function validatePayment(orderId, logger) {
+  logger.info('Validating payment');  // Inherits transactionId
+  // Payment validation logic
+}</code></pre>
+
+        <h4>Chaining Child Loggers</h4>
+        <pre><code class="language-javascript">const root = pino();
+// Level 1: Request con
+const requestLogger = root.child({ reqId: 'req-123' });
+// Level 2: User con (inherits reqId)
+const userLogger = requestLogger.child({ userId: 456 });
+// Level 3: Action con (inherits both)
+const actionLogger = userLogger.child({ action: 'purchase' });
+actionLogger.info('Processing purchase');
+// Output includes: reqId, userId, action
+// Can also bind multiple at once
+const boundLogger = root.child({
+  reqId: 'req-123',
+  userId: 456,
+  action: 'purchase',
+  timestamp: Date.now()
+});</code></pre>
+      </section>
+
+      <section id="pino-http">
+        <h2>What is pino-http?</h2>
+        <p>
+          pino-http is a dedicated Express middleware that automatically logs
+          all HTTP requests and responses with Pino.
+        </p>
+
+        <p>Without pino-http (Manual)</p>
+        <pre><code class="language-javascript">import pino from 'pino';
+import express from 'express';
+const logger = pino();
+const app = express();
+// Manual logging - repetitive and easy to miss
+app.use((req, res, next) => {
+  const start = Date.now();
+  logger.info({ method: req.method, url: req.url }, 'Request started');
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info({ 
+      method: req.method, 
+      url: req.url, 
+      status: res.statusCode,
+      duration 
+    }, 'Request completed');
+  });
+  next();
+});</code></pre>
+
+        <p>With pino-http (Automatic)</p>
+        <pre><code class="language-javascript">import pino from 'pino';
+import pinoHttp from 'pino-http';
+import express from 'express';
+const logger = pino();
+const app = express();
+// Single line - logs everything automatically
+app.use(pinoHttp({ logger }));
+// That's it! Every request/response is now logged</code></pre>
+
+        <h3>What pino-http Gives You</h3>
+
+        <h4>1. Automatic Request Logging</h4>
+        <pre><code class="language-javascript">// Automatically logs every request with:
+// - HTTP method (GET, POST, etc.)
+// - URL path
+// - Request headers (configurable)
+// - Request ID (auto-generated)
+app.get('/users', (req, res) => {
+  // No logging needed here
+  res.send('OK');
+});
+// Output log:
+// {"req":{"method":"GET","url":"/users","id":"req-1"},"msg":"incoming request"}</code></pre>
+
+        <h4>2. Automatic Response Logging</h4>
+        <pre><code class="language-javascript">// Automatically logs:
+// - Status code
+// - Response time
+// - Content length
+app.get('/data', (req, res) => {
+  res.json({ name: 'John' });
+});
+// Output log:
+// {"res":{"statusCode":200},"responseTime":12.3,"msg":"request completed"}</code></pre>
+
+        <h4>3. req.log Object</h4>
+        <pre><code class="language-javascript">// Adds .log to every request object
+app.get('/users/:id', (req, res) => {
+  req.log.info({ userId: req.params.id }, 'Fetching user');
+  // This log automatically includes request ID, method, URL
+  res.json({ id: req.params.id });
+});</code></pre>
+
+        <h4>4. Automatic Error Logging</h4>
+        <pre><code class="language-javascript">app.get('/error', (req, res, next) => {
+  next(new Error('Something broke'));
+  // pino-http automatically logs the error
+});</code></pre>
+
+        <h3>Configuration Options</h3>
+        <pre><code class="language-javascript">import pinoHttp from 'pino-http';
+
+app.use(pinoHttp({
+  logger: pino(),
+  
+  // Custom log level based on status code
+  customLogLevel: (req, res, err) => {
+    if (res.statusCode >= 500) return 'error';
+    if (res.statusCode >= 400) return 'warn';
+    return 'info';
+  },
+  
+  // Custom success message
+  customSuccessMessage: (req, res) => {
+    return `${req.method} ${req.url} - ${res.statusCode}`;
+  },
+  
+  // Custom error message
+  customErrorMessage: (req, res, err) => {
+    return `${req.method} ${req.url} failed: ${err.message}`;
+  },
+  
+  // Auto-generate request ID
+  genReqId: (req) => req.headers['x-request-id'] || Math.random().toString(),
+  
+  // Disable automatic logging (use manual only)
+  autoLogging: false,
+  
+  // Customize what gets logged
+  customProps: (req, res) => ({
+    userAgent: req.headers['user-agent'],
+    userId: req.user?.id
+  })
+}));</code></pre>
+
+        <h3>Comparison</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Manual</th>
+              <th>pino-http</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Log request start</td>
+              <td>Manual</td>
+              <td>Automatic</td>
+            </tr>
+            <tr>
+              <td>Log response end</td>
+              <td>Manual</td>
+              <td>Automatic</td>
+            </tr>
+            <tr>
+              <td>Calculate duration</td>
+              <td>Manual</td>
+              <td>Automatic</td>
+            </tr>
+            <tr>
+              <td>Request ID</td>
+              <td>Manual</td>
+              <td>Automatic</td>
+            </tr>
+            <tr>
+              <td>req.log available</td>
+              <td>Manual</td>
+              <td>Automatic</td>
+            </tr>
+            <tr>
+              <td>Error logging</td>
+              <td>Manual</td>
+              <td>Automatic</td>
+            </tr>
+            <tr>
+              <td>Lines of code</td>
+              <td>~15 lines</td>
+              <td>1 line</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>When to Use pino-http</h3>
+        <p>✅ Use it when:</p>
+        <ul>
+          <li>Building REST APIs with Express</li>
+          <li>Need automatic request/response logging</li>
+          <li>Want consistent log format across all routes</li>
+          <li>Need request tracking with IDs</li>
+        </ul>
+      </section>
+
+      <section id="express-guide">
+        <h2>Pino with Express.js (ES6 Modules) - Essential Guide</h2>
+
+        <h3>Installation</h3>
+        <pre><code class="language-bash">npm install pino pino-http pino-pretty</code></pre>
+
+        <h3>Basic Setup</h3>
+        <pre><code class="language-javascript">// server.js
+import pino from 'pino';
+import pinoHttp from 'pino-http';
+import express from 'express';
+const app = express();
+// Basic logger
+const logger = pino();
+// Express middleware
+app.use(pinoHttp({
+  logger,
+  autoLogging: true
+}));
+app.get('/', (req, res) => {
+  req.log.info('This request is being logged');
+  res.send('Hello World');
+});
+app.listen(3000);</code></pre>
+
+        <h3>Complete Working Example</h3>
+        <pre><code class="language-javascript">// server.js
+import pino from 'pino';
+import pinoHttp from 'pino-http';
+import express from 'express';
+const app = express();
+// Setup logger
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: process.env.NODE_ENV !== 'production'
+    ? { target: 'pino-pretty', options: { colorize: true } }
+    : undefined
+});
+// Setup middleware
+app.use(pinoHttp({
+  logger,
+  customLogLevel: (req, res, err) => {
+    if (res.statusCode >= 500) return 'error';
+    if (res.statusCode >= 400) return 'warn';
+    return 'info';
+  },
+  customSuccessMessage: (req, res) => {
+    return `${req.method} ${req.url} completed`;
+  },
+  customErrorMessage: (req, res, err) => {
+    return `${req.method} ${req.url} failed: ${err.message}`;
+  }
+}));
+// Routes
+app.get('/users/:id', (req, res) => {
+  req.log.info({ userId: req.params.id }, 'Fetching user');
+  res.json({ id: req.params.id, name: 'John' });
+});
+app.post('/users', (req, res) => {
+  req.log.debug('Creating user'); // Only shows if level <= debug
+  res.status(201).send('Created');
+});
+app.get('/error', (req, res) => {
+  req.log.error('Something went wrong');
+  res.status(500).send('Error');
+});
+app.listen(3000, () => {
+  logger.info('Server running on port 3000');
+});</code></pre>
+
+        <h3>Using Child Loggers in Routes</h3>
+        <pre><code class="language-javascript">// With child loggers for request con
+app.use(pinoHttp({ logger }));
+app.get('/api/orders/:id', async (req, res) => {
+  // Create child with additional con
+  const orderLogger = req.log.child({ 
+    orderId: req.params.id,
+    userId: req.user?.id 
+  });
+  
+  orderLogger.info('Processing order');
+  
+  try {
+    const order = await db.findOrder(req.params.id);
+    orderLogger.info({ order }, 'Order found');
+    res.json(order);
+  } catch (err) {
+    orderLogger.error({ err }, 'Failed to fetch order');
+    res.status(500).send('Error');
+  }
+});</code></pre>
+
+        <h3>Error Handling with Pino</h3>
+        <pre><code class="language-javascript">import pinoHttp from 'pino-http';
+// Global error handler
+app.use(pinoHttp({ logger }));
+app.get('/risky', (req, res, next) => {
+  try {
+    throw new Error('Database connection failed');
+  } catch (err) {
+    req.log.error(err, 'Request failed');
+    next(err);
+  }
+});
+// Error handling middleware
+app.use((err, req, res, next) => {
+  req.log.error({ err }, 'Unhandled error');
+  res.status(500).json({ error: 'Internal server error' });
+});</code></pre>
+
+        <h3>What You Get Automatically</h3>
+        <pre><code class="language-javascript">// When you use pinoHttp middleware, it automatically logs:
+// - HTTP method (GET, POST, etc.)
+// - URL path
+// - Status code
+// - Response time
+// - Request ID
+// Sample output:
+// {"req":{"method":"GET","url":"/users/123"},"res":{"statusCode":200},"responseTime":42.3}</code></pre>
+
+        <h3>Accessing Request Logs</h3>
+        <pre><code class="language-javascript">// In any route/middleware
+app.get('/data', (req, res) => {
+  // req.log is available
+  req.log.info('Info message');
+  req.log.debug('Debug message');
+  req.log.warn('Warning');
+  req.log.error('Error');
+  
+  // With additional data
+  req.log.info({ extra: 'data' }, 'Message');
+  
+  res.send('OK');
+});</code></pre>
+
+        <h3>Minimal Production Setup</h3>
+        <pre><code class="language-javascript">// server.js
+import pino from 'pino';
+import pinoHttp from 'pino-http';
+import express from 'express';
+const app = express();
+const logger = pino({ level: 'info' });
+app.use(pinoHttp({ logger }));
+app.get('/', (req, res) => {
+  req.log.info('Request received');
+  res.send('OK');
+});
+app.listen(3000);</code></pre>
+
+        <h3>Key Takeaways</h3>
+        <ol>
+          <li>
+            Import ES6 modules: Use <code>import</code> instead of
+            <code>require</code>
+          </li>
+          <li>
+            Two main packages: <code>pino</code> (logger) +
+            <code>pino-http</code> (Express middleware)
+          </li>
+          <li><code>req.log</code> available in all routes automatically</li>
+          <li>Automatic HTTP logging - No need to manually log requests</li>
+          <li>Transport for pretty printing - Use only in development</li>
+          <li>
+            Child loggers - Use <code>req.log.child()</code> for additional con
+          </li>
+        </ol>
+      </section>
+
+      <section id="pino-pretty-what">
+        <h2>What is Pino-Pretty?</h2>
+        <p>
+          Pino-pretty is a formatter that converts Pino's JSON log output into
+          human-readable, colored, multi-line text.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-circle-info"></i> One Sentence Summary</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Pino-pretty takes ugly JSON logs and makes them look beautiful for humans reading them in development.
+          </p>
+        </div>
+      </section>
+
+      <section id="pino-pretty-problem">
+        <h2>The Problem Pino-Pretty Solves</h2>
+
+        <h3>Without Pino-Pretty (Raw JSON)</h3>
+        <pre><code class="language-json">{"level":30,"time":1699999999999,"pid":1234,"hostname":"my-pc","req":{"method":"GET","url":"/users"},"res":{"statusCode":200},"responseTime":5.2,"msg":"request completed"}</code></pre>
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Problem</span>
+          <p style="margin-bottom:0">Hard to read — all in one line, no colors, not human-friendly.</p>
+        </div>
+
+        <h3>With Pino-Pretty</h3>
+        <pre><code class="language-text">[2024-01-15 10:30:45] INFO: request completed
+  req: {
+    "method": "GET",
+    "url": "/users"
+  }
+  res: {
+    "statusCode": 200
+  }
+  responseTime: 5.2ms</code></pre>
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-check"></i> Result</span>
+          <p style="color:var(--text-primary);margin-bottom:0">Easy to read — multi-line, colored, structured.</p>
+        </div>
+      </section>
+
+      <section id="pino-pretty-features">
+        <h2>What Pino-Pretty Does</h2>
+
+        <h3>1. Converts JSON to Readable Text</h3>
+        <pre><code class="language-javascript">// Input (JSON)
+{"level":30,"msg":"User logged in","userId":123}
+
+// Output (pretty)
+[2024-01-15 10:30:45] INFO: User logged in
+  userId: 123</code></pre>
+
+        <h3>2. Adds Colors (in terminal)</h3>
+        <pre><code class="language-javascript">// Different colors for different log levels
+ERROR - Red text
+WARN  - Yellow text
+INFO  - Green text
+DEBUG - Blue text</code></pre>
+
+        <h3>3. Formats Timestamps</h3>
+        <pre><code class="language-javascript">// Input
+{"time":1699999999999}
+
+// Output
+[2024-01-15 10:30:45.123 +0500]</code></pre>
+
+        <h3>4. Pretty-Prints Objects</h3>
+        <pre><code class="language-javascript">// Input
+{"user":{"name":"John","age":30,"email":"john@example.com"}}
+
+// Output
+  user: {
+    "name": "John",
+    "age": 30,
+    "email": "john@example.com"
+  }</code></pre>
+      </section>
+
+      <section id="pino-pretty-usage">
+        <h2>How to Use Pino-Pretty</h2>
+
+        <h3>Installation</h3>
+        <pre><code class="language-bash">npm install pino-pretty</code></pre>
+
+        <h3>Method 1: As a Transport (Recommended)</h3>
+        <pre><code class="language-javascript">import pino from 'pino';
+
+const logger = pino({
+  transport: {
+    target: 'pino-pretty',
+    options: {
+      colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname'
+    }
+  }
+});
+
+logger.info('Hello world');</code></pre>
+      </section>
+
+      <section id="pino-pretty-file">
+        <h2>Save Log to File Without JSON</h2>
+        <p>Use multiple targets to pretty-print to both console and file simultaneously:</p>
+
+        <pre><code class="language-javascript">import pino from 'pino';
+
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+export const logger = pino({
+  level: isDevelopment ? 'debug' : 'info',
+  transport: {
+    targets: [
+      // Console: Pretty print
+      {
+        target: 'pino-pretty',
+        level: 'info',
+        options: {
+          colorize: true,
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname',
+          singleLine: false,
+          destination: 1  // stdout
+        }
+      },
+      // File: Also pretty print (not JSON)
+      {
+        target: 'pino-pretty',
+        level: 'info',
+        options: {
+          colorize: false,  // No colors in file
+          translateTime: 'SYS:standard',
+          ignore: 'pid,hostname',
+          singleLine: false,
+          destination: './logs/app.log',  // Direct to file
+          mkdir: true,
+          append: true
+        }
+      }
+    ]
+  }
+});</code></pre>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-lightbulb"></i> Key Difference</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Set <code>colorize: false</code> for the file target — ANSI color codes look like garbage in a plain text file.
+          </p>
+        </div>
+      </section>
+
+      <section id="pino-multi-stream">
+        <h2>Using pino-multi-stream for Better Structured Log Files</h2>
+
+        <h3>Installation</h3>
+        <pre><code class="language-bash">npm i pino-multi-stream</code></pre>
+
+        <p>
+          For full control over how logs are written to files, you can create a
+          custom <code>Transform</code> stream that pretty-prints JSON before
+          writing it to disk.
+        </p>
+
+        <pre><code class="language-javascript">import pino from 'pino';
+import fs from 'node:fs';
+import { Transform } from 'node:stream';
+
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+// Custom stream that pretty-prints JSON
+class PrettyJSONStream extends Transform {
+  _transform(chunk, encoding, callback) {
+    try {
+      const log = JSON.parse(chunk);
+      // Remove pid and hostname if you want
+      delete log.pid;
+      delete log.hostname;
+      const prettyJSON = JSON.stringify(log, null, 2) + '\n\n';
+      callback(null, prettyJSON);
+    } catch (err) {
+      callback(null, chunk);
+    }
+  }
+}
+
+// Create streams
+const prettyJSONStream = new PrettyJSONStream();
+const fileStream = fs.createWriteStream('./logs/app.log', { flags: 'a' });
+prettyJSONStream.pipe(fileStream);
+
+// Create console pretty stream
+const prettyStream = pino.transport({
+  target: 'pino-pretty',
+  options: {
+    colorize: true,
+    translateTime: 'SYS:standard',
+    ignore: 'pid,hostname'
+  }
+});
+
+export const logger = pino({
+  level: isDevelopment ? 'debug' : 'info'
+}, pino.multistream([
+  { stream: prettyStream },      // Console
+  { stream: prettyJSONStream }   // File (pretty JSON)
+]));</code></pre>
+
+        <h3>How It Works</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Stream</th>
+              <th>Destination</th>
+              <th>Format</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>prettyStream</code></td>
+              <td>Console (stdout)</td>
+              <td>Colored, human-readable text</td>
+            </tr>
+            <tr>
+              <td><code>prettyJSONStream</code></td>
+              <td><code>./logs/app.log</code></td>
+              <td>Indented JSON (2 spaces), no colors</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> Why This Approach?</span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            The built-in <code>pino.transport()</code> targets run in a worker thread and don't support
+            custom stream classes. Using <code>pino.multistream()</code> with a manual
+            <code>Transform</code> gives you full control over the file format.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Logging & Pino Guide</p>
+        <p>Generated for <strong>Node.js Engineering</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <!-- Active Section Highlighter -->
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Descriptors Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #121212;
+            color: #f5f5f5;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #1e1e1e;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+        h1, h2, h3 {
+            color: #e0e0e0;
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+        }
+        p {
+            color: #bdbdbd;
+        }
+        code, pre {
+            background-color: #1e1e1e; /* VSCode dark theme background */
+            color: #d4d4d4;
+            padding: 2px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Courier New', Courier, monospace;
+            font-size: 14px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .code-line {
+
+        }
+        .comment {
+            color: #6a9955; /* VSCode comment green */
+        }
+        .keyword {
+            color: #c586c0; /* VSCode keyword purple */
+        }
+        .variable {
+            color: #9cdcfe; /* VSCode variable blue */
+        }
+        .string {
+            color: #ce9178; /* VSCode string orange */
+        }
+        .function-call {
+            color: #dcdcaa; /* VSCode function call yellow */
+        }
+        .number {
+            color: #b5cea8; /* VSCode number green */
+        }
+        .constant {
+            color: #569cd6; /* VSCode constant blue */
+        }
+        ul {
+            list-style-type: disc;
+            padding-left: 20px;
+        }
+        li {
+            color: #bdbdbd;
+            margin-bottom: 10px;
+        }
+        strong {
+            color: #fff;
+        }
+        .section-title {
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>File Descriptors</h1>
+        <p>A file descriptor is an abstract indicator used to access a file or other I/O resource, like a pipe or a network socket. It's essentially a small, non-negative integer that the operating system assigns to an opened file to identify it. When you perform an I/O operation (like reading or writing), you use this descriptor instead of the file's name.</p>
+        
+        <h2 class="section-title">How File Descriptors Work in Node.js</h2>
+        <p>Node.js provides access to file descriptors through its built-in <code>fs</code> (File System) module. When you open a file using an asynchronous method like <code>fs.open()</code> or <code>fs.promises.open()</code>, the callback function or promise resolves with the file descriptor. You then use this descriptor in subsequent operations.</p>
+        
+        <h3 class="section-title">Example 1: Reading with Streams (Recommended)</h3>
+        <p><strong>JavaScript</strong></p>
+        <pre><code class="language-js"><span class="keyword">import</span> { <span class="function-call">open</span> } <span class="keyword">from</span> <span class="string">'node:fs/promises'</span>;
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function-call">readFileWithStream</span>(<span class="variable">filePath</span>) {
+  <span class="keyword">let</span> <span class="variable">filehandle</span>;
+  <span class="keyword">try</span> {
+    <span class="comment">// Open file and get file descriptor wrapped in FileHandle</span>
+    <span class="variable">filehandle</span> = <span class="keyword">await</span> <span class="function-call">open</span>(<span class="variable">filePath</span>, <span class="string">'r'</span>);
+    <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'File descriptor:'</span>, <span class="variable">filehandle</span>.<span class="variable">fd</span>);
+
+    <span class="comment">// Create a readable stream from the filehandle</span>
+    <span class="keyword">const</span> <span class="variable">readStream</span> = <span class="variable">filehandle</span>.<span class="function-call">createReadStream</span>({
+      <span class="variable">highWaterMark</span>: <span class="number">16</span>, <span class="comment">// read 16 bytes at a time</span>
+      <span class="variable">start</span>: <span class="number">0</span>, <span class="comment">// start at byte 0</span>
+    });
+
+    <span class="comment">// Handle "data" events to receive chunks</span>
+    <span class="variable">readStream</span>.<span class="function-call">on</span>(<span class="string">'data'</span>, (<span class="variable">chunk</span>) => {
+      <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'Received chunk:'</span>, <span class="variable">chunk</span>.<span class="function-call">toString</span>());
+    });
+
+    <span class="comment">// Handle "end" event when reading is finished</span>
+    <span class="variable">readStream</span>.<span class="function-call">on</span>(<span class="string">'end'</span>, () => {
+      <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'Finished reading file.'</span>);
+    });
+
+    <span class="comment">// Handle "error" if something goes wrong</span>
+    <span class="variable">readStream</span>.<span class="function-call">on</span>(<span class="string">'error'</span>, (<span class="variable">err</span>) => {
+      <span class="function-call">console</span>.<span class="function-call">error</span>(<span class="string">'Stream error:'</span>, <span class="variable">err</span>);
+    });
+
+  } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+    <span class="function-call">console</span>.<span class="function-call">error</span>(<span class="string">'An error occurred:'</span>, <span class="variable">err</span>);
+  } <span class="keyword">finally</span> {
+    <span class="comment">// Close filehandle (releases file descriptor)</span>
+    <span class="keyword">if</span> (<span class="variable">filehandle</span>) {
+      <span class="keyword">await</span> <span class="variable">filehandle</span>.<span class="function-call">close</span>();
+      <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'File closed.'</span>);
+    }
+  }
+}
+
+<span class="function-call">readFileWithStream</span>(<span class="string">'example.txt'</span>);</code></pre>
+
+        <p>🔑 <strong>Key Explanations:</strong></p>
+        <ul>
+            <li><code>open(filePath, 'r')</code> opens the file in read mode and returns a <strong>FileHandle</strong> with <code>.fd</code>.</li>
+            <li><code>filehandle.createReadStream()</code> turns the file into a readable <strong>stream</strong>.</li>
+            <li><strong>Streams are event-based</strong> → you listen for <code>'data'</code>, <code>'end'</code>, and <code>'error'</code>.</li>
+            <li><code>highWaterMark</code> controls the chunk size (e.g., <code>16</code> bytes per chunk).</li>
+            <li>Each chunk is a <strong>Buffer</strong> (convert with <code>.toString()</code> for text).</li>
+            <li>You should still call <code>filehandle.close()</code> when done to free resources.</li>
+        </ul>
+
+        <h3 class="section-title">Example 2: Reading Fixed Bytes</h3>
+        <p><strong>JavaScript</strong></p>
+        <pre><code class="language-js"><span class="keyword">const</span> <span class="variable">fs</span> = <span class="function-call">require</span>(<span class="string">'fs/promises'</span>);
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function-call">readFileWithDescriptor</span>(<span class="variable">filePath</span>) {
+  <span class="keyword">let</span> <span class="variable">filehandle</span>;
+  <span class="keyword">try</span> {
+    <span class="comment">// Open the file and get a file descriptor</span>
+    <span class="variable">filehandle</span> = <span class="keyword">await</span> <span class="variable">fs</span>.<span class="function-call">open</span>(<span class="variable">filePath</span>, <span class="string">'r'</span>);
+    <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'File descriptor:'</span>, <span class="variable">filehandle</span>.<span class="variable">fd</span>);
+
+    <span class="comment">// Now you can use the filehandle to perform operations</span>
+    <span class="keyword">const</span> { <span class="variable">buffer</span> } = <span class="keyword">await</span> <span class="variable">filehandle</span>.<span class="function-call">read</span>(<span class="constant">Buffer</span>.<span class="function-call">alloc</span>(<span class="number">10</span>), <span class="number">0</span>, <span class="number">10</span>, <span class="number">0</span>);
+    <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'Read 10 bytes:'</span>, <span class="variable">buffer</span>.<span class="function-call">toString</span>());
+
+  } <span class="keyword">catch</span> (<span class="variable">err</span>) {
+    <span class="function-call">console</span>.<span class="function-call">error</span>(<span class="string">'An error occurred:'</span>, <span class="variable">err</span>);
+  } <span class="keyword">finally</span> {
+    <span class="comment">// Always close the file handle to release the resource</span>
+    <span class="keyword">if</span> (<span class="variable">filehandle</span>) {
+      <span class="keyword">await</span> <span class="variable">filehandle</span>.<span class="function-call">close</span>();
+      <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'File closed.'</span>);
+    }
+  }
+}
+
+<span class="function-call">readFileWithDescriptor</span>(<span class="string">'example.txt'</span>);</code></pre>
+
+        <p>In this second example:</p>
+        <ul>
+            <li><code>fs.open()</code> is called with the file path and mode ('r' for read).</li>
+            <li>The promise resolves with a <strong>FileHandle object</strong>, which contains the file descriptor (<code>.fd</code>).</li>
+            <li>We then use this <code>filehandle</code> to perform a <code>read()</code> operation of exactly 10 bytes.</li>
+            <li>Finally, <code>filehandle.close()</code> is called to free up the resource.</li>
+        </ul>
+        
+        <h2 class="section-title">Why Use File Descriptors?</h2>
+        <p>Using file descriptors offers a more granular and efficient way to manage file operations, especially for complex tasks. Here are a few reasons you might choose them:</p>
+        <ul>
+            <li><strong>Concurrency:</strong> They allow multiple processes or threads to access different parts of the same file simultaneously without conflict.</li>
+            <li><strong>Performance:</strong> For repeated operations on the same file, using a file descriptor is often faster than repeatedly opening and closing the file by its path.</li>
+            <li><strong>Control:</strong> They give you direct control over low-level operations like reading from or writing to a specific position in a file (random access).</li>
+        </ul>
+
+        <h2 class="section-title">Is there any event that fires when a file gets opened?</h2>
+        <p>There is no built-in, general-purpose event that fires automatically when any file on the system is opened. This is by design, as monitoring all file open events would be extremely inefficient and a major security and privacy concern.</p>
+        <p>However, Node.js does provide a way to listen for events on specific resources:</p>
+        <ul>
+            <li><strong>Streams:</strong> When you create a read stream for a file using <code>fs.createReadStream()</code>, the stream itself is an <code>EventEmitter</code> and will emit an <code>'open'</code> event once the file has been successfully opened.</li>
+        </ul>
+        
+        <h3 class="section-title">Here's an example:</h3>
+        <p><strong>JavaScript</strong></p>
+        <pre><code class="language-js"><span class="keyword">const</span> <span class="variable">fs</span> = <span class="function-call">require</span>(<span class="string">'fs'</span>);
+<span class="keyword">const</span> <span class="variable">readStream</span> = <span class="variable">fs</span>.<span class="function-call">createReadStream</span>(<span class="string">'myfile.txt'</span>);
+
+<span class="variable">readStream</span>.<span class="function-call">on</span>(<span class="string">'open'</span>, () => {
+  <span class="function-call">console</span>.<span class="function-call">log</span>(<span class="string">'The file has been opened!'</span>);
+  <span class="comment">// Now you can start listening for 'data', 'end', or 'close' events</span>
+});
+
+<span class="variable">readStream</span>.<span class="function-call">on</span>(<span class="string">'error'</span>, (<span class="variable">err</span>) => {
+  <span class="function-call">console</span>.<span class="function-call">error</span>(<span class="string">'An error occurred:'</span>, <span class="variable">err</span>);
+});</code></pre>
+        <p>This is the recommended approach if you need to know when a file is opened by your own application for reading. For monitoring file system activity across a directory, you would use a different approach like <code>fs.watch()</code>.</p>
+    </div>
+
+</body>
+</html>

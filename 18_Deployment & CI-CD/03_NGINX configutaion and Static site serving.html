@@ -1,0 +1,1447 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Configuration Notes</title>
+    <style>
+      /* IMPORT POPPINS FONT */
+      @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+      :root {
+        --primary-color: #009639; /* NGINX Green */
+        --text-color: #333333;
+        --bg-color: #f4f6f8;
+        --code-bg: #1e1e1e;
+        --code-text: #d4d4d4;
+      }
+      .footer {
+        text-align: center;
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid #e1e4e8;
+        color: #6c757d;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      /* RESET & BASE STYLES */
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.7;
+        padding: 40px 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background: #ffffff;
+        padding: 50px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      }
+
+      /* TYPOGRAPHY */
+      h1 {
+        font-weight: 700;
+        font-size: 2.5rem;
+        color: #111;
+        margin-bottom: 20px;
+        border-bottom: 3px solid var(--primary-color);
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        font-weight: 600;
+        font-size: 1.8rem;
+        color: #222;
+        margin-top: 40px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+      }
+
+      h3 {
+        font-weight: 600;
+        font-size: 1.3rem;
+        color: #444;
+        margin-top: 25px;
+        margin-bottom: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        font-weight: 400;
+      }
+
+      ul {
+        margin-bottom: 20px;
+        padding-left: 25px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      strong {
+        font-weight: 600;
+        color: #000;
+      }
+
+      /* TABLE STYLES */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #f8f8f8;
+        font-weight: 600;
+      }
+
+      /* VS CODE THEME CODE BLOCKS */
+      .vscode-window {
+        background-color: var(--code-bg);
+        border-radius: 6px;
+        margin: 20px 0;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        text-align: left;
+      }
+
+      .vscode-header {
+        background-color: #252526; /* Title bar color */
+        padding: 8px 15px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #111;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+      .red {
+        background-color: #ff5f56;
+      }
+      .yellow {
+        background-color: #ffbd2e;
+      }
+      .green {
+        background-color: #27c93f;
+      }
+
+      .filename {
+        margin-left: 15px;
+        color: #969696;
+        font-size: 0.8rem;
+        font-family: 'Poppins', sans-serif; /* UI font */
+      }
+
+      .vscode-content {
+        padding: 15px 20px;
+        overflow-x: auto;
+        color: var(--code-text);
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      /* Syntax Highlighting Simulation */
+      .vscode-content pre {
+        margin: 0;
+      }
+
+      .c-comment {
+        color: #6a9955;
+      } /* Green */
+      .c-prop {
+        color: #9cdcfe;
+      } /* Light Blue (Directives) */
+      .c-val {
+        color: #ce9178;
+      } /* Orange (Strings/Values) */
+      .c-key {
+        color: #c586c0;
+      } /* Purple (Keywords/Blocks) */
+      .c-num {
+        color: #b5cea8;
+      } /* Light Green (Numbers) */
+      .c-var {
+        color: #4fc1ff;
+      } /* Blue (Variables) */
+
+      /* EMOJIS */
+      .emoji {
+        margin-right: 10px;
+      }
+
+      /* SEPARATORS */
+      hr {
+        border: 0;
+        height: 1px;
+        background: #e1e4e8;
+        margin: 50px 0;
+      }
+
+      .response-break {
+        background-color: #e8f5e9;
+        padding: 20px;
+        border-left: 5px solid var(--primary-color);
+        margin: 40px 0;
+        border-radius: 4px;
+      }
+
+      .response-title {
+        color: var(--primary-color);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.9rem;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- PART 1: MAIN EXPLANATION -->
+      <h1>NGINX Configuration: Directives, Blocks, and Contexts</h1>
+      <p>
+        Understanding NGINX configuration structure is essential for effective
+        server management. Let me break down these core concepts:
+      </p>
+
+      <h2><span class="emoji">📊</span>Overview: Configuration Hierarchy</h2>
+
+      <div class="vscode-window">
+        <div class="vscode-header">
+          <span class="dot red"></span><span class="dot yellow"></span
+          ><span class="dot green"></span>
+          <span class="filename">structure.conf</span>
+        </div>
+        <div class="vscode-content">
+          <pre>
+nginx
+<span class="c-comment"># Top-level context</span>
+<span class="c-comment"># │</span>
+<span class="c-comment"># ├── Directives (key-value pairs)</span>
+<span class="c-comment"># │</span>
+<span class="c-comment"># ├── Blocks (contain directives)</span>
+<span class="c-comment"># │</span>
+<span class="c-comment"># └── Contexts (contain blocks & directives)</span>
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">1️⃣</span>DIRECTIVES (The Building Blocks)</h2>
+      <h3>What is a Directive?</h3>
+      <p>
+        A directive is a configuration setting in NGINX that tells the server
+        how to behave. It's a key-value pair.
+      </p>
+
+      <p><strong>Syntax:</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-header">
+          <span class="filename">syntax.conf</span>
+        </div>
+        <div class="vscode-content">
+          <pre>
+<span class="c-prop">directive_name</span> <span class="c-val">value</span>;
+<span class="c-comment">#    ↑              ↑</span>
+<span class="c-comment">#  Key          Value(s)</span>
+<span class="c-comment">#               (ends with semicolon)</span>
+</pre>
+        </div>
+      </div>
+
+      <h3>Types of Directives:</h3>
+      <p><strong>1. Simple Directives (Single value)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-prop">worker_processes</span> <span class="c-num">4</span>;          <span class="c-comment"># Number of worker processes</span>
+<span class="c-prop">error_log</span> <span class="c-val">/var/log/nginx/error.log</span> warn;  <span class="c-comment"># Error log location & level</span>
+<span class="c-prop">keepalive_timeout</span> <span class="c-num">65s</span>;       <span class="c-comment"># Timeout value</span>
+</pre>
+        </div>
+      </div>
+
+      <p><strong>2. Array/List Directives (Multiple values)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-prop">error_log</span> <span class="c-val">logs/error.log</span> notice info debug;  <span class="c-comment"># Multiple log levels</span>
+
+<span class="c-comment"># Multiple MIME types</span>
+<span class="c-key">types</span> {
+    <span class="c-prop">text/html</span>  <span class="c-val">html htm shtml</span>;
+    <span class="c-prop">text/css</span>   <span class="c-val">css</span>;
+    <span class="c-prop">image/gif</span>  <span class="c-val">gif</span>;
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>3. Action Directives (Trigger specific actions)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-prop">return</span> <span class="c-num">301</span> <span class="c-val">https://<span class="c-var">$server_name$request_uri</span></span>;  <span class="c-comment"># Redirect</span>
+<span class="c-prop">rewrite</span> <span class="c-val">^/old/(.*)$ /new/<span class="c-var">$1</span> permanent</span>;        <span class="c-comment"># URL rewrite</span>
+</pre>
+        </div>
+      </div>
+
+      <h3>Directive Inheritance Rules:</h3>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">http</span> {
+    <span class="c-comment"># Parent context sets default</span>
+    <span class="c-prop">sendfile</span> <span class="c-val">on</span>;  
+    
+    <span class="c-key">server</span> {
+        <span class="c-comment"># Child inherits sendfile=on</span>
+        <span class="c-comment"># Can override if allowed</span>
+        <span class="c-comment"># Some directives cannot be overridden!</span>
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>Key Points:</strong></p>
+      <ul>
+        <li>Most directives can be overridden in child contexts</li>
+        <li>Some directives cannot be inherited (context-specific)</li>
+        <li>Directives are case-sensitive</li>
+        <li>Always end with semicolon ;</li>
+      </ul>
+
+      <h2><span class="emoji">2️⃣</span>BLOCKS (The Containers)</h2>
+      <h3>What is a Block?</h3>
+      <p>
+        A block is a container that groups related directives together. It's
+        defined by curly braces {}.
+      </p>
+
+      <p><strong>Syntax:</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">block_name</span> {
+    <span class="c-prop">directive1</span> <span class="c-val">value</span>;
+    <span class="c-prop">directive2</span> <span class="c-val">value</span>;
+    <span class="c-comment"># Nested blocks possible</span>
+    <span class="c-key">nested_block</span> {
+        <span class="c-prop">directive3</span> <span class="c-val">value</span>;
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <h3>Common Blocks:</h3>
+      <p><strong>1. Events Block (Connection processing)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">events</span> {
+    <span class="c-prop">worker_connections</span> <span class="c-num">1024</span>;  <span class="c-comment"># Max connections per worker</span>
+    <span class="c-prop">use</span> <span class="c-val">epoll</span>;               <span class="c-comment"># Event method (Linux)</span>
+    <span class="c-prop">multi_accept</span> <span class="c-val">on</span>;         <span class="c-comment"># Accept multiple connections</span>
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>2. HTTP Block (Web traffic)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">http</span> {
+    <span class="c-prop">include</span> <span class="c-val">mime.types</span>;      <span class="c-comment"># Include MIME types</span>
+    <span class="c-prop">default_type</span> <span class="c-val">application/octet-stream</span>;
+    
+    <span class="c-comment"># Multiple server blocks inside</span>
+    <span class="c-key">server</span> {
+        <span class="c-comment"># Server configuration</span>
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>3. Server Block (Virtual host)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">server</span> {
+    <span class="c-prop">listen</span> <span class="c-num">80</span>;
+    <span class="c-prop">server_name</span> <span class="c-val">example.com www.example.com</span>;
+    
+    <span class="c-key">location</span> <span class="c-val">/</span> {
+        <span class="c-comment"># Location block</span>
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>4. Location Block (URL matching)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">location</span> <span class="c-val">/api/</span> {
+    <span class="c-prop">proxy_pass</span> <span class="c-val">http://backend</span>;
+    <span class="c-comment"># Only applies to URLs starting with /api/</span>
+}
+
+<span class="c-key">location</span> <span class="c-val">~ \.php$</span> {
+    <span class="c-prop">fastcgi_pass</span> <span class="c-val">unix:/var/run/php-fpm.sock</span>;
+    <span class="c-comment"># Regex match for PHP files</span>
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>5. Upstream Block (Load balancing)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">upstream</span> <span class="c-val">backend_servers</span> {
+    <span class="c-prop">server</span> <span class="c-val">10.0.0.1:8080 weight=3</span>;
+    <span class="c-prop">server</span> <span class="c-val">10.0.0.2:8080</span>;
+    <span class="c-prop">server</span> <span class="c-val">10.0.0.3:8080 backup</span>;
+    
+    <span class="c-comment"># Load balancing method</span>
+    <span class="c-prop">least_conn</span>;
+}
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">3️⃣</span>CONTEXTS (The Scopes/Environments)</h2>
+      <h3>What is a Context?</h3>
+      <p>
+        A context defines the scope where directives can be used. Think of it as
+        a configuration environment with specific rules about what can be
+        configured.
+      </p>
+
+      <p><strong>The Hierarchy Tree:</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+nginx
+<span class="c-comment"># MAIN CONTEXT (Global/Outer-most)</span>
+<span class="c-comment"># ├── events {}</span>
+<span class="c-comment"># ├── http {}</span>
+<span class="c-comment"># │   ├── server {}</span>
+<span class="c-comment"># │   │   ├── location {}</span>
+<span class="c-comment"># │   │   ├── location {}</span>
+<span class="c-comment"># │   │   └── if {}  # Limited context</span>
+<span class="c-comment"># │   └── upstream {}</span>
+<span class="c-comment"># ├── stream {}</span>
+<span class="c-comment"># │   ├── server {}</span>
+<span class="c-comment"># │   └── upstream {}</span>
+<span class="c-comment"># └── mail {}</span>
+</pre>
+        </div>
+      </div>
+
+      <h3>Core Contexts:</h3>
+      <p><strong>1. Main Context (Global Configuration)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># Directly in nginx.conf (no braces)</span>
+<span class="c-prop">user</span> <span class="c-val">www-data</span>;                    <span class="c-comment"># Run as this user</span>
+<span class="c-prop">worker_processes</span> <span class="c-val">auto</span>;            <span class="c-comment"># Auto-detect CPU cores</span>
+<span class="c-prop">pid</span> <span class="c-val">/run/nginx.pid</span>;               <span class="c-comment"># PID file location</span>
+<span class="c-prop">error_log</span> <span class="c-val">/var/log/nginx/error.log</span> warn;  <span class="c-comment"># Global error log</span>
+
+<span class="c-comment"># These can ONLY be in main context</span>
+<span class="c-prop">daemon</span> <span class="c-val">on</span>;                        <span class="c-comment"># Run as daemon</span>
+<span class="c-prop">master_process</span> <span class="c-val">on</span>;                <span class="c-comment"># Master-worker architecture</span>
+</pre>
+        </div>
+      </div>
+
+      <p><strong>Directives ONLY allowed in Main Context:</strong></p>
+      <ul>
+        <li>user</li>
+        <li>worker_processes</li>
+        <li>error_log (can also be in other contexts)</li>
+        <li>pid</li>
+        <li>pcre_jit</li>
+        <li>thread_pool</li>
+      </ul>
+
+      <p><strong>2. Events Context (Connection Processing)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">events</span> {
+    <span class="c-comment"># How NGINX handles connections</span>
+    <span class="c-prop">worker_connections</span> <span class="c-num">768</span>;      <span class="c-comment"># Max connections per worker</span>
+    <span class="c-prop">accept_mutex</span> <span class="c-val">on</span>;            <span class="c-comment"># Serialize accept() to avoid thundering herd</span>
+    <span class="c-prop">use</span> <span class="c-val">epoll</span>;                  <span class="c-comment"># Event model (Linux only)</span>
+    <span class="c-prop">multi_accept</span> <span class="c-val">on</span>;            <span class="c-comment"># Accept all pending connections</span>
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>Directives ONLY allowed in Events Context:</strong></p>
+      <ul>
+        <li>worker_connections</li>
+        <li>use</li>
+        <li>accept_mutex</li>
+        <li>multi_accept</li>
+        <li>accept_mutex_delay</li>
+      </ul>
+
+      <p><strong>3. HTTP Context (Web Server Configuration)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">http</span> {
+    <span class="c-comment"># Global HTTP settings</span>
+    <span class="c-prop">include</span> <span class="c-val">mime.types</span>;
+    <span class="c-prop">default_type</span> <span class="c-val">application/octet-stream</span>;
+    
+    <span class="c-comment"># Log formats</span>
+    <span class="c-prop">log_format</span> <span class="c-val">main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"'</span>;
+    
+    <span class="c-prop">access_log</span> <span class="c-val">/var/log/nginx/access.log main</span>;
+    
+    <span class="c-comment"># Can contain multiple servers</span>
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">80</span>;
+        <span class="c-comment"># ... server config</span>
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>4. Server Context (Virtual Host)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">server</span> {
+    <span class="c-comment"># Defines ONE virtual host</span>
+    <span class="c-prop">listen</span> <span class="c-num">80</span>;
+    <span class="c-prop">server_name</span> <span class="c-val">example.com www.example.com</span>;
+    <span class="c-prop">root</span> <span class="c-val">/var/www/example.com</span>;
+    <span class="c-prop">index</span> <span class="c-val">index.html index.htm</span>;
+    
+    <span class="c-comment"># Can contain multiple locations</span>
+    <span class="c-key">location</span> <span class="c-val">/</span> {
+        <span class="c-prop">try_files</span> <span class="c-val"><span class="c-var">$uri</span> <span class="c-var">$uri</span>/ =404</span>;
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>5. Location Context (URL-Specific Rules)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">location</span> <span class="c-val">[modifier] uri</span> {
+    <span class="c-comment"># Applies to specific URIs</span>
+}
+
+<span class="c-comment"># Examples:</span>
+<span class="c-key">location</span> <span class="c-val">= /exact</span> { }           <span class="c-comment"># Exact match (highest priority)</span>
+<span class="c-key">location</span> <span class="c-val">^~ /static/</span> { }        <span class="c-comment"># Prefix match (no regex check)</span>
+<span class="c-key">location</span> <span class="c-val">~ \.php$</span> { }           <span class="c-comment"># Case-sensitive regex</span>
+<span class="c-key">location</span> <span class="c-val">~* \.(jpg|png|gif)$</span> { } <span class="c-comment"># Case-insensitive regex</span>
+<span class="c-key">location</span> <span class="c-val">/</span> { }                  <span class="c-comment"># Prefix match (lowest priority)</span>
+</pre>
+        </div>
+      </div>
+
+      <p><strong>6. Upstream Context (Backend Servers)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">upstream</span> <span class="c-val">backend</span> {
+    <span class="c-comment"># Load balancing configuration</span>
+    <span class="c-prop">server</span> <span class="c-val">backend1.example.com weight=5</span>;
+    <span class="c-prop">server</span> <span class="c-val">backend2.example.com</span>;
+    <span class="c-prop">server</span> <span class="c-val">192.168.0.1 backup</span>;
+    
+    <span class="c-comment"># Load balancing method</span>
+    <span class="c-prop">least_conn</span>;  <span class="c-comment"># or: ip_hash, hash $request_uri consistent;</span>
+    
+    <span class="c-comment"># Health checks</span>
+    <span class="c-prop">health_check</span> <span class="c-val">interval=5s fails=3 passes=2</span>;
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>7. Stream Context (TCP/UDP Proxy)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">stream</span> {
+    <span class="c-comment"># For non-HTTP traffic (TCP/UDP)</span>
+    <span class="c-key">upstream</span> <span class="c-val">database_cluster</span> {
+        <span class="c-prop">server</span> <span class="c-val">db1.example.com:3306</span>;
+        <span class="c-prop">server</span> <span class="c-val">db2.example.com:3306</span>;
+    }
+    
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">3306</span>;
+        <span class="c-prop">proxy_pass</span> <span class="c-val">database_cluster</span>;
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>8. Mail Context (Mail Proxy)</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">mail</span> {
+    <span class="c-prop">server_name</span> <span class="c-val">mail.example.com</span>;
+    <span class="c-prop">auth_http</span> <span class="c-val">localhost:9000/auth</span>;
+    
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">25</span>;
+        <span class="c-prop">protocol</span> <span class="c-val">smtp</span>;
+        <span class="c-prop">smtp_auth</span> <span class="c-val">login plain cram-md5</span>;
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">📚</span>Practical Examples</h2>
+      <h3>Complete Configuration Structure:</h3>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># ===== MAIN CONTEXT =====</span>
+<span class="c-prop">user</span> <span class="c-val">nginx</span>;
+<span class="c-prop">worker_processes</span> <span class="c-val">auto</span>;
+<span class="c-prop">error_log</span> <span class="c-val">/var/log/nginx/error.log</span> warn;
+<span class="c-prop">pid</span> <span class="c-val">/var/run/nginx.pid</span>;
+
+<span class="c-comment"># ===== EVENTS CONTEXT =====</span>
+<span class="c-key">events</span> {
+    <span class="c-prop">worker_connections</span> <span class="c-num">1024</span>;
+    <span class="c-prop">multi_accept</span> <span class="c-val">on</span>;
+    <span class="c-prop">use</span> <span class="c-val">epoll</span>;
+}
+
+<span class="c-comment"># ===== HTTP CONTEXT =====</span>
+<span class="c-key">http</span> {
+    <span class="c-comment"># Global HTTP settings</span>
+    <span class="c-prop">include</span> <span class="c-val">/etc/nginx/mime.types</span>;
+    <span class="c-prop">default_type</span> <span class="c-val">application/octet-stream</span>;
+    
+    <span class="c-prop">log_format</span> <span class="c-val">main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"'</span>;
+    
+    <span class="c-prop">access_log</span> <span class="c-val">/var/log/nginx/access.log main</span>;
+    
+    <span class="c-prop">sendfile</span> <span class="c-val">on</span>;
+    <span class="c-prop">tcp_nopush</span> <span class="c-val">on</span>;
+    <span class="c-prop">keepalive_timeout</span> <span class="c-num">65</span>;
+    
+    <span class="c-comment"># ===== SERVER BLOCK 1 =====</span>
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">80</span>;
+        <span class="c-prop">server_name</span> <span class="c-val">example.com</span>;
+        
+        <span class="c-comment"># ===== LOCATION BLOCK =====</span>
+        <span class="c-key">location</span> <span class="c-val">/</span> {
+            <span class="c-prop">root</span> <span class="c-val">/usr/share/nginx/html</span>;
+            <span class="c-prop">index</span> <span class="c-val">index.html index.htm</span>;
+            <span class="c-prop">try_files</span> <span class="c-val"><span class="c-var">$uri</span> <span class="c-var">$uri</span>/ =404</span>;
+        }
+        
+        <span class="c-comment"># ===== ANOTHER LOCATION BLOCK =====</span>
+        <span class="c-key">location</span> <span class="c-val">/api/</span> {
+            <span class="c-comment"># ===== UPSTREAM BLOCK (can be inside or outside) =====</span>
+            <span class="c-prop">proxy_pass</span> <span class="c-val">http://backend_servers</span>;
+            
+            <span class="c-prop">proxy_set_header</span> <span class="c-val">Host <span class="c-var">$host</span></span>;
+            <span class="c-prop">proxy_set_header</span> <span class="c-val">X-Real-IP <span class="c-var">$remote_addr</span></span>;
+        }
+        
+        <span class="c-comment"># ===== REGEX LOCATION BLOCK =====</span>
+        <span class="c-key">location</span> <span class="c-val">~ \.php$</span> {
+            <span class="c-prop">fastcgi_pass</span> <span class="c-val">unix:/var/run/php-fpm.sock</span>;
+            <span class="c-prop">include</span> <span class="c-val">fastcgi_params</span>;
+        }
+    }
+    
+    <span class="c-comment"># ===== SERVER BLOCK 2 (Another virtual host) =====</span>
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">80</span>;
+        <span class="c-prop">server_name</span> <span class="c-val">app.example.com</span>;
+        
+        <span class="c-key">location</span> <span class="c-val">/</span> {
+            <span class="c-prop">proxy_pass</span> <span class="c-val">http://localhost:3000</span>;
+        }
+    }
+    
+    <span class="c-comment"># ===== UPSTREAM BLOCK (Shared across servers) =====</span>
+    <span class="c-key">upstream</span> <span class="c-val">backend_servers</span> {
+        <span class="c-prop">least_conn</span>;
+        <span class="c-prop">server</span> <span class="c-val">10.0.1.10:8080</span>;
+        <span class="c-prop">server</span> <span class="c-val">10.0.1.11:8080</span>;
+        <span class="c-prop">server</span> <span class="c-val">10.0.1.12:8080 backup</span>;
+    }
+}
+
+<span class="c-comment"># ===== STREAM CONTEXT (Separate from HTTP) =====</span>
+<span class="c-key">stream</span> {
+    <span class="c-key">upstream</span> <span class="c-val">mysql_servers</span> {
+        <span class="c-prop">server</span> <span class="c-val">db1.example.com:3306</span>;
+        <span class="c-prop">server</span> <span class="c-val">db2.example.com:3306</span>;
+    }
+    
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">3306</span>;
+        <span class="c-prop">proxy_pass</span> <span class="c-val">mysql_servers</span>;
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">🔍</span>Context Inheritance & Precedence</h2>
+      <h3>How Inheritance Works:</h3>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">http</span> {
+    <span class="c-comment"># Parent: Sets default for all children</span>
+    <span class="c-prop">gzip</span> <span class="c-val">on</span>;
+    <span class="c-prop">gzip_types</span> <span class="c-val">text/plain text/css</span>;
+    
+    <span class="c-key">server</span> {
+        <span class="c-comment"># Child: Inherits gzip=on</span>
+        <span class="c-comment"># Can override gzip_types</span>
+        <span class="c-prop">gzip_types</span> <span class="c-val">text/plain text/css application/json</span>;
+        
+        <span class="c-key">location</span> <span class="c-val">/</span> {
+            <span class="c-comment"># Grandchild: Inherits from both parent and child</span>
+            <span class="c-comment"># gzip=on, gzip_types=text/plain text/css application/json</span>
+            
+            <span class="c-comment"># Can add more</span>
+            <span class="c-prop">gzip_vary</span> <span class="c-val">on</span>;
+        }
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>Precedence Rules:</strong></p>
+      <ul>
+        <li>Direct context wins over inherited</li>
+        <li>More specific context wins over general</li>
+        <li>Later declarations win over earlier (within same context)</li>
+      </ul>
+
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">location</span> <span class="c-val">/</span> {
+    <span class="c-prop">add_header</span> <span class="c-val">X-Custom "default"</span>;  <span class="c-comment"># 1. Set</span>
+}
+
+<span class="c-key">location</span> <span class="c-val">/api/</span> {
+    <span class="c-prop">add_header</span> <span class="c-val">X-Custom "api"</span>;      <span class="c-comment"># 2. Overrides for /api/</span>
+    <span class="c-prop">add_header</span> <span class="c-val">X-API "yes"</span>;         <span class="c-comment"># 3. Additional header</span>
+}
+
+<span class="c-comment"># For /api/test:</span>
+<span class="c-comment"># X-Custom: "api" (more specific wins)</span>
+<span class="c-comment"># X-API: "yes"</span>
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">⚠️</span>Common Pitfalls</h2>
+      <p><strong>1. Missing Semicolons</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># WRONG</span>
+<span class="c-prop">root</span> <span class="c-val">/var/www/html</span>  <span class="c-comment"># Missing ;</span>
+<span class="c-comment"># RIGHT</span>
+<span class="c-prop">root</span> <span class="c-val">/var/www/html</span>;
+</pre>
+        </div>
+      </div>
+
+      <p><strong>2. Directive in Wrong Context</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># WRONG: worker_connections in main context</span>
+<span class="c-prop">worker_connections</span> <span class="c-num">1024</span>;  <span class="c-comment"># Should be in events {}</span>
+
+<span class="c-comment"># RIGHT</span>
+<span class="c-key">events</span> {
+    <span class="c-prop">worker_connections</span> <span class="c-num">1024</span>;
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>3. Conflicting Directives</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-key">location</span> <span class="c-val">/</span> {
+    <span class="c-prop">try_files</span> <span class="c-val"><span class="c-var">$uri</span> <span class="c-var">$uri</span>/ =404</span>;
+    <span class="c-comment"># Can't use both try_files and proxy_pass</span>
+    <span class="c-prop">proxy_pass</span> <span class="c-val">http://backend</span>;  <span class="c-comment"># ERROR!</span>
+}
+
+<span class="c-comment"># Solution: Use either/or</span>
+<span class="c-key">location</span> <span class="c-val">/</span> {
+    <span class="c-comment"># Option 1: Static files</span>
+    <span class="c-prop">try_files</span> <span class="c-val"><span class="c-var">$uri</span> <span class="c-var">$uri</span>/ =404</span>;
+}
+
+<span class="c-key">location</span> <span class="c-val">/api/</span> {
+    <span class="c-comment"># Option 2: Proxy</span>
+    <span class="c-prop">proxy_pass</span> <span class="c-val">http://backend</span>;
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>4. Context Nesting Errors</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># WRONG: Can't nest server in location</span>
+<span class="c-key">location</span> <span class="c-val">/</span> {
+    <span class="c-key">server</span> {  <span class="c-comment"># ERROR!</span>
+        <span class="c-prop">listen</span> <span class="c-num">80</span>;
+    }
+}
+
+<span class="c-comment"># WRONG: Can't put stream in http</span>
+<span class="c-key">http</span> {
+    <span class="c-key">stream</span> {  <span class="c-comment"># ERROR!</span>
+        <span class="c-comment"># ...</span>
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">🎯</span>Best Practices</h2>
+      <p><strong>1. Organize with Includes</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># nginx.conf (clean main file)</span>
+<span class="c-key">http</span> {
+    <span class="c-prop">include</span> <span class="c-val">/etc/nginx/conf.d/*.conf</span>;
+    <span class="c-prop">include</span> <span class="c-val">/etc/nginx/sites-enabled/*</span>;
+}
+
+<span class="c-comment"># /etc/nginx/conf.d/security.conf</span>
+<span class="c-prop">add_header</span> <span class="c-val">X-Frame-Options SAMEORIGIN</span>;
+<span class="c-prop">add_header</span> <span class="c-val">X-Content-Type-Options nosniff</span>;
+
+<span class="c-comment"># /etc/nginx/sites-available/example.com</span>
+<span class="c-key">server</span> {
+    <span class="c-prop">listen</span> <span class="c-num">80</span>;
+    <span class="c-prop">server_name</span> <span class="c-val">example.com</span>;
+    <span class="c-prop">include</span> <span class="c-val">/etc/nginx/snippets/ssl.conf</span>;
+    <span class="c-prop">include</span> <span class="c-val">/etc/nginx/snippets/security-headers.conf</span>;
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>2. Use Meaningful Context Separation</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># GOOD: Clear separation</span>
+<span class="c-key">http</span> {
+    <span class="c-comment"># Global settings</span>
+    <span class="c-prop">gzip</span> <span class="c-val">on</span>;
+    
+    <span class="c-comment"># Virtual host 1</span>
+    <span class="c-key">server</span> {
+        <span class="c-prop">server_name</span> <span class="c-val">api.example.com</span>;
+        <span class="c-key">location</span> <span class="c-val">/v1/</span> { ... }
+        <span class="c-key">location</span> <span class="c-val">/v2/</span> { ... }
+    }
+    
+    <span class="c-comment"># Virtual host 2  </span>
+    <span class="c-key">server</span> {
+        <span class="c-prop">server_name</span> <span class="c-val">app.example.com</span>;
+        <span class="c-key">location</span> <span class="c-val">/</span> { ... }
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>3. Test Configurations</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># Always test before applying</span>
+sudo nginx -t
+
+<span class="c-comment"># Test specific configuration file</span>
+sudo nginx -t -c /path/to/nginx.conf
+
+<span class="c-comment"># Reload gracefully</span>
+sudo nginx -s reload
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">📝</span>Quick Reference Card</h2>
+      <p><strong>Context Hierarchy:</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+main
+├── events
+├── http
+│   ├── upstream
+│   ├── server
+│   │   ├── location
+│   │   │   └── if
+│   │   └── if
+│   └── map
+├── stream
+│   ├── upstream
+│   └── server
+└── mail
+    └── server
+</pre
+          >
+        </div>
+      </div>
+
+      <p><strong>Key Directives by Context:</strong></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Context</th>
+            <th>Example Directives</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Main</td>
+            <td>worker_processes, error_log, user</td>
+            <td>Global process management</td>
+          </tr>
+          <tr>
+            <td>Events</td>
+            <td>worker_connections, use, multi_accept</td>
+            <td>Connection processing</td>
+          </tr>
+          <tr>
+            <td>HTTP</td>
+            <td>include, default_type, log_format</td>
+            <td>HTTP server settings</td>
+          </tr>
+          <tr>
+            <td>Server</td>
+            <td>listen, server_name, root</td>
+            <td>Virtual host definition</td>
+          </tr>
+          <tr>
+            <td>Location</td>
+            <td>try_files, proxy_pass, root</td>
+            <td>URI-specific handling</td>
+          </tr>
+          <tr>
+            <td>Upstream</td>
+            <td>server, least_conn, ip_hash</td>
+            <td>Load balancing backends</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><strong>Context-Specific Rules:</strong></p>
+      <ul>
+        <li>Main Context: Can contain events, http, stream, mail</li>
+        <li>HTTP Context: Can contain server, upstream, map</li>
+        <li>Server Context: Can contain location</li>
+        <li>
+          Location Context: Can contain most directives, but NOT server, http,
+          etc.
+        </li>
+      </ul>
+
+      <h2><span class="emoji">💡</span>Pro Tips</h2>
+      <p><strong>1. Debug Context Issues</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># See full config with includes resolved</span>
+sudo nginx -T
+
+<span class="c-comment"># Check which context a directive belongs to</span>
+nginx -V 2>&1 | grep -o "with-[^ ]*" | sort
+</pre>
+        </div>
+      </div>
+
+      <p><strong>2. Use Variables Across Contexts</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># Define at http level</span>
+<span class="c-key">http</span> {
+    <span class="c-key">map</span> <span class="c-val"><span class="c-var">$http_user_agent</span> <span class="c-var">$is_bot</span></span> {
+        <span class="c-prop">default</span> <span class="c-num">0</span>;
+        <span class="c-val">~*bot</span> <span class="c-num">1</span>;
+        <span class="c-val">~*crawler</span> <span class="c-num">1</span>;
+    }
+    
+    <span class="c-key">server</span> {
+        <span class="c-key">location</span> <span class="c-val">/</span> {
+            <span class="c-comment"># Use in server/location context</span>
+            <span class="c-key">if</span> (<span class="c-var">$is_bot</span>) {
+                <span class="c-prop">return</span> <span class="c-val">403 "No bots allowed"</span>;
+            }
+        }
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <p><strong>3. Dynamic Configuration with Lua</strong></p>
+      <div class="vscode-window">
+        <div class="vscode-content">
+          <pre>
+<span class="c-comment"># With nginx-lua module</span>
+<span class="c-key">http</span> {
+    <span class="c-key">server</span> {
+        <span class="c-key">location</span> <span class="c-val">/dynamic</span> {
+            <span class="c-prop">content_by_lua_block</span> {
+                ngx.say("Current time: ", ngx.now())
+            }
+        }
+    }
+}
+</pre>
+        </div>
+      </div>
+
+      <h2><span class="emoji">✅</span>Summary</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Definition</th>
+            <th>Example</th>
+            <th>Key Point</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Directive</td>
+            <td>Configuration setting (key-value)</td>
+            <td>worker_processes 4;</td>
+            <td>Ends with semicolon</td>
+          </tr>
+          <tr>
+            <td>Block</td>
+            <td>Group of directives in {}</td>
+            <td>location / { ... }</td>
+            <td>Can be nested</td>
+          </tr>
+          <tr>
+            <td>Context</td>
+            <td>Scope/environment for directives</td>
+            <td>http { ... }</td>
+            <td>Defines allowed directives</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><strong>Golden Rules:</strong></p>
+      <ul>
+        <li>Directives configure behavior</li>
+        <li>Blocks organize directives</li>
+        <li>Contexts define where directives/blocks can be used</li>
+        <li>Inheritance flows from parent to child contexts</li>
+        <li>More specific contexts override general ones</li>
+      </ul>
+
+      <p><strong>Next Steps:</strong></p>
+      <ul>
+        <li>Practice by modifying nginx.conf</li>
+        <li>Use nginx -t to test changes</li>
+        <li>Start with simple directives, then add blocks</li>
+        <li>Gradually work with different contexts</li>
+        <li>Refer to NGINX Documentation for directive specifics</li>
+      </ul>
+
+      <p>
+        Remember: Contexts are like folders, blocks are like files, and
+        directives are the content inside. Master this structure, and you'll
+        master NGINX configuration! <span class="emoji">🚀</span>
+      </p>
+
+      <!-- RESPONSE BREAK FOR WORKER PROCESSES -->
+      <div class="response-break">
+        <div class="response-title">Short Response: Worker Processes</div>
+
+        <h2>Worker Processes in NGINX</h2>
+        <h3>What are Worker Processes?</h3>
+        <p>
+          Worker processes are the actual workers that handle client requests in
+          NGINX. They run the event loop to process connections.
+        </p>
+
+        <p><strong>Key Points:</strong></p>
+        <ul>
+          <li>Master process reads config, manages workers</li>
+          <li>
+            Worker processes handle actual requests (multiple connections each)
+          </li>
+          <li>
+            Each worker is single-threaded but handles thousands of connections
+          </li>
+          <li>Workers are independent - if one crashes, others keep running</li>
+        </ul>
+
+        <h3>Configuration in nginx.conf</h3>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-comment"># Main context (top of nginx.conf)</span>
+<span class="c-prop">worker_processes</span> <span class="c-val">auto</span>;  <span class="c-comment"># Best for most setups</span>
+
+<span class="c-comment"># OR specify exact number</span>
+<span class="c-prop">worker_processes</span> <span class="c-num">4</span>;     <span class="c-comment"># For 4 CPU cores</span>
+
+<span class="c-comment"># Advanced settings</span>
+<span class="c-prop">worker_processes</span> <span class="c-num">8</span>;     <span class="c-comment"># For 8 CPU cores</span>
+<span class="c-prop">worker_cpu_affinity</span> <span class="c-val">auto</span>;  <span class="c-comment"># Bind workers to specific CPUs</span>
+<span class="c-prop">worker_rlimit_nofile</span> <span class="c-num">65535</span>;  <span class="c-comment"># Increase file descriptor limit</span>
+</pre>
+          </div>
+        </div>
+
+        <h3>Recommended Settings:</h3>
+        <p><strong>1. Auto-detect (Best for most)</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-prop">worker_processes</span> <span class="c-val">auto</span>;
+</pre>
+          </div>
+        </div>
+
+        <p><strong>2. Manual (Fine-tuned)</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-prop">worker_processes</span> <span class="c-num">4</span>;  <span class="c-comment"># For 4-core server</span>
+</pre>
+          </div>
+        </div>
+
+        <p><strong>3. With CPU affinity (High-performance)</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-prop">worker_processes</span> <span class="c-num">4</span>;
+<span class="c-prop">worker_cpu_affinity</span> <span class="c-val">0001 0010 0100 1000</span>;  <span class="c-comment"># Pin to CPUs 0-3</span>
+</pre>
+          </div>
+        </div>
+
+        <h3>Check Current Configuration:</h3>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-comment"># See worker count</span>
+ps aux | grep nginx
+
+<span class="c-comment"># Count processes</span>
+ps aux | grep nginx | grep -v grep | wc -l
+
+<span class="c-comment"># Check CPU cores</span>
+nproc
+</pre>
+          </div>
+        </div>
+
+        <h3>Rule of Thumb:</h3>
+        <ul>
+          <li>Start with auto (NGINX detects CPU cores)</li>
+          <li>Test with different values for your workload</li>
+          <li>
+            Monitor CPU usage - all workers busy = need more workers or
+            optimization
+          </li>
+        </ul>
+
+        <p>Simple setup:</p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-comment"># /etc/nginx/nginx.conf</span>
+<span class="c-prop">user</span> <span class="c-val">www-data</span>;
+<span class="c-prop">worker_processes</span> <span class="c-val">auto</span>;  <span class="c-comment"># ← That's it!</span>
+<span class="c-prop">pid</span> <span class="c-val">/run/nginx.pid</span>;
+
+<span class="c-key">events</span> {
+    <span class="c-prop">worker_connections</span> <span class="c-num">1024</span>;
+}
+</pre>
+          </div>
+        </div>
+        <p>
+          NGINX will automatically set workers equal to your CPU cores. Test
+          with nginx -t and reload!
+        </p>
+      </div>
+
+      <!-- RESPONSE BREAK FOR STATIC SERVER -->
+      <div class="response-break">
+        <div class="response-title">Short Response: Static Server Config</div>
+
+        <h2>NGINX Configuration for Static Site (localhost:80)</h2>
+        <p><strong>1. Install & Start NGINX</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+sudo apt update
+sudo apt install nginx -y
+sudo systemctl start nginx
+</pre
+            >
+          </div>
+        </div>
+
+        <p><strong>2. Create Static Site Files</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+sudo mkdir -p /var/www/mysite
+sudo nano /var/www/mysite/index.html
+</pre
+            >
+          </div>
+        </div>
+
+        <p>index.html:</p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;&lt;title&gt;My Static Site&lt;/title&gt;&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;Welcome to My Site!&lt;/h1&gt;
+    &lt;p&gt;Served by NGINX&lt;/p&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre
+            >
+          </div>
+        </div>
+
+        <p><strong>3. Configure NGINX (nginx.conf)</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-comment"># Main context - Global settings</span>
+<span class="c-prop">user</span> <span class="c-val">www-data</span>;
+<span class="c-prop">worker_processes</span> <span class="c-val">auto</span>;
+<span class="c-prop">error_log</span> <span class="c-val">/var/log/nginx/error.log</span>;
+
+<span class="c-comment"># Events context - Connection handling</span>
+<span class="c-key">events</span> {
+    <span class="c-prop">worker_connections</span> <span class="c-num">1024</span>;
+}
+
+<span class="c-comment"># HTTP context - Web server settings</span>
+<span class="c-key">http</span> {
+    <span class="c-prop">include</span> <span class="c-val">mime.types</span>;
+    <span class="c-prop">default_type</span> <span class="c-val">application/octet-stream</span>;
+    
+    <span class="c-comment"># Logging</span>
+    <span class="c-prop">access_log</span> <span class="c-val">/var/log/nginx/access.log</span>;
+    
+    <span class="c-comment"># Performance</span>
+    <span class="c-prop">sendfile</span> <span class="c-val">on</span>;
+    <span class="c-prop">tcp_nopush</span> <span class="c-val">on</span>;
+    <span class="c-prop">keepalive_timeout</span> <span class="c-num">65</span>;
+    
+    <span class="c-comment"># Gzip compression</span>
+    <span class="c-prop">gzip</span> <span class="c-val">on</span>;
+    <span class="c-prop">gzip_types</span> <span class="c-val">text/plain text/css application/json</span>;
+    
+    <span class="c-comment"># Server block - Virtual host for localhost:80</span>
+    <span class="c-key">server</span> {
+        <span class="c-prop">listen</span> <span class="c-num">80</span>;
+        <span class="c-prop">server_name</span> <span class="c-val">localhost</span>;
+        
+        <span class="c-comment"># Root directory for files</span>
+        <span class="c-prop">root</span> <span class="c-val">/var/www/mysite</span>;
+        
+        <span class="c-comment"># Default index files</span>
+        <span class="c-prop">index</span> <span class="c-val">index.html index.htm</span>;
+        
+        <span class="c-comment"># Location block for all requests</span>
+        <span class="c-key">location</span> <span class="c-val">/</span> {
+            <span class="c-comment"># Try serving requested file, then directory, then 404</span>
+            <span class="c-prop">try_files</span> <span class="c-val"><span class="c-var">$uri</span> <span class="c-var">$uri</span>/ =404</span>;
+        }
+        
+        <span class="c-comment"># Cache static assets</span>
+        <span class="c-key">location</span> <span class="c-val">~* \.(jpg|jpeg|png|gif|ico|css|js)$</span> {
+            <span class="c-prop">expires</span> <span class="c-val">1y</span>;
+            <span class="c-prop">add_header</span> <span class="c-val">Cache-Control "public, immutable"</span>;
+        }
+        
+        <span class="c-comment"># Deny access to hidden files</span>
+        <span class="c-key">location</span> <span class="c-val">~ /\.</span> {
+            <span class="c-prop">deny</span> <span class="c-val">all</span>;
+        }
+    }
+}
+</pre>
+          </div>
+        </div>
+
+        <p><strong>4. Apply Configuration</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-comment"># Test config syntax</span>
+sudo nginx -t
+
+<span class="c-comment"># Reload NGINX</span>
+sudo systemctl reload nginx
+
+<span class="c-comment"># OR restart completely</span>
+sudo systemctl restart nginx
+</pre>
+          </div>
+        </div>
+
+        <p><strong>5. Test Your Site</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-comment"># Visit in browser: http://localhost</span>
+
+<span class="c-comment"># Or use curl</span>
+curl http://localhost
+
+<span class="c-comment"># Check logs</span>
+tail -f /var/log/nginx/access.log
+tail -f /var/log/nginx/error.log
+</pre>
+          </div>
+        </div>
+
+        <p><strong>Key Directives Explained:</strong></p>
+        <table>
+          <thead>
+            <tr>
+              <th>Directive</th>
+              <th>Purpose</th>
+              <th>Context</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>server {}</td>
+              <td>Defines virtual host</td>
+              <td>HTTP</td>
+            </tr>
+            <tr>
+              <td>listen 80</td>
+              <td>Listens on port 80</td>
+              <td>Server</td>
+            </tr>
+            <tr>
+              <td>root /path</td>
+              <td>Directory for files</td>
+              <td>Server/Location</td>
+            </tr>
+            <tr>
+              <td>index index.html</td>
+              <td>Default file to serve</td>
+              <td>Server/Location</td>
+            </tr>
+            <tr>
+              <td>try_files</td>
+              <td>File serving logic</td>
+              <td>Location</td>
+            </tr>
+            <tr>
+              <td>expires 1y</td>
+              <td>Browser caching</td>
+              <td>Location</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p><strong>Optional: Enable Directory Listing</strong></p>
+        <div class="vscode-window">
+          <div class="vscode-content">
+            <pre>
+<span class="c-key">location</span> <span class="c-val">/files/</span> {
+    <span class="c-prop">autoindex</span> <span class="c-val">on</span>;  <span class="c-comment"># Show file listing</span>
+    <span class="c-prop">autoindex_exact_size</span> <span class="c-val">off</span>;  <span class="c-comment"># Show human-readable sizes</span>
+}
+</pre>
+          </div>
+        </div>
+        <p>That's it! Your static site is now live at http://localhost:80</p>
+      </div>
+      <div class="footer">&copy; 2026 Arman Khan. All rights reserved.</div>
+    </div>
+  </body>
+</html>

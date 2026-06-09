@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Dive: Hashing in Computer Science</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Font Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a; /* Very dark grayish-black */
+        color: #e0e0e0; /* Off-white for readability */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        scroll-behavior: smooth;
+      }
+
+      /* Headings */
+      h1,
+      h2 {
+        color: #00bcd4; /* Cyan/Teal for contrast */
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      /* Highlighting and Strong Text */
+      strong {
+        color: #f7a900; /* Amber/Orange for key terms */
+        font-weight: 700;
+      }
+
+      /* Tables (Terminology and Algorithms) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2c2c2c; /* Slightly lighter than body for table background */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        font-size: 0.95em;
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border: 1px solid #444;
+      }
+
+      th {
+        background-color: #005f6b; /* Darker teal for table headers */
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #333; /* Stripe effect for readability */
+      }
+
+      /* Code Block (VSCode Dark Theme Style) */
+      .code-block {
+        background-color: #1e1e1e; /* VSCode Dark Theme background */
+        color: #d4d4d4; /* Default text color */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 20px 0;
+        font-family: 'Consolas', 'Monaco', monospace;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      .code-comment {
+        color: #6a9955; /* Green for comments */
+      }
+
+      .code-keyword {
+        color: #569cd6; /* Blue for keywords */
+      }
+
+      .code-string {
+        color: #ce9178; /* Orange-brown for strings */
+      }
+
+      /* Horizontal Rule */
+      hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(
+          to right,
+          rgba(0, 0, 0, 0),
+          #00bcd4,
+          rgba(0, 0, 0, 0)
+        );
+        margin: 40px 0;
+      }
+
+      /* List Styling */
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 10px;
+      }
+
+      /* Specific text styling for math/symbols */
+      .math-symbol {
+        color: #9cdcfe; /* Light blue for math symbols */
+        font-family: 'Consolas', 'Monaco', monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>What is Hashing in Computer Science?</h1>
+
+    <p>
+      <strong>Hashing</strong> in computer science is the process of mapping
+      data of arbitrary size—often called the <strong>input</strong> or
+      <strong>message</strong>—to a fixed-size value, known as a
+      <strong>hash value</strong>, <strong>hash code</strong>,
+      <strong>digest</strong>, or simply <strong>hash</strong>. This mapping is
+      performed by a special function called a <strong>hash function</strong>.
+    </p>
+    <p>
+      The key idea is that for a given input, the hash function will
+      <strong>always produce the same hash value</strong>. It's essentially a
+      "digital fingerprint" for the data.
+    </p>
+
+    <h2>Why Hashing Was Introduced</h2>
+    <p>
+      Hashing was primarily introduced to solve the problem of
+      <strong>efficient data retrieval and integrity checking</strong>.
+    </p>
+    <ul>
+      <li>
+        <strong>Fast Lookups:</strong> Imagine trying to find a specific book in
+        a massive library. If the books were randomly placed, it would take
+        forever. A hash function provides an organized "address" (the hash
+        value) for the data, enabling incredibly fast lookups, which is the core
+        concept behind <strong>hash tables</strong> and
+        <strong>hash maps</strong>.
+      </li>
+      <li>
+        <strong>Data Integrity:</strong> Before hashing, ensuring a file hadn't
+        been tampered with after transmission was difficult. Hashing allows a
+        sender to create a unique fingerprint (the hash) of the data. The
+        receiver can then compute the hash of the received data and compare it
+        to the original hash. If they don't match, the data has been altered.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Problems That Existed Before Hashing</h2>
+    <p>
+      Before the widespread use of hashing, several performance and integrity
+      issues were common:
+    </p>
+    <ul>
+      <li>
+        <strong>Slow Data Search and Retrieval:</strong> Without a structured
+        addressing system like a hash table, searching through large datasets
+        often required a <strong>linear search</strong> or
+        <span class="math-symbol">$O(n)$</span> time complexity, where
+        <span class="math-symbol">$n$</span> is the number of items. Even with
+        organized structures like balanced search trees, the worst-case time
+        complexity is <span class="math-symbol">$O(\log n)$</span>. Hashing,
+        when implemented well, offers an average
+        <span class="math-symbol">$O(1)$</span> (constant time) lookup.
+      </li>
+      <li>
+        <strong>Inefficient Data Comparison:</strong> To check if two large
+        files were identical, every single byte of both files had to be
+        compared, which is time-consuming and computationally expensive.
+      </li>
+      <li>
+        <strong>Lack of Robust Tamper Detection:</strong> Ensuring that a file
+        downloaded from the internet or transferred across a network remained
+        untouched and authentic was difficult. Without a unique, small digest,
+        there was no simple, verifiable way to confirm integrity.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Terminology Commonly Used in Hashing</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Terminology</th>
+          <th>Definition</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Hash Value / Digest</strong></td>
+          <td>The fixed-size output produced by the hash function.</td>
+        </tr>
+        <tr>
+          <td><strong>Hash Function</strong></td>
+          <td>The algorithm that maps input data to the hash value.</td>
+        </tr>
+        <tr>
+          <td><strong>Hash Table / Map</strong></td>
+          <td>
+            A data structure that uses a hash function to map keys to
+            indices/locations in an array for fast access.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Key</strong></td>
+          <td>
+            The input data (or a representation of it) that is fed into the hash
+            function.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Bucket / Slot</strong></td>
+          <td>A location in the hash table where data is stored.</td>
+        </tr>
+        <tr>
+          <td><strong>Collision</strong></td>
+          <td>
+            An event where two different input keys produce the same hash value.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Collision Resolution</strong></td>
+          <td>
+            The methods (e.g., <strong>Chaining</strong> or
+            <strong>Open Addressing</strong>) used to handle collisions in a
+            hash table.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Pre-image</strong></td>
+          <td>The original input data from which the hash was generated.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>Characteristics of a Cryptographically Secure Hashing Function</h2>
+    <p>
+      A <strong>cryptographic hash function</strong> is a specific type of hash
+      function designed to be practically
+      <strong>irreversible and collision-resistant</strong>. It must have the
+      following properties:
+    </p>
+    <ul>
+      <li>
+        <strong
+          >Deterministic (Same Input
+          <span class="math-symbol">&rarr;</span> Same Output):</strong
+        >
+        The same message must always produce the same hash value.
+      </li>
+      <li>
+        <strong>Easy to Compute:</strong> It must be computationally fast to
+        calculate the hash value for any given input.
+      </li>
+      <li>
+        <strong>Pre-image Resistance (One-Way Property):</strong> It must be
+        computationally infeasible to reverse the process—to determine the input
+        (pre-image) from the hash value alone.
+      </li>
+      <li>
+        <strong
+          >Second Pre-image Resistance (Weak Collision Resistance):</strong
+        >
+        Given an input <span class="math-symbol">$A$</span> and its hash
+        <span class="math-symbol">$H(A)$</span>, it must be computationally
+        infeasible to find a different input
+        <span class="math-symbol">$B$</span> such that
+        <span class="math-symbol">$H(A) = H(B)$</span>.
+      </li>
+      <li>
+        <strong>Collision Resistance (Strong Collision Resistance):</strong> It
+        must be computationally infeasible to find any two different inputs
+        <span class="math-symbol">$A$</span> and
+        <span class="math-symbol">$B$</span> such that
+        <span class="math-symbol">$H(A) = H(B)$</span>. This is the most
+        stringent requirement.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Popular and Secure Hashing Algorithms</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Algorithm</th>
+          <th>Description</th>
+          <th>Output Size (bits)</th>
+          <th>Current Security Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>SHA-256</strong></td>
+          <td>
+            Part of the <strong>Secure Hash Algorithm 2 (SHA-2)</strong> family.
+            Widely used and considered secure.
+          </td>
+          <td>256</td>
+          <td><strong>Secure</strong></td>
+        </tr>
+        <tr>
+          <td><strong>SHA-3</strong></td>
+          <td>
+            The winner of the NIST competition to be the successor to SHA-2. It
+            uses a different design (Keccak).
+          </td>
+          <td>224, 256, 384, 512</td>
+          <td><strong>Secure</strong></td>
+        </tr>
+        <tr>
+          <td><strong>MD5</strong></td>
+          <td>
+            <strong>Message-Digest Algorithm 5</strong>. Has known collision
+            vulnerabilities.
+          </td>
+          <td>128</td>
+          <td>
+            <strong>Insecure</strong> for cryptographic integrity checks (OK for
+            data organization).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>SHA-1</strong></td>
+          <td>
+            <strong>Secure Hash Algorithm 1</strong>. Has known practical
+            collision vulnerabilities.
+          </td>
+          <td>160</td>
+          <td><strong>Insecure</strong> for cryptographic integrity checks.</td>
+        </tr>
+        <tr>
+          <td><strong>BLAKE2</strong></td>
+          <td>
+            A highly optimized function providing security comparable to SHA-3,
+            but significantly faster on modern CPUs.
+          </td>
+          <td>Up to 512</td>
+          <td><strong>Secure</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>Where Hashing is Used in Real-World Systems</h2>
+    <p>Hashing is <strong>pervasive</strong> in modern technology:</p>
+    <ul>
+      <li>
+        <strong>Password Storage (Credential Security):</strong> Instead of
+        storing your actual password in a database, systems store a
+        <strong>salted hash</strong> of the password. When you log in, the
+        system hashes the password you enter and compares the new hash to the
+        stored hash. This protects credentials even if the database is breached.
+      </li>
+      <li>
+        <strong>Data Integrity and Verification (Checksums):</strong> When you
+        download software or transfer a file, the provider often gives a hash
+        (e.g., SHA-256) of the original file. You can compute the hash of the
+        downloaded file; if it matches, you're confident the file is complete
+        and untampered with.
+      </li>
+      <li>
+        <strong>Blockchain and Cryptocurrency:</strong> The entire structure of
+        a blockchain relies on hashing. Each <strong>block</strong> contains the
+        hash of the <strong>previous block</strong>, forming a tamper-proof
+        chain. This process is also central to
+        <strong>Proof-of-Work</strong> mining.
+      </li>
+      <li>
+        <strong>Data Structures (Hash Maps/Tables):</strong> Used in almost
+        every programming language and database to implement fast key-value
+        lookups, making software applications efficient.
+      </li>
+      <li>
+        <strong>Digital Signatures:</strong> Hashing is used to create a small,
+        fixed-size digest of a large document. The signature is then created
+        over this small hash instead of the entire document, making the signing
+        process much faster.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Checksum Hashes and Software Integrity</h2>
+    <p>
+      A <strong>checksum hash</strong> is simply a hash value used specifically
+      for <strong>integrity verification</strong>—to ensure data has not been
+      corrupted or altered during transmission or storage.
+    </p>
+
+    <h3>Why Software Companies Provide Checksum Values</h3>
+    <p>
+      Software companies provide checksum values (often using SHA-256 or similar
+      secure algorithms) for their installers for two critical reasons:
+    </p>
+    <ul>
+      <li>
+        <strong>Data Integrity:</strong> To confirm the downloaded file hasn't
+        been corrupted during the download process (a common issue).
+      </li>
+      <li>
+        <strong>Authenticity/Tamper Protection:</strong> To ensure that a
+        malicious third party hasn't intercepted the original file and replaced
+        it with a modified, infected version. If the user's calculated hash
+        matches the company's published hash, they can be confident they have
+        the genuine, unaltered software.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Hashing Files with OpenSSL</h2>
+    <p>
+      <strong>OpenSSL</strong> is a robust, open-source command-line tool that
+      includes utilities for cryptographic hashing. It can hash any file type
+      (text, images, videos, executables, etc.) because the hash function treats
+      the file as a sequence of raw bytes.
+    </p>
+
+    <h3>How to Hash Files (Text, Images, Videos, etc.)</h3>
+    <p>
+      You use the <code>dgst</code> (digest) command along with the desired
+      algorithm:
+    </p>
+
+    <p>General command syntax:</p>
+    <div class="code-block">
+      <span class="code-keyword">openssl</span> dgst -<span class="code-string"
+        >&lt;algorithm&gt;</span
+      >
+      <span class="code-string">&lt;filename&gt;</span>
+    </div>
+
+    <p>Example using SHA-256:</p>
+    <div class="code-block">
+      <span class="code-keyword">openssl</span> dgst -sha256
+      my_document.pdf<span class="code-comment">
+        # Output: SHA256(my_document.pdf)=
+        a3b1c4d2e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2</span
+      >
+    </div>
+
+    <p>Example using SHA3-512:</p>
+    <div class="code-block">
+      <span class="code-keyword">openssl</span> dgst -sha3-512
+      big_video_file.mp4
+    </div>
+
+    <h3>How to Check Supported Hashing Algorithms</h3>
+    <p>
+      You can check the supported algorithms using the OpenSSL help or list
+      function:
+    </p>
+
+    <p>To list the available digest algorithms:</p>
+    <div class="code-block">
+      <span class="code-keyword">openssl</span> dgst -list
+    </div>
+    <p>
+      This command will typically output a list of supported digests, including
+      common ones like <code>sha256</code>, <code>sha384</code>,
+      <code>sha512</code>, <code>sha3-256</code>, <code>blake2b512</code>, etc.
+    </p>
+
+    <hr />
+
+    <h2>Benefits of Hashing a File</h2>
+    <ul>
+      <li>
+        <strong>Rapid Comparison:</strong> Allows for quick, definitive
+        comparison between two files without comparing every single byte.
+      </li>
+      <li>
+        <strong>Storage Efficiency:</strong> The file's "fingerprint" is tiny
+        (e.g., 256 bits/32 bytes) regardless of the file size (which could be
+        gigabytes), making it efficient to store and transmit.
+      </li>
+      <li>
+        <strong>Tamper Detection:</strong> Provides a strong, cryptographic
+        guarantee that the file has not been altered since the hash was
+        generated.
+      </li>
+      <li>
+        <strong>Database Indexing:</strong> Used in databases and key-value
+        stores to create indexes for incredibly fast data retrieval.
+      </li>
+    </ul>
+  </body>
+</html>

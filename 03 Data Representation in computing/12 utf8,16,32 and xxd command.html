@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Character Encodings & xxd Commands</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 25px;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+            margin-top: 25px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        h1 {
+            text-align: center;
+            color: #004085;
+            font-size: 2.5em;
+            margin-bottom: 30px;
+            border-bottom: none;
+        }
+        h2 {
+            font-size: 1.8em;
+            color: #0069d9;
+        }
+        h3 {
+            font-size: 1.4em;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        .section-intro {
+            background-color: #e6f7ff;
+            border-left: 6px solid #007bff;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            border-radius: 5px;
+            font-style: italic;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 25px;
+            padding-left: 0;
+            margin-bottom: 15px;
+        }
+        ul li {
+            margin-bottom: 8px;
+        }
+        .indent {
+            margin-left: 25px;
+            list-style-type: circle;
+        }
+        .code-example {
+            background-color: #e8e8e8;
+            border-left: 4px solid #888;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+        }
+        strong {
+            color: #555;
+        }
+        .important-note {
+            background-color: #fff3cd;
+            border-left: 6px solid #ffc107;
+            padding: 15px 20px;
+            margin-top: 25px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        code {
+            background-color: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            color: #c7254e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Understanding UTF Encodings & `xxd` Commands</h1>
+
+        <div class="section-intro">
+            <p><strong>UTF (Unicode Transformation Format)</strong>: Character encodings that specify how Unicode code points (numerical values assigned to characters) are represented as sequences of bytes.</p>
+            <p>The numbers <strong>8, 16, and 32</strong> refer to the <strong>minimum number of bits used per code unit</strong> in the encoding. A "code unit" is the basic unit of information for storing characters in that encoding.</p>
+        </div>
+
+        <h2>Detailed Comparison of UTF Encodings:</h2>
+
+        <h3>UTF-8</h3>
+        <ul>
+            <li><strong>Code Unit Size:</strong> 8 bits (1 byte).</li>
+            <li><strong>Variable-width:</strong> Uses 1 to 4 bytes per character.
+                <ul class="indent">
+                    <li>ASCII characters (U+0000 to U+007F): 1 byte (backward compatible with ASCII).</li>
+                    <li>Common Latin (diacritics), Cyrillic, Greek: Typically 2 bytes.</li>
+                    <li>Most CJK characters: 3 bytes.</li>
+                    <li>Supplementary planes (emojis, ancient scripts): 4 bytes.</li>
+                </ul>
+            </li>
+            <li><strong>Endianness:</strong> Not an issue (byte-oriented).</li>
+            <li><strong>Advantages:</strong>
+                <ul class="indent">
+                    <li>Space-efficient for ASCII and Latin-heavy text.</li>
+                    <li>Backward compatible with ASCII.</li>
+                    <li>Widely adopted for web and OS.</li>
+                </ul>
+            </li>
+            <li><strong>Disadvantages:</strong>
+                <ul class="indent">
+                    <li>Variable width can complicate string length calculations.</li>
+                    <li>Less efficient than UTF-16 for some CJK characters (3 bytes vs. 2 code units/4 bytes).</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>UTF-16</h3>
+        <ul>
+            <li><strong>Code Unit Size:</strong> 16 bits (2 bytes).</li>
+            <li><strong>Variable-width (mostly):</strong>
+                <ul class="indent">
+                    <li>BMP characters (U+0000 to U+FFFF): 1 code unit (2 bytes).</li>
+                    <li>Supplementary characters: Two 16-bit code units ("surrogate pair"), totaling 4 bytes.</li>
+                </ul>
+            </li>
+            <li><strong>Endianness:</strong> Significant (UTF-16BE or UTF-16LE). Often uses a Byte Order Mark (BOM).</li>
+            <li><strong>Advantages:</strong>
+                <ul class="indent">
+                    <li>More space-efficient than UTF-8 for languages primarily in BMP but outside ASCII range (e.g., many CJK).</li>
+                    <li>Used internally by some OS (e.g., Windows, Java).</li>
+                </ul>
+            </li>
+            <li><strong>Disadvantages:</strong>
+                <ul class="indent">
+                    <li>Not ASCII compatible.</li>
+                    <li>Still variable-width for supplementary characters.</li>
+                    <li>Requires endianness consideration.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>UTF-32</h3>
+        <ul>
+            <li><strong>Code Unit Size:</strong> 32 bits (4 bytes).</li>
+            <li><strong>Fixed-width:</strong> Every Unicode character uses exactly one 32-bit code unit (4 bytes).</li>
+            <li><strong>Endianness:</strong> Significant (UTF-32BE or UTF-32LE). Often uses a BOM.</li>
+            <li><strong>Advantages:</strong>
+                <ul class="indent">
+                    <li>Simplicity: String length is simply the number of 32-bit units.</li>
+                    <li>Direct mapping: Each code unit corresponds directly to a Unicode code point.</li>
+                </ul>
+            </li>
+            <li><strong>Disadvantages:</strong>
+                <ul class="indent">
+                    <li><strong>Least space-efficient:</strong> Uses 4 bytes for *every* character, leading to much larger file sizes.</li>
+                    <li>Rarely used for storage/transmission due to inefficiency; mostly for internal representation.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h2>Understanding `xxd` Terminal Commands:</h2>
+        <p>`xxd` is a command-line utility for creating hex dumps, useful for inspecting raw byte content of files.</p>
+        <p class="code-example">
+            Assumed content of `example.txt` (UTF-8):<br>
+            <code>Hello, World! 👋</code>
+        </p>
+
+        <h3>1. `xxd filename`</h3>
+        <ul>
+            <li><strong>Default mode:</strong> Produces a standard hexadecimal dump.</li>
+            <li>Shows:
+                <ul class="indent">
+                    <li><strong>Offset:</strong> Hexadecimal offset from file beginning.</li>
+                    <li><strong>Hexadecimal Bytes:</strong> Raw bytes in hex (two hex digits per byte).</li>
+                    <li><strong>ASCII Representation:</strong> Best-effort ASCII interpretation (non-printable chars as `.` ).</li>
+                </ul>
+            </li>
+            <li><strong>Example Usage:</strong> <code class="language-bash">xxd example.txt</code></li>
+            <li><strong>Expected Output Snippet:</strong>
+                <pre class="code-example">00000000: 4865 6c6c 6f2c 2057 6f72 6c64 2120 f09f  Hello, World! .
+00000010: 918b                                      ..</pre>
+            </li>
+            <li><strong>Explanation:</strong> `48` for 'H', `f09f918b` is the 4-byte UTF-8 for 👋.</li>
+        </ul>
+
+        <h3>2. `xxd -b filename`</h3>
+        <ul>
+            <li>`-b` option: Displays output in <strong>binary format</strong>.</li>
+            <li>Shows:
+                <ul class="indent">
+                    <li><strong>Offset:</strong> Hexadecimal offset.</li>
+                    <li><strong>Binary Bytes:</strong> Raw bytes in binary (groups of 8 bits).</li>
+                    <li><strong>ASCII Representation:</strong> Best-effort ASCII interpretation.</li>
+                </ul>
+            </li>
+            <li><strong>Example Usage:</strong> <code class="language-bash">xxd -b example.txt</code></li>
+            <li><strong>Expected Output Snippet:</strong>
+                <pre class="code-example">00000000: 01001000 01100101 01101100 01101100 01101111 00101100 00100000 01010111  Hello, W
+00000008: 01101111 01110010 01101100 01100100 00100001 00100000 11110000 10011111  orld!  ..
+00000010: 10010001 10001011                                                        ..</pre>
+            </li>
+            <li><strong>Explanation:</strong> Shows exact bit patterns. `01001000` is 'H'. Emoji bytes (`f09f918b`) appear as `11110000`, `10011111`, etc., revealing UTF-8 multi-byte pattern.</li>
+        </ul>
+
+        <h3>3. `xxd -g 1 filename`</h3>
+        <ul>
+            <li>`-g 1` option: Groups hexadecimal output by 1 byte (each byte displayed individually).</li>
+            <li>Shows:
+                <ul class="indent">
+                    <li><strong>Offset:</strong> Hexadecimal offset.</li>
+                    <li><strong>Hexadecimal Bytes (grouped by 1):</strong> Each byte as a separate two-digit hex value.</li>
+                    <li><strong>ASCII Representation:</strong> Best-effort ASCII interpretation.</li>
+                </ul>
+            </li>
+            <li><strong>Example Usage:</strong> <code class="language-bash">xxd -g 1 example.txt</code></li>
+            <li><strong>Expected Output Snippet:</strong>
+                <pre class="code-example">00000000: 48 65 6c 6c 6f 2c 20 57 6f 72 6c 64 21 20 f0 9f  Hello, World! ..
+00000010: 91 8b                                            ..</pre>
+            </li>
+            <li><strong>Explanation:</strong> Clearer visual separation of individual bytes, helpful for parsing multi-byte encodings.</li>
+        </ul>
+
+        <div class="important-note">
+            <p><strong>`xxd` commands are indispensable for low-level file analysis and understanding character encodings by directly inspecting raw byte data.</strong></p>
+        </div>
+    </div>
+</body>
+</html>

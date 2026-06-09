@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Pub/Sub Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="default.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="main-header">
+        <h1>Redis Pub/Sub Messaging 📢</h1>
+      </header>
+
+      <section class="notes-section intro-section">
+        <h2 class="title-accent">🔥 What is Pub/Sub?</h2>
+        <p><strong>Pub/Sub = Publish / Subscribe</strong></p>
+        <p>
+          Redis Pub/Sub is a way for applications to send messages to each other
+          through channels.
+        </p>
+        <ul>
+          <li>A **publisher** sends (publishes) a message.</li>
+          <li>A **subscriber** listens (subscribes) to some channels.</li>
+          <li>
+            Only subscribers who are **currently connected** will get the
+            message.
+          </li>
+        </ul>
+      </section>
+
+      <section class="notes-section">
+        <h2 class="title-accent">
+          💡 Important: Redis does NOT store messages in Pub/Sub.
+        </h2>
+        <p class="limitation-text">
+          If a subscriber is **offline**, it misses the message forever.
+        </p>
+
+        <h3 class="analogy-header">🧠 Think of it like a YouTube channel</h3>
+        <ul>
+          <li>You subscribe to a YouTube channel.</li>
+          <li>
+            When the YouTuber publishes a new video, you get a notification
+            **instantly**.
+          </li>
+          <li>Redis Pub/Sub works exactly like this:</li>
+        </ul>
+        <div class="analogy-table">
+          <p><strong>Redis channel</strong> = YouTube channel</p>
+          <p><strong>Subscriber</strong> = Viewer who subscribed</p>
+          <p><strong>Publisher</strong> = YouTuber who posts videos</p>
+          <p><strong>Message</strong> = New video</p>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 class="title-accent">⭐ Basic Terms</h2>
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>Term</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Channel</strong></td>
+              <td>A named topic (e.g., "news", "chatRoom1")</td>
+            </tr>
+            <tr>
+              <td><strong>Publisher</strong></td>
+              <td>Sends a message to a channel</td>
+            </tr>
+            <tr>
+              <td><strong>Subscriber</strong></td>
+              <td>Listens to one or more channels</td>
+            </tr>
+            <tr>
+              <td><strong>Message</strong></td>
+              <td>The data published</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-1">1. Pub/Sub Overview and Need 📢</h2>
+
+        <h3>Definition</h3>
+        <p>
+          Redis Pub/Sub is a messaging paradigm where senders
+          (<strong>Publishers</strong>) are not programmed to send messages to
+          specific receivers. Instead, the published messages are categorized
+          into **Channels**, and receivers (**Subscribers**) express interest in
+          one or more channels.
+        </p>
+        <ul>
+          <li>
+            <strong>Publisher:</strong> Sends a message to a specific channel.
+          </li>
+          <li>
+            <strong>Channel:</strong> A named queue or topic (e.g.,
+            <code>chat:general</code>, <code>alerts:stock:TSLA</code>).
+          </li>
+          <li>
+            <strong>Subscriber:</strong> Listens to one or more channels and
+            receives all messages sent to them.
+          </li>
+        </ul>
+
+        <h3>Why is Pub/Sub Needed?</h3>
+        <p>
+          Pub/Sub is crucial for achieving <strong>decoupling</strong> and
+          <strong>real-time event handling</strong> in applications:
+        </p>
+        <ul>
+          <li>
+            <strong>Decoupling:</strong> Publishers and Subscribers don't know
+            anything about each other's existence. The Publisher doesn't need to
+            know who is listening or how many services are subscribed. It just
+            publishes the data to Redis, and Redis handles the distribution.
+          </li>
+          <li>
+            <strong>Real-Time Notifications:</strong> It's the most efficient
+            way to instantly push data or event notifications to multiple
+            clients (e.g., updating a live dashboard, triggering a function in a
+            microservice, or sending a chat message) without polling.
+          </li>
+          <li>
+            <strong>Low Latency:</strong> Since Redis holds the connection open,
+            messages are delivered with extremely low latency, making it faster
+            than traditional HTTP polling.
+          </li>
+        </ul>
+
+        <p class="limitation-text">
+          <strong>Key Limitation:</strong> Redis Pub/Sub is **fire-and-forget**.
+          If a Subscriber disconnects and misses a message, Redis **does not
+          store** that message for later delivery. For persistent messaging,
+          you'd use Redis Streams or Lists.
+        </p>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-2">
+          2. Working with Redis Pub/Sub via <code>redis-cli</code>
+        </h2>
+
+        <p>
+          Pub/Sub operates using three main commands: <code>PUBLISH</code>,
+          <code>SUBSCRIBE</code>, and <code>PSUBSCRIBE</code>.
+        </p>
+
+        <table class="command-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Role</th>
+              <th>Action</th>
+              <th>Syntax</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>SUBSCRIBE</strong></td>
+              <td>Subscriber</td>
+              <td>
+                Registers a client to listen for messages on specific channels.
+              </td>
+              <td><code>SUBSCRIBE channel1 [channel2 ...]</code></td>
+            </tr>
+            <tr>
+              <td><strong>PSUBSCRIBE</strong></td>
+              <td>Subscriber</td>
+              <td>
+                Registers a client to listen using **pattern matching**
+                (wildcards, <code>*</code>).
+              </td>
+              <td><code>PSUBSCRIBE pattern1 [pattern2 ...]</code></td>
+            </tr>
+            <tr>
+              <td><strong>PUBLISH</strong></td>
+              <td>Publisher</td>
+              <td>Sends a message to a specific channel.</td>
+              <td><code>PUBLISH channel message</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3><code>redis-cli</code> Example Flow</h3>
+        <p>
+          You must open **two separate <code>redis-cli</code> terminals** to
+          observe the Pub/Sub mechanism in real-time.
+        </p>
+
+        <h4>Terminal 1: The Subscriber</h4>
+        <p>
+          Subscribe to a channel: Once you run this command, the client enters a
+          blocking state, waiting for messages.
+        </p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span>
+<span class="operator">></span> <span class="command">SUBSCRIBE</span> <span class="key">updates:prices</span> <span class="key">alerts:system</span>
+<span class="text">Reading messages... (press Ctrl-C to quit)</span>
+<span class="number">1)</span> <span class="string">"subscribe"</span>
+<span class="number">2)</span> <span class="string">"updates:prices"</span>
+<span class="number">3)</span> <span class="number">(integer) 1</span>
+<span class="number">1)</span> <span class="string">"subscribe"</span>
+<span class="number">2)</span> <span class="string">"alerts:system"</span>
+<span class="number">3)</span> <span class="number">(integer) 2</span>
+<span class="comment"># Now the terminal is waiting...</span>
+                </pre>
+        </div>
+
+        <h4>Terminal 2: The Publisher</h4>
+        <p>
+          Publish a message to <code>updates:prices</code>: The message is
+          instantly received by Terminal 1.
+        </p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span>
+<span class="operator">></span> <span class="command">PUBLISH</span> <span class="key">updates:prices</span> <span class="string">"BTC price changed to 65000"</span>
+<span class="number">(integer) 1</span>  <span class="comment"># The '1' indicates 1 subscriber received the message</span>
+                </pre>
+        </div>
+
+        <h4>Terminal 1 Output (After Publish)</h4>
+        <div class="code-block bash-code">
+          <pre>
+<span class="text">...</span>
+<span class="number">1)</span> <span class="string">"message"</span>
+<span class="number">2)</span> <span class="string">"updates:prices"</span>
+<span class="number">3)</span> <span class="string">"BTC price changed to 65000"</span>
+                </pre>
+        </div>
+
+        <p>
+          Publish a message to an unsubscribed channel: The message is ignored
+          by Terminal 1.
+        </p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span>
+<span class="operator">></span> <span class="command">PUBLISH</span> <span class="key">non:subscribed:channel</span> <span class="string">"Test"</span>
+<span class="number">(integer) 0</span> <span class="comment"># The '0' indicates 0 subscribers received the message</span>
+                </pre>
+        </div>
+
+        <h4>Using Pattern Matching (PSUBSCRIBE):</h4>
+        <p>In a **third terminal**, subscribe using a pattern:</p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span>
+<span class="operator">></span> <span class="command">PSUBSCRIBE</span> <span class="key">alerts:*</span>
+<span class="text">Reading messages... (press Ctrl-C to quit)</span>
+<span class="number">1)</span> <span class="string">"psubscribe"</span>
+<span class="number">2)</span> <span class="string">"alerts:*"</span>
+<span class="number">3)</span> <span class="number">(integer) 1</span>
+                </pre>
+        </div>
+
+        <p>In the Publisher terminal, publish to <code>alerts:system</code>:</p>
+        <div class="code-block bash-code">
+          <span class="comment"># Bash</span>
+          <pre>
+<span class="operator">$</span> <span class="command">redis-cli</span>
+<span class="operator">></span> <span class="command">PUBLISH</span> <span class="key">alerts:system</span> <span class="string">"Server 1 is overheating!"</span>
+<span class="number">(integer) 2</span> <span class="comment"># Both the original 'alerts:system' subscriber and the 'alerts:*' pattern subscriber received it.</span>
+                </pre>
+        </div>
+
+        <p>The Pattern Subscriber (Terminal 3) will show:</p>
+        <div class="code-block bash-code">
+          <pre>
+<span class="number">1)</span> <span class="string">"pmessage"</span>       <span class="comment"># Indicates a pattern match message</span>
+<span class="number">2)</span> <span class="string">"alerts:*"</span>       <span class="comment"># The pattern that matched</span>
+<span class="number">3)</span> <span class="string">"alerts:system"</span>  <span class="comment"># The actual channel name</span>
+<span class="number">4)</span> <span class="string">"Server 1 is overheating!"</span>
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <section class="notes-section">
+        <h2 id="section-3">3. Working with Redis Pub/Sub in Node.js</h2>
+
+        <p>
+          Since a Subscriber client enters a **blocking state**, it is best
+          practice to use **two separate Redis client connections** in your
+          Node.js application: one for subscribing/listening and one for
+          publishing/writing data.
+        </p>
+        <p>We'll use the **ioredis** library.</p>
+
+        <h3>Node.js Example Setup</h3>
+        <div class="code-block js-code">
+          <span class="comment">// Install: npm install ioredis</span>
+          <span class="comment"># JavaScript</span>
+          <pre>
+<span class="keyword">const</span> <span class="variable">Redis</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'ioredis'</span>);
+
+<span class="comment">// 1. Setup the Publisher Client (Used for all non-PubSub commands and PUBLISH)</span>
+<span class="keyword">const</span> <span class="variable">publisher</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">Redis</span>();
+
+<span class="comment">// 2. Setup the Subscriber Client (Used ONLY for SUBSCRIBE/PSUBSCRIBE)</span>
+<span class="keyword">const</span> <span class="variable">subscriber</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">Redis</span>();
+                </pre>
+        </div>
+
+        <h3>Node.js Publisher/Subscriber Code</h3>
+        <div class="code-block js-code">
+          <span class="comment"># JavaScript</span>
+          <pre>
+<span class="comment">// --- SUBSCRIBER CODE ---</span>
+
+<span class="comment">// 1. Define the channel to listen to</span>
+<span class="keyword">const</span> <span class="variable-name">channelName</span> <span class="operator">=</span> <span class="string">'user:notifications'</span>;
+
+<span class="comment">// 2. Handle connection events (optional)</span>
+<span class="variable">subscriber</span>.<span class="method">on</span>(<span class="string">'ready'</span>, () <span class="operator">=></span> {
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Subscriber ready, listening on channel: ${</span><span class="variable-name">channelName</span><span class="string">}`</span>);
+    <span class="comment">// Subscribe to the channel</span>
+    <span class="variable">subscriber</span>.<span class="method">subscribe</span>(<span class="variable-name">channelName</span>, (<span class="variable">err</span>, <span class="variable">count</span>) <span class="operator">=></span> {
+        <span class="keyword">if</span> (<span class="variable">err</span>) {
+            <span class="function">console</span>.<span class="method">error</span>(<span class="string">"Subscription error:"</span>, <span class="variable">err</span>);
+            <span class="keyword">return</span>;
+        }
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Subscribed successfully to ${</span><span class="variable">count</span><span class="string">} channel(s).`</span>);
+    });
+});
+
+<span class="comment">// 3. Handle incoming messages</span>
+<span class="variable">subscriber</span>.<span class="method">on</span>(<span class="string">'message'</span>, (<span class="variable">channel</span>, <span class="variable">message</span>) <span class="operator">=></span> {
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`\n[Subscriber Received]`</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Channel: ${</span><span class="variable">channel</span><span class="string">}`</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Message: ${</span><span class="variable">message</span><span class="string">}`</span>);
+    <span class="comment">// In a real application, you would process the message here (e.g., push to a WebSocket)</span>
+});
+
+<span class="comment">// --- PUBLISHER CODE (Simulated Delay) ---</span>
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function-name">simulatePublishing</span>() {
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">"\n--- Publisher Starting Simulation ---"</span>);
+    
+    <span class="comment">// Wait a moment for the subscriber to connect and subscribe</span>
+    <span class="keyword">await</span> <span class="keyword">new</span> <span class="class">Promise</span>(<span class="variable">resolve</span> <span class="operator">=></span> <span class="function">setTimeout</span>(<span class="variable">resolve</span>, <span class="number">2000</span>)); 
+
+    <span class="comment">// Message 1</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`[Publisher Sending] Message 1 to ${</span><span class="variable-name">channelName</span><span class="string">}...`</span>);
+    <span class="keyword">let</span> <span class="variable-name">receivers</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">publisher</span>.<span class="method">publish</span>(<span class="variable-name">channelName</span>, <span class="function">JSON</span>.<span class="method">stringify</span>({
+        <span class="variable-name">userId</span>: <span class="number">42</span>,
+        <span class="variable-name">event</span>: <span class="string">"new_follower"</span>,
+        <span class="variable-name">time</span>: <span class="keyword">new</span> <span class="class">Date</span>().<span class="method">toISOString</span>()
+    }));
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Message 1 delivered to ${</span><span class="variable-name">receivers</span><span class="string">} subscriber(s).`</span>);
+
+    <span class="keyword">await</span> <span class="keyword">new</span> <span class="class">Promise</span>(<span class="variable">resolve</span> <span class="operator">=></span> <span class="function">setTimeout</span>(<span class="variable">resolve</span>, <span class="number">2000</span>)); 
+
+    <span class="comment">// Message 2</span>
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`[Publisher Sending] Message 2 to ${</span><span class="variable-name">channelName</span><span class="string">}...`</span>);
+    <span class="variable-name">receivers</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">publisher</span>.<span class="method">publish</span>(<span class="variable-name">channelName</span>, <span class="string">"Your profile was updated."</span>);
+    <span class="function">console</span>.<span class="method">log</span>(<span class="string">`Message 2 delivered to ${</span><span class="variable-name">receivers</span><span class="string">} subscriber(s).`</span>);
+
+    <span class="comment">// We can also use psubscribe on the client to listen to user:*</span>
+    <span class="comment">// If the subscriber did psubscribe('user:*'), it would receive these messages as well.</span>
+
+    <span class="comment">// Note: Do NOT call publisher.quit() immediately, as the subscriber is still running.</span>
+    <span class="comment">// In a real app, these would be separate processes/services.</span>
+}
+
+<span class="function-name">simulatePublishing</span>();
+                </pre>
+        </div>
+      </section>
+
+      <hr />
+
+      <footer class="notes-footer">
+        <p>End of Redis Pub/Sub Notes</p>
+      </footer>
+    </div>
+  </body>
+</html>

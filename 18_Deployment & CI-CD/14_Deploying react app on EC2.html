@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React App on EC2 | Deployment Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b; /* Zinc 950 */
+        --bg-secondary: #18181b; /* Zinc 900 */
+        --bg-tertiary: #27272a; /* Zinc 800 */
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399; /* Emerald 400 */
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --danger-dim: rgba(239, 68, 68, 0.1);
+        --border: #27272a;
+        --code-bg: #1e1e20;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+
+      th {
+        background: var(--bg-tertiary);
+        color: var(--accent);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code,
+      td code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-brands fa-react"></i> REACT DEPLOY</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Setup & Prerequisites</div>
+        <a href="#prerequisites" class="nav-link">Prerequisites</a>
+        <a href="#ec2-setup" class="nav-link">EC2 Instance Setup</a>
+        <a href="#dependencies" class="nav-link">Install Dependencies</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Application Deployment</div>
+        <a href="#react-build" class="nav-link">React Build Configuration</a>
+        <a href="#file-transfer" class="nav-link">File Transfer</a>
+        <a href="#nginx-config" class="nav-link">Nginx Configuration</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Production Setup</div>
+        <a href="#ssl-setup" class="nav-link">SSL Configuration</a>
+        <a href="#performance" class="nav-link">Performance Optimization</a>
+        <a href="#security" class="nav-link">Security Headers</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Troubleshooting</div>
+        <a href="#common-errors" class="nav-link">Common Errors</a>
+        <a href="#monitoring" class="nav-link">Monitoring & Logs</a>
+        <a href="#automation" class="nav-link">Deployment Automation</a>
+        <a href="#maintenance" class="nav-link">Maintenance</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Deployment Guide</span>
+        <h1>REACT APP ON EC2</h1>
+        <p>COMPLETE PRODUCTION DEPLOYMENT</p>
+      </section>
+
+      <section>
+        <h2>Architecture Overview</h2>
+        <code>
+          <pre>
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│    User         │────▶│   AWS Route 53  │────▶│   Elastic IP    │
+│   (Browser)     │     │   (DNS)         │     │   (Static IP)   │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                                                          │
+                                                          ▼
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   CloudFront    │◀────│   Security      │◀────│   EC2 Instance  │
+│   (CDN - Optional)│    │   Group        │     │                 │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                                                          │
+                                                          ▼
+                                                    ┌─────────────┐
+                                                    │   Nginx     │
+                                                    │   (Port 80) │
+                                                    └─────────────┘
+                                                          │
+                                                          ▼
+                                                    ┌─────────────┐
+                                                    │   React     │
+                                                    │   Build     │
+                                                    └─────────────┘
+    </pre
+          >
+        </code>
+      </section>
+
+      <section id="prerequisites">
+        <h2>PREREQUISITES</h2>
+
+        <h3>📋 What You'll Need</h3>
+        <ul>
+          <li>AWS Account with EC2 access</li>
+          <li>React application ready for production</li>
+          <li>Domain name (optional but recommended)</li>
+          <li>SSH key pair for EC2 access</li>
+          <li>Basic knowledge of Linux commands</li>
+        </ul>
+
+        <h3>💰 Cost Estimation</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Instance Type</th>
+              <th>vCPUs</th>
+              <th>Memory</th>
+              <th>Monthly Cost</th>
+              <th>Best For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>t2.micro</td>
+              <td>1</td>
+              <td>1 GB</td>
+              <td>$8.50</td>
+              <td>Small apps, testing</td>
+            </tr>
+            <tr>
+              <td>t3.small</td>
+              <td>2</td>
+              <td>2 GB</td>
+              <td>$16.80</td>
+              <td>Medium traffic</td>
+            </tr>
+            <tr>
+              <td>t3.medium</td>
+              <td>2</td>
+              <td>4 GB</td>
+              <td>$33.60</td>
+              <td>High traffic</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="ec2-setup">
+        <h2>EC2 INSTANCE SETUP</h2>
+
+        <h3>🚀 Launch EC2 Instance</h3>
+        <ol>
+          <li><strong>Choose AMI:</strong> Ubuntu Server 22.04 LTS</li>
+          <li>
+            <strong>Instance Type:</strong> t2.micro (free tier) or t3.small
+          </li>
+          <li><strong>Key Pair:</strong> Create or select existing SSH key</li>
+          <li>
+            <strong>Security Group:</strong> Allow HTTP (80), HTTPS (443), SSH
+            (22)
+          </li>
+          <li><strong>Storage:</strong> 8-20 GB gp3 (depending on app size)</li>
+        </ol>
+
+        <h3>🔐 Security Group Configuration</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Protocol</th>
+              <th>Port</th>
+              <th>Source</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>SSH</td>
+              <td>TCP</td>
+              <td>22</td>
+              <td>Your IP</td>
+              <td>Remote access</td>
+            </tr>
+            <tr>
+              <td>HTTP</td>
+              <td>TCP</td>
+              <td>80</td>
+              <td>0.0.0.0/0</td>
+              <td>Web traffic</td>
+            </tr>
+            <tr>
+              <td>HTTPS</td>
+              <td>TCP</td>
+              <td>443</td>
+              <td>0.0.0.0/0</td>
+              <td>Secure web traffic</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>🔌 Connect to Instance</h3>
+        <pre><code class="language-bash"># Connect via SSH
+ssh -i "your-key.pem" ubuntu@your-ec2-public-ip
+
+# Update system packages
+sudo apt update && sudo apt upgrade -y</code></pre>
+      </section>
+
+      <section id="dependencies">
+        <h2>INSTALL DEPENDENCIES</h2>
+
+        <h3>🌐 Install Nginx</h3>
+        <pre><code class="language-bash"># Install Nginx
+sudo apt install nginx -y
+
+# Start and enable Nginx
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+# Check status
+sudo systemctl status nginx</code></pre>
+
+        <h3>📦 Install Node.js</h3>
+        <pre><code class="language-bash"># Install Node.js 18.x
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install nodejs -y
+
+# Verify installation
+node --version
+npm --version</code></pre>
+
+        <h3>⚙️ Install PM2 (Process Manager)</h3>
+        <pre><code class="language-bash"># Install PM2 globally
+sudo npm install -g pm2
+
+# Verify installation
+pm2 --version</code></pre>
+      </section>
+
+      <section id="react-build">
+        <h2>REACT BUILD CONFIGURATION</h2>
+
+        <h3>📝 Package.json Configuration</h3>
+        <pre><code class="language-json">{
+  "name": "your-react-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "homepage": "/",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}</code></pre>
+
+        <h3>🔧 Environment Variables</h3>
+        <pre><code class="language-bash"># Create .env.production file
+REACT_APP_API_URL=https://api.your-domain.com
+REACT_APP_ENV=production
+
+# Build with environment
+npm run build</code></pre>
+      </section>
+
+      <section id="file-transfer">
+        <h2>FILE TRANSFER</h2>
+
+        <h3>📤 Transfer Build Files</h3>
+        <h4>Method 1: SCP (Secure Copy)</h4>
+        <pre><code class="language-bash"># From your local machine
+scp -i "your-key.pem" -r ./build ubuntu@your-ec2-ip:/home/ubuntu/
+
+# Or transfer entire project
+scp -i "your-key.pem" -r ./your-react-app ubuntu@your-ec2-ip:/home/ubuntu/</code></pre>
+
+        <h4>Method 2: Git Clone</h4>
+        <pre><code class="language-bash"># On EC2 instance
+cd /home/ubuntu
+git clone https://github.com/yourusername/your-react-app.git
+cd your-react-app
+
+# Install dependencies and build
+npm install
+npm run build</code></pre>
+
+        <h3>📁 Set Proper Permissions</h3>
+        <pre><code class="language-bash"># Set ownership to www-data (Nginx user)
+sudo chown -R www-data:www-data /home/ubuntu/your-react-app/build
+sudo chmod -R 755 /home/ubuntu/your-react-app/build</code></pre>
+      </section>
+
+      <section id="nginx-config">
+        <h2>NGINX CONFIGURATION</h2>
+
+        <h3>⚙️ Main Nginx Configuration</h3>
+        <pre><code class="language-nginx"># /etc/nginx/nginx.conf
+user www-data;
+worker_processes auto;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 768;
+}
+
+http {
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # Gzip Settings
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css text/xml text/javascript 
+               application/javascript application/xml+rss 
+               application/json;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}</code></pre>
+
+        <h3>🌐 Site-specific Configuration</h3>
+        <pre><code class="language-nginx"># /etc/nginx/sites-available/your-domain.com
+server {
+    listen 80;
+    listen [::]:80;
+    server_name your-domain.com www.your-domain.com;
+    
+    root /home/ubuntu/your-react-app/build;
+    index index.html index.htm;
+    
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Gzip compression
+    gzip_static on;
+    
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        # Cache static assets
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            try_files $uri =404;
+        }
+    }
+    
+    # Block hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # Custom error pages
+    error_page 404 /index.html;
+    error_page 500 502 503 504 /50x.html;
+    
+    location = /50x.html {
+        root /usr/share/nginx/html;
+    }
+}</code></pre>
+
+        <h3>🔗 Enable the Site</h3>
+        <pre><code class="language-bash"># Create symlink to sites-enabled
+sudo ln -s /etc/nginx/sites-available/your-domain.com /etc/nginx/sites-enabled/
+
+# Remove default site
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test Nginx configuration
+sudo nginx -t
+
+# Reload Nginx
+sudo systemctl reload nginx</code></pre>
+      </section>
+
+      <section id="ssl-setup">
+        <h2>SSL CONFIGURATION</h2>
+
+        <h3>🔒 Install Let's Encrypt</h3>
+        <pre><code class="language-bash"># Install Certbot for Let's Encrypt
+sudo apt install certbot python3-certbot-nginx -y
+
+# Obtain SSL certificate
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+
+# Auto-renewal setup
+sudo certbot renew --dry-run</code></pre>
+
+        <h3>🔄 Auto-renewal Cron Job</h3>
+        <pre><code class="language-bash"># Add to crontab
+sudo crontab -e
+
+# Add this line:
+0 12 * * * /usr/bin/certbot renew --quiet</code></pre>
+      </section>
+
+      <section id="performance">
+        <h2>PERFORMANCE OPTIMIZATION</h2>
+
+        <h3>⚡ Nginx Performance Tuning</h3>
+        <pre><code class="language-nginx"># Add to server block
+# Enable HTTP/2
+listen 443 ssl http2;
+
+# Enable compression
+gzip on;
+gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+# Browser caching
+location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+    expires 365d;
+    add_header Cache-Control "public, immutable";
+}</code></pre>
+
+        <h3>💾 Add Swap Memory (for small instances)</h3>
+        <pre><code class="language-bash"># Create swap file
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# Make permanent
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab</code></pre>
+      </section>
+
+      <section id="security">
+        <h2>SECURITY HEADERS</h2>
+
+        <h3>🛡️ Enhanced Security Configuration</h3>
+        <pre><code class="language-nginx"># Add to server block
+# Security headers
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header X-XSS-Protection "1; mode=block" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';" always;
+
+# Hide Nginx version
+server_tokens off;</code></pre>
+
+        <h3>🔥 Configure UFW Firewall</h3>
+        <pre><code class="language-bash"># Enable firewall
+sudo ufw allow 'Nginx Full'
+sudo ufw allow OpenSSH
+sudo ufw enable
+
+# Check status
+sudo ufw status</code></pre>
+      </section>
+
+      <section id="common-errors">
+        <h2>COMMON ERRORS & FIXES</h2>
+
+        <h3>🚫 Error 1: React Router 404 Errors</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Problem</span
+          >
+          <p><strong>Issue:</strong> Direct URL access or refresh shows 404</p>
+          <p><strong>Cause:</strong> Nginx tries to find the route as a file</p>
+        </div>
+        <pre><code class="language-nginx"># Fix: Add to location block
+location / {
+    try_files $uri $uri/ /index.html;
+}</code></pre>
+
+        <h3>🎨 Error 2: MIME Type Issues</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Problem</span
+          >
+          <p>
+            <strong>Issue:</strong> CSS/JS files served with wrong content-type
+          </p>
+          <p>
+            <strong>Cause:</strong> Missing mime.types or incorrect
+            configuration
+          </p>
+        </div>
+        <pre><code class="language-nginx"># Fix: Add to http block
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    # Add specific types if needed
+    types {
+        application/javascript js mjs;
+        text/css css;
+    }
+}</code></pre>
+
+        <h3>🔐 Error 3: Permission Denied</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Problem</span
+          >
+          <p><strong>Issue:</strong> Nginx can't read build files</p>
+          <p><strong>Cause:</strong> Incorrect file permissions</p>
+        </div>
+        <pre><code class="language-bash"># Fix: Set proper ownership
+sudo chown -R www-data:www-data /home/ubuntu/your-react-app/build
+sudo chmod -R 755 /home/ubuntu/your-react-app/build
+
+# Or give Nginx user access
+sudo usermod -a -G ubuntu www-data</code></pre>
+
+        <h3>🌐 Error 4: CORS Issues</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Problem</span
+          >
+          <p><strong>Issue:</strong> API requests blocked</p>
+          <p><strong>Cause:</strong> Different domains/ports</p>
+        </div>
+        <pre><code class="language-javascript">// Fix: Configure API server CORS or use Nginx reverse proxy
+// For development only:
+{
+  "proxy": "http://localhost:5000"  // In package.json
+}</code></pre>
+
+        <h3>💾 Error 5: Memory Issues on Small Instances</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Problem</span
+          >
+          <p><strong>Issue:</strong> Nginx or Node crashes</p>
+          <p><strong>Cause:</strong> Insufficient memory</p>
+        </div>
+        <pre><code class="language-bash"># Fix: Add swap and optimize Nginx
+# Create swap (shown above)
+# Optimize Nginx for micro instances
+sudo nano /etc/nginx/nginx.conf
+# Set: worker_processes 1;</code></pre>
+      </section>
+
+      <section id="monitoring">
+        <h2>MONITORING & LOGS</h2>
+
+        <h3>📊 Log Monitoring</h3>
+        <pre><code class="language-bash"># Check Nginx logs
+sudo tail -f /var/log/nginx/access.log
+sudo tail -f /var/log/nginx/error.log
+
+# Check system resources
+htop
+df -h  # Disk space
+free -m  # Memory
+
+# Check Nginx status
+sudo systemctl status nginx</code></pre>
+
+        <h3>🔍 Quick Troubleshooting Commands</h3>
+        <pre><code class="language-bash"># Test Nginx configuration
+sudo nginx -t
+
+# Reload Nginx (without downtime)
+sudo systemctl reload nginx
+
+# Check open ports
+sudo netstat -tulpn | grep :80
+
+# View real-time logs
+sudo journalctl -fu nginx</code></pre>
+      </section>
+
+      <section id="automation">
+        <h2>DEPLOYMENT AUTOMATION</h2>
+
+        <h3>🤖 Complete Deployment Script</h3>
+        <pre><code class="language-bash">#!/bin/bash
+# deploy.sh - Automated deployment script
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Nginx
+sudo apt install nginx -y
+
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install nodejs -y
+
+# Install PM2 for process management
+sudo npm install -g pm2
+
+# Clone or copy React app
+cd /home/ubuntu
+git clone https://github.com/yourusername/your-react-app.git
+cd your-react-app
+
+# Install dependencies and build
+npm install
+npm run build
+
+# Configure Nginx
+sudo rm /etc/nginx/sites-enabled/default
+sudo cp nginx-config /etc/nginx/sites-available/your-app
+sudo ln -s /etc/nginx/sites-available/your-app /etc/nginx/sites-enabled/
+
+# Set permissions
+sudo chown -R www-data:www-data /home/ubuntu/your-react-app/build
+sudo chmod -R 755 /home/ubuntu/your-react-app/build
+
+# Restart services
+sudo nginx -t
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+
+echo "Deployment complete!"</code></pre>
+
+        <h3>🔄 Auto-deployment with Webhooks</h3>
+        <pre><code class="language-bash"># Create deploy hook
+mkdir -p /home/ubuntu/webhooks
+nano /home/ubuntu/webhooks/deploy.sh
+
+# Content:
+#!/bin/bash
+cd /home/ubuntu/your-react-app
+git pull origin main
+npm install
+npm run build
+sudo systemctl reload nginx</code></pre>
+      </section>
+
+      <section id="maintenance">
+        <h2>MAINTENANCE & BEST PRACTICES</h2>
+
+        <h3>🔄 Regular Maintenance Tasks</h3>
+        <ul>
+          <li>
+            <strong>Keep system updated:</strong>
+            <code>sudo apt update && sudo apt upgrade -y</code>
+          </li>
+          <li><strong>Monitor disk space:</strong> <code>df -h</code></li>
+          <li><strong>Check memory usage:</strong> <code>free -m</code></li>
+          <li>
+            <strong>Review logs regularly:</strong> Check for errors and unusual
+            activity
+          </li>
+          <li>
+            <strong>Backup configurations:</strong> Nginx config and build files
+          </li>
+        </ul>
+
+        <h3>🛡️ Security Best Practices</h3>
+        <ul>
+          <li>Use SSH keys only (disable password authentication)</li>
+          <li>Keep system and packages updated</li>
+          <li>Configure firewall properly</li>
+          <li>Use HTTPS always</li>
+          <li>Regular security audits</li>
+          <li>Monitor access logs</li>
+          <li>Implement fail2ban for SSH protection</li>
+        </ul>
+
+        <h3>📈 Performance Monitoring</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Command</th>
+              <th>Good Value</th>
+              <th>Action if High</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CPU Usage</td>
+              <td>htop</td>
+              <td>&lt; 70%</td>
+              <td>Optimize code, upgrade instance</td>
+            </tr>
+            <tr>
+              <td>Memory Usage</td>
+              <td>free -m</td>
+              <td>&lt; 80%</td>
+              <td>Add swap, upgrade RAM</td>
+            </tr>
+            <tr>
+              <td>Disk Usage</td>
+              <td>df -h</td>
+              <td>&lt; 85%</td>
+              <td>Clean logs, upgrade storage</td>
+            </tr>
+            <tr>
+              <td>Load Average</td>
+              <td>uptime</td>
+              <td>&lt; CPU cores</td>
+              <td>Investigate processes</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-rocket"></i> Success!</span
+          >
+          <p>
+            Your React application is now successfully deployed on AWS EC2 with
+            Nginx, SSL, and production optimizations!
+          </p>
+          <p>
+            Remember to monitor your application regularly and keep all
+            components updated for security and performance.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>React on EC2 Deployment Guide</p>
+        <p>Generated for <strong>Production Web Applications</strong></p>
+        <p>Built with 💝</p>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-nginx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+  </body>
+</html>

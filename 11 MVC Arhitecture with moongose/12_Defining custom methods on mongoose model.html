@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Static Methods - Blackish Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Setup */
+      :root {
+        --bg-dark: #1e1e1e; /* VS Code Dark Background */
+        --bg-code: #1b1b1b;
+        --text-light: #d4d4d4; /* VS Code Light Text */
+        --accent-green: #4ec9b0; /* VS Code type/class color */
+        --accent-blue: #569cd6; /* VS Code function/method color */
+        --accent-yellow: #dcdcaa; /* VS Code string color */
+        --accent-comment: #6a9955; /* VS Code comment color */
+        --accent-number: #b5cea8;
+        --accent-red: #c586c0; /* VS Code keyword color */
+        --accent-prop: #9cdcfe; /* VS Code property color */
+        --accent-variable: #ce9178;
+      }
+
+      body {
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        background-color: #252525;
+      }
+
+      /* Headings and Text */
+      h1,
+      h2,
+      h3 {
+        color: var(--accent-green);
+        border-bottom: 2px solid #3a3a3a;
+        padding-bottom: 5px;
+        margin-top: 30px;
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ffcc00; /* Subtle gold for emphasis */
+      }
+
+      /* Code Blocks (VS Code Theme) */
+      pre {
+        background-color: var(--bg-code);
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: 'Fira Code', monospace;
+        font-size: 0.9em;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+        margin: 15px 0;
+      }
+
+      .code-block {
+        white-space: pre-wrap;
+      }
+
+      /* Syntax Highlighting */
+      .kw {
+        color: var(--accent-red);
+      } /* keyword (const, function, return, this) */
+      .fn {
+        color: var(--accent-blue);
+      } /* function/method names (require, split) */
+      .ty {
+        color: var(--accent-green);
+      } /* types/class (mongoose, String, Number, Schema) */
+      .co {
+        color: var(--accent-comment);
+      } /* comment */
+      .st {
+        color: var(--accent-yellow);
+      } /* string */
+      .nm {
+        color: var(--accent-number);
+      } /* number */
+      .pr {
+        color: var(--accent-prop);
+      } /* property (name, age, type, methods) */
+      .op {
+        color: #ffffff;
+      } /* operator */
+      .vl {
+        color: var(--accent-variable);
+      } /* variable names */
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background-color: #2f2f2f;
+        border: 1px solid #444;
+      }
+
+      th,
+      td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #444;
+        color: var(--text-light);
+      }
+
+      th {
+        background-color: #3a3a3a;
+        font-weight: 700;
+      }
+
+      /* Emphasis on important code in table cells */
+      td .kw,
+      td .pr,
+      td .fn {
+        font-weight: bold;
+      }
+
+      /* Code for mathematical formulas */
+      .math-formula {
+        font-family: 'Fira Code', monospace;
+        background-color: #333;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 15px 0;
+        text-align: center;
+        color: var(--accent-yellow);
+      }
+
+      .math-formula span {
+        color: var(--accent-prop);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+
+      <h2>Defining Static Methods on a Mongoose model</h2>
+
+      <p>
+        You define static methods using the
+        <span class="kw">.statics</span> property of your schema.
+      </p>
+
+      <h3>The Syntax</h3>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="co">// 1. Define the base Schema</span>
+<span class="kw">const</span> <span class="vl">mySchema</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">mongoose</span>.<span class="ty">Schema</span>({ <span class="co">/* fields */</span> });
+
+<span class="co">// 2. Attach the static methods</span>
+<span class="vl">mySchema</span>.<span class="pr">statics</span>.<span class="fn">methodName</span> <span class="op">=</span> <span class="kw">function</span>(<span class="vl">argument1</span>, <span class="vl">argument2</span>) {
+    <span class="co">// Inside a static method, 'this' refers to the Mongoose Model itself.</span>
+    <span class="co">// Therefore, 'this' can be used to call Model functions like find(), create(), etc.</span>
+    <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">find</span>({ <span class="co">/* some query logic */</span> });
+};
+    </div></pre>
+
+      <h3>Key Difference: <span class="kw">this</span> Context</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Method Type</th>
+            <th>Used for</th>
+            <th><span class="kw">this</span> refers to</th>
+            <th>Called on</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Instance (<span class="kw">.methods</span>)</td>
+            <td>Document-specific logic</td>
+            <td>The individual **document** (instance)</td>
+            <td>
+              <span class="vl">myDocument</span>.<span class="fn">sayHello</span
+              >()
+            </td>
+          </tr>
+          <tr>
+            <td>Static (<span class="kw">.statics</span>)</td>
+            <td>Model/Collection logic</td>
+            <td>
+              The **Model** (e.g., <span class="ty">User</span> or
+              <span class="ty">Product</span>)
+            </td>
+            <td>
+              <span class="ty">User</span>.<span class="fn">findActive</span>()
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2>Example: Defining and Using Static Methods</h2>
+      <p>
+        Let's use a <span class="ty">Product</span> model to illustrate a common
+        use case for static methods: custom search and filtering logic.
+      </p>
+
+      <h3>1. Schema Definition and Static Methods</h3>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">const</span> <span class="vl">mongoose</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'mongoose'</span>);
+
+<span class="co">// Define the Product schema</span>
+<span class="kw">const</span> <span class="vl">productSchema</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">mongoose</span>.<span class="ty">Schema</span>({
+    <span class="pr">name</span>: <span class="ty">String</span>,
+    <span class="pr">price</span>: <span class="ty">Number</span>,
+    <span class="pr">inStock</span>: { <span class="pr">type</span>: <span class="ty">Boolean</span>, <span class="pr">default</span>: <span class="kw">true</span> },
+    <span class="pr">category</span>: <span class="ty">String</span>
+});
+
+<span class="co">// --- DEFINE STATIC METHODS ---</span>
+
+<span class="co">// Static Method 1: Find all products that are currently in stock</span>
+<span class="vl">productSchema</span>.<span class="pr">statics</span>.<span class="fn">findInStock</span> <span class="op">=</span> <span class="kw">function</span>() {
+    <span class="co">// 'this' refers to the Product Model</span>
+    <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">find</span>({ <span class="pr">inStock</span>: <span class="kw">true</span> });
+};
+
+<span class="co">// Static Method 2: Find products by category, demonstrating argument passing</span>
+<span class="vl">productSchema</span>.<span class="pr">statics</span>.<span class="fn">findByCategory</span> <span class="op">=</span> <span class="kw">function</span>(<span class="vl">categoryName</span>) {
+    <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">find</span>({ <span class="pr">category</span>: <span class="vl">categoryName</span> }).<span class="fn">sort</span>({ <span class="pr">price</span>: <span class="nm">-1</span> }); <span class="co">// Sort by price descending</span>
+};
+
+<span class="co">// Static Method 3 (Async): A more complex aggregate operation</span>
+<span class="vl">productSchema</span>.<span class="pr">statics</span>.<span class="fn">getAveragePriceByCategory</span> <span class="op">=</span> <span class="kw">async</span> <span class="kw">function</span>(<span class="vl">categoryName</span>) {
+    <span class="kw">const</span> <span class="vl">result</span> <span class="op">=</span> <span class="kw">await</span> <span class="kw">this</span>.<span class="fn">aggregate</span>([
+        { <span class="pr">$match</span>: { <span class="pr">category</span>: <span class="vl">categoryName</span> } },
+        { <span class="pr">$group</span>: { <span class="pr">_id</span>: <span class="st">'$category'</span>, <span class="pr">averagePrice</span>: { <span class="pr">$avg</span>: <span class="st">'$price'</span> } } }
+    ]);
+    <span class="co">// Return the average price, or null if no results</span>
+    <span class="kw">return</span> <span class="vl">result</span>.<span class="pr">length</span> <span class="op">></span> <span class="nm">0</span> <span class="op">?</span> <span class="vl">result</span>[<span class="nm">0</span>].<span class="pr">averagePrice</span> <span class="op">:</span> <span class="kw">null</span>;
+};
+
+<span class="co">// Create the Model</span>
+<span class="kw">const</span> <span class="ty">Product</span> <span class="op">=</span> <span class="ty">mongoose</span>.<span class="fn">model</span>(<span class="st">'Product'</span>, <span class="vl">productSchema</span>);
+
+<span class="kw">module</span>.<span class="pr">exports</span> <span class="op">=</span> <span class="ty">Product</span>;
+    </div></pre>
+
+      <h3>2. Accessing Static Methods in Node.js</h3>
+      <p>
+        Since static methods are defined on the Schema's
+        <span class="kw">.statics</span> property, they are called directly on
+        the compiled Mongoose **Model** (<span class="ty">Product</span>).
+      </p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">const</span> <span class="ty">Product</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'./productModel'</span>); <span class="co">// Assuming the above code is in productModel.js</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="fn">runStaticExamples</span>() {
+    <span class="co">// Note: We don't need a specific document instance to call these methods!</span>
+
+    <span class="co">// Example 1: Using findInStock()</span>
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">'--- 🔎 Products In Stock ---'</span>);
+    <span class="kw">const</span> <span class="vl">stockItems</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">Product</span>.<span class="fn">findInStock</span>();
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`Found </span><span class="vl">${stockItems.length}</span><span class="st"> products currently in stock.`</span>);
+    <span class="co">// Output: Found X products currently in stock.</span>
+
+    <span class="co">// Example 2: Using findByCategory('Electronics')</span>
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">'\n--- 💻 Electronics Category (Sorted by Price) ---'</span>);
+    <span class="kw">const</span> <span class="vl">electronics</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">Product</span>.<span class="fn">findByCategory</span>(<span class="st">'Electronics'</span>);
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="vl">electronics</span>.<span class="fn">map</span>(<span class="vl">p</span> <span class="op">=></span> <span class="st">`</span><span class="vl">${p.name}</span><span class="st"> ($</span><span class="vl">${p.price}</span><span class="st">)`</span>).<span class="fn">join</span>(<span class="st">'\n'</span>));
+    <span class="co">// Output: (List of electronic products, highest price first)</span>
+
+    <span class="co">// Example 3: Using getAveragePriceByCategory() (Async)</span>
+    <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">'\n--- 💰 Average Price ---'</span>);
+    <span class="kw">const</span> <span class="vl">avgPrice</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">Product</span>.<span class="fn">getAveragePriceByCategory</span>(<span class="st">'Books'</span>);
+    <span class="kw">if</span> (<span class="vl">avgPrice</span> <span class="op">!==</span> <span class="kw">null</span>) {
+        <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`The average price for Books is $</span><span class="vl">${avgPrice.toFixed(2)}</span><span class="st">.`</span>);
+    } <span class="kw">else</span> {
+        <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">'No books found to calculate average price.'</span>);
+    }
+}
+
+<span class="co">// Assuming your MongoDB connection is established</span>
+<span class="co">// runStaticExamples();</span>
+    </div></pre>
+
+      <hr />
+
+      <h2>The Relationship Between Static Methods and the Model</h2>
+
+      <p>
+        Your schema example clearly illustrates two ways to add custom logic to
+        a Mongoose setup: **Instance Methods** and **Static Methods**.
+      </p>
+      <p>
+        The static methods are being defined inside the
+        <span class="kw">statics</span> property of the **Schema Options
+        object** (the second argument to <span class="kw">new Schema()</span>).
+      </p>
+
+      <h3>How the Static Methods are Defined</h3>
+      <p>
+        The Mongoose <span class="ty">Schema</span> constructor accepts an
+        optional second argument, which is an object for **Schema Options**.
+        This is where the custom behavior is defined.
+      </p>
+
+      <ol>
+        <li>
+          <h4>The <span class="kw">statics</span> Property</h4>
+          <p>
+            The <span class="kw">statics</span> property is a specific option
+            object recognized by Mongoose. Any functions you attach to the
+            <span class="kw">statics</span> object are added as methods directly
+            to the compiled Mongoose **Model**.
+          </p>
+          <p>In your code:</p>
+          <p>JavaScript</p>
+          <pre><div class="code-block">
+<span class="co">// ... inside the Schema Options object</span>
+<span class="pr">statics</span>: {
+    <span class="co">// This function will become a method on the Model (e.g., 'Model.findOneByName()')</span>
+    <span class="fn">findOneByName</span>(<span class="vl">name</span>) {
+        <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">findOne</span>({ <span class="pr">name</span> })
+    },
+    <span class="co">// This function will become a method on the Model (e.g., 'Model.findByEmail()')</span>
+    <span class="fn">findByEmail</span>(<span class="vl">email</span>) {
+        <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">findOne</span>({ <span class="pr">email</span> })
+    }
+}
+            </div></pre>
+        </li>
+        <li>
+          <h4>The Context of <span class="kw">this</span></h4>
+          <p>
+            Inside a Mongoose static method, the keyword **<span class="kw"
+              >this</span
+            >** refers to the **Mongoose Model** itself (e.g., if you named your
+            model <span class="ty">User</span>,
+            <span class="kw">this</span> inside the static method is the
+            <span class="ty">User</span> object).
+          </p>
+          <ul>
+            <li>
+              For <span class="fn">findOneByName</span>(<span class="vl"
+                >name</span
+              >): It uses <span class="kw">return this.findOne({ name })</span>.
+              Since <span class="kw">this</span> is the Model, this is
+              equivalent to
+              <span class="kw">return Model.findOne({ name })</span>. It's a
+              convenient wrapper around Mongoose's built-in query functions.
+            </li>
+          </ul>
+        </li>
+      </ol>
+
+      <h3>1. Role of Static Methods</h3>
+      <p>
+        Static methods are essentially **custom query helpers** or utility
+        functions that operate on the **collection** of documents, not a single
+        one. They are suitable for tasks like:
+      </p>
+      <ul>
+        <li>
+          **Custom Searches:** Finding all documents meeting complex criteria
+          (<span class="ty">Model</span>.<span class="fn">findActiveUsers</span
+          >()).
+        </li>
+        <li>
+          **Aggregation:** Calculating statistics across the entire collection
+          (<span class="ty">Model</span>.<span class="fn">getAveragePrice</span
+          >()).
+        </li>
+        <li>
+          **Convenience Wrappers:** Simplifying frequent queries, as seen in
+          your example (<span class="ty">Model</span>.<span class="fn"
+            >findOneByName</span
+          >(<span class="st">'Alice'</span>)).
+        </li>
+      </ul>
+
+      <h3>
+        2. The Distinction: <span class="kw">statics</span> vs.
+        <span class="kw">methods</span>
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Method Type</th>
+            <th><span class="kw">this</span> Context</th>
+            <th>When to Use</th>
+            <th>Example Call</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="kw">statics</span></td>
+            <td>Static Method</td>
+            <td>The **Mongoose Model**</td>
+            <td>
+              Logic concerning the whole collection (queries, aggregates).
+            </td>
+            <td>
+              <span class="ty">User</span>.<span class="fn">findOneByName</span
+              >(<span class="st">'Bob'</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="kw">methods</span></td>
+            <td>Instance Method</td>
+            <td>The **Mongoose Document**</td>
+            <td>
+              Logic concerning a single document's data (formatting,
+              calculation).
+            </td>
+            <td>
+              <span class="vl">userDocument</span>.<span class="fn"
+                >getSummary</span
+              >(<span class="st">'full'</span>)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3. Why it's inside the <span class="kw">statics</span> object</h3>
+      <p>
+        Mongoose uses the separate <span class="kw">statics</span> object within
+        the **Schema Options** because it's defining methods on a **Mongoose
+        Schema**, which is then **compiled** into a Model. By putting functions
+        inside the <span class="kw">statics</span> object, you are explicitly
+        telling the Mongoose compiler:
+      </p>
+      <p>
+        ***"When you create the final Model, take all these functions and attach
+        them directly to the Model constructor."***
+      </p>
+      <p>
+        This ensures the functions are available **before** you retrieve or
+        create any document.
+      </p>
+
+      <hr />
+
+      <h2>How to Use <span class="fn">findByEmail</span> Later</h2>
+      <p>
+        You can use the <span class="fn">findByEmail</span> static method by
+        calling it directly on the **Mongoose Model** created from your schema.
+        Static methods are available on the Model itself, not on individual
+        documents.
+      </p>
+
+      <h3>1. Create the Model</h3>
+      <p>
+        First, you must compile your schema (<span class="vl">modelSchema</span
+        >) into a Mongoose Model. Let's assume you name the model
+        <span class="ty">User</span>:
+      </p>
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">const</span> <span class="vl">mongoose</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'mongoose'</span>);
+<span class="co">// Assuming modelSchema is your defined schema with the statics method</span>
+<span class="kw">const</span> <span class="vl">modelSchema</span> <span class="op">=</span> <span class="kw">new</span> <span class="ty">mongoose</span>.<span class="ty">Schema</span>({ <span class="co">/* ... your fields ... */</span> }, {
+    <span class="pr">statics</span>: {
+        <span class="fn">findByEmail</span>(<span class="vl">email</span>) {
+            <span class="kw">return</span> <span class="kw">this</span>.<span class="fn">findOne</span>({ <span class="pr">email</span> });
+        }
+    }
+});
+
+<span class="co">// Compile the Model</span>
+<span class="kw">const</span> <span class="ty">User</span> <span class="op">=</span> <span class="ty">mongoose</span>.<span class="fn">model</span>(<span class="st">'User'</span>, <span class="vl">modelSchema</span>);
+
+<span class="kw">module</span>.<span class="pr">exports</span> <span class="op">=</span> <span class="ty">User</span>;
+    </div></pre>
+
+      <h3>2. Accessing and Calling <span class="fn">findByEmail</span></h3>
+      <p>
+        Once the Model (<span class="ty">User</span>) is created, you access the
+        static method like any other method on the Model object. You need to
+        <span class="kw">await</span> the call because
+        <span class="fn">findByEmail</span> uses
+        <span class="kw">this.findOne()</span>, which returns a promise.
+      </p>
+
+      <p>JavaScript</p>
+      <pre><div class="code-block">
+<span class="kw">const</span> <span class="ty">User</span> <span class="op">=</span> <span class="fn">require</span>(<span class="st">'./userModel'</span>); <span class="co">// Assuming your Model is exported from a file</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="fn">findUserByEmailAddress</span>(<span class="vl">targetEmail</span>) {
+    <span class="kw">try</span> {
+        <span class="co">// Call the static method directly on the Model</span>
+        <span class="kw">const</span> <span class="vl">userDocument</span> <span class="op">=</span> <span class="kw">await</span> <span class="ty">User</span>.<span class="fn">findByEmail</span>(<span class="vl">targetEmail</span>);
+
+        <span class="kw">if</span> (<span class="vl">userDocument</span>) {
+            <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`✅ User found! Name: </span><span class="vl">${userDocument.name}</span><span class="st">, Email: </span><span class="vl">${userDocument.email}</span><span class="st">`</span>);
+            <span class="kw">return</span> <span class="vl">userDocument</span>;
+        } <span class="kw">else</span> {
+            <span class="fn">console</span>.<span class="fn">log</span>(<span class="st">`❌ No user found with email: </span><span class="vl">${targetEmail}</span><span class="st">`</span>);
+            <span class="kw">return</span> <span class="kw">null</span>;
+        }
+
+    } <span class="kw">catch</span> (<span class="vl">error</span>) {
+        <span class="fn">console</span>.<span class="fn">error</span>(<span class="st">"Error finding user:"</span>, <span class="vl">error</span>);
+    }
+}
+
+<span class="co">// Example Calls:</span>
+<span class="co">// Note: You must ensure you are connected to MongoDB before running this.</span>
+<span class="fn">findUserByEmailAddress</span>(<span class="st">'alice@example.com'</span>);
+<span class="fn">findUserByEmailAddress</span>(<span class="st">'nonexistent@test.com'</span>);
+    </div></pre>
+
+      <h3>Summary of the Call</h3>
+      <p>The custom static method call looks like this:</p>
+      <div class="math-formula">
+        $$\text{ModelName}.\text{StaticMethodName}(\text{arguments})$$
+      </div>
+      <div class="math-formula">
+        $$\text{User}.\text{findByEmail}(\text{'some@email.com'})$$
+      </div>
+    </div>
+  </body>
+</html>

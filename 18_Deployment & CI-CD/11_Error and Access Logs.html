@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Mastery: Logging & Debugging</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Part 4: NGINX Logging & Debugging</h1>
+
+    <h2>1️⃣ Two types of logs in NGINX (clear definition)</h2>
+
+    <h3>✅ Access Log</h3>
+    <p>
+      Records every request NGINX successfully processes (and even failed HTTP
+      responses).
+    </p>
+    <p>
+      <strong>Think:</strong> Who requested, What they requested, When, From
+      where, What response was returned.
+    </p>
+    <p>📄 Default file: <code>/var/log/nginx/access.log</code></p>
+
+    <h3>❌ Error Log</h3>
+    <p>Records internal NGINX problems and upstream failures.</p>
+    <p>
+      <strong>Think:</strong> Why something broke, Why a request failed before
+      reaching backend, Why NGINX couldn’t talk to Node.
+    </p>
+    <p>📄 Default file: <code>/var/log/nginx/error.log</code></p>
+
+    <h2>2️⃣ Access log – what exactly is logged?</h2>
+    <p>Default format (simplified):</p>
+    <pre><code>127.0.0.1 - - [01/Feb/2026:10:20:15 +0000] "GET /api/users HTTP/1.1" 200 345</code></pre>
+
+    <p>Let’s decode this piece by piece:</p>
+    <table>
+      <tr>
+        <th>Part</th>
+        <th>Meaning</th>
+      </tr>
+      <tr>
+        <td>127.0.0.1</td>
+        <td>Client IP ($remote_addr)</td>
+      </tr>
+      <tr>
+        <td>[date]</td>
+        <td>Request time</td>
+      </tr>
+      <tr>
+        <td>"GET /api/users"</td>
+        <td>Method + URL</td>
+      </tr>
+      <tr>
+        <td>200</td>
+        <td>HTTP status</td>
+      </tr>
+      <tr>
+        <td>345</td>
+        <td>Response size (bytes)</td>
+      </tr>
+    </table>
+
+    <h2>3️⃣ Error log – what shows up here?</h2>
+    <p>Examples you <strong>WILL</strong> see:</p>
+
+    <p><strong>Backend down</strong></p>
+    <pre><code>connect() failed (111: Connection refused) while connecting to upstream</code></pre>
+    <p>👉 Node app not running or wrong port.</p>
+
+    <p><strong>Timeout</strong></p>
+    <pre><code>upstream timed out (110: Connection timed out)</code></pre>
+    <p>👉 Backend slow or blocked.</p>
+
+    <p><strong>Permission issue</strong></p>
+    <pre><code>open() "/var/www/html/index.html" failed (13: Permission denied)</code></pre>
+    <p>👉 Linux file permissions.</p>
+
+    <h2>4️⃣ How NGINX decides what goes where</h2>
+    <table>
+      <tr>
+        <th>Scenario</th>
+        <th>Access Log</th>
+        <th>Error Log</th>
+      </tr>
+      <tr>
+        <td>200 OK</td>
+        <td>✅</td>
+        <td>❌</td>
+      </tr>
+      <tr>
+        <td>404 Not Found</td>
+        <td>✅</td>
+        <td>❌</td>
+      </tr>
+      <tr>
+        <td>502 Bad Gateway</td>
+        <td>✅</td>
+        <td>✅</td>
+      </tr>
+      <tr>
+        <td>Upstream crash</td>
+        <td>❌</td>
+        <td>✅</td>
+      </tr>
+      <tr>
+        <td>Config syntax error</td>
+        <td>❌</td>
+        <td>✅</td>
+      </tr>
+    </table>
+
+    <h2>5️⃣ Log levels (VERY IMPORTANT)</h2>
+    <p>Error log has levels:</p>
+    <pre><code><span class="dir">error_log</span> /var/log/nginx/error.log <span class="lit">warn</span>;</code></pre>
+
+    <p>Levels (from least &rarr; most verbose):</p>
+    <table>
+      <tr>
+        <th>Level</th>
+        <th>Logs</th>
+      </tr>
+      <tr>
+        <td>emerg</td>
+        <td>NGINX can’t start</td>
+      </tr>
+      <tr>
+        <td>alert</td>
+        <td>Serious failure</td>
+      </tr>
+      <tr>
+        <td>crit</td>
+        <td>Critical errors</td>
+      </tr>
+      <tr>
+        <td>error</td>
+        <td>Standard errors</td>
+      </tr>
+      <tr>
+        <td>warn</td>
+        <td>Warnings</td>
+      </tr>
+      <tr>
+        <td>notice</td>
+        <td>Important info</td>
+      </tr>
+      <tr>
+        <td>info</td>
+        <td>Info</td>
+      </tr>
+      <tr>
+        <td>debug</td>
+        <td>Everything</td>
+      </tr>
+    </table>
+
+    <p>
+      <strong>Production best practice:</strong>
+      <code>error_log /var/log/nginx/error.log error;</code>
+    </p>
+    <p>
+      <strong>Debugging:</strong>
+      <code>error_log /var/log/nginx/error.log debug;</code>
+    </p>
+
+    <h2>6️⃣ Custom access logs (THIS IS WHERE POWER COMES)</h2>
+    <p>Define a log format:</p>
+    <pre><code><span class="dir">log_format</span> main <span class="str">'$remote_addr - $remote_user [$time_local] '
+                '"$request" $status $body_bytes_sent '
+                '"$http_referer" "$http_user_agent"'</span>;</code></pre>
+    <p>Use it:</p>
+    <pre><code><span class="dir">access_log</span> /var/log/nginx/access.log main;</code></pre>
+
+    <h2>7️⃣ Proxy-aware access logs (real-world)</h2>
+    <p>When using Node behind NGINX, default logs are not enough.</p>
+    <p><strong>Add upstream info:</strong></p>
+    <pre><code><span class="dir">log_format</span> proxy_log
+  <span class="str">'$remote_addr - [$time_local] '
+  '"$request" $status '
+  'upstream:$upstream_addr '
+  'up_status:$upstream_status '
+  'resp_time:$upstream_response_time'</span>;
+
+<span class="dir">access_log</span> /var/log/nginx/access.log proxy_log;</code></pre>
+
+    <p>
+      Now you can answer: Was NGINX slow? Was Node slow? Which backend failed?
+    </p>
+
+    <h2>8️⃣ Debugging common problems using logs</h2>
+    <p><strong>❌ 502 Bad Gateway</strong></p>
+    <pre><code><span class="kw">tail</span> -f /var/log/nginx/error.log</code></pre>
+    <p>
+      Look for: <code>connect() failed (111: Connection refused)</code>. Fix:
+      Node app down or wrong proxy_pass.
+    </p>
+
+    <p><strong>❌ Slow requests</strong></p>
+    <pre><code><span class="kw">tail</span> -f /var/log/nginx/access.log</code></pre>
+    <p>Check: <code>resp_time:5.234</code>. 👉 Backend is slow.</p>
+
+    <p><strong>❌ Wrong client IP in Node</strong></p>
+    <p>
+      Access log shows: <code>127.0.0.1</code>. Fix:
+      <code>app.set("trust proxy", true);</code>
+    </p>
+
+    <h2>9️⃣ Disable logs selectively (advanced)</h2>
+    <p>Don’t log health checks:</p>
+    <pre><code><span class="kw">location</span> /health {
+    <span class="dir">access_log</span> <span class="lit">off</span>;
+    <span class="kw">return</span> <span class="lit">200</span>;
+}</code></pre>
+
+    <h2>1️⃣0️⃣ Rotate logs (VERY IMPORTANT)</h2>
+    <p>
+      NGINX logs grow fast. Linux handles this via <strong>logrotate</strong>.
+    </p>
+    <p>Config: <code>/etc/logrotate.d/nginx</code></p>
+    <div class="warning-box">Never delete logs manually in production.</div>
+
+    <div class="note-box">
+      <strong>Final mental model (lock this in):</strong>
+      <p>Access log = what happened. Error log = why it broke.</p>
+      <p>
+        If you master: Reading access logs, Filtering error logs, and Adding
+        upstream data—you are already ahead of many “senior” devs.
+      </p>
+    </div>
+  </body>
+</html>

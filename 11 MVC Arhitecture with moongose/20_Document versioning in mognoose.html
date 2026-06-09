@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Document Versioning Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blakish Theme */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #121212; /* Deep blakish background */
+        color: #e0e0e0; /* Light gray text for contrast */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #bb86fc; /* Light purple for headings */
+        border-bottom: 2px solid #373737;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: #03dac6;
+      } /* Teal for subheadings */
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #cf6679; /* Soft red for key terms */
+        font-weight: 700;
+      }
+
+      /* Code Block Styling (VS Code Blakish Theme) */
+      pre {
+        background-color: #1e1e1e; /* VS Code's dark background */
+        color: #d4d4d4; /* Default text color */
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 20px 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        border: 1px solid #373737;
+      }
+
+      /* Code Syntax Highlighting Simulation */
+      .code-comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .code-keyword {
+        color: #569cd6;
+      } /* Blue for keywords (const, require, if) */
+      .code-type {
+        color: #4ec9b0;
+      } /* Light blue/teal for Types (String, Number, Schema) */
+      .code-string {
+        color: #ce9178;
+      } /* Orange for strings */
+      .code-method {
+        color: #dcdcaa;
+      } /* Yellow for methods/functions (save, findById) */
+      .code-property {
+        color: #9cdcfe;
+      } /* Light blue for properties (balance, accountNumber) */
+      .code-operator {
+        color: #c586c0;
+      } /* Pink/Purple for operators (+=, =) */
+      .code-number {
+        color: #b5cea8;
+      } /* Light green for numbers/defaults */
+      .code-class {
+        color: #4fc1ff;
+      } /* Brighter blue for Class names (Account, Schema) */
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2d2d2d; /* Darker background for tables */
+      }
+      th,
+      td {
+        border: 1px solid #373737;
+        padding: 10px;
+        text-align: left;
+        color: #e0e0e0;
+      }
+      th {
+        background-color: #373737;
+        color: #03dac6;
+        font-weight: 700;
+      }
+      .table-note {
+        font-style: italic;
+        color: #cf6679;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Mongoose Document Versioning: Deep Dive</h1>
+
+    <p>
+      Document versioning in Mongoose is a built-in mechanism that implements
+      <strong>Optimistic Concurrency Control (OCC)</strong>, primarily used to
+      prevent <strong>lost updates</strong> when multiple clients or processes
+      try to modify the same document simultaneously. This feature ensures
+      <strong>data integrity</strong>, especially in high-concurrency
+      environments like banking systems, by detecting and rejecting updates
+      based on a version number.
+    </p>
+
+    <hr />
+
+    <h2>What is Document Versioning in Mongoose?</h2>
+
+    <p>
+      Document versioning in Mongoose/MongoDB refers to a system where each
+      document has a special field, typically <code>__v</code>, that acts as a
+      <strong>version key</strong>.
+    </p>
+
+    <h3>Core Definition</h3>
+    <p>
+      <strong>Mongoose Document Versioning</strong> is an implementation of
+      <strong>Optimistic Concurrency Control (OCC)</strong>. When an application
+      fetches a document, it gets its current version number. When the
+      application later attempts to save changes, Mongoose checks if the
+      document's version number in the database still matches the version number
+      that was initially fetched.
+    </p>
+    <ul>
+      <li>
+        If the versions match, the update is executed, and the version number
+        (<code>__v</code>) is <strong>incremented (atomically)</strong>.
+      </li>
+      <li>
+        If the versions do not match, it means another process updated the
+        document in the interim, leading to a
+        <strong>concurrency conflict</strong>. Mongoose throws a
+        <code>VersionError</code>, preventing the "stale" or "lost" update.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Need for Versioning</h2>
+
+    <p>
+      The primary need for document versioning is to solve the
+      <strong>Lost Update Problem</strong> in a concurrent application
+      environment:
+    </p>
+    <ul>
+      <li>
+        <strong>Concurrency Control:</strong> It provides a lightweight way to
+        manage concurrent updates without using heavy, long-running database
+        locks (Pessimistic Concurrency Control).
+      </li>
+      <li>
+        <strong>Data Integrity:</strong> It ensures that an application doesn't
+        overwrite changes made by another application/user between the time the
+        document was read and the time it was written back.
+      </li>
+      <li>
+        <strong>Auditing (Indirectly):</strong> While primarily for conflict
+        resolution, the incrementing version number can sometimes be used as a
+        basic indicator of the number of changes the document has undergone.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>How Versioning Works with Clear Syntax</h2>
+
+    <p>
+      Mongoose automatically enables versioning by default for every new schema,
+      adding a field named <code>__v</code> of type <code>Number</code>.
+    </p>
+
+    <h3>1. Schema Definition (Default Behavior)</h3>
+    <p>The version key <code>__v</code> is included automatically.</p>
+
+    <p><strong>JavaScript</strong></p>
+    <pre>
+<span class="code-keyword">const</span> <span class="code-property">mongoose</span> = <span class="code-method">require</span>(<span class="code-string">'mongoose'</span>);
+<span class="code-keyword">const</span> { <span class="code-class">Schema</span> } = <span class="code-property">mongoose</span>;
+
+<span class="code-comment">// Mongoose automatically adds the __v field to the schema.</span>
+<span class="code-keyword">const</span> <span class="code-class">AccountSchema</span> = <span class="code-keyword">new</span> <span class="code-class">Schema</span>({
+    <span class="code-property">accountNumber</span>: { <span class="code-property">type</span>: <span class="code-type">String</span>, <span class="code-property">required</span>: <span class="code-keyword">true</span>, <span class="code-property">unique</span>: <span class="code-keyword">true</span> },
+    <span class="code-property">balance</span>: { <span class="code-property">type</span>: <span class="code-type">Number</span>, <span class="code-property">required</span>: <span class="code-keyword">true</span>, <span class="code-property">default</span>: <span class="code-number">0</span> },
+    <span class="code-property">ownerName</span>: { <span class="code-property">type</span>: <span class="code-type">String</span>, <span class="code-property">required</span>: <span class="code-keyword">true</span> },
+    <span class="code-comment">// Mongoose implicitly adds:</span>
+    <span class="code-comment">// __v: { type: Number, select: true } </span>
+});
+
+<span class="code-keyword">const</span> <span class="code-class">Account</span> = <span class="code-property">mongoose</span>.<span class="code-method">model</span>(<span class="code-string">'Account'</span>, <span class="code-class">AccountSchema</span>);
+    </pre>
+
+    <h3>2. The `save()` Method</h3>
+    <p>
+      When you retrieve a document and then use the instance's
+      <code>save()</code> method, Mongoose uses the existing
+      <code>__v</code> value in the update query:
+    </p>
+
+    <p><strong>JavaScript</strong></p>
+    <pre>
+<span class="code-comment">// 1. Fetch document (current __v is, say, 0)</span>
+<span class="code-keyword">const</span> <span class="code-property">account</span> = <span class="code-keyword">await</span> <span class="code-class">Account</span>.<span class="code-method">findById</span>(<span class="code-string">'someAccountId'</span>);
+
+<span class="code-comment">// 2. Modify document</span>
+<span class="code-property">account</span>.<span class="code-property">balance</span> <span class="code-operator">+=</span> <span class="code-number">100</span>; <span class="code-comment">// Increase balance</span>
+
+<span class="code-comment">// 3. Save the document</span>
+<span class="code-comment">// Mongoose internally executes an update like:</span>
+<span class="code-comment">// db.accounts.updateOne(</span>
+<span class="code-comment">//     { _id: 'someAccountId', __v: 0 }, // Check the version!</span>
+<span class="code-comment">//     { $set: { balance: newBalance }, $inc: { __v: 1 } } // Increment version and apply update</span>
+<span class="code-comment">// );</span>
+<span class="code-keyword">await</span> <span class="code-property">account</span>.<span class="code-method">save</span>(); <span class="code-comment">// Success if __v was 0, new __v is 1.</span>
+    </pre>
+
+    <h3>3. Handling Conflicts (VersionError)</h3>
+    <p>
+      If another operation updates the document after the first user fetched it
+      but before the first user saves it, Mongoose detects the mismatch:
+    </p>
+
+    <p><strong>JavaScript</strong></p>
+    <pre>
+<span class="code-comment">// User A (Reads __v: 0)</span>
+<span class="code-keyword">const</span> <span class="code-property">accountA</span> = <span class="code-keyword">await</span> <span class="code-class">Account</span>.<span class="code-method">findById</span>(<span class="code-string">'someAccountId'</span>); <span class="code-comment">// __v is 0</span>
+<span class="code-property">accountA</span>.<span class="code-property">balance</span> <span class="code-operator">+=</span> <span class="code-number">100</span>; 
+
+<span class="code-comment">// User B (Updates)</span>
+<span class="code-keyword">const</span> <span class="code-property">accountB</span> = <span class="code-keyword">await</span> <span class="code-class">Account</span>.<span class="code-method">findById</span>(<span class="code-string">'someAccountId'</span>); <span class="code-comment">// __v is 0</span>
+<span class="code-property">accountB</span>.<span class="code-property">balance</span> <span class="code-operator">+=</span> <span class="code-number">50</span>; 
+<span class="code-keyword">await</span> <span class="code-property">accountB</span>.<span class="code-method">save</span>(); <span class="code-comment">// SUCCESS: __v becomes 1</span>
+
+<span class="code-comment">// User A (Tries to save)</span>
+<span class="code-comment">// Mongoose attempts: updateOne({ _id: '...', __v: 0 }, { ... $inc: { __v: 1 } })</span>
+<span class="code-comment">// The query matches 0 documents because __v is now 1 in the DB.</span>
+<span class="code-keyword">try</span> {
+    <span class="code-keyword">await</span> <span class="code-property">accountA</span>.<span class="code-method">save</span>(); 
+} <span class="code-keyword">catch</span> (<span class="code-property">error</span>) {
+    <span class="code-keyword">if</span> (<span class="code-property">error</span>.<span class="code-property">name</span> <span class="code-operator">===</span> <span class="code-string">'VersionError'</span>) {
+        <span class="code-method">console</span>.<span class="code-method">log</span>(<span class="code-string">'Concurrency conflict detected! Retrying update or informing user.'</span>);
+        <span class="code-comment">// User A must reload the document, re-apply the logic, and try again.</span>
+    }
+}
+    </pre>
+
+    <h3>4. Disabling/Customizing Versioning (Optional)</h3>
+    <p>You can customize or disable versioning in the schema options:</p>
+
+    <p><strong>JavaScript</strong></p>
+    <pre>
+<span class="code-keyword">const</span> <span class="code-class">NoVersionSchema</span> = <span class="code-keyword">new</span> <span class="code-class">Schema</span>({ <span class="code-comment">/* ... */</span> }, { <span class="code-property">versionKey</span>: <span class="code-keyword">false</span> }); <span class="code-comment">// Disable versioning</span>
+
+<span class="code-keyword">const</span> <span class="code-class">CustomVersionSchema</span> = <span class="code-keyword">new</span> <span class="code-class">Schema</span>({ <span class="code-comment">/* ... */</span> }, { <span class="code-property">versionKey</span>: <span class="code-string">'version'</span> }); <span class="code-comment">// Use 'version' instead of '__v'</span>
+    </pre>
+
+    <hr />
+
+    <h2>Industry-Level Banking Example: Concurrent Updates</h2>
+    <p>
+      Consider a <strong>Bank Account</strong> document where two concurrent
+      transactions try to deposit money simultaneously. Without versioning, one
+      update could be lost.
+    </p>
+
+    <h3>Scenario: The Lost Update Problem</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>User 1 Action</th>
+          <th>User 2 Action</th>
+          <th>Database State (balance, __v)</th>
+          <th>Problem</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>T0</td>
+          <td></td>
+          <td></td>
+          <td>(1000, 0)</td>
+          <td>Initial State</td>
+        </tr>
+        <tr>
+          <td>T1</td>
+          <td>Read Account (Bal: 1000, V: 0)</td>
+          <td></td>
+          <td>(1000, 0)</td>
+          <td>User 1 reads</td>
+        </tr>
+        <tr>
+          <td>T2</td>
+          <td></td>
+          <td>Read Account (Bal: 1000, V: 0)</td>
+          <td>(1000, 0)</td>
+          <td>User 2 reads</td>
+        </tr>
+        <tr>
+          <td>T3</td>
+          <td>Calculate Bal (1000 + 50 = 1050)</td>
+          <td></td>
+          <td>(1000, 0)</td>
+          <td>User 1 prepares update</td>
+        </tr>
+        <tr>
+          <td>T4</td>
+          <td></td>
+          <td>Calculate Bal (1000 + 75 = 1075)</td>
+          <td>(1000, 0)</td>
+          <td>User 2 prepares update</td>
+        </tr>
+        <tr>
+          <td>T5</td>
+          <td></td>
+          <td>
+            <strong class="table-note">Save (1075)</strong>. Query:
+            updateOne({V: 0})
+          </td>
+          <td>(1075, <strong class="table-note">1</strong>)</td>
+          <td>User 2 succeeds, but uses a stale value.</td>
+        </tr>
+        <tr>
+          <td>T6</td>
+          <td>
+            <strong class="table-note">Save (1050)</strong>. Query:
+            updateOne({V: 0})
+          </td>
+          <td></td>
+          <td>(1050, <strong class="table-note">1</strong>)</td>
+          <td>
+            User 1 overwrites User 2's change!
+            <strong class="table-note">LOST $75!</strong>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Scenario: Versioning Prevents Lost Update</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>User 1 Action</th>
+          <th>User 2 Action</th>
+          <th>Database State (balance, __v)</th>
+          <th>Concurrency Check</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>T0</td>
+          <td></td>
+          <td></td>
+          <td>(1000, 0)</td>
+          <td>Initial State</td>
+        </tr>
+        <tr>
+          <td>T1</td>
+          <td>Read Account (Bal: 1000, V: 0)</td>
+          <td></td>
+          <td>(1000, 0)</td>
+          <td>User 1 reads</td>
+        </tr>
+        <tr>
+          <td>T2</td>
+          <td></td>
+          <td>Read Account (Bal: 1000, V: 0)</td>
+          <td>(1000, 0)</td>
+          <td>User 2 reads</td>
+        </tr>
+        <tr>
+          <td>T3</td>
+          <td>Calculate Bal (1000 + 50 = 1050)</td>
+          <td></td>
+          <td>(1000, 0)</td>
+          <td>User 1 prepares update</td>
+        </tr>
+        <tr>
+          <td>T4</td>
+          <td></td>
+          <td>Calculate Bal (1000 + 75 = 1075)</td>
+          <td>(1000, 0)</td>
+          <td>User 2 prepares update</td>
+        </tr>
+        <tr>
+          <td>T5</td>
+          <td></td>
+          <td>
+            <strong class="table-note">Save (1075)</strong>. Query:
+            updateOne({V: 0})
+          </td>
+          <td>(1075, <strong class="table-note">1</strong>)</td>
+          <td>User 2 succeeds. $75 saved.</td>
+        </tr>
+        <tr>
+          <td>T6</td>
+          <td>
+            <strong class="table-note">Save (1050)</strong>. Query:
+            updateOne({V: 0})
+          </td>
+          <td></td>
+          <td>(1075, 1)</td>
+          <td>
+            User 1 <strong class="table-note">fails!</strong> Query finds 0
+            documents.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      In the second scenario, User 1 receives a
+      <strong><code>VersionError</code></strong> and is prevented from saving
+      the stale update of $1050. The application code must then catch this
+      error, reload the document (to get the latest balance of $1075 and
+      <code>__v: 1</code>), recalculate the update (1075 + 50 = 1125), and retry
+      the <code>save()</code>. This retry loop ensures all updates are correctly
+      applied.
+    </p>
+  </body>
+</html>

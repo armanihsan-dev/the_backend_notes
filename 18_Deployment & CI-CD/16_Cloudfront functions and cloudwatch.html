@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS CloudFront Functions & CloudWatch Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>🌩️ AWS CloudFront Functions: Deep Dive + CloudWatch Integration</h1>
+
+    <h2>🔍 What is AWS CloudFront Functions?</h2>
+    <p>
+      CloudFront Functions are
+      <strong>ultra-lightweight, serverless JavaScript functions</strong> that
+      execute at AWS's <strong>global edge locations</strong> (400+ points
+      worldwide). They operate at the <strong>viewer level</strong> in
+      CloudFront's request-response cycle, making them the
+      <strong>fastest edge compute option</strong> AWS offers.
+    </p>
+
+    <h3>Key Architectural Features:</h3>
+    <ul>
+      <li>
+        <strong>Runtime:</strong> Pure JavaScript (ES5.1 compliant) with
+        Node.js-like environment
+      </li>
+      <li><strong>Memory:</strong> ~2MB memory limit</li>
+      <li><strong>Execution Time:</strong> Max 1-2 milliseconds</li>
+      <li><strong>Code Size:</strong> Maximum 10KB (compressed)</li>
+      <li>
+        <strong>Global Deployment:</strong> Single deployment propagates
+        worldwide in seconds
+      </li>
+    </ul>
+
+    <h2>⚡ How It Fits in the Edge Ecosystem</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>CloudFront Functions</th>
+          <th>Lambda@Edge</th>
+          <th>CloudFront Features</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Execution Point</strong></td>
+          <td>Edge Locations</td>
+          <td>Regional Edge Caches</td>
+          <td>Native CDN</td>
+        </tr>
+        <tr>
+          <td><strong>Max Runtime</strong></td>
+          <td>~1ms</td>
+          <td>5-30 seconds</td>
+          <td>N/A</td>
+        </tr>
+        <tr>
+          <td><strong>Memory</strong></td>
+          <td>~2MB</td>
+          <td>128MB-10GB</td>
+          <td>N/A</td>
+        </tr>
+        <tr>
+          <td><strong>Use Case</strong></td>
+          <td>Simple request/response mods</td>
+          <td>Complex logic, auth, transformations</td>
+          <td>Caching, SSL, DDoS protection</td>
+        </tr>
+        <tr>
+          <td><strong>Cost</strong></td>
+          <td>$0.10/million</td>
+          <td>Higher (compute time + requests)</td>
+          <td>Data transfer + requests</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>📋 Detailed Use Case Breakdown</h2>
+
+    <h3>1. Request Modification</h3>
+    <pre><code><span class="cmt">// Redirect HTTP → HTTPS</span>
+<span class="kw">function</span> <span class="dir">handler</span>(event) {
+  <span class="kw">const</span> request = event.request;
+  <span class="kw">const</span> headers = request.headers;
+  
+  <span class="kw">if</span> (!headers[<span class="str">'cloudfront-forwarded-proto'</span>] || 
+      headers[<span class="str">'cloudfront-forwarded-proto'</span>].<span class="prop">value</span> !== <span class="str">'https'</span>) {
+    <span class="kw">return</span> {
+      <span class="prop">statusCode</span>: <span class="lit">301</span>,
+      <span class="prop">statusDescription</span>: <span class="str">'Moved Permanently'</span>,
+      <span class="prop">headers</span>: {
+        <span class="str">'location'</span>: { <span class="prop">value</span>: <span class="str">`https://${request.headers.host.value}${request.uri}`</span> }
+      }
+    };
+  }
+  <span class="kw">return</span> request;
+}</code></pre>
+
+    <h3>2. A/B Testing & Feature Flags</h3>
+    <pre><code><span class="cmt">// Route users based on cookies/headers</span>
+<span class="kw">function</span> <span class="dir">handler</span>(event) {
+  <span class="kw">const</span> request = event.request;
+  <span class="kw">const</span> cookies = <span class="dir">parseCookies</span>(request.headers.cookie);
+  
+  <span class="kw">if</span> (cookies[<span class="str">'experiment-group'</span>] === <span class="str">'variant-b'</span>) {
+    <span class="cmt">// Serve different content path</span>
+    request.<span class="prop">uri</span> = <span class="str">`/variant-b${request.uri}`</span>;
+  }
+  
+  <span class="kw">return</span> request;
+}</code></pre>
+
+    <h3>3. Bot Detection & Security</h3>
+    <pre><code><span class="cmt">// Basic bot mitigation</span>
+<span class="kw">function</span> <span class="dir">handler</span>(event) {
+  <span class="kw">const</span> request = event.request;
+  <span class="kw">const</span> ua = request.headers[<span class="str">'user-agent'</span>]?.<span class="prop">value</span> || <span class="str">''</span>;
+  
+  <span class="kw">const</span> badBots = [<span class="str">'scrapy'</span>, <span class="str">'httrack'</span>, <span class="str">'masscan'</span>];
+  <span class="kw">if</span> (badBots.<span class="dir">some</span>(bot <span class="op">=></span> ua.<span class="dir">toLowerCase</span>().<span class="dir">includes</span>(bot))) {
+    <span class="kw">return</span> {
+      <span class="prop">statusCode</span>: <span class="lit">403</span>,
+      <span class="prop">statusDescription</span>: <span class="str">'Forbidden'</span>
+    };
+  }
+  
+  <span class="kw">return</span> request;
+}</code></pre>
+
+    <hr />
+
+    <h2>📊 Monitoring & Debugging with AWS CloudWatch</h2>
+    <h3>What is AWS CloudWatch?</h3>
+    <p>
+      CloudWatch is AWS's
+      <strong>monitoring and observability service</strong> that collects
+      metrics, logs, and events from AWS resources (including CloudFront
+      Functions).
+    </p>
+
+    <h3>CloudFront Functions + CloudWatch Integration</h3>
+
+    <h4>1. Accessing Logs</h4>
+    <pre><code><span class="cmt">// Your function with logging</span>
+<span class="kw">function</span> <span class="dir">handler</span>(event) {
+  <span class="prop">console</span>.<span class="dir">log</span>(<span class="str">'Event received:'</span>, <span class="prop">JSON</span>.<span class="dir">stringify</span>(event));
+  <span class="prop">console</span>.<span class="dir">log</span>(<span class="str">'URI:'</span>, event.request.<span class="prop">uri</span>);
+  <span class="prop">console</span>.<span class="dir">log</span>(<span class="str">'Method:'</span>, event.request.<span class="prop">method</span>);
+  
+  <span class="cmt">// Logs appear in CloudWatch Logs under:</span>
+  <span class="cmt">// /aws/cloudfront/function/[distribution-id]/[function-name]</span>
+  
+  <span class="kw">return</span> event.request;
+}</code></pre>
+
+    <h4>2. Viewing Logs in CloudWatch:</h4>
+    <ul>
+      <li>Navigate to <strong>CloudWatch → Logs → Log groups</strong></li>
+      <li>Find: <strong>/aws/cloudfront/function/</strong></li>
+      <li>
+        Contains: <code>console.log()</code> output, Error messages, Execution
+        metadata
+      </li>
+    </ul>
+
+    <h4>3. CloudWatch Metrics for CloudFront Functions:</h4>
+    <ul>
+      <li><strong>Invocations:</strong> Number of function executions</li>
+      <li><strong>Execution Errors:</strong> Failed invocations</li>
+      <li><strong>Throttles:</strong> Rate-limited executions</li>
+      <li><strong>Compute Utilization:</strong> Performance metrics</li>
+    </ul>
+
+    <h4>4. Setting Up Alarms:</h4>
+    <pre><code><span class="cmt"># CloudFormation snippet for CloudWatch Alarm</span>
+<span class="prop">CloudFrontFunctionErrorAlarm</span>:
+  <span class="prop">Type</span>: <span class="str">AWS::CloudWatch::Alarm</span>
+  <span class="prop">Properties</span>:
+    <span class="prop">AlarmName</span>: <span class="str">"CloudFront-Function-High-Errors"</span>
+    <span class="prop">MetricName</span>: <span class="str">"ExecutionErrors"</span>
+    <span class="prop">Namespace</span>: <span class="str">"AWS/CloudFront"</span>
+    <span class="prop">Dimensions</span>:
+      - <span class="prop">Name</span>: <span class="str">"FunctionName"</span>
+        <span class="prop">Value</span>: <span class="str">"my-cloudfront-function"</span>
+    <span class="prop">Threshold</span>: <span class="lit">5</span>
+    <span class="prop">ComparisonOperator</span>: <span class="str">GreaterThanThreshold</span>
+    <span class="prop">EvaluationPeriods</span>: <span class="lit">1</span>
+    <span class="prop">Period</span>: <span class="lit">300</span>
+    <span class="prop">Statistic</span>: <span class="str">Sum</span></code></pre>
+
+    <hr />
+
+    <h2>🚀 Best Practices & Pro Tips</h2>
+    <h3>Performance Optimization:</h3>
+    <ul>
+      <li>
+        <strong>Minimize dependencies:</strong> No external libraries allowed
+      </li>
+      <li>
+        <strong>Cache computations:</strong> Reuse values within execution
+      </li>
+      <li><strong>Early returns:</strong> Exit quickly for invalid requests</li>
+      <li>
+        <strong>String operations:</strong> Use built-in methods efficiently
+      </li>
+    </ul>
+
+    <h3>Security Considerations:</h3>
+    <pre><code><span class="cmt">// Add security headers</span>
+<span class="kw">function</span> <span class="dir">handler</span>(event) {
+  <span class="kw">const</span> response = event.response;
+  <span class="kw">const</span> headers = response.headers;
+  
+  <span class="kw">const</span> securityHeaders = {
+    <span class="str">'content-security-policy'</span>: <span class="str">"default-src 'self'"</span>,
+    <span class="str">'x-xss-protection'</span>: <span class="str">'1; mode=block'</span>,
+    <span class="str">'referrer-policy'</span>: <span class="str">'strict-origin-when-cross-origin'</span>,
+    <span class="str">'permissions-policy'</span>: <span class="str">'geolocation=()'</span>
+  };
+  
+  <span class="prop">Object</span>.<span class="dir">entries</span>(securityHeaders).<span class="dir">forEach</span>(([key, value]) <span class="op">=></span> {
+    headers[key] = { value };
+  });
+  
+  <span class="kw">return</span> response;
+}</code></pre>
+
+    <h3>Testing Strategy:</h3>
+    <ul>
+      <li>
+        <strong>Local Testing:</strong> Use CloudFront Functions test harness
+      </li>
+      <li>
+        <strong>Staging Distribution:</strong> Test on non-production CloudFront
+      </li>
+      <li>
+        <strong>Canary Deployment:</strong> Use CloudFront's staging feature
+      </li>
+      <li>
+        <strong>Validation:</strong> Test all edge cases (malformed inputs,
+        missing headers)
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>💰 Cost Optimization Example</h2>
+    <p><strong>Scenario:</strong> E-commerce site with 10M monthly visits</p>
+    <ul>
+      <li>Each visit triggers 20 requests → 200M monthly invocations</li>
+      <li>
+        <strong>Cost:</strong> 200M ÷ 1M × $0.10 = <strong>$20/month</strong>
+      </li>
+      <li>
+        <strong>Compare to Lambda@Edge:</strong> Would be ~$100+ for same
+        workload
+      </li>
+    </ul>
+
+    <h2>🔧 Deployment Workflow</h2>
+    <ol>
+      <li>
+        <strong>Develop:</strong> Write function in CloudFront console or CLI
+      </li>
+      <li>
+        <strong>Test:</strong> Use built-in test harness with sample events
+      </li>
+      <li><strong>Stage:</strong> Deploy to staging environment</li>
+      <li><strong>Associate:</strong> Link function to CloudFront behavior</li>
+      <li><strong>Publish:</strong> Deploy globally (takes ~30 seconds)</li>
+      <li><strong>Monitor:</strong> Watch CloudWatch metrics and logs</li>
+    </ol>
+
+    <hr />
+
+    <h2>📈 Real-World Success Pattern</h2>
+    <pre><code><span class="cmt">// Complete example: SPA + Security + Analytics</span>
+<span class="kw">function</span> <span class="dir">handler</span>(event) {
+  <span class="kw">const</span> request = event.request;
+  <span class="kw">const</span> response = event.response;
+  
+  <span class="cmt">// 1. SPA Routing</span>
+  <span class="kw">if</span> (!request.uri.<span class="dir">includes</span>(<span class="str">'.'</span>) && !request.uri.<span class="dir">includes</span>(<span class="str">'api/'</span>)) {
+    request.<span class="prop">uri</span> = <span class="str">'/index.html'</span>;
+  }
+  
+  <span class="cmt">// 2. Add security headers (response phase only)</span>
+  <span class="kw">if</span> (response) {
+    response.headers[<span class="str">'x-custom-header'</span>] = { <span class="prop">value</span>: <span class="str">'processed-by-edge'</span> };
+  }
+  
+  <span class="cmt">// 3. Bot detection</span>
+  <span class="kw">const</span> ua = request.headers[<span class="str">'user-agent'</span>]?.<span class="prop">value</span> || <span class="str">''</span>;
+  <span class="kw">if</span> (ua.<span class="dir">includes</span>(<span class="str">'bad-bot'</span>)) {
+    <span class="kw">return</span> { <span class="prop">statusCode</span>: <span class="lit">429</span> };
+  }
+  
+  <span class="kw">return</span> request || response;
+}</code></pre>
+
+    <h2>🎯 When NOT to Use CloudFront Functions</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Use Case</th>
+          <th>Better Alternative</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Database queries</td>
+          <td>Lambda@Edge or Origin</td>
+        </tr>
+        <tr>
+          <td>Image resizing</td>
+          <td>CloudFront + Lambda@Edge</td>
+        </tr>
+        <tr>
+          <td>Complex auth</td>
+          <td>Lambda@Edge or CloudFront signed URLs</td>
+        </tr>
+        <tr>
+          <td>>1ms processing</td>
+          <td>Lambda@Edge or Origin</td>
+        </tr>
+        <tr>
+          <td>External API calls</td>
+          <td>Lambda@Edge</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>🔮 Future Enhancements</h2>
+    <ul>
+      <li>Increased memory limits</li>
+      <li>More runtime languages (possibly)</li>
+      <li>Enhanced debugging tools</li>
+      <li>Tighter CloudWatch integration</li>
+      <li>Request/response body access (currently limited)</li>
+    </ul>
+
+    <h2>📚 Summary</h2>
+    <p>
+      <strong>CloudFront Functions</strong> give you
+      <strong>microsecond-scale JavaScript execution</strong> at the edge for
+      simple HTTP manipulations, while <strong>AWS CloudWatch</strong> provides
+      the <strong>visibility and monitoring</strong> to ensure they run reliably
+      and efficiently. Together, they form a powerful duo for building
+      performant, secure, and cost-effective edge applications.
+    </p>
+
+    <p>
+      <strong>Key takeaway:</strong> If your edge logic fits in 10KB, executes
+      in &lt;1ms, and doesn't need external dependencies, CloudFront Functions
+      will likely be your most cost-effective and fastest option.
+    </p>
+  </body>
+</html>

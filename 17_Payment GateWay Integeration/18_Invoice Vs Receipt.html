@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice vs. Receipt & Lemon Squeezy API Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Technical Difference Between Invoice and Receipt</h1>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Receipt</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            A request for payment (bill) issued <strong>BEFORE</strong> payment
+          </td>
+          <td>Proof of payment issued <strong>AFTER</strong> payment</td>
+        </tr>
+        <tr>
+          <td>Lists goods/services provided and amount due</td>
+          <td>Confirms transaction completion</td>
+        </tr>
+        <tr>
+          <td>Used as a legal document for accounting</td>
+          <td>Shows payment method and date</td>
+        </tr>
+        <tr>
+          <td>Can be recurring (monthly invoices)</td>
+          <td>Finalizes the transaction</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>In Lemon Squeezy Context</h2>
+    <ul>
+      <li>
+        <strong>Invoice:</strong> A formal bill document with customer billing
+        details that can be generated/sent to customers.
+      </li>
+      <li>
+        <strong>Receipt:</strong> The automated email sent to customers after
+        purchase with order details and download links.
+      </li>
+    </ul>
+
+    <h2>Generating Invoice via API</h2>
+
+    <p>
+      <strong>Important Note:</strong> The endpoint
+      <code class="mono">/v1/orders/:id/generate-invoice</code> appears to be
+      deprecated. The correct endpoint to use is
+      <code class="mono">/v1/invoices</code>. Learn more:
+      <a
+        href="https://docs.lemonsqueezy.com/api/orders/generate-order-invoice"
+        class="mono"
+        style="text-decoration: none"
+        >https://docs.lemonsqueezy.com/api/orders/generate-order-invoice</a
+      >
+    </p>
+
+    <p>
+      Your CURL command provided in the original text is correct for the
+      <strong>current</strong> <code class="mono">/v1/invoices</code> endpoint,
+      but it was missing the JSON body in the prompt's source text. Here is the
+      corrected, complete version:
+    </p>
+
+    <h3>CURL Command (Corrected)</h3>
+    <pre><code class="bash"><span class="cmt"># Uses the non-deprecated /v1/invoices endpoint</span>
+<span class="kw">curl</span> -X <span class="str">"POST"</span> <span class="str">"https://api.lemonsqueezy.com/v1/invoices"</span> \
+    -H <span class="str">'Accept: application/vnd.api+json'</span> \
+    -H <span class="str">'Content-Type: application/vnd.api+json'</span> \
+    -H <span class="str">'Authorization: Bearer YOUR_API_KEY'</span> \
+    -d <span class="str">'$'</span>{
+    <span class="str">"data"</span>: {
+        <span class="str">"type"</span>: <span class="str">"invoices"</span>,
+        <span class="str">"attributes"</span>: {
+            <span class="str">"order_id"</span>: <span class="lit">1</span>,
+            <span class="str">"customer_name"</span>: <span class="str">"John Doe"</span>,
+            <span class="str">"customer_address"</span>: <span class="str">"123 Main St"</span>,
+            <span class="str">"customer_city"</span>: <span class="str">"Anytown"</span>,
+            <span class="str">"customer_state"</span>: <span class="str">"CA"</span>,
+            <span class="str">"customer_zip"</span>: <span class="str">"12345"</span>,
+            <span class="str">"customer_country"</span>: <span class="str">"US"</span>,
+            <span class="str">"customer_email"</span>: <span class="str">"john@example.com"</span>,
+            <span class="str">"notes"</span>: <span class="str">"Thank you for your business"</span>
+        }
+    }
+    }<span class="str">'</span>
+</code></pre>
+
+    <p>
+      Based on the Lemon Squeezy API documentation you provided, the original
+      <code class="mono">/v1/orders/:id/generate-invoice</code> usage in the
+      following examples has been corrected to show the JSON body for the
+      <code class="mono">/v1/invoices</code> endpoint, as the former is
+      deprecated.
+    </p>
+
+    <h3>
+      Using Fetch API (Node.js 18+) -
+      <span class="op"
+        >Note: Example below is for illustrative purposes; the current API uses
+        a JSON body post to /v1/invoices, not URL query params.</span
+      >
+    </h3>
+    <pre><code class="javascript">
+<span class="cmt">// The original code used the deprecated /generate-invoice endpoint with URLSearchParams.</span>
+<span class="cmt">// The correct modern method is to POST a JSON body to /v1/invoices.</span>
+<span class="kw">async function</span> <span class="dir">generateInvoice</span>(<span class="prop">orderId</span>, <span class="prop">customerData</span>) {
+    <span class="kw">const</span> <span class="prop">apiKey</span> = <span class="str">'YOUR_API_KEY_HERE'</span>;
+
+    <span class="cmt">// Construct the JSON body for the /v1/invoices endpoint</span>
+    <span class="kw">const</span> <span class="prop">body</span> = {
+        <span class="str">"data"</span>: {
+            <span class="str">"type"</span>: <span class="str">"invoices"</span>,
+            <span class="str">"attributes"</span>: {
+                <span class="str">"order_id"</span>: <span class="prop">orderId</span>,
+                <span class="str">"customer_name"</span>: <span class="prop">customerData</span>.<span class="prop">name</span>,
+                <span class="str">"customer_address"</span>: <span class="prop">customerData</span>.<span class="prop">address</span>,
+                <span class="str">"customer_city"</span>: <span class="prop">customerData</span>.<span class="prop">city</span>,
+                <span class="str">"customer_state"</span>: <span class="prop">customerData</span>.<span class="prop">state</span>,
+                <span class="str">"customer_zip"</span>: <span class="prop">customerData</span>.<span class="prop">zipCode</span>,
+                <span class="str">"customer_country"</span>: <span class="prop">customerData</span>.<span class="prop">country</span>,
+                <span class="str">"customer_email"</span>: <span class="prop">customerData</span>.<span class="prop">email</span> || <span class="str">"required@example.com"</span>, <span class="cmt">// Note: Email is often required</span>
+                <span class="str">"notes"</span>: <span class="prop">customerData</span>.<span class="prop">notes</span> || <span class="str">''</span>
+            }
+        }
+    };
+
+    <span class="kw">try</span> {
+        <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">`https://api.lemonsqueezy.com/v1/invoices`</span>, {
+            <span class="prop">method</span>: <span class="str">'POST'</span>,
+            <span class="prop">headers</span>: {
+                <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+                <span class="str">'Content-Type'</span>: <span class="str">'application/vnd.api+json'</span>,
+                <span class="str">'Authorization'</span>: <span class="str">`Bearer ${apiKey}`</span>
+            },
+            <span class="prop">body</span>: <span class="dir">JSON</span>.<span class="dir">stringify</span>(<span class="prop">body</span>)
+        });
+
+        <span class="kw">const</span> <span class="prop">data</span> = <span class="kw">await</span> <span class="prop">response</span>.<span class="dir">json</span>();
+
+        <span class="kw">if</span> (!<span class="prop">response</span>.<span class="prop">ok</span>) {
+            <span class="kw">throw new</span> <span class="type">Error</span>(<span class="prop">data</span>.<span class="prop">errors</span> ? <span class="dir">JSON</span>.<span class="dir">stringify</span>(<span class="prop">data</span>.<span class="prop">errors</span>) : <span class="str">'Failed to generate invoice'</span>);
+        }
+
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Invoice generated successfully!'</span>);
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Download URL:'</span>, <span class="prop">data</span>.<span class="prop">data</span>?.<span class="prop">attributes</span>?.<span class="prop">download_url</span> || <span class="prop">data</span>);
+        <span class="kw">return</span> <span class="prop">data</span>;
+    } <span class="kw">catch</span> (<span class="prop">error</span>) {
+        <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Error generating invoice:'</span>, <span class="prop">error</span>);
+        <span class="kw">throw</span> <span class="prop">error</span>;
+    }
+}
+
+<span class="cmt">// Usage</span>
+<span class="dir">generateInvoice</span>(<span class="lit">1</span>, {
+    <span class="prop">name</span>: <span class="str">'John Doe'</span>,
+    <span class="prop">address</span>: <span class="str">'123 Main St'</span>,
+    <span class="prop">city</span>: <span class="str">'Anytown'</span>,
+    <span class="prop">state</span>: <span class="str">'CA'</span>,
+    <span class="prop">zipCode</span>: <span class="str">'12345'</span>,
+    <span class="prop">country</span>: <span class="str">'US'</span>,
+    <span class="prop">notes</span>: <span class="str">'Thank you for your business'</span>,
+    <span class="prop">email</span>: <span class="str">'john@example.com'</span> <span class="cmt">// Added email for compliance</span>
+});
+</code></pre>
+
+    <h3>Method 3: Using Axios (More robust)</h3>
+    <p>First install axios: <code class="kw">npm install axios</code></p>
+    <pre><code class="javascript">
+<span class="kw">const</span> <span class="prop">axios</span> = <span class="dir">require</span>(<span class="str">'axios'</span>);
+
+<span class="kw">async function</span> <span class="dir">generateInvoiceAxios</span>(<span class="prop">orderId</span>, <span class="prop">customerData</span>) {
+    <span class="kw">const</span> <span class="prop">apiKey</span> = <span class="str">'YOUR_API_KEY_HERE'</span>;
+
+    <span class="cmt">// Uses the non-deprecated /v1/invoices endpoint</span>
+    <span class="kw">const</span> <span class="prop">url</span> = <span class="str">`https://api.lemonsqueezy.com/v1/invoices`</span>;
+
+    <span class="cmt">// Prepare the JSON body for the POST request</span>
+    <span class="kw">const</span> <span class="prop">body</span> = {
+        <span class="str">"data"</span>: {
+            <span class="str">"type"</span>: <span class="str">"invoices"</span>,
+            <span class="str">"attributes"</span>: {
+                <span class="str">"order_id"</span>: <span class="prop">orderId</span>,
+                <span class="str">"customer_name"</span>: <span class="prop">customerData</span>.<span class="prop">name</span>,
+                <span class="str">"customer_address"</span>: <span class="prop">customerData</span>.<span class="prop">address</span>,
+                <span class="str">"customer_city"</span>: <span class="prop">customerData</span>.<span class="prop">city</span>,
+                <span class="str">"customer_state"</span>: <span class="prop">customerData</span>.<span class="prop">state</span>,
+                <span class="str">"customer_zip"</span>: <span class="prop">customerData</span>.<span class="prop">zipCode</span>,
+                <span class="str">"customer_country"</span>: <span class="prop">customerData</span>.<span class="prop">country</span>,
+                <span class="str">"customer_email"</span>: <span class="prop">customerData</span>.<span class="prop">email</span> || <span class="str">"required@example.com"</span>,
+                <span class="str">"notes"</span>: <span class="prop">customerData</span>.<span class="prop">notes</span> || <span class="str">''</span>
+            }
+        }
+    };
+
+
+    <span class="kw">try</span> {
+        <span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">axios</span>.<span class="dir">post</span>(<span class="prop">url</span>, <span class="prop">body</span>, {
+            <span class="prop">headers</span>: {
+                <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+                <span class="str">'Content-Type'</span>: <span class="str">'application/vnd.api+json'</span>,
+                <span class="str">'Authorization'</span>: <span class="str">`Bearer ${apiKey}`</span>
+            }
+        });
+
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Invoice generated successfully!'</span>);
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Response:'</span>, <span class="prop">response</span>.<span class="prop">data</span>);
+        <span class="kw">return</span> <span class="prop">response</span>.<span class="prop">data</span>;
+    } <span class="kw">catch</span> (<span class="prop">error</span>) {
+        <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Error:'</span>, <span class="prop">error</span>.<span class="prop">response</span>?.<span class="prop">data</span> || <span class="prop">error</span>.<span class="prop">message</span>);
+        <span class="kw">throw</span> <span class="prop">error</span>;
+    }
+}
+
+<span class="cmt">// Usage</span>
+<span class="dir">generateInvoiceAxios</span>(<span class="lit">1</span>, {
+    <span class="prop">name</span>: <span class="str">'John Doe'</span>,
+    <span class="prop">address</span>: <span class="str">'123 Main St'</span>,
+    <span class="prop">city</span>: <span class="str">'Anytown'</span>,
+    <span class="prop">state</span>: <span class="str">'CA'</span>,
+    <span class="prop">zipCode</span>: <span class="str">'12345'</span>,
+    <span class="prop">country</span>: <span class="str">'US'</span>,
+    <span class="prop">notes</span>: <span class="str">'Thank you for your business'</span>,
+    <span class="prop">email</span>: <span class="str">'john@example.com'</span> <span class="cmt">// Added email for compliance</span>
+});
+</code></pre>
+
+    <h2>Important Notes:</h2>
+    <ul>
+      <li>
+        <strong>Required Fields Warning:</strong> As mentioned in the API
+        documentation, all address fields (<code class="prop">name</code>,
+        <code class="prop">address</code>, <code class="prop">city</code>,
+        <code class="prop">state</code>, <code class="prop">zip_code</code>,
+        <code class="prop">country</code>) will soon be required. Make sure to
+        always provide them.
+      </li>
+      <li>
+        <strong>State Requirement:</strong> The
+        <code class="prop">state</code> field is specifically required for US
+        and CA (Canada) addresses.
+      </li>
+      <li>
+        <strong>Response Format:</strong> The API should return a JSON response
+        containing a link to download the generated invoice.
+      </li>
+      <li>
+        <strong>Error Handling:</strong> Always implement proper error handling
+        as shown in the examples.
+      </li>
+      <li>
+        <strong>Testing:</strong> Use a tool like Postman or test with CURL
+        first to verify your API key and parameters work correctly.
+      </li>
+      <li>
+        <strong>Production:</strong> Store your API key securely (in environment
+        variables, not hard-coded):
+        <pre><code class="javascript">
+<span class="kw">const</span> <span class="prop">apiKey</span> = <span class="dir">process</span>.<span class="prop">env</span>.<span class="prop">LEMONSQUEEZY_API_KEY</span>;
+            </code></pre>
+      </li>
+      <li>
+        <strong>API Endpoint Change:</strong> The endpoint
+        <code class="mono">/v1/orders/:id/generate-invoice</code> appears to be
+        deprecated. Use <code class="mono">/v1/invoices</code> instead. learn
+        more:
+        <a
+          href="https://docs.lemonsqueezy.com/api/orders/generate-order-invoice"
+          class="mono"
+          style="text-decoration: none"
+          >https://docs.lemonsqueezy.com/api/orders/generate-order-invoice</a
+        >
+      </li>
+    </ul>
+  </body>
+</html>

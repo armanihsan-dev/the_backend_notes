@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socks in Node.js</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap');
+
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --header-color: #bb86fc;
+        --code-bg: #1e1e1e;
+        --comment-color: #6a9955;
+        --keyword-color: #569cd6;
+        --string-color: #ce9178;
+        --function-color: #dcdcaa;
+        --variable-color: #9cdcfe;
+        --number-color: #b5cea8;
+        --operator-color: #c586c0;
+        --block-bg: #2d2d2d;
+        --border-color: #444;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 20px;
+        background-color: var(--block-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--header-color);
+        font-weight: 700;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--header-color);
+      }
+
+      .code-block {
+        background-color: var(--code-bg);
+        border-radius: 6px;
+        padding: 15px;
+        margin: 20px 0;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .code-block pre {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+
+      /* Language-specific styling */
+      .language-js .token.comment {
+        color: var(--comment-color);
+      }
+      .language-js .token.keyword {
+        color: var(--keyword-color);
+      }
+      .language-js .token.string {
+        color: var(--string-color);
+      }
+      .language-js .token.function {
+        color: var(--function-color);
+      }
+      .language-js .token.variable,
+      .language-js .token.constant {
+        color: var(--variable-color);
+      }
+      .language-js .token.number {
+        color: var(--number-color);
+      }
+      .language-js .token.operator {
+        color: var(--operator-color);
+      }
+      .language-js .token.punctuation {
+        color: var(--text-color);
+      }
+      .language-js .token.property {
+        color: var(--text-color);
+      }
+
+      .language-bash .token.comment {
+        color: var(--comment-color);
+      }
+      .language-bash .token.command {
+        color: var(--variable-color);
+      }
+      .language-bash .token.arguments {
+        color: var(--text-color);
+      }
+      .language-bash .token.prompt {
+        color: var(--header-color);
+      }
+
+      .code-label {
+        display: block;
+        background-color: #333;
+        color: #eee;
+        padding: 5px 10px;
+        border-radius: 4px 4px 0 0;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        margin-bottom: -15px;
+        position: relative;
+        top: 5px;
+        width: fit-content;
+      }
+
+      .example-list {
+        margin-left: 20px;
+        padding-left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>🔹 What is a socket in general terms?</h2>
+      <p>
+        Think of a socket as an endpoint for two devices (like two computers, or
+        a client and a server) to communicate with each other over a network.
+      </p>
+      <p>
+        A socket in networking is a software endpoint that allows an application
+        to send and receive data across a network. It acts as a unique
+        communication endpoint, combining an <strong>IP address</strong> and a
+        <strong>port number</strong> to create a specific location for data to
+        be sent to and received from.
+      </p>
+      <p>Imagine a telephone call:</p>
+      <ul>
+        <li>
+          You dial a number → That’s like specifying an IP address + port.
+        </li>
+        <li>
+          The phone connects → That’s like establishing a socket connection.
+        </li>
+        <li>
+          You talk → That’s data being sent back and forth through the socket.
+        </li>
+      </ul>
+      <p>So, a socket = IP address + port + communication channel.</p>
+
+      <h2>🔹 What is a socket in Node.js?</h2>
+      <p>
+        In Node.js, a socket is an object that represents this network
+        connection.
+      </p>
+      <p>It can be used to send data and receive data.</p>
+      <p>
+        Node.js provides this through its built-in <strong>net</strong> module
+        (for TCP sockets) and <strong>dgram</strong> module (for UDP sockets).
+      </p>
+      <p>
+        For real-time apps like chat or notifications, libraries like Socket.IO
+        make sockets easier to use on top of Node.
+      </p>
+
+      <h2>🔹 How does a socket work?</h2>
+      <p>Here’s the process:</p>
+
+      <h3>Server listens for connections</h3>
+      <p>
+        The server opens a socket on a specific IP + port (like 127.0.0.1:3000).
+      </p>
+      <p>It says: “I’m ready, anyone can connect here.”</p>
+
+      <h3>Client connects to the server</h3>
+      <p>The client creates its own socket.</p>
+      <p>It specifies the server’s IP and port.</p>
+      <p>Now there are two sockets, one on each side.</p>
+
+      <h3>Connection established</h3>
+      <p>
+        The operating system makes sure data sent from one socket arrives at the
+        other.
+      </p>
+
+      <h3>Data transfer</h3>
+      <p>Both client and server can write (send) and read (receive) data.</p>
+      <p>This data flows like a two-way stream.</p>
+
+      <h3>Connection closed</h3>
+      <p>Either side can close the socket → the connection ends.</p>
+
+      <h2>🔹 Example in Node.js (TCP socket)</h2>
+      <h3>Server (server.js)</h3>
+      <span class="code-label">JavaScript</span>
+      <div class="code-block">
+        <pre><code class="language-js"><span class="token keyword">import</span> <span class="token variable">net</span> <span class="token keyword">from</span> <span class="token string">"net"</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Create a TCP server</span>
+<span class="token keyword">const</span> <span class="token variable">server</span> <span class="token operator">=</span> <span class="token variable">net</span><span class="token punctuation">.</span><span class="token function">createServer</span><span class="token punctuation">(</span><span class="token punctuation">(</span><span class="token variable">socket</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Client connected"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// Receive data from client</span>
+  <span class="token variable">socket</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">"data"</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">data</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+    <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Client says:"</span><span class="token punctuation">,</span> <span class="token variable">data</span><span class="token punctuation">.</span><span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token variable">socket</span><span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"Hello from server 👋"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+  <span class="token comment">// Client disconnects</span>
+  <span class="token variable">socket</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">"end"</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+    <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Client disconnected"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Server listens on port 4000</span>
+<span class="token variable">server</span><span class="token punctuation">.</span><span class="token function">listen</span><span class="token punctuation">(</span><span class="token number">4000</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Server running on port 4000"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+      </div>
+
+      <h3>Client (client.js)</h3>
+      <span class="code-label">JavaScript</span>
+      <div class="code-block">
+        <pre><code class="language-js"><span class="token keyword">import</span> <span class="token variable">net</span> <span class="token keyword">from</span> <span class="token string">"net"</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Connect to server</span>
+<span class="token keyword">const</span> <span class="token variable">client</span> <span class="token operator">=</span> <span class="token variable">net</span><span class="token punctuation">.</span><span class="token function">createConnection</span><span class="token punctuation">(</span><span class="token punctuation">{</span> <span class="token literal-property property">port</span><span class="token operator">:</span> <span class="token number">4000</span> <span class="token punctuation">}</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Connected to server"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">write</span><span class="token punctuation">(</span><span class="token string">"Hello Server 👋"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Receive data from server</span>
+<span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">"data"</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token variable">data</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Server says:"</span><span class="token punctuation">,</span> <span class="token variable">data</span><span class="token punctuation">.</span><span class="token function">toString</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+  <span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">end</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+<span class="token comment">// Connection closed</span>
+<span class="token variable">client</span><span class="token punctuation">.</span><span class="token function">on</span><span class="token punctuation">(</span><span class="token string">"end"</span><span class="token punctuation">,</span> <span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">=></span> <span class="token punctuation">{</span>
+  <span class="token console class-name">console</span><span class="token punctuation">.</span><span class="token function">log</span><span class="token punctuation">(</span><span class="token string">"Disconnected from server"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+<span class="token punctuation">}</span><span class="token punctuation">)</span><span class="token punctuation">;</span></code></pre>
+      </div>
+
+      <p>
+        👉 Run <code>node server.js</code> first, then
+        <code>node client.js</code>.
+      </p>
+      <p>You’ll see both sending messages to each other using sockets.</p>
+
+      <h2>🔹 In short</h2>
+      <p>
+        <strong>General socket</strong> = endpoint for communication (IP +
+        port).
+      </p>
+      <p>
+        <strong>Node.js socket</strong> = an object that represents this
+        connection, letting you send/receive data.
+      </p>
+      <p>
+        <strong>How it works</strong> = like a phone call: connect → talk →
+        disconnect.
+      </p>
+      <p>
+        For more information watch this video :
+        <a href="https://youtu.be/favi7avxIag?si=uA40QQxzeoPvcD1R"
+          >WebSocket(Apna College)</a
+        >
+      </p>
+    </div>
+  </body>
+</html>

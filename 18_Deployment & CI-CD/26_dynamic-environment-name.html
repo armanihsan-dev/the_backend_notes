@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dynamic Environments | GitHub Actions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <style>
+      :root {
+        --bg-primary: #09090b;
+        --bg-secondary: #18181b;
+        --bg-tertiary: #27272a;
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399;
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --border: #27272a;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+      .logo {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(90deg, var(--bg-secondary) 0%, transparent 100%);
+      }
+      .nav-link.active {
+        color: var(--accent);
+        border-left-color: var(--accent);
+        background: linear-gradient(90deg, var(--accent-dim) 0%, transparent 100%);
+        font-weight: 600;
+      }
+      .nav-section { margin-bottom: 2rem; }
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+      h2 {
+        font-size: 1.8rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+      h3 {
+        font-size: 1.3rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+      p code, li code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+      ul, ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li { margin-bottom: 0.5rem; }
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .comparison-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin: 2rem 0;
+      }
+      .comparison-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1.5rem;
+      }
+      .comparison-card h4 {
+        margin-top: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+      @media (max-width: 1024px) {
+        .main-content { padding: 3rem; }
+        .comparison-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 768px) {
+        body { flex-direction: column; }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section { display: none; }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 { font-size: 2rem; }
+      }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-shuffle"></i> DYNAMIC ENVIRONMENTS</div>
+      <div class="nav-section">
+        <div class="nav-title">Core Concepts</div>
+        <a href="#what-is" class="nav-link">What is it?</a>
+        <a href="#comparison" class="nav-link">Static vs Dynamic</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">Examples</div>
+        <a href="#branch-based" class="nav-link">Branch-Based Selection</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Advanced</span>
+        <h1>DYNAMIC ENVIRONMENTS</h1>
+        <p>RUNTIME ENVIRONMENT SELECTION IN GITHUB ACTIONS</p>
+      </section>
+
+      <section id="what-is">
+        <h2>WHAT IS IT? 🎯</h2>
+        
+        <p>Setting Environments Dynamically means creating or selecting GitHub Environments during workflow execution (at runtime) instead of hardcoding them beforehand. Environments in GitHub are deployment targets (like Production, Staging, Development) with specific protections, variables, and secrets.</p>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-lightbulb"></i> Key Benefit</span>
+          <p>Dynamic environments allow a single workflow to adapt to different deployment targets based on runtime conditions like branch names, tags, or manual inputs.</p>
+        </div>
+      </section>
+
+      <section id="comparison">
+        <h2>STATIC VS DYNAMIC ENVIRONMENTS 🔄</h2>
+
+        <div class="comparison-grid">
+          <div class="comparison-card">
+            <h4><i class="fa-solid fa-times-circle" style="color: #ef4444;"></i> Static Environment (Traditional)</h4>
+            <pre><code class="language-yaml">jobs:
+  deploy:
+    environment: production
+    runs-on: ubuntu-latest</code></pre>
+            <p style="margin-top: 1rem;">❌ Fixed, can't change during runtime</p>
+          </div>
+
+          <div class="comparison-card">
+            <h4><i class="fa-solid fa-check-circle" style="color: var(--accent);"></i> Dynamic Environment (Modern)</h4>
+            <pre><code class="language-yaml">jobs:
+  deploy:
+    environment: ${{ steps.env.outputs.environment_name }}
+    runs-on: ubuntu-latest</code></pre>
+            <p style="margin-top: 1rem;">✅ Set during workflow execution</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="branch-based">
+        <h2>1️⃣ DYNAMICALLY CHOOSE ENVIRONMENT FROM BRANCH 🌿</h2>
+
+        <h3>Goal</h3>
+        <ul>
+          <li>If branch is <code>main</code> → use environment <strong>PROD</strong></li>
+          <li>If branch is <code>develop</code> → use environment <strong>TEST</strong></li>
+        </ul>
+
+        <p>We can do this directly in the <code>environment:</code> key using an expression.</p>
+
+        <h3>Implementation</h3>
+        <pre><code class="language-yaml">name: Branch based deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Pick environment based on branch
+    environment: ${{ github.ref_name == 'main' && 'PROD' || 'TEST' }}
+
+    steps:
+      - name: Show environment choice
+        run: |
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Environment used: ${{ job.environment.name }}"</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-info-circle"></i> Expression Pattern</span>
+          <p>This pattern is used because the expression language does not have a real ternary operator. So we simulate it with:</p>
+          <pre><code class="language-text">condition && 'valueIfTrue' || 'valueIfFalse'</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>GitHub Actions Dynamic Environments Guide</p>
+        <p>Generated for <strong>Advanced CI/CD Workflows</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem;">
+          <a href="https://www.linkedin.com/in/arman-khan-5a790430a/" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+            <i class="fab fa-linkedin" style="font-size: 1.2rem;"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script>
+      const sections = document.querySelectorAll('section[id]');
+      const navLinks = document.querySelectorAll('.nav-link');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            navLinks.forEach(link => link.classList.remove('active'));
+            const activeLink = document.querySelector(`a[href="#${entry.target.id}"]`);
+            if (activeLink) activeLink.classList.add('active');
+          }
+        });
+      }, { rootMargin: '-20% 0px -70% 0px' });
+      sections.forEach(section => observer.observe(section));
+    </script>
+</body>
+</html>

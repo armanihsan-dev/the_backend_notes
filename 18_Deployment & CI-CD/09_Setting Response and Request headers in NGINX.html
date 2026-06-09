@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Header Mastery & Security</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Part 2: Request/Response Headers & Security</h1>
+
+    <h2>1️⃣ The real request/response flow (mentally visualize this)</h2>
+
+    <div class="flow-container">
+      <strong>Browser</strong><br />| <br />| (Request Headers)<br />v<br />
+      <strong>NGINX (Reverse Proxy)</strong><br />| <br />| (Modified / Added
+      Headers)<br />v<br />
+      <strong>Node.js (Express)</strong><br />| <br />| (Response Headers)<br />v<br />
+      <strong>NGINX</strong><br />| <br />| (Modified / Added Headers)<br />v<br />
+      <strong>Browser</strong>
+    </div>
+
+    <div class="warning-box">
+      <strong>⚠️ Key idea:</strong><br />
+      NGINX sits in the middle. It can read, add, change, or delete headers in
+      both directions.
+    </div>
+
+    <h2>2️⃣ Request headers: Browser &rarr; NGINX &rarr; Node</h2>
+    <h3>Example browser request</h3>
+    <pre><code>GET /api/users HTTP/1.1
+Host: example.com
+User-Agent: Chrome
+Authorization: Bearer abc123
+Cookie: sessionId=xyz</code></pre>
+
+    <h3>What NGINX does with request headers</h3>
+    <p>
+      By default: <strong>NGINX forwards most headers</strong>, BUT some headers
+      are changed or lost unless you explicitly forward them.
+    </p>
+    <p>This is why these lines are critical:</p>
+    <pre><code><span class="prop">proxy_set_header</span> Host <span class="str">$host</span>;
+<span class="prop">proxy_set_header</span> X-Real-IP <span class="str">$remote_addr</span>;
+<span class="prop">proxy_set_header</span> X-Forwarded-For <span class="str">$proxy_add_x_forwarded_for</span>;
+<span class="prop">proxy_set_header</span> X-Forwarded-Proto <span class="str">$scheme</span>;</code></pre>
+
+    <h3>How Node receives request headers</h3>
+    <p>In Express:</p>
+    <pre><code>app.get(<span class="str">"/api/users"</span>, (req, res) => {
+  console.log(req.headers);
+});</code></pre>
+
+    <p>Example output:</p>
+    <pre><code>{
+  host: <span class="str">'example.com'</span>,
+  <span class="str">'user-agent'</span>: <span class="str">'Chrome'</span>,
+  authorization: <span class="str">'Bearer abc123'</span>,
+  cookie: <span class="str">'sessionId=xyz'</span>,
+  <span class="str">'x-real-ip'</span>: <span class="str">'192.168.1.10'</span>,
+  <span class="str">'x-forwarded-for'</span>: <span class="str">'192.168.1.10'</span>,
+  <span class="str">'x-forwarded-proto'</span>: <span class="str">'https'</span>
+}</code></pre>
+
+    <div class="warning-box">
+      <strong>⚠️ Node NEVER sees the browser directly.</strong> It only sees
+      what NGINX passes forward.
+    </div>
+
+    <h2>3️⃣ Setting request headers in NGINX</h2>
+    <p>Add custom header:</p>
+    <pre><code><span class="prop">proxy_set_header</span> X-App-Source <span class="str">"nginx"</span>;</code></pre>
+    <p>
+      Node can read it: <code>req.headers["x-app-source"]; // "nginx"</code>
+    </p>
+
+    <p>Override a browser header:</p>
+    <pre><code><span class="prop">proxy_set_header</span> Authorization <span class="str">"Bearer server-token"</span>;</code></pre>
+    <div class="warning-box">
+      <strong>🚨 This overrides the browser Authorization header.</strong> Node
+      will NEVER see the original one.
+    </div>
+
+    <h2>4️⃣ Response headers: Node &rarr; NGINX &rarr; Browser</h2>
+    <p>Now reverse direction. Setting headers in Node.js:</p>
+    <pre><code>res.setHeader(<span class="str">"X-Powered-By"</span>, <span class="str">"Node.js"</span>);
+res.setHeader(<span class="str">"Cache-Control"</span>, <span class="str">"no-store"</span>);
+res.json({ ok: <span class="lit">true</span> });</code></pre>
+
+    <p>Response sent to NGINX:</p>
+    <pre><code>HTTP/1.1 200 OK
+X-Powered-By: Node.js
+Cache-Control: no-store</code></pre>
+
+    <h3>NGINX receives this response</h3>
+    <p>
+      NGINX can: Pass headers as-is, Add new headers, Override existing ones, or
+      Hide headers.
+    </p>
+    <p>Adding headers in NGINX:</p>
+    <pre><code><span class="kw">add_header</span> X-Server <span class="str">"nginx"</span>;</code></pre>
+    <p>
+      Browser receives: <code>X-Powered-By: Node.js</code>,
+      <code>Cache-Control: no-store</code>, <code>X-Server: nginx</code>
+    </p>
+
+    <p>Overriding Node headers in NGINX:</p>
+    <pre><code><span class="kw">add_header</span> Cache-Control <span class="str">"public, max-age=3600"</span> always;</code></pre>
+    <div class="warning-box">
+      <strong>🚨 NGINX WINS.</strong> Browser sees
+      <code>Cache-Control: public, max-age=3600</code>. Node’s value is ignored.
+    </div>
+
+    <p>Removing headers (security):</p>
+    <pre><code><span class="kw">proxy_hide_header</span> X-Powered-By;</code></pre>
+    <p>Now Node sets it &rarr; but browser never sees it.</p>
+
+    <h2>5️⃣ Who wins? (IMPORTANT RULES)</h2>
+    <div class="golden-rule">
+      <strong>🔑 Golden Rule:</strong> NGINX always has the final say.
+    </div>
+    <table>
+      <tr>
+        <th>Scenario</th>
+        <th>Result</th>
+      </tr>
+      <tr>
+        <td>Node sets header</td>
+        <td>Passed unless NGINX changes it</td>
+      </tr>
+      <tr>
+        <td>NGINX sets same header</td>
+        <td>NGINX overrides Node</td>
+      </tr>
+      <tr>
+        <td>Browser sets header</td>
+        <td>Can be overridden by NGINX</td>
+      </tr>
+      <tr>
+        <td>Node tries to remove header</td>
+        <td>NGINX can re-add it</td>
+      </tr>
+    </table>
+
+    <h2>6️⃣ Common headers you MUST understand</h2>
+    <h3>🔹 Client & Proxy headers</h3>
+    <table>
+      <tr>
+        <th>Header</th>
+        <th>Purpose</th>
+      </tr>
+      <tr>
+        <td>Host</td>
+        <td>Original domain</td>
+      </tr>
+      <tr>
+        <td>X-Real-IP</td>
+        <td>Client IP</td>
+      </tr>
+      <tr>
+        <td>X-Forwarded-For</td>
+        <td>Chain of client IPs</td>
+      </tr>
+      <tr>
+        <td>X-Forwarded-Proto</td>
+        <td>http / https</td>
+      </tr>
+    </table>
+    <p><strong>👉 Required for auth, logging, rate-limiting</strong></p>
+
+    <h3>🔹 Auth & session</h3>
+    <p>
+      <strong>Authorization:</strong> JWT / Bearer token |
+      <strong>Cookie:</strong> Sessions | <strong>Set-Cookie:</strong> Session
+      creation.<br />
+      ⚠️ Cookies flow both ways.
+    </p>
+
+    <h3>🔹 Security headers (usually set in NGINX)</h3>
+    <pre><code><span class="kw">add_header</span> X-Frame-Options DENY;
+<span class="kw">add_header</span> X-Content-Type-Options nosniff;
+<span class="kw">add_header</span> Referrer-Policy strict-origin;</code></pre>
+
+    <h3>🔹 CORS headers</h3>
+    <p>Can be set in Node OR NGINX (not both). Setting CORS in both = bugs.</p>
+
+    <h2>7️⃣ Real-world best practice (IMPORTANT)</h2>
+    <table>
+      <tr>
+        <th>Do this (Node)</th>
+        <th>Do this (NGINX)</th>
+      </tr>
+      <tr>
+        <td>Auth logic, App-specific headers, Cookies</td>
+        <td>Security headers, CORS, Cache, SSL, Compression</td>
+      </tr>
+    </table>
+    <p>
+      <strong>Avoid this:</strong> Same header in both places, Guessing header
+      behavior, Blind copy-paste configs.
+    </p>
+
+    <h2>8️⃣ Debugging headers (skill check)</h2>
+    <ul>
+      <li>
+        <strong>Browser/CLI:</strong> <code>curl -I http://localhost</code>
+      </li>
+      <li>
+        <strong>NGINX logs:</strong>
+        <code>sudo tail -f /var/log/nginx/access.log</code>
+      </li>
+      <li><strong>Node:</strong> <code>console.log(req.headers);</code></li>
+    </ul>
+
+    <hr />
+
+    <h1>How to hide the server in NGINX header</h1>
+
+    <div class="warning-box">
+      <strong>1️⃣ What is leaking by default?</strong><br />
+      Headers like <code>Server: nginx/1.24.0</code> or
+      <code>X-Powered-By: Express</code> tell attackers what server and version
+      you use. This is unnecessary attack surface.
+    </div>
+
+    <h2>2️⃣ Hide NGINX “Server” header (MOST IMPORTANT)</h2>
+    <p>
+      Edit <code>/etc/nginx/nginx.conf</code>. Inside <code>http {}</code>, add:
+    </p>
+    <pre><code><span class="kw">server_tokens</span> <span class="lit">off</span>;</code></pre>
+    <p>
+      Reload: <code>sudo systemctl reload nginx</code>. Result:
+      <code>Server: nginx</code> (no version).
+    </p>
+
+    <h2>3️⃣ Remove “Server” header completely (advanced)</h2>
+    <p>Requires <strong>headers-more</strong> module.</p>
+    <pre><code><span class="kw">sudo</span> apt install libnginx-mod-http-headers-more-filter
+<span class="cmt"># Add to config:</span>
+more_clear_headers Server;</code></pre>
+
+    <h2>4️⃣ Hide Express / Node headers</h2>
+    <pre><code><span class="cmt">// In Express</span>
+app.disable(<span class="str">"x-powered-by"</span>);</code></pre>
+
+    <h2>5️⃣ Hide upstream headers via NGINX</h2>
+    <pre><code><span class="kw">proxy_hide_header</span> X-Powered-By;
+<span class="kw">proxy_hide_header</span> Server;</code></pre>
+
+    <h2>7️⃣ Production-grade hardening (recommended)</h2>
+    <pre><code><span class="kw">add_header</span> X-Frame-Options DENY always;
+<span class="kw">add_header</span> X-Content-Type-Options nosniff always;
+<span class="kw">add_header</span> Referrer-Policy strict-origin always;
+<span class="kw">add_header</span> Permissions-Policy <span class="str">"geolocation=()"</span> always;</code></pre>
+
+    <div class="golden-rule">
+      <strong>8️⃣ TL;DR Table</strong>
+      <table>
+        <tr>
+          <th>Goal</th>
+          <th>Method</th>
+        </tr>
+        <tr>
+          <td>Hide nginx version</td>
+          <td>server_tokens off;</td>
+        </tr>
+        <tr>
+          <td>Remove Server header</td>
+          <td>headers-more module</td>
+        </tr>
+        <tr>
+          <td>Hide Express info</td>
+          <td>app.disable("x-powered-by")</td>
+        </tr>
+        <tr>
+          <td>Final control</td>
+          <td>NGINX proxy_hide_header</td>
+        </tr>
+      </table>
+    </div>
+
+    <p>
+      <strong>Final mental model:</strong> Browser &rarr; NGINX decides what
+      Node sees | Node &rarr; NGINX decides what Browser sees.
+    </p>
+  </body>
+</html>

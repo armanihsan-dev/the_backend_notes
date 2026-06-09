@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cryptographic Key Derivation Functions</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Global Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VSCode Dark Theme Background */
+        color: #d4d4d4; /* Light text for contrast */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VSCode Blue for Headings */
+        border-bottom: 2px solid #569cd6;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      /* Key Sections and Emphasis */
+      strong {
+        color: #9cd656; /* VSCode Green for strong emphasis */
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #252526; /* Slightly lighter than body for tables */
+      }
+
+      th,
+      td {
+        border: 1px solid #3e3e3e;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #333333;
+        color: #dcdcdc;
+        font-weight: bold;
+      }
+
+      td {
+        color: #cccccc;
+      }
+
+      /* LaTeX/Mathematical Notations */
+      .math-notation {
+        display: block;
+        margin: 20px 0;
+        text-align: center;
+        font-size: 1.2em;
+        color: #ce9178; /* VSCode Orange for constants/math */
+      }
+
+      /* Horizontal Rule */
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #569cd6;
+        margin: 30px 0;
+      }
+
+      /* Code Blocks (VSCode Dark Theme) */
+      .code-container {
+        background-color: #1e1e1e;
+        border: 1px solid #569cd6;
+        margin: 20px 0;
+        border-radius: 5px;
+        overflow: auto;
+      }
+
+      .code-header {
+        background-color: #333333;
+        color: #d4d4d4;
+        padding: 5px 10px;
+        font-size: 0.9em;
+        border-bottom: 1px solid #569cd6;
+      }
+
+      pre {
+        padding: 15px;
+        margin: 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+      }
+
+      /* Syntax Highlighting Imitation */
+      .kw {
+        color: #569cd6;
+      } /* keyword (const, async, function) */
+      .fn {
+        color: #4ec9b0;
+      } /* function name */
+      .var {
+        color: #9cd656;
+      } /* variable name */
+      .str {
+        color: #ce9178;
+      } /* string */
+      .num {
+        color: #b5cea8;
+      } /* number */
+      .comment {
+        color: #6a9955;
+      } /* comments */
+      .op {
+        color: #d4d4d4;
+      } /* operators and punctuation */
+      .prop {
+        color: #dcdcdc;
+      } /* properties */
+    </style>
+  </head>
+  <body>
+    <h1>🔑 Key Derivation Functions (KDFs) Explained</h1>
+    <p>
+      A <strong>Key Derivation Function (KDF)</strong> is a cryptographic
+      algorithm designed to derive one or more high-entropy secret keys from a
+      secret value (like a password or master key) using a pseudorandom
+      function, typically a cryptographic hash function or a block cipher.
+    </p>
+
+    <h2>Clear Syntax</h2>
+    <p>
+      While the exact syntax depends on the specific KDF algorithm and the
+      programming library used, a conceptual or general syntax for a KDF,
+      especially a <strong>Password-Based KDF (PBKDF)</strong>, can be expressed
+      as:
+    </p>
+
+    <div class="math-notation">
+      $$\text{DerivedKey} = \text{KDF}(\text{Secret}, \text{Salt},
+      \text{CostFactor}, \text{KeyLength})$$
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>$\text{Secret}$</td>
+          <td>
+            The initial secret input (e.g., a user's password or a master key).
+          </td>
+        </tr>
+        <tr>
+          <td>$\text{Salt}$</td>
+          <td>
+            A unique, random value added to the input to ensure that even
+            identical secrets result in different derived keys. This prevents
+            the use of pre-computed tables (like rainbow tables).
+          </td>
+        </tr>
+        <tr>
+          <td>$\text{CostFactor}$</td>
+          <td>
+            A parameter (often an iteration count or memory/CPU requirement)
+            that controls the computational expense of the function,
+            deliberately making it slower.
+          </td>
+        </tr>
+        <tr>
+          <td>$\text{KeyLength}$</td>
+          <td>The desired length of the output derived key.</td>
+        </tr>
+        <tr>
+          <td>$\text{DerivedKey}$</td>
+          <td>The final, cryptographically strong key output.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>Why the Name "Key Derivation Function"?</h2>
+    <p>The name directly reflects its purpose:</p>
+    <ul>
+      <li>
+        <strong>Key:</strong> It produces a cryptographic key suitable for use
+        in encryption, authentication, or other security protocols.
+      </li>
+      <li>
+        <strong>Derivation:</strong> It generates (or <strong>derives</strong>)
+        this new key from a starting secret input. The input secret is typically
+        not strong enough or not of the correct format/length to be used
+        directly as a cryptographic key.
+      </li>
+      <li>
+        <strong>Function:</strong> It is a defined, deterministic process (an
+        algorithm) that produces the same output key for the same set of inputs.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Why Do We Need KDFs?</h2>
+    <p>
+      We need KDFs primarily for **key strengthening** and **key
+      diversification**:
+    </p>
+    <ul>
+      <li>
+        <strong>Key Strengthening (for weak inputs like passwords):</strong>
+        User-chosen passwords often have low entropy (they are short,
+        predictable, or dictionary words). Cryptographic algorithms require keys
+        with **high entropy** (randomness) to be secure. KDFs, especially
+        PBKDFs, use a high computational cost (many iterations, high memory/CPU
+        usage—known as **key stretching**) to turn a weak, low-entropy secret
+        into a strong, high-entropy derived key, making brute-force attacks
+        computationally infeasible.
+      </li>
+      <li>
+        <strong>Key Diversification (from a master secret):</strong> KDFs can be
+        used to generate multiple unique, independent keys (e.g., for
+        encryption, signing, and integrity checks) from a single master secret
+        key. This prevents an attacker who compromises one derived key from
+        learning about the other derived keys or the original master key.
+      </li>
+      <li>
+        <strong>Format/Length Adjustment:</strong> They ensure the output key is
+        of the exact length and format required by the subsequent cryptographic
+        algorithm (e.g., a 256-bit key for AES-256).
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Use Cases of KDFs</h2>
+    <p>KDFs are used in various cryptographic applications:</p>
+    <ul>
+      <li>
+        <strong>Password Storage (PBKDFs):</strong> Storing a hash of a user's
+        password instead of the password itself (the focus of the next section).
+      </li>
+      <li>
+        <strong>Full Disk Encryption:</strong> Deriving the encryption key for a
+        disk from a user's passphrase.
+      </li>
+      <li>
+        <strong>Key Agreement Protocols:</strong> Deriving a final, symmetric
+        session key from the shared secret output of protocols like
+        Diffie-Hellman (DH) (e.g., using **HKDF**).
+      </li>
+      <li>
+        <strong>TLS/SSL:</strong> Generating symmetric session keys from the
+        established master secret during the handshake.
+      </li>
+      <li>
+        <strong>Secure Backup/Cloud Storage:</strong> Deriving unique keys for
+        file encryption from a single user master key.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Why Use KDFs During Password Hashing?</h2>
+    <p>
+      KDFs are essential for secure password hashing because they are designed
+      to resist **offline password guessing attacks**, which standard, fast hash
+      functions (like SHA-256) cannot:
+    </p>
+    <ul>
+      <li>
+        <strong>Resistance to Brute-Force/Dictionary Attacks:</strong> KDFs
+        include a **Cost Factor** parameter that deliberately makes the
+        calculation slow and resource-intensive. If a KDF is configured to take,
+        say, **0.5 seconds** to compute, a legitimate user only computes it once
+        during login. However, an attacker with a stolen database of password
+        hashes will be limited to about **2 computations per second per CPU
+        core**, slowing down a massive guessing attack (brute-force or
+        dictionary) to an impractical timescale.
+      </li>
+      <li>
+        <strong>Resistance to Rainbow Tables:</strong> By incorporating a
+        unique, random **Salt** for every password, KDFs ensure that the hash
+        (derived key) is unique, even if two users have the same password. This
+        renders pre-computed **rainbow tables**—which map hashes back to
+        passwords—useless, as the table would need to be pre-computed for every
+        possible salt value, which is infeasible.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Built-in Key Derivation Functions</h2>
+    <p>
+      These are some of the most recognized and recommended modern KDFs,
+      particularly those used for password hashing (Password-Based KDFs):
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>KDF</th>
+          <th>Basis/Key Feature</th>
+          <th>Recommendation Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Argon2</strong></td>
+          <td>
+            Competition winner (Password Hashing Competition). Configurable for
+            CPU and **Memory hardness**.
+          </td>
+          <td><strong>Currently Recommended (Argon2id)</strong></td>
+        </tr>
+        <tr>
+          <td><strong>scrypt</strong></td>
+          <td>
+            Designed to be **memory-hard**, requiring large amounts of RAM to
+            compute, which hinders attacks using GPUs or custom hardware
+            (ASICs).
+          </td>
+          <td>Recommended if Argon2 is unavailable.</td>
+        </tr>
+        <tr>
+          <td><strong>bcrypt</strong></td>
+          <td>
+            Based on the Blowfish cipher. Was one of the first widely adopted
+            slow, salted password hashing functions.
+          </td>
+          <td>Suitable for legacy systems.</td>
+        </tr>
+        <tr>
+          <td><strong>PBKDF2</strong></td>
+          <td>
+            Password-Based Key Derivation Function 2. Uses a hash (e.g.,
+            HMAC-SHA256) iterated many times (**key stretching**).
+          </td>
+          <td>
+            Recommended primarily for **FIPS-140 compliance**, less resistant to
+            custom hardware attacks than Argon2 or scrypt.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>HKDF</strong></td>
+          <td>
+            HMAC-based Key Derivation Function. Used for **key agreement and key
+            diversification** (not typically for password hashing).
+          </td>
+          <td>Standard for general key derivation in protocols.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h1>🧠 What is PBKDF2 and How it Works</h1>
+    <p>
+      That's a great request! Learning **PBKDF2** (Password-Based Key Derivation
+      Function 2) involves understanding both the **cryptography** behind it and
+      the **Node.js implementation**.
+    </p>
+    <p>
+      PBKDF2 is a **Key Derivation Function (KDF)** used to secure passwords.
+      Its primary goal is to make brute-force and dictionary attacks
+      computationally expensive for an attacker.
+    </p>
+    <p>
+      The core idea is <strong>Key Stretching</strong>: making the process of
+      generating the final password hash intentionally slow by running a basic
+      cryptographic hash function (like HMAC-SHA256 or HMAC-SHA512) many times.
+    </p>
+
+    <h2>1. The Inputs and The Process</h2>
+    <p>
+      PBKDF2 takes four main inputs to produce a derived key (the final password
+      hash):
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Node.js Argument</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Password</strong></td>
+          <td><code>password</code> (string or Buffer)</td>
+          <td>The user's plaintext password.</td>
+        </tr>
+        <tr>
+          <td><strong>Salt</strong></td>
+          <td><code>salt</code> (string or Buffer)</td>
+          <td>
+            A unique, randomly generated value for each password. This prevents
+            "rainbow table" attacks and ensures two identical passwords have
+            different hashes.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Iterations</strong></td>
+          <td><code>iterations</code> (number)</td>
+          <td>
+            The number of times the underlying hash function is applied. **This
+            is the main factor controlling the security (and slowness) of the
+            hash.**
+          </td>
+        </tr>
+        <tr>
+          <td><strong>PRF/Digest</strong></td>
+          <td><code>digest</code> (string)</td>
+          <td>
+            The underlying pseudorandom function, typically a hash algorithm
+            like <code>'sha256'</code> or <code>'sha512'</code>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      The internal process is a **loop** where the output of the hash function
+      in one step becomes the input for the next, for the specified number of
+      iterations.
+    </p>
+
+    <h2>2. The Output</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Node.js Argument</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Derived Key Length</strong></td>
+          <td><code>keylen</code> (number)</td>
+          <td>The desired length of the final output hash, in bytes.</td>
+        </tr>
+        <tr>
+          <td><strong>Derived Key (Hash)</strong></td>
+          <td>(Buffer/key)</td>
+          <td>The final, secured hash that is stored in the database.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h1>💻 PBKDF2 in Node.js Syntax</h1>
+    <p>
+      Node.js provides PBKDF2 via the built-in <code>crypto</code> module. For
+      server applications, you must use the **asynchronous** version to prevent
+      blocking the main thread.
+    </p>
+
+    <h2>Asynchronous Function Signature (Recommended)</h2>
+    <div class="code-container">
+      <div class="code-header">JavaScript</div>
+      <pre><span class="fn">crypto</span>.<span class="fn">pbkdf2</span>(<span class="var">password</span>, <span class="var">salt</span>, <span class="var">iterations</span>, <span class="var">keylen</span>, <span class="var">digest</span>, <span class="var">callback</span>)</pre>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>password</code></td>
+          <td><code>&lt;string&gt;</code> or <code>&lt;Buffer&gt;</code></td>
+          <td>The password to hash.</td>
+        </tr>
+        <tr>
+          <td><code>salt</code></td>
+          <td><code>&lt;string&gt;</code> or <code>&lt;Buffer&gt;</code></td>
+          <td>The unique salt for this password.</td>
+        </tr>
+        <tr>
+          <td><code>iterations</code></td>
+          <td><code>&lt;number&gt;</code></td>
+          <td>
+            The number of times to run the digest function (e.g.,
+            <code>600000</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><code>keylen</code></td>
+          <td><code>&lt;number&gt;</code></td>
+          <td>
+            The length of the output hash in bytes (e.g., <code>64</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><code>digest</code></td>
+          <td><code>&lt;string&gt;</code></td>
+          <td>The HMAC digest function (e.g., <code>'sha512'</code>).</td>
+        </tr>
+        <tr>
+          <td><code>callback</code></td>
+          <td><code>&lt;Function&gt;</code></td>
+          <td><code>(err, derivedKey) =&gt; { ... }</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h1>🛠️ Clear Example: Hashing and Verification</h1>
+    <p>
+      The two main steps for securing a password are: **(1) Hashing** on
+      registration/change, and **(2) Verification** on login.
+    </p>
+
+    <h2>Setup (Common Configuration)</h2>
+    <div class="code-container">
+      <div class="code-header">JavaScript</div>
+      <pre><span class="kw">const</span> <span class="var">crypto</span> <span class="op">=</span> <span class="kw">require</span>(<span class="str">'crypto'</span>)<span class="op">;</span>
+<span class="kw">const</span> <span class="var">util</span> <span class="op">=</span> <span class="kw">require</span>(<span class="str">'util'</span>)<span class="op">;</span>
+
+<span class="comment">// Use promisify to easily use async/await</span>
+<span class="kw">const</span> <span class="var">pbkdf2Promise</span> <span class="op">=</span> <span class="var">util</span>.<span class="fn">promisify</span>(<span class="var">crypto</span>.<span class="fn">pbkdf2</span>)<span class="op">;</span>
+
+<span class="comment">// --- Best Practice Constants (Always store the salt and iterations) ---</span>
+<span class="kw">const</span> <span class="var">ITERATIONS</span> <span class="op">=</span> <span class="num">600000</span><span class="op">;</span>
+<span class="kw">const</span> <span class="var">KEY_LENGTH</span> <span class="op">=</span> <span class="num">64</span><span class="op">;</span> <span class="comment">// Derived key length in bytes</span>
+<span class="kw">const</span> <span class="var">DIGEST</span> <span class="op">=</span> <span class="str">'sha512'</span><span class="op">;</span></pre>
+    </div>
+
+    <h2>1. Hashing a New Password (Registration)</h2>
+    <p>This function generates a salt and then creates the final hash.</p>
+    <div class="code-container">
+      <div class="code-header">JavaScript</div>
+      <pre><span class="kw">async function</span> <span class="fn">hashPassword</span>(<span class="var">password</span>) <span class="op">{</span>
+    <span class="comment">// 1. Generate a unique salt (16 random bytes)</span>
+    <span class="kw">const</span> <span class="var">salt</span> <span class="op">=</span> <span class="var">crypto</span>.<span class="fn">randomBytes</span>(<span class="num">16</span>).<span class="fn">toString</span>(<span class="str">'hex'</span>)<span class="op">;</span>
+
+    <span class="comment">// 2. Perform the intensive hashing operation</span>
+    <span class="kw">try</span> <span class="op">{</span>
+        <span class="kw">const</span> <span class="var">derivedKey</span> <span class="op">=</span> <span class="kw">await</span> <span class="var">pbkdf2Promise</span>(
+            <span class="var">password</span>,
+            <span class="var">salt</span>,
+            <span class="var">ITERATIONS</span>,
+            <span class="var">KEY_LENGTH</span>,
+            <span class="var">DIGEST</span>
+        )<span class="op">;</span>
+
+        <span class="comment">// 3. Return the stored data (salt, iterations, and hash)</span>
+        <span class="kw">return</span> <span class="op">{</span>
+            <span class="prop">hash</span><span class="op">:</span> <span class="var">derivedKey</span>.<span class="fn">toString</span>(<span class="str">'hex'</span>)<span class="op">,</span> <span class="comment">// Convert the Buffer to a storable hex string</span>
+            <span class="prop">salt</span><span class="op">:</span> <span class="var">salt</span><span class="op">,</span>
+            <span class="prop">iterations</span><span class="op">:</span> <span class="var">ITERATIONS</span>
+        <span class="op">};</span>
+    <span class="op">}</span> <span class="kw">catch</span> (<span class="var">err</span>) <span class="op">{</span>
+        <span class="var">console</span>.<span class="fn">error</span>(<span class="str">'PBKDF2 Hashing Error:'</span>, <span class="var">err</span>)<span class="op">;</span>
+        <span class="kw">throw new</span> <span class="fn">Error</span>(<span class="str">'Hashing failed.'</span>)<span class="op">;</span>
+    <span class="op">}</span>
+<span class="op">}</span></pre>
+    </div>
+
+    <h2>2. Verifying a Password (Login)</h2>
+    <p>
+      This function takes the user's input and the stored values to check for a
+      match.
+    </p>
+    <div class="code-container">
+      <div class="code-header">JavaScript</div>
+      <pre><span class="kw">async function</span> <span class="fn">verifyPassword</span>(<span class="var">inputPassword</span>, <span class="var">storedHash</span>, <span class="var">storedSalt</span>, <span class="var">storedIterations</span>) <span class="op">{</span>
+    <span class="comment">// 1. Re-derive the key using the input password and the stored parameters</span>
+    <span class="kw">try</span> <span class="op">{</span>
+        <span class="kw">const</span> <span class="var">derivedKey</span> <span class="op">=</span> <span class="kw">await</span> <span class="var">pbkdf2Promise</span>(
+            <span class="var">inputPassword</span>,
+            <span class="var">storedSalt</span>,
+            <span class="var">storedIterations</span>,
+            <span class="var">KEY_LENGTH</span>, <span class="comment">// Must match the original key length</span>
+            <span class="var">DIGEST</span>
+        )<span class="op">;</span>
+
+        <span class="kw">const</span> <span class="var">inputHash</span> <span class="op">=</span> <span class="var">derivedKey</span>.<span class="fn">toString</span>(<span class="str">'hex'</span>)<span class="op">;</span>
+
+        <span class="comment">// 2. Compare the newly generated hash with the stored hash</span>
+        <span class="comment">// The comparison needs to be constant-time to prevent timing attacks.</span>
+        <span class="comment">// For strings, a standard === is NOT guaranteed constant-time, but</span>
+        <span class="comment">// Node.js's crypto module uses a Buffer compare for its final result</span>
+        <span class="comment">// which is safer, or you can use crypto.timingSafeEqual for Buffers.</span>
+        <span class="kw">return</span> <span class="var">inputHash</span> <span class="op">===</span> <span class="var">storedHash</span><span class="op">;</span>
+
+    <span class="op">}</span> <span class="kw">catch</span> (<span class="var">err</span>) <span class="op">{</span>
+        <span class="var">console</span>.<span class="fn">error</span>(<span class="str">'PBKDF2 Verification Error:'</span>, <span class="var">err</span>)<span class="op">;</span>
+        <span class="kw">return</span> <span class="kw">false</span><span class="op">;</span>
+    <span class="op">}</span>
+<span class="op">}</span>
+
+<span class="comment">// --- FULL EXECUTION EXAMPLE ---</span>
+<span class="kw">async function</span> <span class="fn">runExample</span>() <span class="op">{</span>
+    <span class="kw">const</span> <span class="var">plaintext</span> <span class="op">=</span> <span class="str">'mySecurePassword123'</span><span class="op">;</span>
+
+    <span class="comment">// 1. HASHING (Registration)</span>
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">'--- Hashing Password (Registration) ---'</span>)<span class="op">;</span>
+    <span class="kw">const</span> <span class="var">storedData</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">hashPassword</span>(<span class="var">plaintext</span>)<span class="op">;</span>
+
+    <span class="comment">// This is what you would store in your database</span>
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">'✅ Stored Hash:'</span>, <span class="var">storedData</span>.<span class="prop">hash</span>.<span class="fn">substring</span>(<span class="num">0</span>, <span class="num">20</span>) <span class="op">+</span> <span class="str">'...'</span>)<span class="op">;</span>
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">'✅ Stored Salt:'</span>, <span class="var">storedData</span>.<span class="prop">salt</span>)<span class="op">;</span>
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">'✅ Stored Iterations:'</span>, <span class="var">storedData</span>.<span class="prop">iterations</span>)<span class="op">;</span>
+
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">'\n--- Verifying Password (Login) ---'</span>)<span class="op">;</span>
+
+    <span class="comment">// 2. VERIFICATION (Login with correct password)</span>
+    <span class="kw">const</span> <span class="var">isCorrect</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">verifyPassword</span>(
+        <span class="var">plaintext</span>,
+        <span class="var">storedData</span>.<span class="prop">hash</span>,
+        <span class="var">storedData</span>.<span class="prop">salt</span>,
+        <span class="var">storedData</span>.<span class="prop">iterations</span>
+    )<span class="op">;</span>
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">`Input: "${plaintext}" | Match: ${isCorrect ? '✅ TRUE' : '❌ FALSE'}`</span>)<span class="op">;</span>
+
+    <span class="comment">// 3. VERIFICATION (Login with incorrect password)</span>
+    <span class="kw">const</span> <span class="var">isIncorrect</span> <span class="op">=</span> <span class="kw">await</span> <span class="fn">verifyPassword</span>(
+        <span class="str">'wrongPassword'</span>,
+        <span class="var">storedData</span>.<span class="prop">hash</span>,
+        <span class="var">storedData</span>.<span class="prop">salt</span>,
+        <span class="var">storedData</span>.<span class="prop">iterations</span>
+    )<span class="op">;</span>
+    <span class="var">console</span>.<span class="fn">log</span>(<span class="str">`Input: "wrongPassword" | Match: ${isIncorrect ? '✅ TRUE' : '❌ FALSE'}`</span>)<span class="op">;</span>
+<span class="op">}</span>
+
+<span class="comment">// runExample();</span></pre>
+    </div>
+
+    <hr />
+
+    <h1>💡 Key Takeaways</h1>
+    <ul>
+      <li>
+        <strong>Asynchronous is mandatory:</strong> Always use the asynchronous
+        <code>crypto.pbkdf2</code> in a server environment.
+      </li>
+      <li>
+        <strong>Store everything:</strong> You must store the **derived key
+        (hash)**, **salt**, and **iterations** to successfully verify the
+        password later.
+      </li>
+      <li>
+        <strong>Increase iterations:</strong> Adjust your **ITERATIONS**
+        periodically to maintain security as CPUs get faster (aim for
+        $\approx0.5$ to $1.0$ second delay).
+      </li>
+    </ul>
+  </body>
+</html>

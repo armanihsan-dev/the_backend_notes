@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Reverse Proxy Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>NGINX Reverse Proxy Guide</h1>
+
+    <h2>What a Reverse Proxy does (in simple terms)</h2>
+
+    <div class="flow-box">
+      <strong>Client (Browser)</strong><br />
+      <div class="arrow">⬇️</div>
+      <strong>NGINX (Port 80 / 443)</strong><br />
+      <div class="arrow">⬇️</div>
+      <strong>Your App (Express, Next.js, etc. on Port 3000)</strong>
+    </div>
+
+    <h3>NGINX:</h3>
+    <ul>
+      <li>Accepts public traffic</li>
+      <li>Forwards it to your backend</li>
+      <li>Can handle SSL, load-balancing, caching, static files</li>
+      <li>Keeps Node apps off the public internet</li>
+    </ul>
+
+    <h3>Basic Scenario (Most Common)</h3>
+    <ul>
+      <li><strong>Express app</strong> &rarr; <code>localhost:3000</code></li>
+      <li>
+        <strong>Public access</strong> &rarr; <code>http://yourdomain.com</code>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>1️⃣ Install NGINX</h2>
+    <p>Ubuntu / WSL</p>
+    <pre><code><span class="kw">sudo</span> apt update
+<span class="kw">sudo</span> apt install nginx -y</code></pre>
+    <p>Check:</p>
+    <pre><code>nginx -v</code></pre>
+
+    <h2>2️⃣ Start & Enable NGINX</h2>
+    <pre><code><span class="kw">sudo</span> systemctl start nginx
+<span class="kw">sudo</span> systemctl enable nginx</code></pre>
+    <p>
+      Visit in browser: <code>http://localhost</code>. You should see
+      <strong>“Welcome to nginx”</strong>
+    </p>
+
+    <h2>3️⃣ Create a Reverse Proxy Config</h2>
+    <p>Create site config:</p>
+    <pre><code><span class="kw">sudo</span> nano /etc/nginx/sites-available/myapp</code></pre>
+
+    <p>Minimal reverse proxy config:</p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> localhost;
+
+    <span class="kw">location</span> / {
+        <span class="prop">proxy_pass</span> http://127.0.0.1:3000;
+        <span class="prop">proxy_http_version</span> <span class="lit">1.1</span>;
+
+        <span class="prop">proxy_set_header</span> Upgrade <span class="str">$http_upgrade</span>;
+        <span class="prop">proxy_set_header</span> Connection <span class="str">"upgrade"</span>;
+        <span class="prop">proxy_set_header</span> Host <span class="str">$host</span>;
+
+        <span class="prop">proxy_set_header</span> X-Real-IP <span class="str">$remote_addr</span>;
+        <span class="prop">proxy_set_header</span> X-Forwarded-For <span class="str">$proxy_add_x_forwarded_for</span>;
+        <span class="prop">proxy_set_header</span> X-Forwarded-Proto <span class="str">$scheme</span>;
+    }
+}</code></pre>
+
+    <h2>4️⃣ Enable the Site</h2>
+    <pre><code><span class="kw">sudo</span> ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/</code></pre>
+
+    <p><strong>Remove default site (important):</strong></p>
+    <pre><code><span class="kw">sudo</span> rm /etc/nginx/sites-enabled/default</code></pre>
+
+    <p>Test config:</p>
+    <pre><code><span class="kw">sudo</span> nginx -t</code></pre>
+
+    <p>Reload:</p>
+    <pre><code><span class="kw">sudo</span> systemctl reload nginx</code></pre>
+
+    <h2>5️⃣ Run Your Express App</h2>
+    <pre><code>node index.js</code></pre>
+    <p>
+      Now open: <code>http://localhost</code>. 🎉
+      <strong>NGINX is now proxying to Express</strong>
+    </p>
+
+    <h2>6️⃣ Common Real-World Patterns</h2>
+    <h3>API on /api</h3>
+    <pre><code><span class="kw">location</span> /api {
+    <span class="prop">proxy_pass</span> http://127.0.0.1:3000;
+}</code></pre>
+
+    <h3>Frontend + Backend</h3>
+    <pre><code><span class="kw">location</span> / {
+    <span class="dir">root</span> /var/www/frontend;
+    <span class="dir">index</span> index.html;
+}
+
+<span class="kw">location</span> /api {
+    <span class="prop">proxy_pass</span> http://127.0.0.1:3000;
+}</code></pre>
+
+    <h2>7️⃣ WebSockets Support (VERY important)</h2>
+    <p>Already included above:</p>
+    <pre><code><span class="prop">proxy_set_header</span> Upgrade <span class="str">$http_upgrade</span>;
+<span class="prop">proxy_set_header</span> Connection <span class="str">"upgrade"</span>;</code></pre>
+    <p>Without this &rarr; <strong>Socket.io breaks.</strong></p>
+
+    <h2>8️⃣ SSL (Production preview)</h2>
+    <pre><code><span class="kw">sudo</span> apt install certbot python3-certbot-nginx
+<span class="kw">sudo</span> certbot --nginx</code></pre>
+    <p>NGINX will auto-add HTTPS config.</p>
+
+    <h2>9️⃣ How to Debug (crucial skill)</h2>
+    <p>Check logs:</p>
+    <pre><code><span class="kw">sudo</span> tail -f /var/log/nginx/error.log
+<span class="kw">sudo</span> tail -f /var/log/nginx/access.log</code></pre>
+
+    <p>Check upstream:</p>
+    <pre><code>curl http://127.0.0.1:3000</code></pre>
+
+    <div class="rules-card">
+      <h2>🔑 Golden Rules (Remember These)</h2>
+      <ul>
+        <li><strong>NGINX</strong> = public entry point</li>
+        <li><strong>Node.js</strong> = private port</li>
+        <li>Always <code>nginx -t</code> before reload</li>
+        <li>Remove default config</li>
+        <li>
+          Use <code>127.0.0.1</code>, not <code>localhost</code> in
+          <code>proxy_pass</code>
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

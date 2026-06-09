@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OAuth2Client: From Manual Fetch to Library Abstraction</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Nunito Font -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Colors and Font */
+      :root {
+        --bg-color: #1a1a1a; /* Dark background */
+        --text-color: #e0e0e0; /* Light text */
+        --code-bg: #1e1e1e; /* VSCode Dark Theme background */
+        --code-text: #d4d4d4; /* Default Code Text */
+        --code-keyword: #c586c0; /* Purple/Magenta */
+        --code-string: #ce9178; /* Orange/Brown */
+        --code-comment: #6a9955; /* Green */
+        --code-variable: #4fc1ff; /* Light Blue/Cyan */
+        --code-function: #dcdcaa; /* Yellow/Gold for functions */
+      }
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.7;
+      }
+
+      /* Styling for Code Blocks (VSCode Dark Theme) */
+      .code-block {
+        background-color: var(--code-bg);
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        border-left: 4px solid #007acc; /* VSCode blue accent */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Syntax Highlighting Classes */
+      .kw {
+        color: var(--code-keyword);
+      }
+      .str {
+        color: var(--code-string);
+      }
+      .cmt {
+        color: var(--code-comment);
+      }
+      .var {
+        color: var(--code-variable);
+      }
+      .func {
+        color: var(--code-function);
+      }
+      .err {
+        color: #f44336;
+        font-weight: bold;
+      } /* For the '❌' symbol */
+
+      /* Headings and specific notes */
+      h1,
+      h2 {
+        color: #4fc1ff; /* Light blue accent */
+        font-weight: 800;
+      }
+      .note-card {
+        background-color: #2a2a2a;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 3px solid #6a9955;
+        margin-top: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="max-w-4xl mx-auto px-4 py-8">
+      <h1 class="text-3xl sm:text-4xl mb-6 tracking-tight">
+        USING google Oauth-library to fetch ID Token
+      </h1>
+
+      <p class="mb-4">
+        That's a fantastic question! You've correctly implemented the crucial
+        step of the **Authorization Code Flow**—exchanging the temporary code
+        for the actual tokens—but you're doing it the hard way by manually
+        constructing the HTTP POST request.
+      </p>
+
+      <p class="text-xl font-bold mb-4 mt-6 text-green-400">
+        This is where dedicated OAuth client libraries shine!
+      </p>
+
+      <p class="mb-4">
+        I'm going to teach you how to use Google's official Node.js library,
+        **google-auth-library**, to manage this process. This approach is much
+        cleaner, more robust, and handles things like token refreshing
+        automatically later on.
+      </p>
+
+      <h2 class="text-2xl mt-8 mb-4">
+        The Big Picture: Authorization Code Flow
+      </h2>
+      <p class="mb-4">
+        First, let's quickly review what you're doing. The entire sequence, from
+        the user clicking "Sign in with Google" to getting the ID Token, is
+        called the **Authorization Code Flow**.
+      </p>
+
+      <ul class="list-none space-y-3 mb-6 bg-[#282828] p-4 rounded-lg">
+        <li class="border-b border-gray-700 pb-2">
+          <strong class="text-purple-400">Step 1 (User Side):</strong> The user
+          clicks your link, and Google redirects them to your
+          <span class="var">redirect_uri</span> with the
+          <span class="var">code</span>.
+        </li>
+        <li class="border-b border-gray-700 pb-2">
+          <strong class="text-purple-400"
+            >Step 2 (Your Server Side - The Code Above):</strong
+          >
+          Your server receives the <span class="var">code</span> and immediately
+          performs a secure, server-to-server POST request to Google's token
+          endpoint (<span class="str">https://oauth2.googleapis.com/token</span
+          >). You send the <span class="var">code</span>,
+          <span class="var">client_id</span>,
+          <span class="var">client_secret</span>, and
+          <span class="var">redirect_uri</span>.
+        </li>
+        <li>
+          <strong class="text-purple-400">Step 3 (The Result):</strong> Google
+          validates the code and sends back a package containing the
+          <span class="var">access_token</span>,
+          <span class="var">refresh_token</span>, and the coveted
+          <span class="var">id_token</span>.
+        </li>
+      </ul>
+
+      <p class="mb-4">
+        Your manual <span class="func">fetch</span> in the original code is
+        performing Step 2. The <span class="var">OAuth2Client</span> handles
+        Step 2 for you gracefully!
+      </p>
+
+      <h2 class="text-2xl mt-8 mb-4">Using the OAuth2Client</h2>
+      <p class="mb-4">
+        The <span class="var">OAuth2Client</span> class from the
+        <span class="var">google-auth-library</span> is designed specifically to
+        handle the OAuth 2.0 protocol on the server side.
+      </p>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">1. Setup the Client</h3>
+      <p class="mb-4">
+        Instead of manually keeping track of your credentials when building the
+        payload, you create an instance of
+        <span class="var">OAuth2Client</span>. This object remembers your
+        <span class="var">clientId</span>,
+        <span class="var">clientSecret</span>, and
+        <span class="var">redirect_uri</span>.
+      </p>
+
+      <div class="code-block">
+        <pre><span class="kw">import</span> { <span class="var">OAuth2Client</span> } <span class="kw">from</span> <span class="str">'google-auth-library'</span>;
+
+<span class="kw">const</span> <span class="var">client</span> = <span class="kw">new</span> <span class="var">OAuth2Client</span>(
+    <span class="var">clientId</span>,
+    <span class="var">clientSecret</span>,
+    <span class="var">redirect_uri</span>
+);</pre>
+      </div>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">
+        2. Exchange the Code using <span class="func">getToken()</span>
+      </h3>
+      <p class="mb-4">
+        The <span class="var">client</span>.<span class="func"
+          >getToken(code)</span
+        >
+        method is the clean, single-line replacement for your entire manual
+        <span class="func">fetch</span> block.
+      </p>
+      <ul class="list-disc list-inside space-y-1 ml-4 mb-6">
+        <li>
+          It knows where to POST the data (<span class="str"
+            >https://oauth2.googleapis.com/token</span
+          >).
+        </li>
+        <li>
+          It automatically constructs the correct
+          <span class="str">application/x-www-form-urlencoded</span> body using
+          the credentials it stores.
+        </li>
+        <li>
+          It performs the fetch, parses the JSON, and handles basic error
+          responses.
+        </li>
+        <li>
+          It returns a response object with a
+          <span class="var">tokens</span> property containing the
+          <span class="var">id_token</span>,
+          <span class="var">access_token</span>, etc.
+        </li>
+      </ul>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">
+        Here is the full refactored code:
+      </h3>
+      <div class="code-block">
+        <pre><span class="cmt">// --- Prerequisites ---</span>
+<span class="cmt">// 1. You need to install the library: npm install google-auth-library</span>
+<span class="cmt">// 2. You will need to change the 'import' statements to 'require' if you are not using ES modules in Node.</span>
+
+<span class="kw">import</span> { <span class="var">OAuth2Client</span> } <span class="kw">from</span> <span class="str">'google-auth-library'</span>;
+<span class="kw">import</span> { <span class="func">verifyingGoogleIDToken</span> } <span class="kw">from</span> <span class="str">'./verifyToken.js'</span>; <span class="cmt">// Assuming this file exists and works as before</span>
+
+<span class="cmt">// IMPORTANT: Never hardcode secrets in client-side code.</span>
+<span class="cmt">// In a real application, these should be loaded securely from environment variables.</span>
+<span class="kw">const</span> <span class="var">clientSecret</span> = <span class="str">'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'</span>;
+<span class="kw">const</span> <span class="var">clientId</span> = <span class="str">'1096232866015-ogbl3p6r6drdpunegnjjn3jf7v9j3rjn.apps.googleusercontent.com'</span>;
+<span class="kw">const</span> <span class="var">redirect_uri</span> = <span class="str">'http://localhost:3000/auth/google/callback'</span>;
+
+<span class="cmt">// 1. Initialize the OAuth2 Client once.</span>
+<span class="cmt">// This client object now securely holds all the necessary configuration.</span>
+<span class="kw">const</span> <span class="var">oauth2Client</span> = <span class="kw">new</span> <span class="var">OAuth2Client</span>(
+    <span class="var">clientId</span>,
+    <span class="var">clientSecret</span>,
+    <span class="var">redirect_uri</span>
+);
+
+<span class="cmt">/**
+ * Exchanges the authorization code received from Google for ID, Access, and Refresh Tokens.
+ * @param {string} code The authorization code from the Google redirect.
+ * @returns {Promise&lt;{userPayload: object, tokens: object}>} The user payload and the full token response.
+ */</span>
+<span class="kw">export</span> <span class="kw">async</span> <span class="kw">function</span> <span class="func">fetchUserFromGoogle</span>(<span class="var">code</span>) {
+    <span class="var">console</span>.<span class="func">log</span>(<span class="str">'Running token exchange using OAuth2Client...'</span>);
+
+    <span class="kw">try</span> {
+        <span class="cmt">// 2. Use the client.getToken() method. </span>
+        <span class="cmt">// This single line replaces your entire manual fetch request.</span>
+        <span class="kw">const</span> <span class="var">tokenResponse</span> = <span class="kw">await</span> <span class="var">oauth2Client</span>.<span class="func">getToken</span>(<span class="var">code</span>);
+        <span class="kw">const</span> <span class="var">tokens</span> = <span class="var">tokenResponse</span>.<span class="var">tokens</span>;
+        
+        <span class="var">console</span>.<span class="func">log</span>(<span class="str">'Tokens received successfully.'</span>);
+        <span class="cmt">// console.log(tokens); // Optionally log the tokens to see what you get</span>
+
+        <span class="cmt">// 3. Set the tokens on the client (highly recommended).</span>
+        <span class="cmt">// This is a great practice, especially if you plan to use the client </span>
+        <span class="cmt">// for subsequent API calls (e.g., fetching user info from Google's People API).</span>
+        <span class="var">oauth2Client</span>.<span class="func">setCredentials</span>(<span class="var">tokens</span>);
+
+        <span class="cmt">// 4. Extract the ID Token and verify it using your existing function.</span>
+        <span class="kw">if</span> (!<span class="var">tokens</span>.<span class="var">id_token</span>) {
+             <span class="kw">throw</span> <span class="kw">new</span> <span class="var">Error</span>(<span class="str">"ID Token missing in the response."</span>);
+        }
+        
+        <span class="kw">const</span> <span class="var">userPayload</span> = <span class="kw">await</span> <span class="func">verifyingGoogleIDToken</span>(<span class="var">tokens</span>.<span class="var">id_token</span>);
+
+        <span class="kw">return</span> { <span class="var">userPayload</span>, <span class="var">tokens</span> };
+
+    } <span class="kw">catch</span> (<span class="var">error</span>) {
+        <span class="var">console</span>.<span class="func">error</span>(<span class="str">'Error during token exchange:'</span>, <span class="var">error</span>.<span class="var">message</span>);
+        <span class="cmt">// You can log the full error object if needed: console.error(error);</span>
+        <span class="kw">return</span> { <span class="var">userPayload</span>: <span class="kw">null</span>, <span class="var">tokens</span>: <span class="kw">null</span> }; <span class="cmt">// Return null or throw a specific error</span>
+    }
+}
+</pre>
+      </div>
+
+      <p class="mb-6">
+        The key takeaway is that the <span class="var">OAuth2Client</span> class
+        acts as a highly capable abstraction layer. It takes care of the exact
+        headers, the payload format (<span class="str"
+          >application/x-www-form-urlencoded</span
+        >), the endpoint URL, and JSON parsing, allowing you to focus on the
+        application logic.
+      </p>
+
+      <!-- Purpose of setCredentials and People API -->
+      <h2 class="text-2xl mt-8 mb-4 border-t pt-4 border-gray-700">
+        The Purpose of <span class="var">setCredentials()</span> and People API
+      </h2>
+
+      <p class="mb-4">
+        I completely understand why this line of code can be confusing. It is a
+        concept called **dependency injection** and **abstraction**, which is
+        hard to grasp until you see a concrete example.
+      </p>
+      <p class="mb-4">
+        Let's forget the abstract terms for a moment and focus on the practical
+        "pain point" that this line solves.
+      </p>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">
+        The Practical Need: Stop Manually Copying Keys
+      </h3>
+      <p class="mb-4">
+        The <span class="var">access_token</span> is the specific permission
+        slip you need to talk to Google APIs (like People API). Every single
+        time you want to fetch user data, you must provide this token in a
+        special HTTP header:
+        <code class="bg-[#282828] p-1 rounded"
+          >Authorization: Bearer [your-access-token]</code
+        >.
+      </p>
+      <p class="mb-4">
+        If you **do not** use <span class="var">oauth2Client</span>.<span
+          class="func"
+          >setCredentials</span
+        >(<span class="var">tokens</span>), you have to manually handle this
+        token every time.
+      </p>
+
+      <h4 class="text-lg font-semibold mt-4 mb-3">
+        Scenario 1: The Hard Way (Manual Management)
+      </h4>
+      <p class="mb-4">
+        If you skip <span class="var">oauth2Client</span>.<span class="func"
+          >setCredentials</span
+        >(<span class="var">tokens</span>), your code for fetching user data
+        looks like this:
+      </p>
+
+      <div class="code-block">
+        <pre>
+<span class="cmt">// Step 1: Get the tokens</span>
+<span class="kw">const</span> { <span class="var">tokens</span> } = <span class="kw">await</span> <span class="var">oauth2Client</span>.<span class="func">getToken</span>(<span class="var">code</span>); 
+
+<span class="cmt">// Step 2: Extract the Access Token manually</span>
+<span class="kw">const</span> <span class="var">accessToken</span> = <span class="var">tokens</span>.<span class="var">access_token</span>; 
+
+<span class="cmt">// Step 3: MANUALLY build the header for the API call</span>
+<span class="kw">const</span> <span class="var">response</span> = <span class="kw">await</span> <span class="func">fetch</span>(<span class="str">'https://people.googleapis.com/v1/people/me?personFields=names'</span>, {
+    <span class="var">method</span>: <span class="str">'GET'</span>,
+    <span class="var">headers</span>: {
+        <span class="cmt">// ❌ You have to do this every time!</span>
+        <span class="str">'Authorization'</span>: <span class="str">`Bearer ${</span><span class="var">accessToken</span><span class="str">}`</span> 
+    }
+});</pre>
+      </div>
+      <p class="mb-4">
+        The problem is the line
+        <code class="bg-[#282828] p-1 rounded"
+          ><span class="err">Authorization: Bearer ${accessToken}</span></code
+        >. You have to write this code, find the token, and inject it into the
+        header for **every single API call** you ever make to Google (whether
+        it's People, Drive, Calendar, etc.).
+      </p>
+
+      <h4 class="text-lg font-semibold mt-6 mb-3">
+        Scenario 2: The Easy Way (Automated Management)
+      </h4>
+      <p class="mb-4">
+        When you use the <span class="func">setCredentials</span> line, you are
+        effectively telling the <span class="var">oauth2Client</span>:
+        <strong class="text-green-400"
+          >"Here is the key (the token). You hold onto it, and automatically use
+          it whenever I ask you to call a Google API."</strong
+        >
+      </p>
+      <p class="mb-4">
+        If you use <span class="var">oauth2Client</span>.<span class="func"
+          >setCredentials</span
+        >(<span class="var">tokens</span>);, your code for fetching user data
+        (using the <span class="var">googleapis</span> library) looks like this:
+      </p>
+
+      <div class="code-block">
+        <pre>
+<span class="kw">import</span> { <span class="var">google</span> } <span class="kw">from</span> <span class="str">'googleapis'</span>;
+
+<span class="cmt">// 1. Get the tokens</span>
+<span class="kw">const</span> { <span class="var">tokens</span> } = <span class="kw">await</span> <span class="var">oauth2Client</span>.<span class="func">getToken</span>(<span class="var">code</span>); 
+
+<span class="cmt">// 2. Pass the tokens to the client (The line you asked about!)</span>
+<span class="var">oauth2Client</span>.<span class="func">setCredentials</span>(<span class="var">tokens</span>); 
+
+<span class="cmt">// 3. The magic: Create the People API interface</span>
+<span class="cmt">//    You tell the 'people' object to use your authorized 'oauth2Client'</span>
+<span class="kw">const</span> <span class="var">people</span> = <span class="var">google</span>.<span class="func">people</span>({
+    <span class="var">version</span>: <span class="str">'v1'</span>,
+    <span class="var">auth</span>: <span class="var">oauth2Client</span> <span class="cmt">// 🔑 Look! You pass the *client object*, not the token!</span>
+});
+
+<span class="cmt">// 4. Make the call</span>
+<span class="kw">const</span> <span class="var">profileResponse</span> = <span class="kw">await</span> <span class="var">people</span>.<span class="var">people</span>.<span class="func">get</span>({
+    <span class="var">resourceName</span>: <span class="str">'people/me'</span>,
+    <span class="var">personFields</span>: <span class="str">'names'</span>
+});
+
+<span class="cmt">// ✅ The oauth2Client automatically looked up the access_token </span>
+<span class="cmt">//    and put it in the Authorization header for you! You didn't write it!</span></pre>
+      </div>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">
+        Summary: Two Main Benefits
+      </h3>
+      <p class="mb-4">
+        The <span class="var">oauth2Client</span>.<span class="func"
+          >setCredentials</span
+        >(<span class="var">tokens</span>); line is the instruction that enables
+        these two massive benefits:
+      </p>
+
+      <div class="overflow-x-auto mb-6">
+        <table class="w-full text-sm text-left rounded-lg overflow-hidden">
+          <thead class="text-xs uppercase bg-[#2a2a2a] text-gray-300">
+            <tr>
+              <th scope="col" class="px-6 py-3">Feature</th>
+              <th scope="col" class="px-6 py-3">
+                Without <span class="func">setCredentials</span>
+              </th>
+              <th scope="col" class="px-6 py-3">
+                With <span class="func">setCredentials</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b bg-[#1e1e1e] border-gray-700">
+              <td class="px-6 py-4 font-bold text-cyan-400">
+                Code Cleanliness
+              </td>
+              <td class="px-6 py-4">
+                You must manually extract the
+                <span class="var">access_token</span> and build the
+                <code class="bg-[#282828] p-0.5 rounded">Authorization</code>
+                header for every API request using
+                <span class="func">fetch</span>.
+              </td>
+              <td class="px-6 py-4">
+                The <span class="var">oauth2Client</span> is passed directly to
+                the API interface (<code class="bg-[#282828] p-0.5 rounded"
+                  >auth: oauth2Client</code
+                >), and the library handles the headers automatically.
+              </td>
+            </tr>
+            <tr class="border-b bg-[#1a1a1a] border-gray-700">
+              <td class="px-6 py-4 font-bold text-cyan-400">Token Refresh</td>
+              <td class="px-6 py-4">
+                When the <span class="var">access_token</span> expires (after
+                $\approx 1$ hour), your requests fail. You must write complex
+                code to manually use the
+                <span class="var">refresh_token</span> to get a new one.
+              </td>
+              <td class="px-6 py-4">
+                The client does this automatically. If a request fails due to an
+                expired token, the client silently uses the
+                <span class="var">refresh_token</span> to get a new
+                <span class="var">access_token</span>, updates its internal
+                credentials, and retries the original request.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mb-6">
+        In short: It turns the <span class="var">oauth2Client</span> from a mere
+        container of client ID/Secret into a smart, self-managing key holder
+        that prevents your code from breaking every hour.
+      </p>
+
+      <!-- ID Token vs Access Token Clarification -->
+      <h2 class="text-2xl mt-8 mb-4 border-t pt-4 border-gray-700">
+        ID Token vs Access Token Clarification
+      </h2>
+      <p class="mb-4">
+        That is a very common point of confusion, and you are **half right**!
+      </p>
+      <p class="mb-4">
+        You are correct that the line
+        <span class="var">oauth2Client</span>.<span class="func"
+          >setCredentials</span
+        >(<span class="var">tokens</span>); is storing information on the
+        <span class="var">oauth2Client</span> instance for future Google API
+        calls.
+      </p>
+      <p class="mb-4">
+        However, the specific token that the client uses to authorize those
+        future API calls is the
+        <strong class="text-orange-400">access_token</strong>, not the
+        <span class="var">id_token</span>.
+      </p>
+      <p class="mb-4">
+        Here is the breakdown of why this distinction is critical and what each
+        token is used for:
+      </p>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">
+        1. The <span class="var">tokens</span> Object (The Payload)
+      </h3>
+      <p class="mb-4">
+        The <span class="var">tokens</span> object returned from Google (in the
+        exchange process) typically contains three key things:
+      </p>
+      <ul class="list-none space-y-2 mb-6 bg-[#282828] p-4 rounded-lg">
+        <li>
+          <strong class="text-green-400">id_token</strong> (JWT format, used for
+          **Authentication**)
+        </li>
+        <li>
+          <strong class="text-green-400">access_token</strong> (Opaque string,
+          used for **Authorization**)
+        </li>
+        <li>
+          <strong class="text-green-400">refresh_token</strong> (Opaque string,
+          used to **renew** the <span class="var">access_token</span>)
+        </li>
+      </ul>
+      <p class="mb-4">
+        When you call <span class="var">oauth2Client</span>.<span class="func"
+          >setCredentials</span
+        >(<span class="var">tokens</span>);, the client instance stores all
+        three of these securely.
+      </p>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">2. The Role of Each Token</h3>
+
+      <div class="overflow-x-auto mb-6">
+        <table class="w-full text-sm text-left rounded-lg overflow-hidden">
+          <thead class="text-xs uppercase bg-[#2a2a2a] text-gray-300">
+            <tr>
+              <th scope="col" class="px-4 py-3">Token Name</th>
+              <th scope="col" class="px-4 py-3">Primary Purpose</th>
+              <th scope="col" class="px-4 py-3">How Your App Uses It</th>
+              <th scope="col" class="px-4 py-3">Who Consumes It?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b bg-[#1e1e1e] border-gray-700">
+              <td class="px-4 py-3 font-bold text-cyan-400">id_token</td>
+              <td class="px-4 py-3">
+                <strong>Authentication</strong> (Who are you?)
+              </td>
+              <td class="px-4 py-3">
+                You use your
+                <span class="func">verifyingGoogleIDToken</span> function to
+                cryptographically check this token. It tells your app the user's
+                name, email, and ID. **Once verified, its job is done.**
+              </td>
+              <td class="px-4 py-3">Your server's verification function.</td>
+            </tr>
+            <tr class="border-b bg-[#1a1a1a] border-gray-700">
+              <td class="px-4 py-3 font-bold text-cyan-400">access_token</td>
+              <td class="px-4 py-3">
+                <strong>Authorization</strong> (What are you allowed to do?)
+              </td>
+              <td class="px-4 py-3">
+                The <span class="var">oauth2Client</span> automatically injects
+                this into the HTTP headers for all Google API calls. It's the
+                **key** to fetch data from APIs like People, Calendar, or Drive.
+              </td>
+              <td class="px-4 py-3">Google's API endpoints.</td>
+            </tr>
+            <tr class="border-b bg-[#1e1e1e] border-gray-700">
+              <td class="px-4 py-3 font-bold text-cyan-400">refresh_token</td>
+              <td class="px-4 py-3"><strong>Renewal</strong></td>
+              <td class="px-4 py-3">
+                The <span class="var">oauth2Client</span> uses this
+                automatically to get a fresh
+                <span class="var">access_token</span> when the old one expires
+                (typically $\approx 1$ hour).
+              </td>
+              <td class="px-4 py-3">Google's token endpoint.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 class="text-xl font-semibold mt-6 mb-3">
+        Conclusion on the Code Line
+      </h3>
+      <p class="mb-4">When you write:</p>
+      <div class="code-block">
+        <pre>
+<span class="var">oauth2Client</span>.<span class="func">setCredentials</span>(<span class="var">tokens</span>);</pre>
+      </div>
+      <p class="mb-4">You are telling the client:</p>
+      <ul class="list-disc list-inside space-y-2 ml-4 mb-6">
+        <li>
+          "Use the contained **access_token** for all future API requests." (The
+          primary action for authorization.)
+        </li>
+        <li>
+          "If that **access_token** expires, use the contained **refresh_token**
+          to get a new one." (The key benefit of the client library.)
+        </li>
+      </ul>
+      <p class="mb-4">
+        The **id_token** is set here, but your application already used it for
+        its primary purpose (verifying the user's identity) just a few lines
+        earlier!
+      </p>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SQLi & Mongo Injection Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&family=Fira+Code:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1 class="heading-emoji">
+          💉 Deep Dive into SQL Injection (SQLi) Vulnerability
+        </h1>
+      </header>
+      <p>
+        <strong>SQL Injection (SQLi)</strong> is a type of attack that exploits
+        vulnerabilities in an application's code by injecting malicious
+        <strong>Structured Query Language (SQL)</strong> statements into an
+        entry field (like a login form or URL parameter) that is then executed
+        by the application's backend database. This occurs when an application
+        dynamically constructs a SQL query string using user-supplied input
+        without properly validating or sanitizing that input.
+      </p>
+      <p>
+        The core vulnerability is the failure to separate the application's
+        **control plane** (the SQL command) from the **data plane** (the user's
+        input).
+      </p>
+
+      <h2 class="heading-emoji">🛠️ How SQLi Works (The Flaw)</h2>
+      <p>
+        A typical, vulnerable application might construct a SQL query like this:
+      </p>
+      <pre class="code-block language-js">
+<span class="code-variable">query</span> <span class="code-operator">=</span> <span class="code-string">"SELECT * FROM users WHERE username = '"</span> <span class="code-operator">+</span> <span class="code-variable">user_input</span> <span class="code-operator">+</span> <span class="code-string">"';"</span>
+</pre>
+      <p>
+        If a legitimate user enters **jsmith**, the executed query is:
+        <code>SELECT * FROM users WHERE username = 'jsmith';</code>
+      </p>
+      <p>
+        If an attacker enters a malicious payload, such as **' OR '1'='1**, the
+        executed query becomes:
+        <code>SELECT * FROM users WHERE username = '' OR '1'='1';</code>
+      </p>
+      <p>
+        Since **'1'='1'** is always true, the WHERE clause evaluates to true for
+        **every row**, potentially returning all user records, thus **bypassing
+        authentication** or disclosing unauthorized data. Attackers often use
+        the SQL comment characters (**--** or **#**) to ignore the rest of the
+        original query's logic.
+      </p>
+
+      <hr />
+
+      <h1 class="heading-emoji">
+        🔥 Common MongoDB Injection Vectors using mongoDB queries
+      </h1>
+
+      <h3>🔹 1. Logical Operators</h3>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Operator</th>
+              <th>Risk</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>$ne</code></td>
+              <td>Matches anything not null</td>
+              <td><code>{ name: { $ne: null } }</code></td>
+            </tr>
+            <tr>
+              <td><code>$gt</code></td>
+              <td>Matches anything "greater"</td>
+              <td><code>{ name: { $gt: "" } }</code></td>
+            </tr>
+            <tr>
+              <td><code>$exists</code></td>
+              <td>Bypasses required fields</td>
+              <td><code>{ password: { $exists: false } }</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>🔹 2. Regex Injection</h3>
+      <p>Code vulnerability example:</p>
+      <pre class="code-block language-js">
+<span class="code-function">find</span>(<span class="code-bracket">{</span> <span class="code-key">username</span>: <span class="code-bracket">{</span> <span class="code-operator">$regex</span>: <span class="code-variable">req</span>.<span class="code-variable">body</span>.<span class="code-variable">username</span> <span class="code-bracket">}</span> <span class="code-bracket">}</span>)
+</pre>
+      <p>Attack input: <code>{ "username": ".*" }</code></p>
+      <p>
+        → matches all usernames. Can also cause **ReDoS (regex denial of
+        service)** if the regex is complex or nested.
+      </p>
+
+      <h3>🔹 3. Array Injection</h3>
+      <p>If you're using **$in** and accept user input as an array:</p>
+      <pre class="code-block language-js">
+<span class="code-function">find</span>(<span class="code-bracket">{</span> <span class="code-key">role</span>: <span class="code-bracket">{</span> <span class="code-operator">$in</span>: <span class="code-variable">req</span>.<span class="code-variable">body</span>.<span class="code-variable">roles</span> <span class="code-bracket">}</span> <span class="code-bracket">}</span>)
+</pre>
+      <p>Attack input: <code>{ "roles": [ { "$ne": "admin" } ] }</code></p>
+      <p>→ This can match any role that's not "admin".</p>
+
+      <h3>🔹 4. Nested Operators via JSON Parsing</h3>
+      <p>If you do something like:</p>
+      <pre class="code-block language-js">
+<span class="code-keyword">const</span> <span class="code-variable">filters</span> <span class="code-operator">=</span> <span class="code-function">JSON</span>.<span class="code-function">parse</span>(<span class="code-variable">req</span>.<span class="code-variable">body</span>.<span class="code-variable">query</span>); <span class="code-comment">// 🧨 dangerous</span>
+<span class="code-function">find</span>(<span class="code-variable">filters</span>);
+</pre>
+      <p>
+        Then the attacker can send: <code>{ "isAdmin": { "$ne": false } }</code>
+      </p>
+      <p>→ and bypass any role-based condition.</p>
+
+      <h3>🔹 5. Projection Abuse</h3>
+      <p>If you allow projections from user input:</p>
+      <pre class="code-block language-js">
+<span class="code-function">find</span>(<span class="code-bracket">{}</span>, <span class="code-variable">req</span>.<span class="code-variable">body</span>.<span class="code-variable">fields</span>)
+</pre>
+      <p>And the attacker sends: <code>{ "password": 1 }</code></p>
+      <p>
+        → They can extract sensitive fields like hashed passwords or tokens.
+      </p>
+
+      <h3>🔹 6. Command Injection (less common but real)</h3>
+      <p>
+        Some older MongoDB driver setups or ORMs allow users to specify parts of
+        the query pipeline — if not validated, a user could inject:
+      </p>
+      <pre class="code-block language-js">
+<span class="code-bracket">{</span> <span class="code-operator">"$where"</span>: <span class="code-string">"this.password.length < 100"</span> <span class="code-bracket">}</span>
+</pre>
+      <p>
+        → which executes raw JavaScript in Mongo (⚠️ **eval-like behavior**).
+      </p>
+
+      <h2 class="heading-emoji">🛡️ How to Prevent Mongo Attacks</h2>
+      <div class="table-container">
+        <table class="prevent-table">
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Use Zod or similar</td>
+              <td>Validate all user input before passing to Mongo queries</td>
+            </tr>
+            <tr>
+              <td>Never trust objects from client</td>
+              <td>
+                Don’t allow <code>{ key: { $ne: null } }</code> to be
+                constructed from raw input
+              </td>
+            </tr>
+            <tr>
+              <td>Avoid passing raw query/filter</td>
+              <td>Don’t do <code>find(req.body)</code></td>
+            </tr>
+            <tr>
+              <td>Whitelist fields explicitly</td>
+              <td>Only accept known filter keys and sanitize values</td>
+            </tr>
+            <tr>
+              <td>Cast IDs with <code>ObjectId.isValid()</code></td>
+              <td>Prevent ID-based injection attacks</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 class="heading-emoji">
+        ✅ Summary of Risky Operators for Mongo Injection
+      </h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Operators</th>
+              <th>Logic</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Logic</td>
+              <td>
+                <code>$ne</code>, <code>$gt</code>, <code>$lt</code>,
+                <code>$exists</code>, <code>$eq</code>
+              </td>
+              <td>All comparative operators</td>
+            </tr>
+            <tr>
+              <td>Regex</td>
+              <td><code>$regex</code>, <code>$options</code></td>
+              <td>Regex matching</td>
+            </tr>
+            <tr>
+              <td>Array</td>
+              <td><code>$in</code>, <code>$nin</code></td>
+              <td>Array inclusion/exclusion</td>
+            </tr>
+            <tr>
+              <td>JS Eval</td>
+              <td>
+                <code>$where</code>, <code>$function</code>,
+                <code>$accumulator</code>
+              </td>
+              <td>Executing raw JS in Mongo</td>
+            </tr>
+            <tr>
+              <td>Projection</td>
+              <td>dynamic field selection</td>
+              <td>(e.g. <code>{ password: 1 }</code>)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr />
+
+      <h1 class="heading-emoji">📜 The Genesis of SQL Injection</h1>
+      <p>
+        The history of SQL Injection (SQLi) officially begins in **1998** with
+        its public documentation, but the vulnerability's existence is tied to
+        the introduction of dynamic database query generation in web
+        applications.
+      </p>
+
+      <h2>1. The Discovery (1998)</h2>
+      <ul>
+        <li>
+          **The Researcher:** The SQL injection attack vector was first publicly
+          documented by security researcher **Jeff Forristal**, who wrote under
+          the alias "Rain Forest Puppy" (RFP).
+        </li>
+        <li>
+          **The Publication:** His findings were detailed in an article titled
+          "NT Web Technology Vulnerabilities" in **Phrack Magazine, Issue 54, in
+          December 1998**.
+        </li>
+        <li>
+          **The Vulnerability:** RFP demonstrated how an attacker could
+          "piggyback" unauthorized SQL commands onto legitimate commands by
+          inserting simple characters like a single quote (**'**) into an input
+          field, which was then executed by an unsecured Microsoft SQL Server
+          product. The core problem was the **vulnerable practice of
+          concatenating user input directly into the SQL query string.**
+        </li>
+      </ul>
+
+      <h2>2. The Early 2000s: The Rise to Notoriety</h2>
+      <p>
+        While documented in 1998, SQLi did not gain widespread notoriety until
+        the early 2000s when dynamic web development and connected databases
+        became the norm.
+      </p>
+      <ul>
+        <li>
+          **OWASP Top 10:** Since the inception of the **Open Web Application
+          Security Project (OWASP) Top 10** list in **2003**, SQL Injection (or
+          the broader "Injection" category) has consistently been ranked as one
+          of the most critical and widespread web application security risks,
+          often taking the number one spot.
+        </li>
+        <li>
+          **Major Breaches:** As web applications became the gateway to vast
+          amounts of sensitive data, successful SQLi attacks began to cause
+          massive, high-profile data breaches, including:
+          <ul>
+            <li>
+              **Heartland Payment Systems (2009):** One of the largest breaches
+              at the time, resulting in the theft of over **100 million** credit
+              and debit card numbers.
+            </li>
+            <li>
+              **Sony Pictures (2011):** Attacked using SQLi, leading to the leak
+              of personal information for **millions** of users.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h2 class="heading-emoji">🛠️ Developer Response and Security Upgrades</h2>
+      <p>
+        The industry's response to SQLi has been a gradual shift from **reactive
+        filtering** to **proactive secure coding practices**.
+      </p>
+
+      <h3>1. Initial Ineffective Defense (Blacklisting)</h3>
+      <p>
+        The initial, primitive defense involved the **blacklist approach**,
+        which was quickly proven insufficient:
+      </p>
+      <ul>
+        <li>
+          **Strategy:** Developers attempted to clean user input by manually
+          checking for and stripping malicious characters or keywords, such as
+          the single quote (**'**), double dashes (**--**), or the word
+          **UNION**.
+        </li>
+        <li>
+          **Failure:** Attackers easily bypassed these filters by using
+          alternative encodings (like hex or URL encoding) or by employing
+          advanced, lesser-known SQL syntax, turning defense into an
+          **unwinnable race**.
+        </li>
+      </ul>
+
+      <h3>2. The Modern Standard: Parameterized Queries</h3>
+      <p>
+        The most significant and effective security upgrade was the adoption of
+        **Parameterized Queries** (or Prepared Statements) as the industry
+        standard.
+      </p>
+      <div class="table-container">
+        <table class="modern-defense-table">
+          <thead>
+            <tr>
+              <th>Security Upgrade</th>
+              <th>Description</th>
+              <th>Why It Works</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>**Parameterized Queries**</td>
+              <td>
+                The application separates the SQL command logic from the
+                user-supplied data. Placeholders are used in the query template.
+              </td>
+              <td>
+                The database receives the user input as **literal data only**,
+                not as executable SQL code. Malicious input is treated as an
+                impossible username/value, not a command.
+              </td>
+            </tr>
+            <tr>
+              <td>**Principle of Least Privilege**</td>
+              <td>
+                The database user account that the web application connects with
+                is restricted to only the necessary permissions (e.g., only
+                **SELECT** access, no **DROP TABLE** or **DELETE** rights).
+              </td>
+              <td>
+                This mitigates the **impact** of a successful SQLi attack,
+                preventing the attacker from causing major structural damage or
+                unauthorized administrative actions.
+              </td>
+            </tr>
+            <tr>
+              <td>**Strict Input Validation**</td>
+              <td>
+                Employing a **Whitelisting** approach, where input is strictly
+                checked against an approved list of characters, formats, and
+                types (e.g., a field expecting a numeric ID must reject any
+                non-digit characters).
+              </td>
+              <td>
+                This reduces the chance of injection by rejecting malformed or
+                unexpected data **before** it ever reaches the query
+                construction logic.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        This evolution—from simply trying to strip out known bad input to
+        fundamentally changing how code interacts with data—is the primary
+        reason why SQLi is preventable today, though it remains a persistent
+        threat due to the maintenance of legacy code and continuous coding
+        errors.
+      </p>
+    </div>
+  </body>
+</html>

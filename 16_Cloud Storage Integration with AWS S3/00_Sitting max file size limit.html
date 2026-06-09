@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js Connection Management</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>
+      Node.js Connection Management:
+      <code>res.header('Connection', 'close')</code> and
+      <code>req.destroy()</code>
+    </h1>
+
+    <p>
+      The two commands mentioned,
+      <code
+        ><span class="dir">res.header</span>(<span class="str"
+          >'Connection'</span
+        >, <span class="str">'close'</span>)</code
+      >
+      and <code><span class="prop">req.destroy</span>()</code>, serve similar,
+      but **distinct**, purposes in controlling the lifespan of a connection,
+      especially when you need to **abruptly terminate a request**.
+    </p>
+
+    <hr />
+
+    <h2>1. <code>res.header('Connection', 'close')</code></h2>
+
+    <p>
+      This is a **response header** set by the server to instruct the **client**
+      (browser, API caller, etc.) how to handle the underlying TCP connection
+      **after** the current HTTP response has been fully delivered.
+    </p>
+
+    <h3>How It Works:</h3>
+    <ul>
+      <li>
+        <strong>Mechanism:</strong> It sets the
+        <span class="prop">Connection</span> header in the HTTP response to the
+        value <span class="str">close</span>.
+      </li>
+      <li>
+        <strong>Result:</strong> When the client receives this header, it knows
+        that the server intends to close the TCP connection immediately after
+        sending the last byte of the response body.
+      </li>
+      <li>
+        <strong>Context:</strong> This is mainly relevant for **HTTP/1.1
+        connections**. By default, HTTP/1.1 uses
+        <span class="str">persistent connections</span> (or
+        <span class="str">Keep-Alive</span>), allowing multiple
+        requests/responses to share the same TCP connection for efficiency.
+        Setting
+        <code
+          ><span class="prop">Connection</span>:
+          <span class="str">close</span></code
+        >
+        tells the client to **not reuse** the connection for subsequent
+        requests.
+      </li>
+    </ul>
+
+    <h3>When to Use It:</h3>
+    <ul>
+      <li>
+        When you are sending a complete response but want to guarantee the TCP
+        socket is closed afterwards, preventing connection reuse.
+      </li>
+      <li>
+        When a non-critical error or planned shutdown occurs, and you want to
+        clean up resources cleanly on the server and client side.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>2. <code>req.destroy()</code></h2>
+
+    <p>
+      This is a **Node.js method** available on the
+      <code>http.IncomingMessage</code> object (<span class="prop">req</span>)
+      and is used to **immediately terminate the underlying socket connection**
+      from the server side.
+    </p>
+
+    <h3>How It Works:</h3>
+    <ul>
+      <li>
+        <strong>Mechanism:</strong> It directly calls the
+        <span class="dir">destroy</span>() method on the associated TCP socket.
+      </li>
+      <li>
+        <strong>Result:</strong> The connection is **forcibly closed** without
+        waiting for any response to be sent or any remaining request data to be
+        processed. This often results in a socket/connection error on the client
+        side (e.g., <code><span class="op">ECONNRESET</span></code
+        >).
+      </li>
+      <li>
+        <strong>Context:</strong> It's a low-level, immediate termination. It's
+        often used when an error or condition is encountered during the request
+        processing that makes it **impossible or undesirable to continue**
+        (e.g., a file upload is too large, the client is unauthorized, or a
+        timeout occurs).
+      </li>
+    </ul>
+
+    <h3>When to Use It:</h3>
+    <ul>
+      <li>
+        To **stop a connection immediately** before the request body is even
+        fully received (crucial for stopping large uploads like in your
+        example).
+      </li>
+      <li>
+        When a fatal error occurs and you cannot send a proper HTTP response.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Real-World Example: Stopping Large File Uploads</h2>
+
+    <p>
+      Your scenario—stopping a connection if a file size is greater than 50MB—is
+      a perfect use case for **combining**
+      <code
+        ><span class="dir">res.header</span>(<span class="str"
+          >'Connection'</span
+        >, <span class="str">'close'</span>)</code
+      >
+      and <code><span class="prop">req.destroy</span>()</code> within a file
+      upload handler. Since the file data arrives in chunks (an **incoming
+      stream**), we can listen for the chunks and check the size as they arrive.
+    </p>
+
+    <h3>Node.js Example (using the built-in <code>http</code> module):</h3>
+
+    <p>
+      This example simulates a server that accepts an incoming file stream and
+      checks the content length against a limit.
+    </p>
+
+    <pre><code><span class="kw">const</span> <span class="prop">http</span> <span class="kw">=</span> <span class="dir">require</span>(<span class="str">'http'</span>);
+<span class="kw">const</span> <span class="prop">MAX_FILE_SIZE_MB</span> <span class="kw">=</span> <span class="lit">50</span>;
+<span class="cmt">// Convert MB to bytes</span>
+<span class="kw">const</span> <span class="prop">MAX_FILE_SIZE_BYTES</span> <span class="kw">=</span> <span class="prop">MAX_FILE_SIZE_MB</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span>;
+
+<span class="kw">const</span> <span class="prop">server</span> <span class="kw">=</span> <span class="prop">http.createServer</span>((<span class="prop">req</span>, <span class="prop">res</span>) <span class="kw">=></span> {
+    <span class="cmt">// Only apply logic to POST requests that might contain a file</span>
+    <span class="kw">if</span> (<span class="prop">req.method</span> <span class="kw">===</span> <span class="str">'POST'</span>) {
+        <span class="kw">let</span> <span class="prop">uploadedSize</span> <span class="kw">=</span> <span class="lit">0</span>;
+        <span class="kw">let</span> <span class="prop">connectionDestroyed</span> <span class="kw">=</span> <span class="lit">false</span>;
+
+        <span class="cmt">// --- Core Logic: Check size as data arrives ---</span>
+        <span class="prop">req.on</span>(<span class="str">'data'</span>, (<span class="prop">chunk</span>) <span class="kw">=></span> {
+            <span class="kw">if</span> (<span class="prop">connectionDestroyed</span>) {
+                <span class="cmt">// If we've already destroyed the request, ignore incoming data</span>
+                <span class="kw">return</span>;
+            }
+
+            <span class="prop">uploadedSize</span> <span class="op">+=</span> <span class="prop">chunk.length</span>;
+
+            <span class="kw">if</span> (<span class="prop">uploadedSize</span> <span class="op">></span> <span class="prop">MAX_FILE_SIZE_BYTES</span>) {
+                <span class="prop">console.log</span>(<span class="str">`[ALERT] Upload exceeded limit: ${uploadedSize} bytes. Terminating.`</span>);
+                
+                <span class="cmt">// 1. Send a small, non-standard response with a 'Connection: close' header</span>
+                <span class="cmt">//    This *may* help the client understand why the connection is closing, </span>
+                <span class="cmt">//    but it might not be delivered if the destroy is too fast.</span>
+                <span class="prop">res.writeHead</span>(<span class="lit">413</span>, { 
+                    <span class="str">'Content-Type'</span>: <span class="str">'text/plain'</span>,
+                    <span class="str">'Connection'</span>: <span class="str">'close'</span> <span class="cmt">// &lt;-- Instructs the client to close the connection after this response</span>
+                });
+                <span class="prop">res.end</span>(<span class="str">`File size exceeds the ${MAX_FILE_SIZE_MB}MB limit.`</span>);
+
+                <span class="cmt">// 2. Immediately destroy the request/socket</span>
+                <span class="cmt">//    This is the most critical step to stop receiving more data and free up resources.</span>
+                <span class="prop">req.destroy</span>(); <span class="cmt">// &lt;-- Abruptly closes the underlying TCP socket</span>
+
+                <span class="prop">connectionDestroyed</span> <span class="kw">=</span> <span class="lit">true</span>;
+            }
+        });
+
+        <span class="cmt">// --- Handle End of Upload (Success) ---</span>
+        <span class="prop">req.on</span>(<span class="str">'end'</span>, () <span class="kw">=></span> {
+            <span class="kw">if</span> (!<span class="prop">connectionDestroyed</span>) {
+                <span class="cmt">// Only send success if the connection was not terminated mid-stream</span>
+                <span class="prop">console.log</span>(<span class="str">`[SUCCESS] File uploaded successfully. Size: ${uploadedSize} bytes.`</span>);
+                <span class="prop">res.writeHead</span>(<span class="lit">200</span>, { <span class="str">'Content-Type'</span>: <span class="str">'text/plain'</span> });
+                <span class="prop">res.end</span>(<span class="str">'File uploaded successfully.'</span>);
+            }
+        });
+
+        <span class="cmt">// --- Handle Connection Errors ---</span>
+        <span class="prop">req.on</span>(<span class="str">'error'</span>, (<span class="prop">err</span>) <span class="kw">=></span> {
+            <span class="cmt">// Handle errors like client abruptly closing the connection</span>
+            <span class="prop">console.error</span>(<span class="str">'Request error:'</span>, <span class="prop">err.message</span>);
+        });
+
+    } <span class="kw">else</span> {
+        <span class="prop">res.writeHead</span>(<span class="lit">200</span>, { <span class="str">'Content-Type'</span>: <span class="str">'text/plain'</span> });
+        <span class="prop">res.end</span>(<span class="str">'Send a POST request to upload a file.'</span>);
+    }
+});
+
+<span class="kw">const</span> <span class="prop">PORT</span> <span class="kw">=</span> <span class="lit">3000</span>;
+<span class="prop">server.listen</span>(<span class="prop">PORT</span>, () <span class="kw">=></span> {
+    <span class="prop">console.log</span>(<span class="str">`Server running on http://localhost:${PORT}`</span>);
+});</code></pre>
+
+    <h3>Explanation of the Solution:</h3>
+    <ul>
+      <li>
+        <strong>Limit Definition:</strong> We define
+        <code><span class="prop">MAX_FILE_SIZE_BYTES</span></code
+        >.
+      </li>
+      <li>
+        <strong><code>req.on('data', ...)</code>:</strong> We listen for the
+        data chunks coming from the client. The
+        <span class="prop">req</span> object (the incoming stream) emits a
+        <span class="str">'data'</span> event for every chunk received.
+      </li>
+      <li>
+        <strong>Size Check:</strong> Inside the
+        <span class="str">'data'</span> listener, we increment
+        <span class="prop">uploadedSize</span> and check if it exceeds the
+        limit.
+      </li>
+      <li>
+        <strong>Termination Logic:</strong>
+        <ul>
+          <li>
+            <code
+              ><span class="dir">res.writeHead</span>(<span class="lit"
+                >413</span
+              >, {..., <span class="str">'Connection'</span>:
+              <span class="str">'close'</span>})</code
+            >: We attempt to send a brief response with status **413 Request
+            Entity Too Large** and the
+            <code
+              ><span class="prop">Connection</span>:
+              <span class="str">close</span></code
+            >
+            header.
+          </li>
+          <li>
+            <code><span class="dir">res.end</span>(...)</code>: We send the
+            error message body.
+          </li>
+          <li>
+            <code><span class="prop">req.destroy</span>()</code>: **This is the
+            critical step.** It stops the network flow immediately. The server
+            ceases to read the rest of the stream, saving bandwidth and memory.
+            The client will likely get a socket error instead of the 413
+            response, but the goal of stopping the upload is achieved.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Frontend Prevention (ReactJS Example)</h2>
+
+    <p>
+      The best practice is to **prevent the upload entirely** on the frontend
+      before sending any data, which saves the server resources completely.
+    </p>
+
+    <h3>✅ Step 1: Calculate 50MB in bytes</h3>
+
+    <p>Browsers give file sizes in bytes, so:</p>
+    <pre><code><span class="lit">1</span><span class="prop">MB</span> <span class="kw">=</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span> <span class="prop">bytes</span>
+<span class="lit">50</span><span class="prop">MB</span> <span class="kw">=</span> <span class="lit">50</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span> <span class="prop">bytes</span></code></pre>
+
+    <p>So:</p>
+    <pre><code><span class="kw">const</span> <span class="prop">MAX_FILE_SIZE</span> <span class="kw">=</span> <span class="lit">50</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span>; <span class="cmt">// 50MB</span></code></pre>
+
+    <h3>✅ Step 2: Add the size check inside <code>handleFileChange</code></h3>
+
+    <p>Add this before uploading:</p>
+
+    <pre><code><span class="kw">async function</span> <span class="dir">handleFileChange</span>(<span class="prop">e</span>) {
+  <span class="kw">const</span> <span class="prop">files</span> <span class="kw">=</span> <span class="prop">e.target.files</span>;
+  <span class="kw">if</span> (!<span class="prop">files</span> <span class="op">||</span> <span class="prop">files.length</span> <span class="op">===</span> <span class="lit">0</span>) <span class="kw">return</span>;
+
+  <span class="kw">const</span> <span class="prop">MAX_FILE_SIZE</span> <span class="kw">=</span> <span class="lit">50</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span>; <span class="cmt">// 50MB</span>
+
+  <span class="kw">for</span> (<span class="kw">let</span> <span class="prop">file</span> <span class="kw">of</span> <span class="prop">files</span>) {
+    <span class="kw">if</span> (<span class="prop">file.size</span> <span class="op">></span> <span class="prop">MAX_FILE_SIZE</span>) {
+      <span class="prop">toast.error</span>(<span class="str">`${file.name} is larger than 50MB`</span>);
+      <span class="kw">continue</span>; <span class="cmt">// skip this file</span>
+    }
+
+    <span class="kw">await</span> <span class="dir">uploadSingleFile</span>(<span class="prop">file</span>);
+  }
+
+  <span class="dir">setShouldRefresh</span>(<span class="lit">true</span>);
+}</code></pre>
+  </body>
+</html>

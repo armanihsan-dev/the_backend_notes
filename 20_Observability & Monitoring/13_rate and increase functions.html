@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>rate() & increase() | Prometheus Functions</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-chart-line"></i> RATE & INCREASE
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. rate()</div>
+        <a href="#why" class="nav-link">Why These Functions Exist</a>
+        <a href="#rate-intro" class="nav-link">What is rate()?</a>
+        <a href="#rate-steps" class="nav-link">Step-by-Step Calculation</a>
+        <a href="#extrapolation" class="nav-link">Extrapolation Problem</a>
+        <a href="#scrape-interval" class="nav-link"
+          >Scrape Interval Adjustment</a
+        >
+        <a href="#rate-when" class="nav-link">When to Use rate()</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. increase()</div>
+        <a href="#increase-intro" class="nav-link">What is increase()?</a>
+        <a href="#increase-steps" class="nav-link">Step-by-Step Calculation</a>
+        <a href="#increase-vs-rate" class="nav-link">increase() vs rate()</a>
+        <a href="#increase-when" class="nav-link">When to Use increase()</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Deep Dive</div>
+        <a href="#extrapolation-bug" class="nav-link">The 186.66 Mystery</a>
+        <a href="#fix-math" class="nav-link">The Exact Math</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus</span>
+        <h1>RATE() & INCREASE()</h1>
+        <p>PROMETHEUS COUNTER FUNCTIONS — HOW THEY REALLY WORK</p>
+      </section>
+
+      <section id="why">
+        <h2>WHY THESE FUNCTIONS EXIST</h2>
+
+        <h3>The Problem With Counters</h3>
+        <p>
+          Counters only go up. They tell you
+          <strong>"total so far"</strong> &mdash; but that's not very useful for
+          monitoring.
+        </p>
+
+        <pre><code class="language-text">http_requests_total = 1,000,000</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title"
+            ><i class="fa-solid fa-circle-xmark"></i> What This Number Tells
+            You</span
+          >
+          <ul style="margin-bottom: 0">
+            <li>&#10060; Is my traffic high right now? &mdash; No idea</li>
+            <li>&#10060; Is my server under load? &mdash; No idea</li>
+            <li>&#10060; Should I alert? &mdash; No idea</li>
+          </ul>
+        </div>
+
+        <p>
+          All you know is:
+          <em>"Since the server started, 1 million requests happened."</em> You
+          need to answer:
+          <strong>"How FAST is this counter increasing?"</strong> That's exactly
+          what <code>rate()</code> and <code>increase()</code> do &mdash; they
+          transform useless raw counters into meaningful metrics.
+        </p>
+
+        <h3>The Common Foundation</h3>
+        <p>Both functions operate on the same core principle:</p>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-calculator"></i> Core Formula
+          </span>
+          <pre
+            style="margin: 0; background: var(--bg-secondary)"
+          ><code class="language-text">Change = Current Value - Past Value</code></pre>
+        </div>
+
+        <p>
+          Both require a <strong>range vector</strong>
+          <code>[time]</code> &mdash; a time window to look back:
+        </p>
+
+        <pre><code class="language-promql"># The [1m] tells Prometheus "look back 1 minute"
+rate(metric_name[1m])
+increase(metric_name[1m])</code></pre>
+
+        <h3>Raw Data Used Throughout This Guide</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Counter Value (http_requests_total)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>10:00:00</td>
+              <td>1,000</td>
+            </tr>
+            <tr>
+              <td>10:00:15</td>
+              <td>1,030</td>
+            </tr>
+            <tr>
+              <td>10:00:30</td>
+              <td>1,070</td>
+            </tr>
+            <tr>
+              <td>10:00:45</td>
+              <td>1,120</td>
+            </tr>
+            <tr>
+              <td>10:01:00</td>
+              <td>1,180</td>
+            </tr>
+            <tr>
+              <td>10:01:15</td>
+              <td>1,250</td>
+            </tr>
+            <tr>
+              <td>10:01:30</td>
+              <td>1,330</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── RATE INTRO ──────────────────────────────────────── -->
+      <section id="rate-intro">
+        <h2>WHAT IS rate()?</h2>
+
+        <p>
+          <code>rate()</code> calculates how fast a counter is increasing
+          <strong>per second</strong> over a given time window. It answers the
+          question:
+          <em>"How many requests per second am I getting right now?"</em>
+        </p>
+
+        <h3>Syntax</h3>
+        <pre><code class="language-promql">rate(counter_name[time_window])</code></pre>
+
+        <h3>What It Returns</h3>
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Instant Vector
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            One value per time series — the
+            <strong>average per-second rate</strong>
+            of increase over the window. You can graph this directly.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── RATE STEPS ──────────────────────────────────────── -->
+      <section id="rate-steps">
+        <h2>rate() — STEP-BY-STEP CALCULATION</h2>
+
+        <p>
+          Let's walk through exactly what Prometheus does when you run
+          <code>rate(http_requests_total[1m])</code> at
+          <strong>10:04:30</strong>.
+        </p>
+
+        <h3>Sample Data</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Total Requests (Counter)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>10:03:00</td>
+              <td>1,000</td>
+            </tr>
+            <tr>
+              <td>10:03:15</td>
+              <td>1,030</td>
+            </tr>
+            <tr>
+              <td>10:03:30</td>
+              <td>1,070</td>
+            </tr>
+            <tr>
+              <td>10:03:45</td>
+              <td>1,120</td>
+            </tr>
+            <tr>
+              <td>10:04:00</td>
+              <td>1,180</td>
+            </tr>
+            <tr>
+              <td>10:04:15</td>
+              <td>1,250</td>
+            </tr>
+            <tr>
+              <td>10:04:30</td>
+              <td>1,330</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>The Calculation</h3>
+        <pre><code class="language-text">Query: rate(http_requests_total[1m]) at 10:04:30
+
+Step 1 — Define the window
+        Look back 1 minute: 10:03:30 → 10:04:30
+
+Step 2 — Find boundary values
+        At 10:03:30 → 1,070
+        At 10:04:30 → 1,330
+
+Step 3 — Calculate total increase
+        Increase = 1,330 - 1,070 = 260 requests
+
+Step 4 — Divide by window in seconds
+        Rate = 260 / 60 = 4.33 requests per second</code></pre>
+
+        <h3>Example Results</h3>
+        <pre><code class="language-promql">rate(http_requests_total[1m])</code></pre>
+        <pre><code class="language-text">{method="GET",  path="/fancy"} → 4.33
+{method="GET",  path="/"}      → 0.016
+{method="POST", path="/users"} → 0.5</code></pre>
+      </section>
+
+      <!-- ─── EXTRAPOLATION ───────────────────────────────────── -->
+      <section id="extrapolation">
+        <h2>THE EXTRAPOLATION PROBLEM</h2>
+
+        <p>
+          Most tutorials skip this, but it's critical to understand why
+          <code>rate()</code> doesn't always give you a "clean" number.
+        </p>
+
+        <h3>The Core Issue: Misaligned Windows</h3>
+        <p>
+          Your query window boundaries (e.g. exactly <code>10:00:30</code>)
+          almost never align with actual scrape timestamps. Prometheus scrapes
+          on its own schedule — not on your query's schedule.
+        </p>
+
+        <pre><code class="language-text">Query: rate(http_requests_total[1m]) at 10:01:30
+Prometheus looks back to: 10:00:30
+
+The Problem:
+  10:00:30 ────────?──────── No data point exactly here!
+  10:00:28 ────────●         Closest point (2 seconds before)
+  10:00:32 ────────●         Closest point (2 seconds after)
+
+Prometheus CANNOT calculate (value at 10:01:30 - value at 10:00:30)
+because those exact timestamps don't exist in the database!</code></pre>
+
+        <h3>The Solution: Extrapolation</h3>
+        <p>
+          Prometheus estimates the values at window boundaries using the closest
+          real data points.
+        </p>
+
+        <pre><code class="language-text">Actual data points:
+  At 10:00:28 → 1,050
+  At 10:01:32 → 1,330
+
+Your window: 10:00:30 to 10:01:30
+
+10:00:28    10:00:30    10:01:30    10:01:32
+    ●──────────┼──────────┼──────────●
+    │          │          │          │
+ 1,050      ???          ???      1,330
+
+Prometheus estimates:
+  Value at 10:00:30 ≈ 1,060  (extrapolated from 1,050)
+  Value at 10:01:30 ≈ 1,320  (extrapolated from 1,330)</code></pre>
+      </section>
+
+      <!-- ─── SCRAPE INTERVAL ─────────────────────────────────── -->
+      <section id="scrape-interval">
+        <h2>SCRAPE INTERVAL ADJUSTMENT — WHY IT MATTERS</h2>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Advanced Concept
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            This is something most tutorials completely ignore. Understanding it
+            explains why <code>rate()</code> divides by
+            <strong>55</strong> instead of 60 when your scrape interval is 5s.
+          </p>
+        </div>
+
+        <h3>The 60 - 5 = 55 Logic</h3>
+        <p>
+          With <code>scrape_interval: 5s</code> in your
+          <code>prometheus.yml</code>:
+        </p>
+
+        <pre><code class="language-yaml">global:
+  scrape_interval: 5s  # Prometheus collects data every 5 seconds</code></pre>
+
+        <pre><code class="language-text">Timeline (scrape every 5s):
+10:00:30 (boundary) ───●───●───●───●───●───●───●───●───●───●───●───●───● (10:01:30)
+                       │   │   │   │   │   │   │   │   │   │   │   │   │
+Data points at: 10:00:32, 10:00:37, 10:00:42 ... 10:01:27
+
+First data point AFTER  10:00:30 → at 10:00:32  (2 seconds late)
+Last  data point BEFORE 10:01:30 → at 10:01:27  (3 seconds early)
+
+Total REAL data coverage = 10:00:32 to 10:01:27 = 55 seconds</code></pre>
+
+        <h3>The Complete Correct Calculation</h3>
+        <pre><code class="language-text">Step 1 — Raw counter values
+        At 10:00:32 → 1,060
+        At 10:01:27 → 1,320
+
+Step 2 — Calculate increase
+        Increase = 1,320 - 1,060 = 260 requests
+
+Step 3 — Calculate actual time difference
+        Time = 10:01:27 - 10:00:32 = 55 seconds
+
+Step 4 — Calculate rate
+        Rate = 260 / 55 = 4.727 requests per second</code></pre>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Value</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Window requested</td>
+              <td>60 seconds</td>
+              <td>Your <code>[1m]</code></td>
+            </tr>
+            <tr>
+              <td>Scrape interval</td>
+              <td>5 seconds</td>
+              <td><code>scrape_interval: 5s</code></td>
+            </tr>
+            <tr>
+              <td>Actual data coverage</td>
+              <td>55 seconds</td>
+              <td>60 - 5 = 55</td>
+            </tr>
+            <tr>
+              <td>Divisor used by Prometheus</td>
+              <td>55</td>
+              <td>Real time between data points</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── RATE WHEN ───────────────────────────────────────── -->
+      <section id="rate-when">
+        <h2>WHEN TO USE rate()</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Use Case</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>✅ Alerting on traffic drops</td>
+              <td>"Rate fell below 10 req/sec"</td>
+            </tr>
+            <tr>
+              <td>✅ Autoscaling decisions</td>
+              <td>"Rate &gt; 100 req/sec → scale up"</td>
+            </tr>
+            <tr>
+              <td>✅ Dashboard graphs</td>
+              <td>Shows smooth traffic trends</td>
+            </tr>
+            <tr>
+              <td>✅ Comparing traffic over time</td>
+              <td>Consistent per-second unit</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── INCREASE INTRO ──────────────────────────────────── -->
+      <section id="increase-intro">
+        <h2>WHAT IS increase()?</h2>
+
+        <p>
+          <code>increase()</code> calculates the
+          <strong>total increase</strong> of a counter over a time window.
+          Unlike <code>rate()</code>, it does <em>not</em> divide by time — it
+          returns the raw count of how much the counter grew.
+        </p>
+
+        <h3>Syntax</h3>
+        <pre><code class="language-promql">increase(counter_name[time_window])</code></pre>
+
+        <h3>What It Returns</h3>
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Instant Vector
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            One value per time series — the
+            <strong>total count increase</strong>
+            over the window. No division. Just the raw growth number.
+          </p>
+        </div>
+
+        <div class="note-box warning">
+          <span class="note-title"
+            ><i class="fa-solid fa-triangle-exclamation"></i> Under the
+            Hood</span
+          >
+          <p style="margin-bottom: 0">
+            <code>increase(x[t])</code> is literally just
+            <code>rate(x[t]) × t</code>. It uses the same extrapolation logic as
+            <code>rate()</code>, which is why it can return non-integer values
+            even for integer counters.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── INCREASE STEPS ──────────────────────────────────── -->
+      <section id="increase-steps">
+        <h2>increase() — STEP-BY-STEP CALCULATION</h2>
+
+        <pre><code class="language-text">Query: increase(http_requests_total[1m]) at 10:01:30
+
+Step 1 — Define the window
+        Look back 1 minute: 10:00:30 → 10:01:30
+
+Step 2 — Find boundary values
+        At 10:00:30 → 1,070
+        At 10:01:30 → 1,330
+
+Step 3 — Calculate total increase
+        Increase = 1,330 - 1,070 = 260 requests
+
+Step 4 — Return that number (no division)
+        Result = 260</code></pre>
+
+        <h3>Example Results</h3>
+        <pre><code class="language-promql">increase(http_requests_total[1m])</code></pre>
+        <pre><code class="language-text">{method="GET",  path="/fancy"} → 260
+{method="GET",  path="/"}      → 1
+{method="POST", path="/users"} → 30</code></pre>
+      </section>
+
+      <!-- ─── INCREASE VS RATE ────────────────────────────────── -->
+      <section id="increase-vs-rate">
+        <h2>increase() vs rate() — SIDE BY SIDE</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Query</th>
+              <th>Calculation</th>
+              <th>Result</th>
+              <th>Unit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>rate([1m])</code></td>
+              <td>260 / 60</td>
+              <td>4.33</td>
+              <td>requests / second</td>
+            </tr>
+            <tr>
+              <td><code>increase([1m])</code></td>
+              <td>260 × 1</td>
+              <td>260</td>
+              <td>total requests</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-equals"></i> The Relationship
+          </span>
+          <pre
+            style="margin: 0; background: var(--bg-secondary)"
+          ><code class="language-text">increase(x[t])  =  rate(x[t])  ×  t (in seconds)
+increase(x[1m]) =  rate(x[1m]) × 60</code></pre>
+        </div>
+      </section>
+
+      <!-- ─── INCREASE WHEN ───────────────────────────────────── -->
+      <section id="increase-when">
+        <h2>WHEN TO USE increase()</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Use Case</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>✅ Billing / accounting</td>
+              <td>"How many API calls this hour?"</td>
+            </tr>
+            <tr>
+              <td>✅ Capacity planning</td>
+              <td>"Total requests in last 24 hours"</td>
+            </tr>
+            <tr>
+              <td>✅ Batch job reporting</td>
+              <td>"How many items processed?"</td>
+            </tr>
+            <tr>
+              <td>✅ Business metrics</td>
+              <td>"Total orders in last 5 minutes"</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── EXTRAPOLATION BUG ───────────────────────────────── -->
+      <section id="extrapolation-bug">
+        <h2>THE 186.66 MYSTERY — WHY increase() LIES</h2>
+
+        <p>
+          You sent exactly <strong>140 requests</strong> programmatically,
+          waited a few minutes (no traffic), then ran:
+        </p>
+        <pre><code class="language-promql">increase(http_requests_total[20s])</code></pre>
+        <p>
+          And got <strong>186.66</strong> instead of 140. Here's exactly why.
+        </p>
+
+        <h3>What Prometheus Saw</h3>
+        <p>
+          Your 140 requests happened in a burst (~10 seconds). With
+          <code>scrape_interval: 5s</code>:
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Scrape Time</th>
+              <th>Counter Value</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>09:59:55</td>
+              <td>0</td>
+              <td>Before burst</td>
+            </tr>
+            <tr>
+              <td>10:00:00</td>
+              <td>0</td>
+              <td>Burst just starting</td>
+            </tr>
+            <tr>
+              <td>10:00:05</td>
+              <td>70</td>
+              <td>Half of requests sent</td>
+            </tr>
+            <tr>
+              <td>10:00:10</td>
+              <td>140</td>
+              <td>All requests done</td>
+            </tr>
+            <tr>
+              <td>10:00:15</td>
+              <td>140</td>
+              <td>No change</td>
+            </tr>
+            <tr>
+              <td>10:00:20</td>
+              <td>140</td>
+              <td>No change</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Your Query [20s] at 10:00:20</h3>
+        <pre><code class="language-text">Window: 10:00:00 → 10:00:20
+Data points inside window:
+  10:00:00 → 0
+  10:00:05 → 70
+  10:00:10 → 140
+  10:00:15 → 140
+  10:00:20 → 140  ← last data point is AT the boundary ✅</code></pre>
+
+        <h3>Why 186.66 and Not 140?</h3>
+        <p>
+          The last data point with a <em>changing</em> value was at
+          <code>10:00:10</code> (value = 140). The data points at
+          <code>10:00:15</code> and <code>10:00:20</code> are flat (no change).
+        </p>
+        <p>
+          Prometheus calculates <code>rate()</code> using the slope of the data.
+          The slope was computed over the rising portion (0 → 140 in 10
+          seconds), then <strong>extrapolated forward</strong> to fill the full
+          20-second window.
+        </p>
+
+        <pre><code class="language-text">Step 1 — rate() over [20s]
+        rate = (140 - 0) / 15 = 9.33 req/sec
+        (Why 15? The last data point Prometheus used was at 10:00:15)
+
+Step 2 — increase() = rate() × window
+        increase = 9.33 × 20 = 186.66</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> The Root Cause
+          </span>
+          <p style="margin-bottom: 0">
+            The last data point inside your window was at <code>10:00:15</code>,
+            not <code>10:00:20</code>. Even though the counter was already 140
+            at <code>10:00:15</code>, Prometheus assumed it would
+            <em>continue increasing</em> at the same rate until
+            <code>10:00:20</code> — adding imaginary requests.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── FIX MATH ────────────────────────────────────────── -->
+      <section id="fix-math">
+        <h2>THE EXACT MATH — HOW TO GET BACK TO 140</h2>
+
+        <p>
+          You want to understand: what are the
+          <strong>46.66 imaginary requests</strong>
+          that Prometheus added?
+        </p>
+
+        <h3>Formula</h3>
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-calculator"></i> Imaginary Requests Formula
+          </span>
+          <pre
+            style="margin: 0; background: var(--bg-secondary)"
+          ><code class="language-text">Imaginary Requests = Rate × (Window End - Last Data Point Timestamp)</code></pre>
+        </div>
+
+        <h3>Step-by-Step</h3>
+        <pre><code class="language-text">Step 1 — Last data point inside the window
+        Timestamp: 10:00:15
+        Value:     140
+
+Step 2 — Window end time
+        10:00:20
+
+Step 3 — Calculate the gap
+        Gap = 10:00:20 - 10:00:15 = 5 seconds
+        (This equals your scrape_interval!)
+
+Step 4 — Find the rate from your data
+        Rate = 140 / 15 = 9.33 requests per second
+
+Step 5 — Calculate imaginary requests
+        Imaginary = 9.33 × 5 = 46.66
+
+Step 6 — Subtract to get actual increase
+        Actual = increase() - Imaginary
+               = 186.66 - 46.66
+               = 140 ✅</code></pre>
+
+        <h3>Summary</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Value</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>186.66</td>
+              <td>What <code>increase([20s])</code> returned</td>
+            </tr>
+            <tr>
+              <td>46.66</td>
+              <td>Imaginary requests Prometheus extrapolated</td>
+            </tr>
+            <tr>
+              <td>140</td>
+              <td>Requests you actually sent</td>
+            </tr>
+            <tr>
+              <td>5s</td>
+              <td>The gap = your scrape interval</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+            margin-top: 3rem;
+          "
+        >
+          <span
+            class="note-title"
+            style="color: var(--accent); font-size: 1rem"
+          >
+            💡 Golden Rule
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0.5rem">
+            <code>increase()</code> and <code>rate()</code> are
+            <em>estimates</em>, not exact counts. The extrapolation error is
+            proportional to your scrape interval. Use longer windows to reduce
+            the relative error.
+          </p>
+          <pre
+            style="margin: 0; background: var(--bg-secondary)"
+          ><code class="language-text">Shorter window [20s] + scrape 5s  → error can be ~33%
+Longer  window [5m]  + scrape 5s  → error is only ~1.6%</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>rate() &amp; increase() — Prometheus Functions Deep Dive</p>
+        <p>created on <strong>12 Aprail 2026</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

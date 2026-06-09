@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure File Upload & Streaming in Node.js</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>🚨 Security Vulnerabilities in Naive File Upload Handling</h1>
+
+    <p>
+      The original connection management discussion is vital, but the
+      implementation of file size checking often contains severe security flaws.
+      The following points detail the problems with checking file size purely
+      based on headers and present the **secure, streaming-based solution**.
+    </p>
+
+    <hr />
+
+    <h2>❌ 1. Our current code is NOT secure</h2>
+
+    <p>You check:</p>
+    <pre><code><span class="kw">const</span> <span class="prop">fileSize</span> <span class="kw">=</span> <span class="prop">req.headers.filesize</span>;
+<span class="kw">if</span> (<span class="prop">fileSize</span> <span class="op">></span> <span class="lit">50</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span>) {
+   <span class="cmt">// reject</span>
+}</code></pre>
+
+    <p>But an attacker can do:</p>
+    <pre><code><span class="prop">curl</span> -X <span class="str">POST</span> ... -H <span class="str">"filesize: 5"</span> <span class="op">--upload-file</span> <span class="prop">huge_5GB_file.zip</span></code></pre>
+
+    <p>Your backend will say:</p>
+    <blockquote style="border-left: 5px solid var(--color-secondary)">
+      <p>"<span class="str">Okay, filesize = 5 bytes ✨</span>"</p>
+    </blockquote>
+    <p>Then your backend will:</p>
+    <ul>
+      <li><span class="kw">✔</span> Accept connection</li>
+      <li><span class="kw">✔</span> Start piping</li>
+      <li>
+        <span class="kw">✔</span> Start writing the full
+        <span class="err">5GB</span> file
+      </li>
+      <li><span class="op">❌</span> Blow up your disk</li>
+      <li><span class="op">❌</span> Crash your server</li>
+      <li><span class="op">❌</span> Make your storage vulnerable</li>
+    </ul>
+    <p>This is not hypothetical — this is exactly how backend attacks work.</p>
+
+    <h2>❌ 2. The second problem: you check BEFORE streaming</h2>
+    <p>
+      But you don’t actually check how many bytes come in
+      <span class="prop">AFTER</span> you accept the request. This means:
+    </p>
+    <ul>
+      <li>A malicious user can lie in headers.</li>
+      <li>Even if they don’t lie, they can send more bytes than promised.</li>
+    </ul>
+    <p>
+      Your controller currently has zero protection against oversized raw
+      payloads.
+    </p>
+
+    <h2>⚠️ 3. <code>Connection: close</code> DOES NOT stop upload</h2>
+    <p>You wrote:</p>
+    <pre><code><span class="dir">res.header</span>(<span class="str">'Connection'</span>, <span class="str">'close'</span>)
+<span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">400</span>)...</code></pre>
+
+    <p>
+      This does not stop the upload stream. The browser is already sending bytes
+      at that moment. This means:
+    </p>
+    <ul>
+      <li>The backend still receives the whole file.</li>
+      <li>You waste bandwidth, CPU, RAM.</li>
+      <li>
+        The <span class="prop">writeStream</span> might get huge overload before
+        ending.
+      </li>
+    </ul>
+    <p>It is not protection.</p>
+
+    <hr />
+
+    <h2>✅ 4. What a SECURE backend must do</h2>
+    <p>Your backend should:</p>
+    <ul>
+      <li>
+        <strong>(A) Never trust the client's reported file size</strong
+        ><br />Always measure incoming bytes yourself.
+      </li>
+      <li>
+        <strong>(B) Stop the upload immediately when limit is exceeded</strong
+        ><br />This is the key.
+      </li>
+      <li>
+        <strong>(C) Destroy the connection</strong><br />Kill the stream the
+        moment the file exceeds 50MB.
+      </li>
+    </ul>
+
+    <h2>🛡️ 5. This is the secure approach (correct backend)</h2>
+    <p>Use the raw <code>req</code> stream and count bytes:</p>
+
+    <pre><code><span class="kw">export const</span> <span class="dir">createFile</span> <span class="kw">=</span> <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) <span class="kw">=></span> {
+    <span class="kw">try</span> {
+        <span class="kw">const</span> <span class="prop">parentDirId</span> <span class="kw">=</span> <span class="prop">req.params.parentDirId</span> <span class="op">||</span> <span class="prop">req.user.rootDirId</span>;
+        <span class="kw">const</span> <span class="prop">parentDirData</span> <span class="kw">=</span> <span class="kw">await</span> <span class="prop">Directory.findOne</span>({ <span class="prop">_id</span>: <span class="prop">parentDirId</span>, <span class="prop">userId</span>: <span class="prop">req.user._id</span> })
+
+        <span class="cmt">// Check if parent directory exists</span>
+        <span class="kw">if</span> (!<span class="prop">parentDirData</span>) {
+            <span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">404</span>).<span class="dir">json</span>({ <span class="prop">error</span>: <span class="str">"Parent directory not found!"</span> });
+        }
+        <span class="kw">const</span> <span class="prop">fileSize</span> <span class="kw">=</span> <span class="prop">req.headers.filesize</span> <span class="op">||</span> <span class="lit">0</span>
+        <span class="kw">const</span> <span class="prop">filename</span> <span class="kw">=</span> <span class="prop">req.headers.filename</span> <span class="op">||</span> <span class="str">"untitled"</span>;
+        <span class="kw">const</span> <span class="prop">extension</span> <span class="kw">=</span> <span class="prop">path.extname</span>(<span class="prop">filename</span>);
+
+        <span class="cmt">// LAYER A: Check header limit (Fast Reject)</span>
+        <span class="kw">if</span> (<span class="prop">fileSize</span> <span class="op">></span> <span class="lit">50</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span>) {
+            <span class="prop">req.destroy</span>()
+            <span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">400</span>).<span class="dir">json</span>({ <span class="prop">error</span>: <span class="str">"File size exceeds the 50MB limit."</span> });
+        }
+
+        <span class="kw">const</span> <span class="prop">savedFile</span> <span class="kw">=</span> <span class="kw">await</span> <span class="prop">File.insertOne</span>({
+            <span class="prop">extension</span>,
+            <span class="prop">size</span>: <span class="prop">fileSize</span>,
+            <span class="prop">name</span>: <span class="prop">filename</span>,
+            <span class="prop">parentDirId</span>: <span class="prop">parentDirData._id</span>,
+            <span class="prop">userId</span>: <span class="prop">req.user._id</span>
+        })
+
+        <span class="kw">const</span> <span class="prop">fileID</span> <span class="kw">=</span> <span class="prop">savedFile.id</span>
+        <span class="kw">const</span> <span class="prop">fullFileName</span> <span class="kw">=</span> <span class="str">`</span><span class="op">${</span><span class="prop">fileID</span><span class="op">}</span><span class="op">${</span><span class="prop">extension</span><span class="op">}</span><span class="str">`</span>;
+        <span class="kw">const</span> <span class="prop">filePath</span> <span class="kw">=</span> <span class="str">`./storage/</span><span class="op">${</span><span class="prop">fullFileName</span><span class="op">}</span><span class="str">`</span>
+
+
+        <span class="kw">const</span> <span class="prop">writeStream</span> <span class="kw">=</span> <span class="prop">createWriteStream</span>(<span class="prop">filePath</span>);
+        <span class="kw">let</span> <span class="prop">aborted</span> <span class="kw">=</span> <span class="lit">false</span>
+        <span class="cmt">// req.pipe(writeStream) - replaced by manual streaming for security/backpressure</span>
+        <span class="kw">let</span> <span class="prop">totalFileSize</span> <span class="kw">=</span> <span class="lit">0</span>
+        <span class="prop">req.on</span>(<span class="str">"data"</span>, <span class="kw">async</span> (<span class="prop">chunk</span>) <span class="kw">=></span> {
+            <span class="kw">if</span> (<span class="prop">aborted</span>) <span class="kw">return</span>;
+
+            <span class="prop">totalFileSize</span> <span class="op">+=</span> <span class="prop">chunk.length</span>;
+
+            <span class="cmt">// LAYER B: SECURITY: count real bytes and prevent oversized upload</span>
+            <span class="kw">if</span> (<span class="prop">totalFileSize</span> <span class="op">></span> <span class="prop">fileSize</span>) {
+                <span class="prop">aborted</span> <span class="kw">=</span> <span class="lit">true</span>;
+                <span class="kw">await</span> <span class="prop">savedFile.deleteOne</span>();
+                <span class="kw">await</span> <span class="dir">rm</span>(<span class="prop">filePath</span>);
+                <span class="prop">writeStream.destroy</span>();
+                <span class="kw">return</span> <span class="prop">req.destroy</span>(); <span class="cmt">// <---- The CRITICAL part: stops the stream immediately</span>
+            }
+            <span class="cmt">// BACKPRESSURE HANDLING</span>
+            <span class="kw">const</span> <span class="prop">canContinue</span> <span class="kw">=</span> <span class="prop">writeStream.write</span>(<span class="prop">chunk</span>);
+            <span class="kw">if</span> (!<span class="prop">canContinue</span>) {
+                <span class="cmt">// Pause incoming data</span>
+                <span class="prop">req.pause</span>();
+                <span class="prop">writeStream.once</span>(<span class="str">"drain"</span>, () <span class="kw">=></span> {
+                    <span class="prop">req.resume</span>();
+                });
+            }
+        });
+
+
+        <span class="prop">req.on</span>(<span class="str">"end"</span>, <span class="kw">async</span> () <span class="kw">=></span> {
+            <span class="kw">try</span> {
+                <span class="prop">writeStream.end</span>();
+                <span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">201</span>).<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">"File Uploaded"</span> });
+            } <span class="kw">catch</span> (<span class="prop">err</span>) {
+                <span class="prop">next</span>(<span class="prop">err</span>);
+            }
+        });
+        <span class="cmt">// Handle stream errors</span>
+        <span class="prop">writeStream.on</span>(<span class="str">"error"</span>, <span class="kw">async</span> (<span class="prop">err</span>) <span class="kw">=></span> {
+            <span class="prop">console.error</span>(<span class="str">"Write stream error:"</span>, <span class="prop">err</span>);
+            <span class="kw">await</span> <span class="prop">File.deleteOne</span>({ <span class="prop">_id</span>: <span class="prop">fileID</span> });
+            <span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">500</span>).<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">"File not saved on server"</span> });
+        });
+
+        <span class="cmt">// Handle request errors</span>
+        <span class="prop">req.on</span>(<span class="str">"error"</span>, <span class="kw">async</span> (<span class="prop">err</span>) <span class="kw">=></span> {
+            <span class="prop">console.error</span>(<span class="str">"Request error:"</span>, <span class="prop">err</span>);
+            <span class="kw">await</span> <span class="prop">File.deleteOne</span>({ <span class="prop">_id</span>: <span class="prop">fileID</span> });
+            <span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">500</span>).<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">"Upload failed"</span> });
+        });
+    } <span class="kw">catch</span> (<span class="prop">error</span>) {
+        <span class="prop">console.log</span>(<span class="prop">error</span>);
+        <span class="prop">next</span>(<span class="prop">error</span>)
+    }
+}</code></pre>
+
+    <hr />
+
+    <h2>1. Why THIS is secure against fake file sizes</h2>
+
+    <p>Your code does two layers of protection:</p>
+
+    <h3>🔒 A) Check header limit (fast reject)</h3>
+    <pre><code><span class="kw">if</span> (<span class="prop">fileSize</span> <span class="op">></span> <span class="lit">50</span> <span class="op">*</span> <span class="lit">1024</span> <span class="op">*</span> <span class="lit">1024</span>) {
+    <span class="prop">req.destroy</span>()
+    <span class="kw">return</span> <span class="dir">res.status</span>(<span class="lit">400</span>).<span class="dir">json</span>({ <span class="prop">error</span>: <span class="str">"File size exceeds the 50MB limit."</span> });
+}</code></pre>
+    <p>
+      This protects from: Genuine users uploading large files accidentally and
+      obvious oversized uploads. BUT this alone is NOT enough because attackers
+      can lie in headers. So we need layer B:
+    </p>
+
+    <h3>🔒 B) Count REAL bytes while streaming</h3>
+    <pre><code><span class="prop">totalFileSize</span> <span class="op">+=</span> <span class="prop">chunk.length</span>;
+<span class="kw">if</span> (<span class="prop">totalFileSize</span> <span class="op">></span> <span class="prop">fileSize</span>) {
+    <span class="prop">aborted</span> <span class="kw">=</span> <span class="lit">true</span>;
+    <span class="kw">await</span> <span class="prop">savedFile.deleteOne</span>();
+    <span class="kw">await</span> <span class="dir">rm</span>(<span class="prop">filePath</span>);
+    <span class="prop">writeStream.destroy</span>();
+    <span class="kw">return</span> <span class="prop">req.destroy</span>();
+}</code></pre>
+    <p>This is where **real security** happens. What it prevents:</p>
+    <ul>
+      <li>A user lying about file size (e.g., claims 1MB but sends 10GB)</li>
+      <li>A user exceeding even one byte over the expected size</li>
+      <li>Slowloris-style streaming attacks</li>
+      <li>Disk overflow and DDoS-by-oversized file attacks</li>
+    </ul>
+    <p>
+      Because the moment <span class="prop">totalFileSize</span> goes beyond the
+      advertised size:
+    </p>
+    <ul>
+      <li>DB entry deleted <span class="kw">✔</span></li>
+      <li>Partially written file removed <span class="kw">✔</span></li>
+      <li>Write stream destroyed <span class="kw">✔</span></li>
+      <li>
+        Request terminated immediately (no more bytes allowed)
+        <span class="kw">✔</span>
+      </li>
+    </ul>
+    <p>This is **100% secure** for controlling upload size.</p>
+
+    <h2>✅ 2. Why this handles BACKPRESSURE correctly</h2>
+
+    <p>This part:</p>
+    <pre><code><span class="kw">const</span> <span class="prop">canContinue</span> <span class="kw">=</span> <span class="prop">writeStream.write</span>(<span class="prop">chunk</span>);
+<span class="kw">if</span> (!<span class="prop">canContinue</span>) {
+    <span class="prop">req.pause</span>();
+    <span class="prop">writeStream.once</span>(<span class="str">"drain"</span>, () <span class="kw">=></span> {
+        <span class="prop">req.resume</span>();
+    });
+}</code></pre>
+
+    <p>
+      This is **textbook backpressure handling**. Let’s understand it plainly:
+    </p>
+
+    <h3>🤔 What is backpressure?</h3>
+    <p>
+      Backpressure = Your writable stream (disk) is slower than your readable
+      stream (client upload). Meaning:
+    </p>
+    <p>Client sends data → **too fast**</p>
+    <p>Disk writes → **too slow**</p>
+    <p>
+      Without backpressure: RAM fills up, Node crashes, System becomes unstable.
+    </p>
+
+    <h3>💡 How your code solves it</h3>
+    <p>
+      <code><span class="prop">write</span></code> returns
+      <span class="kw">false</span> when disk is too slow:
+    </p>
+    <pre><code><span class="kw">const</span> <span class="prop">canContinue</span> <span class="kw">=</span> <span class="prop">writeStream.write</span>(<span class="prop">chunk</span>);</code></pre>
+    <p>
+      If this returns <span class="kw">false</span>, Node signals: **“Hey, I am
+      overloaded. Don't give me more chunks.”** So you correctly:
+    </p>
+    <ol>
+      <li>
+        <span class="prop">Pause</span> incoming network data:
+        <code><span class="prop">req.pause</span>();</code> (Client stops
+        sending packets.)
+      </li>
+      <li>
+        Wait for disk to catch up:
+        <code
+          ><span class="prop">writeStream.once</span>(<span class="str"
+            >"drain"</span
+          >, ...</code
+        >
+        (The <span class="str">"drain"</span> event means: “Okay, I flushed the
+        buffer. I'm ready again.”)
+      </li>
+      <li>
+        <span class="prop">Resume</span> upload:
+        <code><span class="prop">req.resume</span>();</code>
+      </li>
+    </ol>
+    <p>
+      This prevents: Buffer overflow, High memory usage, Hanging write streams,
+      and Disk thrashing. This is **production-quality backpressure handling**.
+    </p>
+
+    <h2>✅ 3. Why this controller is safe and correct</h2>
+
+    <p>Your controller now accomplishes all of this:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Safety Feature</th>
+          <th>Handled?</th>
+          <th>Why</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Prevent fake file sizes</td>
+          <td><span class="kw">✔</span></td>
+          <td>Measures real incoming bytes</td>
+        </tr>
+        <tr>
+          <td>Stop upload instantly</td>
+          <td><span class="kw">✔</span></td>
+          <td>
+            <code><span class="prop">req.destroy</span>()</code>
+          </td>
+        </tr>
+        <tr>
+          <td>Clean partial file</td>
+          <td><span class="kw">✔</span></td>
+          <td>
+            <code
+              ><span class="dir">rm</span>(<span class="prop">filePath</span
+              >)</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td>Remove DB entry</td>
+          <td><span class="kw">✔</span></td>
+          <td>
+            <code><span class="prop">savedFile.deleteOne</span>()</code>
+          </td>
+        </tr>
+        <tr>
+          <td>Handle slow disk writes</td>
+          <td><span class="kw">✔</span></td>
+          <td>
+            backpressure <code><span class="prop">pause</span></code
+            >/<code><span class="prop">resume</span></code>
+          </td>
+        </tr>
+        <tr>
+          <td>Handle request errors</td>
+          <td><span class="kw">✔</span></td>
+          <td>
+            <code
+              ><span class="prop">req.on</span>(<span class="str">"error"</span
+              >)</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td>Handle write errors</td>
+          <td><span class="kw">✔</span></td>
+          <td>
+            <code
+              ><span class="prop">writeStream.on</span>(<span class="str"
+                >"error"</span
+              >)</code
+            >
+          </td>
+        </tr>
+        <tr>
+          <td>Avoid memory overflow</td>
+          <td><span class="kw">✔</span></td>
+          <td>Uses streaming only</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      This is exactly how professional cloud platforms like S3 proxies implement
+      streaming uploads.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DNS Hijacking — Handy Notes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c0f12;         /* blackish background */
+      --bg-soft: #11161b;    /* card background */
+      --ink: #e8edf2;        /* primary text */
+      --ink-dim: #b7c0c9;    /* secondary text */
+      --accent: #76baff;     /* blue accent */
+      --accent-2: #7df1c9;   /* mint accent */
+      --bad: #ff7b7b;        /* risk color */
+      --good: #8cff9d;       /* safe color */
+      --warn: #ffd27a;       /* warn color */
+      --code-bg: #0a0d10;    /* code blocks */
+      --border: #1f2831;     /* subtle borders */
+      --ring: rgba(118,186,255,.4);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink);
+      font-family: 'Nunito', system-ui, -apple-system, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.65; font-size: 16px;
+    }
+
+    .wrap { max-width: 980px; margin: 0 auto; padding: 28px 18px 80px; }
+
+    header {
+      display: grid; gap: 10px; margin-bottom: 20px;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(118,186,255,.08), rgba(125,241,201,.08));
+      border-radius: 999px; font-weight: 700; letter-spacing: .3px; color: var(--accent);
+    }
+    h1 { font-size: clamp(28px, 4.2vw, 48px); margin: 4px 0 2px; line-height: 1.1; }
+    .sub { color: var(--ink-dim); font-weight: 600; }
+
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+    .card {
+      grid-column: span 12;
+      background: linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00));
+      border: 1px solid var(--border);
+      border-radius: 18px; padding: 18px 18px; position: relative; overflow: hidden;
+    }
+    @media (min-width: 760px) {
+      .span-6 { grid-column: span 6; }
+      .span-4 { grid-column: span 4; }
+      .span-8 { grid-column: span 8; }
+    }
+
+    h2 { font-size: clamp(20px, 2.4vw, 28px); margin: 0 0 8px; }
+    h3 { font-size: 18px; margin: 14px 0 8px; color: var(--accent); }
+
+    ul, ol { margin: 10px 0 0 20px; }
+    li { margin: 6px 0; }
+    .muted { color: var(--ink-dim); }
+    .pill {
+      display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 800; letter-spacing: .2px;
+      border: 1px solid var(--border); background: rgba(255,255,255,.02); color: var(--ink);
+    }
+    .risk { color: var(--bad); }
+    .okay { color: var(--good); }
+    .warn { color: var(--warn); }
+
+    .k {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      background: var(--code-bg); padding: 2px 6px; border-radius: 8px; border: 1px solid var(--border);
+    }
+    pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    pre {
+      margin: 10px 0 0; padding: 12px 12px; background: var(--code-bg); border: 1px solid var(--border);
+      border-radius: 14px; overflow: auto; box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+    }
+
+    .callout { border-left: 4px solid var(--accent); padding: 10px 12px; background: rgba(118,186,255,.06); border-radius: 12px; }
+    .callout.warn { border-left-color: var(--warn); background: rgba(255,210,122,.08); }
+    .callout.danger { border-left-color: var(--bad); background: rgba(255,123,123,.08); }
+
+    .footer { margin-top: 20px; color: var(--ink-dim); font-size: 14px; }
+
+    /* Print-friendly */
+    @media print {
+      body { background: #fff; color: #111; }
+      .card { border-color: #ddd; background: #fff; }
+      .callout, .callout.warn, .callout.danger { background: #fff; }
+      .badge { border-color: #bbb; color: #111; }
+      a { color: #000; text-decoration: underline; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">DNS • Security Notes</span>
+      <div class="sub">A compact, developer‑friendly cheat sheet on what it is, how it works, detection, and defense.</div>
+    </header>
+
+    <section class="grid">
+      <article class="card span-8">
+        <h2>What is DNS Hijacking?</h2>
+        <p>DNS hijacking (aka <em>DNS redirection</em>) is when an attacker manipulates the DNS resolution path so a domain (e.g., <span class="k">bank.com</span>) resolves to an attacker‑controlled IP instead of the real server. Think “changing the Internet’s street signs.”</p>
+        <div class="callout">
+          <strong>Goal:</strong> Phishing, malware delivery, ad injection, censorship, or credential theft.
+        </div>
+      </article>
+
+      <article class="card span-4">
+        <h2>Quick Flow — How DNS Works</h2>
+        <ol>
+          <li>User types <span class="k">example.com</span> in a browser.</li>
+          <li>OS checks <span class="k">hosts</span> file → local cache → DNS resolver.</li>
+          <li>Resolver queries authoritative servers if needed.</li>
+          <li>IP returned; browser connects to that server.</li>
+        </ol>
+        <p class="muted">Tamper any step → hijack.</p>
+      </article>
+
+      <article class="card span-12">
+        <h2>Common Hijack Vectors</h2>
+        <div class="grid">
+          <div class="card span-6">
+            <h3>1) Local / Device</h3>
+            <ul>
+              <li>Malware edits <span class="k">hosts</span> file or changes DNS settings.</li>
+              <li>Outcome: only your device is redirected.</li>
+            </ul>
+          </div>
+          <div class="card span-6">
+            <h3>2) Router</h3>
+            <ul>
+              <li>Weak/default router password; attacker changes router DNS.</li>
+              <li>Outcome: all devices on LAN use attacker DNS.</li>
+            </ul>
+          </div>
+          <div class="card span-6">
+            <h3>3) MITM / Network</h3>
+            <ul>
+              <li>Attacker intercepts traffic and forges DNS replies.</li>
+              <li>Public Wi‑Fi risk; no encryption → easy target.</li>
+            </ul>
+          </div>
+          <div class="card span-6">
+            <h3>4) Cache Poisoning</h3>
+            <ul>
+              <li>Resolver is tricked into caching a fake record (Kaminsky‑style).</li>
+              <li>Outcome: affects everyone using that resolver.</li>
+            </ul>
+          </div>
+          <div class="card span-6">
+            <h3>5) ISP / Resolver Policy</h3>
+            <ul>
+              <li>Some ISPs redirect typos or blocked domains to ads or notices.</li>
+              <li>Sometimes misconfig or compromise can be abused.</li>
+            </ul>
+          </div>
+          <div class="card span-6">
+            <h3>6) Registrar / DNS Account Takeover</h3>
+            <ul>
+              <li>Attacker gains control of your domain or DNS provider.</li>
+              <li>Changes authoritative records; global impact.</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-8">
+        <h2>What Attackers Can Do</h2>
+        <ul>
+          <li><span class="pill risk">Phishing</span> Fake login portals for banks/cloud.</li>
+          <li><span class="pill risk">Malware</span> Drive‑by downloads, payload delivery.</li>
+          <li><span class="pill warn">Ad Injection</span> Monetize traffic with shady ads.</li>
+          <li><span class="pill warn">Censorship</span> Redirect or block targeted sites.</li>
+          <li><span class="pill risk">Data Theft</span> Harvest cookies and credentials.</li>
+        </ul>
+      </article>
+
+      <article class="card span-4">
+        <h2>Red Flags</h2>
+        <ul>
+          <li>Known sites open but look off or show HTTP.</li>
+          <li>Unexpected cert warnings on <span class="k">https://</span>.</li>
+          <li>Different IP answers between resolvers.</li>
+          <li>Router DNS changed without you.</li>
+        </ul>
+      </article>
+
+      <article class="card span-6">
+        <h2>Detect It (CLI)</h2>
+        <p>Compare multiple resolvers for the same name:</p>
+        <pre><code>nslookup google.com 1.1.1.1
+nslookup google.com 8.8.8.8
+nslookup google.com 9.9.9.9
+        </code></pre>
+        <p>On Linux/macOS:</p>
+        <pre><code>dig +short A google.com @1.1.1.1
+ripgrep -n "nameserver" /etc/resolv.conf</code></pre>
+        <p>On Windows, verify which IP your host resolves to:</p>
+        <pre><code>ping redtube.com
+ipconfig /displaydns | findstr /i redtube
+ipconfig /flushdns  # clear cache</code></pre>
+      </article>
+
+      <article class="card span-6">
+        <h2>Defend / Hardening</h2>
+        <ul>
+          <li><strong>Use trusted DNS:</strong> Cloudflare <span class="k">1.1.1.1</span>, Google <span class="k">8.8.8.8</span>, Quad9 <span class="k">9.9.9.9</span>.</li>
+          <li><strong>Enable DNSSEC:</strong> Prefer resolvers and zones with DNSSEC to validate records.</li>
+          <li><strong>HTTPS & HSTS:</strong> Certificate mismatch ≠ proceed.</li>
+          <li><strong>VPN wisely:</strong> Some VPNs bypass OS resolver/hosts. Test and choose providers that respect local policies.</li>
+          <li><strong>Secure router:</strong> Change admin password, update firmware, disable remote admin, lock DNS.</li>
+          <li><strong>Malware hygiene:</strong> EDR/AV, least privilege, updates.</li>
+        </ul>
+      </article>
+
+      <article class="card span-12">
+        <h2>Hosts File — What We Practiced</h2>
+        <ul>
+          <li>Path (Windows): <span class="k">C:\\Windows\\System32\\drivers\\etc\\hosts</span></li>
+          <li>Format: <span class="k">IP Address</span> + space(s) + <span class="k">hostname</span></li>
+        </ul>
+        <pre><code># Block (device-level)
+127.0.0.1  example.com
+127.0.0.1  redtube.com
+127.0.0.1  www.redtube.com
+
+# Force a domain to a known IP (for testing)
+142.250.201.238  google.com
+142.250.201.238  www.google.com
+        </code></pre>
+        <div class="callout warn">
+          <strong>Note:</strong> Hosts only affects DNS resolution. HTTPS still verifies the hostname via certificates, and servers use SNI/Host headers — forcing an unrelated IP won’t "redirect" content.
+        </div>
+      </article>
+
+      <article class="card span-12">
+        <h2>Better Than Hosts for Family Blocking</h2>
+        <div class="grid">
+          <div class="card span-4">
+            <h3>Cloudflare Family</h3>
+            <ul>
+              <li>Primary DNS: <span class="k">1.1.1.3</span></li>
+              <li>Secondary DNS: <span class="k">1.0.0.3</span></li>
+              <li>Blocks adult domains network‑wide.</li>
+            </ul>
+          </div>
+          <div class="card span-4">
+            <h3>OpenDNS Family Shield</h3>
+            <ul>
+              <li>Primary: <span class="k">208.67.222.123</span></li>
+              <li>Secondary: <span class="k">208.67.220.123</span></li>
+              <li>Easy router or device setup.</li>
+            </ul>
+          </div>
+          <div class="card span-4">
+            <h3>Pi-hole (Advanced)</h3>
+            <ul>
+              <li>Self‑hosted DNS sinkhole with blocklists.</li>
+              <li>Great visibility and control for home lab.</li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="card span-8">
+        <h2>Real‑World Incidents</h2>
+        <ul>
+          <li><strong>Kaminsky (2008):</strong> Cache poisoning across resolvers globally.</li>
+          <li><strong>Brazil Router Hijack (2018):</strong> 100k+ routers had DNS changed; banking creds stolen.</li>
+          <li><strong>Censorship Cases:</strong> DNS redirection to government notices in some countries.</li>
+        </ul>
+      </article>
+
+      <article class="card span-4">
+        <h2>Quick Checklist</h2>
+        <ul>
+          <li>🔒 Lock router admin + update firmware.</li>
+          <li>🧭 Set resolver to trusted DNS / family filters.</li>
+          <li>🧪 Verify answers with <span class="k">nslookup</span>/<span class="k">dig</span>.</li>
+          <li>🧹 <span class="k">ipconfig /flushdns</span> after changes.</li>
+          <li>🛑 Heed HTTPS certificate warnings.</li>
+        </ul>
+      </article>
+    </section>
+
+    <p class="footer">Made with ❤ using Nunito. Dark, blackish notes for quick study and practical ops.</p>
+  </div>
+</body>
+</html>

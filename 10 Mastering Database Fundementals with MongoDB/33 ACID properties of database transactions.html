@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ACID Properties of Transactions</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base styles for the dark theme */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VSCode Dark Theme background */
+        color: #d4d4d4; /* Light text */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* VSCode Editor Group background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      h1 {
+        color: #569cd6; /* VSCode keyword/function color */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 10px;
+        font-weight: 800;
+      }
+
+      h2 {
+        color: #4ec9b0; /* VSCode type color */
+        margin-top: 30px;
+        font-weight: 700;
+      }
+
+      p,
+      li {
+        font-size: 16px;
+      }
+
+      strong {
+        color: #9cdcfe; /* VSCode variable/text color */
+      }
+
+      .acronym-list {
+        list-style: none;
+        padding: 0;
+        margin: 15px 0 30px 0;
+      }
+      .acronym-list li {
+        font-weight: 700;
+        color: #ce9178; /* VSCode string color */
+        margin-bottom: 5px;
+      }
+
+      .definition {
+        color: #d4d4d4;
+        margin-top: 5px;
+      }
+
+      .analogy {
+        color: #6a9955; /* VSCode comment color */
+        font-style: italic;
+        border-left: 3px solid #6a9955;
+        padding-left: 10px;
+        margin: 15px 0;
+      }
+
+      /* VSCode Code Block Styling for tables */
+      .code-block {
+        background-color: #1e1e1e; /* Code background */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        margin: 15px 0;
+        border: 1px solid #3c3c3c;
+      }
+
+      .code-block table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .code-block th,
+      .code-block td {
+        border: 1px solid #3c3c3c;
+        padding: 10px;
+        text-align: left;
+      }
+
+      .code-block th {
+        background-color: #3c3c3c;
+        color: #d4d4d4;
+        font-weight: 700;
+      }
+
+      .code-block tr:nth-child(even) {
+        background-color: #2d2d30; /* Alternate row color */
+      }
+
+      .code-block td:nth-child(2) {
+        color: #b5cea8; /* VSCode number/variable color for results */
+      }
+
+      .code-block .label-col {
+        color: #9cdcfe;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>ACID Properties of a Database Transaction</h1>
+
+      <p>
+        The **ACID properties** are a set of principles that guarantee the
+        **validity** of database transactions. They ensure that data is
+        **reliable** even during system failures or concurrent operations.
+      </p>
+
+      <p>ACID is an acronym for:</p>
+      <ul class="acronym-list">
+        <li>Atomicity</li>
+        <li>Consistency</li>
+        <li>Isolation</li>
+        <li>Durability</li>
+      </ul>
+
+      <h2>1. Atomicity (All or Nothing)</h2>
+      <p class="definition">
+        **Definition:** Atomicity ensures that a transaction is treated as a
+        **single, indivisible unit** of operations. All of the operations within
+        the transaction must succeed, or if any part fails, the **entire
+        transaction is aborted**, and the database state remains unchanged.
+      </p>
+      <p class="analogy">
+        **Analogy:** Imagine a chemical reaction: either all the reactants
+        combine to form the final product, or the reaction doesn't happen at
+        all. There is no intermediate state where only half the product is
+        formed.
+      </p>
+
+      <h3>Example: A Bank Transfer 🏦</h3>
+      <p>
+        Consider a transfer of $100 from Account A to Account B. This
+        transaction involves two distinct database operations:
+      </p>
+      <ul>
+        <li>**Debit:** Subtract $100 from Account A.</li>
+        <li>**Credit:** Add $100 to Account B.</li>
+      </ul>
+
+      <p>Scenario | Result</p>
+      <div class="code-block">
+        <table>
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label-col">
+                Success: Both debit and credit operations complete.
+              </td>
+              <td>
+                The database commits the transaction. The new balances are
+                saved.
+              </td>
+            </tr>
+            <tr>
+              <td class="label-col">
+                Failure (e.g., system crash after Debit but before Credit):
+              </td>
+              <td>
+                Atomicity requires the database to automatically **rollback**
+                the debit operation. Account A's balance is restored to its
+                original value. The transaction is treated as if it never
+                happened.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size: 12px; color: #6a9955">Export to Sheets</p>
+
+      <h2>2. Consistency (Valid State)</h2>
+      <p class="definition">
+        **Definition:** Consistency ensures that a transaction, when
+        successfully completed, moves the database from one **valid state** to
+        another. It guarantees that all predefined rules, **constraints**,
+        triggers, and cascades (like primary/foreign keys, and validation rules)
+        are maintained.
+      </p>
+      <p class="analogy">
+        **Analogy:** The rules of chess: a player cannot jump a pawn backward or
+        move a king into check. Every successful move transitions the board into
+        a new, valid state according to the rules.
+      </p>
+
+      <h3>Example: Account Balances and Constraints 🔒</h3>
+      <p>
+        Suppose your database has a constraint that says: "An account balance
+        can never be negative."
+      </p>
+
+      <p>Scenario | Result</p>
+      <div class="code-block">
+        <table>
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label-col">
+                Transaction: Attempt to debit $500 from an account with only
+                $300.
+              </td>
+              <td>
+                The transaction will fail or be aborted **before** the debit
+                operation is committed because completing it would violate the
+                "no negative balance" constraint. **Consistency is preserved.**
+              </td>
+            </tr>
+            <tr>
+              <td class="label-col">Success: Debit $100 from $300.</td>
+              <td>
+                The new state is $200, which is valid and consistent with the
+                rules.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size: 12px; color: #6a9955">Export to Sheets</p>
+
+      <h2>3. Isolation (Independent Execution)</h2>
+      <p class="definition">
+        **Definition:** Isolation ensures that **concurrent transactions** do
+        not interfere with each other. From the perspective of one transaction,
+        it appears as if it's the **only transaction running** on the system.
+      </p>
+      <p class="analogy">
+        **Analogy:** Multiple people using an ATM simultaneously. Each user's
+        transaction (checking balance, withdrawing cash) is isolated from
+        others, so one person doesn't see or interfere with another person's
+        running process.
+      </p>
+
+      <h3>Example: Concurrent Updates 🛒</h3>
+      <p>
+        Two users, User X and User Y, try to buy the last available item (Stock
+        = 1) at the exact same moment.
+      </p>
+
+      <p>
+        Time | User X's Transaction | User Y's Transaction | Isolation Result
+      </p>
+      <div class="code-block">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>User X's Transaction</th>
+              <th>User Y's Transaction</th>
+              <th>Isolation Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label-col">T1</td>
+              <td>Read Stock (1)</td>
+              <td>Read Stock (1)</td>
+              <td>Low isolation levels would allow this, leading to error.</td>
+            </tr>
+            <tr>
+              <td class="label-col">T2</td>
+              <td>Decrement Stock to 0</td>
+              <td>Decrement Stock to 0</td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="label-col">T3</td>
+              <td>Commit</td>
+              <td>Commit</td>
+              <td>
+                Both users think they successfully bought the item, but the
+                stock is now -1.
+              </td>
+            </tr>
+            <tr>
+              <td class="label-col" colspan="3">ACID Isolation Solution:</td>
+              <td>
+                The database serializes the operations. User X gets a **lock**
+                on the Stock record. User Y is forced to wait until User X
+                commits. When User Y attempts to read the stock, it sees the
+                updated value of 0, and the transaction fails immediately.
+                **Only one successful purchase is committed.**
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size: 12px; color: #6a9955">Export to Sheets</p>
+
+      <h2>4. Durability (Permanent Record)</h2>
+      <p class="definition">
+        **Definition:** Durability guarantees that once a transaction has been
+        **committed**, its changes are **permanent** and will survive any
+        subsequent system failure, such as a power loss, crash, or reboot.
+      </p>
+      <p class="analogy">
+        **Analogy:** Writing data to a stone tablet. Once the data is etched
+        (committed), it is permanent, regardless of what happens to the
+        environment (unlike chalk writing, which is not durable).
+      </p>
+
+      <h3>Example: Power Failure after Commit 💡</h3>
+      <p>You just made a large deposit into your savings account.</p>
+
+      <p>Scenario | Result</p>
+      <div class="code-block">
+        <table>
+          <thead>
+            <tr>
+              <th>Scenario</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label-col">
+                Commit: The transaction successfully commits.
+              </td>
+              <td>
+                The database writes the confirmation to a **durable storage**
+                (usually the transaction log).
+              </td>
+            </tr>
+            <tr>
+              <td class="label-col">
+                Power Loss: The system crashes immediately after the bank sends
+                the "Transaction Successful" message, but before the main
+                database files could be fully updated.
+              </td>
+              <td></td>
+            </tr>
+            <tr>
+              <td class="label-col" colspan="1">Durability Solution:</td>
+              <td>
+                When the system reboots, the database management system (DBMS)
+                checks the **transaction log**. It sees the deposit transaction
+                was marked as committed. The DBMS then uses the log to **redo**
+                any missing updates to the main data files, ensuring the
+                deposited amount is permanently reflected in your account
+                balance.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </body>
+</html>

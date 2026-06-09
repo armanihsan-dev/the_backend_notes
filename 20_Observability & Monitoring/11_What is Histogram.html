@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What is a Histogram? | Complete Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-chart-bar"></i> HISTOGRAM</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Foundation</div>
+        <a href="#what" class="nav-link">What is a Histogram?</a>
+        <a href="#problem" class="nav-link">The Average Trap</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. How It Works</div>
+        <a href="#buckets" class="nav-link">Buckets Explained</a>
+        <a href="#cumulative" class="nav-link">Cumulative Counting</a>
+        <a href="#percentiles" class="nav-link">Percentiles (p95, p99)</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. In Practice</div>
+        <a href="#code" class="nav-link">Code Example</a>
+        <a href="#code-walkthrough" class="nav-link">Code Walkthrough</a>
+        <a href="#prometheus-ui" class="nav-link">Checking in Prometheus</a>
+        <a href="#reading-output" class="nav-link">Reading Real Output</a>
+        <a href="#promql" class="nav-link">PromQL Queries</a>
+        <a href="#when" class="nav-link">When to Use</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability</span>
+        <h1>WHAT IS A HISTOGRAM?</h1>
+        <p>UNDERSTANDING DISTRIBUTIONS, BUCKETS & PERCENTILES</p>
+      </section>
+
+      <!-- ─── WHAT ───────────────────────────────────────────── -->
+      <section id="what">
+        <h2>WHAT IS A HISTOGRAM?</h2>
+
+        <p>
+          A histogram is a graph that shows how data is
+          <strong>distributed across ranges</strong> (called bins or buckets).
+        </p>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> In Observability (O11y)
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            A Histogram is a metric type that
+            <strong>samples observations</strong>
+            (like request durations or response sizes) and counts them in
+            configurable buckets. It gives you visibility into the
+            <strong>distribution</strong> of your data — not just averages.
+          </p>
+        </div>
+
+        <h3>The Marble Analogy</h3>
+        <div
+          style="
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 1rem;
+          "
+        >
+          <p style="margin-bottom: 1.5rem">
+            Think of sorting marbles into buckets by size:
+          </p>
+          <div
+            style="
+              display: flex;
+              align-items: flex-end;
+              gap: 1rem;
+              height: 140px;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="color: var(--text-secondary); font-size: 0.8rem"
+                >42</span
+              >
+              <div
+                style="
+                  width: 48px;
+                  background: #3b82f6;
+                  border-radius: 4px 4px 0 0;
+                  height: 84px;
+                "
+              ></div>
+              <span style="color: var(--text-secondary); font-size: 0.75rem"
+                >Small</span
+              >
+            </div>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="color: var(--text-secondary); font-size: 0.8rem"
+                >35</span
+              >
+              <div
+                style="
+                  width: 48px;
+                  background: #8b5cf6;
+                  border-radius: 4px 4px 0 0;
+                  height: 70px;
+                "
+              ></div>
+              <span style="color: var(--text-secondary); font-size: 0.75rem"
+                >Medium</span
+              >
+            </div>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="color: var(--text-secondary); font-size: 0.8rem"
+                >15</span
+              >
+              <div
+                style="
+                  width: 48px;
+                  background: #f59e0b;
+                  border-radius: 4px 4px 0 0;
+                  height: 30px;
+                "
+              ></div>
+              <span style="color: var(--text-secondary); font-size: 0.75rem"
+                >Large</span
+              >
+            </div>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.5rem;
+              "
+            >
+              <span style="color: var(--text-secondary); font-size: 0.8rem"
+                >8</span
+              >
+              <div
+                style="
+                  width: 48px;
+                  background: #ef4444;
+                  border-radius: 4px 4px 0 0;
+                  height: 16px;
+                "
+              ></div>
+              <span style="color: var(--text-secondary); font-size: 0.75rem"
+                >X-Large</span
+              >
+            </div>
+          </div>
+          <p
+            style="
+              margin-top: 1.5rem;
+              margin-bottom: 0;
+              color: var(--text-secondary);
+              font-size: 0.9rem;
+            "
+          >
+            You see not just the average marble size, but
+            <strong style="color: var(--text-primary)"
+              >how many are small, medium, or large</strong
+            >.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── PROBLEM ───────────────────────────────────────── -->
+      <section id="problem">
+        <h2>THE AVERAGE TRAP</h2>
+
+        <p>Imagine you have 100 API requests:</p>
+        <ul>
+          <li>99 requests complete in <strong>10ms</strong> (fast ✅)</li>
+          <li>1 request takes <strong>10,000ms</strong> (slow ❌)</li>
+        </ul>
+
+        <pre><code class="language-text">Average = (99 × 10ms + 10,000ms) / 100 = 109ms</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> The Problem
+          </span>
+          <p style="margin-bottom: 0">
+            The average says <strong>109ms</strong> — which sounds slow. But 99%
+            of users had a <strong>10ms</strong> experience. The one slow
+            request is hiding in the average, making everything look worse than
+            it is.
+          </p>
+        </div>
+
+        <h3>What Histograms Show You Instead</h3>
+        <div class="comparison-grid">
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--danger);
+            "
+          >
+            <h4 style="color: var(--danger); margin-top: 0">
+              <i class="fa-solid fa-xmark"></i> Average
+            </h4>
+            <ul style="margin-bottom: 0">
+              <li>Single number: 109ms</li>
+              <li>Hides outliers</li>
+              <li>Misleading picture</li>
+              <li>Can't detect tail latency</li>
+            </ul>
+          </div>
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--accent);
+            "
+          >
+            <h4 style="color: var(--accent); margin-top: 0">
+              <i class="fa-solid fa-check"></i> Histogram
+            </h4>
+            <ul style="margin-bottom: 0">
+              <li>p50: 10ms (typical user)</li>
+              <li>p95: 10ms (95% of users)</li>
+              <li>p99: 10ms (99% of users)</li>
+              <li>p99.9: 10,000ms (outlier exposed!)</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── BUCKETS ───────────────────────────────────────── -->
+      <section id="buckets">
+        <h2>BUCKETS EXPLAINED</h2>
+
+        <pre><code class="language-javascript">// Buckets in seconds
+const buckets = [0.01, 0.05, 0.1, 0.5, 1, 2, 5];
+//               10ms  50ms 100ms 500ms  1s  2s  5s</code></pre>
+
+        <h3>How a Request Gets Counted</h3>
+        <p>When a request takes <strong>0.25 seconds (250ms)</strong>:</p>
+
+        <div
+          style="
+            background: var(--bg-secondary);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 1rem;
+          "
+        >
+          <div style="display: flex; flex-direction: column; gap: 0.6rem">
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--danger)"
+                >0.01s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: var(--bg-tertiary);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                "
+              >
+                <span style="color: var(--danger)"
+                  >✗ 250ms &gt; 10ms — not counted</span
+                >
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--danger)"
+                >0.05s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: var(--bg-tertiary);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                "
+              >
+                <span style="color: var(--danger)"
+                  >✗ 250ms &gt; 50ms — not counted</span
+                >
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--danger)"
+                >0.1s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: var(--bg-tertiary);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                "
+              >
+                <span style="color: var(--danger)"
+                  >✗ 250ms &gt; 100ms — not counted</span
+                >
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--accent)"
+                >0.5s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: rgba(52, 211, 153, 0.1);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                  border: 1px solid var(--accent);
+                "
+              >
+                <span style="color: var(--accent)"
+                  >✓ 250ms ≤ 500ms — counted +1</span
+                >
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--accent)"
+                >1s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: rgba(52, 211, 153, 0.1);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                  border: 1px solid var(--accent);
+                "
+              >
+                <span style="color: var(--accent)"
+                  >✓ 250ms ≤ 1s — counted +1</span
+                >
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--accent)"
+                >2s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: rgba(52, 211, 153, 0.1);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                  border: 1px solid var(--accent);
+                "
+              >
+                <span style="color: var(--accent)"
+                  >✓ 250ms ≤ 2s — counted +1</span
+                >
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1rem">
+              <code style="width: 60px; text-align: right; color: var(--accent)"
+                >5s</code
+              >
+              <div
+                style="
+                  flex: 1;
+                  background: rgba(52, 211, 153, 0.1);
+                  border-radius: 4px;
+                  height: 32px;
+                  display: flex;
+                  align-items: center;
+                  padding: 0 1rem;
+                  border: 1px solid var(--accent);
+                "
+              >
+                <span style="color: var(--accent)"
+                  >✓ 250ms ≤ 5s — counted +1</span
+                >
+              </div>
+            </div>
+          </div>
+          <p
+            style="
+              margin-top: 1.5rem;
+              margin-bottom: 0;
+              color: var(--text-secondary);
+              font-size: 0.9rem;
+            "
+          >
+            A 250ms request increments
+            <strong style="color: var(--text-primary)"
+              >all buckets ≥ 250ms</strong
+            >. This is what makes it a <em>cumulative</em> histogram.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── CUMULATIVE ────────────────────────────────────── -->
+      <section id="cumulative">
+        <h2>CUMULATIVE COUNTING</h2>
+
+        <p>After 1000 requests, your bucket counts might look like this:</p>
+
+        <pre><code class="language-text">http_request_duration_seconds_bucket{le="0.01"}  = 200   # 200 requests under 10ms
+http_request_duration_seconds_bucket{le="0.05"}  = 550   # 550 requests under 50ms
+http_request_duration_seconds_bucket{le="0.1"}   = 800   # 800 requests under 100ms
+http_request_duration_seconds_bucket{le="0.5"}   = 950   # 950 requests under 500ms
+http_request_duration_seconds_bucket{le="1"}     = 980   # 980 requests under 1s
+http_request_duration_seconds_bucket{le="2"}     = 995   # 995 requests under 2s
+http_request_duration_seconds_bucket{le="5"}     = 999   # 999 requests under 5s
+http_request_duration_seconds_bucket{le="+Inf"}  = 1000  # all 1000 requests
+http_request_duration_seconds_sum               = 234.5  # total seconds
+http_request_duration_seconds_count            = 1000    # total requests</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-circle-info"></i> Reading the Data</span
+          >
+          <ul style="margin-bottom: 0">
+            <li>
+              800 out of 1000 requests finished under 100ms →
+              <strong>80% fast</strong>
+            </li>
+            <li>
+              950 out of 1000 finished under 500ms →
+              <strong>95% acceptable</strong>
+            </li>
+            <li>
+              5 requests took longer than 2s →
+              <strong>tail latency problem</strong>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ─── PERCENTILES ───────────────────────────────────── -->
+      <section id="percentiles">
+        <h2>PERCENTILES (p95, p99)</h2>
+
+        <p>
+          Percentiles tell you:
+          <em>"X% of requests completed within this time."</em>
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Percentile</th>
+              <th>Meaning</th>
+              <th>Who It Represents</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>p50 (median)</strong></td>
+              <td>50% of requests are faster than this</td>
+              <td>The typical user</td>
+            </tr>
+            <tr>
+              <td><strong>p95</strong></td>
+              <td>95% of requests are faster than this</td>
+              <td>The slow 5%</td>
+            </tr>
+            <tr>
+              <td><strong>p99</strong></td>
+              <td>99% of requests are faster than this</td>
+              <td>The unlucky 1%</td>
+            </tr>
+            <tr>
+              <td><strong>p99.9</strong></td>
+              <td>99.9% of requests are faster than this</td>
+              <td>Extreme edge cases</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+            margin-top: 1.5rem;
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Why p99 Matters More Than
+            Average
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            At 1000 requests/second, your p99 latency affects
+            <strong>10 users every second</strong>. Those users are real people
+            having a bad experience — and they're the ones most likely to
+            complain or churn.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── CODE ──────────────────────────────────────────── -->
+      <section id="code">
+        <h2>CODE EXAMPLE (ES6)</h2>
+
+        <pre><code class="language-javascript">import express from 'express';
+import client from 'prom-client';
+
+const app = express();
+const register = new client.Registry();
+client.collectDefaultMetrics({ register });
+
+// ─── Define the Histogram ──────────────────────────────────────
+const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'HTTP request duration in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5]  // 10ms → 5s
+});
+
+register.registerMetric(httpRequestDuration);
+
+// ─── Middleware to measure every request ──────────────────────
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+
+  res.on('finish', () => {
+    end({
+      method: req.method,
+      route: req.route ? req.route.path : req.path,
+      status_code: res.statusCode
+    });
+  });
+
+  next();
+});
+
+// ─── Routes ───────────────────────────────────────────────────
+app.get('/', (req, res) => res.json({ message: 'Hello!' }));
+
+app.get('/slow', (req, res) => {
+  setTimeout(() => res.json({ message: 'slow response' }), 2000);
+});
+
+// ─── /metrics endpoint ────────────────────────────────────────
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
+});
+
+app.listen(3000, () => console.log('Server on http://localhost:3000'));</code></pre>
+      </section>
+
+      <!-- ─── CODE WALKTHROUGH ──────────────────────────────── -->
+      <section id="code-walkthrough">
+        <h2>CODE WALKTHROUGH — LINE BY LINE</h2>
+
+        <h3>Step 1: Create the Histogram</h3>
+        <pre><code class="language-javascript">const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'HTTP request duration in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5]
+});</code></pre>
+        <ul>
+          <li>
+            <code>name</code> — the metric name Prometheus will store.
+            Convention: <code>snake_case</code> ending with the unit
+            (<code>_seconds</code>)
+          </li>
+          <li>
+            <code>help</code> — description shown in
+            <code>/metrics</code> output as a <code># HELP</code> comment
+          </li>
+          <li>
+            <code>labelNames</code> — dimensions you can filter by in PromQL
+            (method, route, status)
+          </li>
+          <li>
+            <code>buckets</code> — the time boundaries in seconds. Each value is
+            an upper limit (le = "less than or equal")
+          </li>
+        </ul>
+
+        <h3>Step 2: The Middleware</h3>
+        <pre><code class="language-javascript">app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer(); // ← starts a stopwatch
+
+  res.on('finish', () => {   // ← fires when response is fully sent
+    end({
+      method: req.method,                          // GET, POST, etc.
+      route: req.route ? req.route.path : req.path, // /api/users
+      status_code: res.statusCode                  // 200, 404, 500
+    });
+  });
+
+  next();
+});</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-stopwatch"></i> How startTimer() Works</span
+          >
+          <ul style="margin-bottom: 0">
+            <li>
+              <code>startTimer()</code> records the current time and returns an
+              <code>end()</code> function
+            </li>
+            <li>
+              When <code>end(labels)</code> is called, it calculates
+              <code>Date.now() - startTime</code> in seconds
+            </li>
+            <li>
+              That duration is then placed into the correct bucket automatically
+            </li>
+            <li>
+              <code>res.on('finish')</code> ensures we measure the
+              <strong>full</strong> response time, not just when the handler
+              runs
+            </li>
+          </ul>
+        </div>
+
+        <h3>Step 3: The /slow Route (for testing)</h3>
+        <pre><code class="language-javascript">app.get('/slow', (req, res) => {
+  setTimeout(() => res.json({ message: 'slow response' }), 2000);
+});</code></pre>
+        <p>
+          This route deliberately waits <strong>2 seconds</strong> before
+          responding. When you hit it, the histogram will record a ~2s
+          observation, which lands in the <code>le="2"</code> and
+          <code>le="5"</code> buckets — making it easy to see tail latency in
+          Prometheus.
+        </p>
+
+        <h3>Step 4: The /metrics Endpoint</h3>
+        <pre><code class="language-javascript">app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType); // tells browser it's plain text
+  res.end(await register.metrics());             // dumps all metric values
+});</code></pre>
+        <p>
+          Prometheus scrapes this endpoint every 15 seconds (by default). Every
+          time it scrapes, it reads the current bucket counts and stores them as
+          a time-series data point.
+        </p>
+      </section>
+
+      <!-- ─── PROMETHEUS UI ─────────────────────────────────── -->
+      <section id="prometheus-ui">
+        <h2>CHECKING METRICS IN PROMETHEUS UI (localhost:9090)</h2>
+
+        <p>
+          Once your app is running and Prometheus is scraping it, open
+          <strong>http://localhost:9090</strong> in your browser.
+        </p>
+
+        <h3>Step 1: Generate Traffic First</h3>
+        <p>Hit your routes a few times so there's data to see:</p>
+        <pre><code class="language-bash"># Fast requests
+curl http://localhost:3000/
+curl http://localhost:3000/
+curl http://localhost:3000/
+
+# Slow request (2 seconds)
+curl http://localhost:3000/slow</code></pre>
+
+        <h3>Step 2: Explore the Raw Metric</h3>
+        <p>In the Prometheus UI search bar, type:</p>
+        <pre><code class="language-promql">http_request_duration_seconds_bucket</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-table"></i> What You'll See</span
+          >
+          <p>
+            A table of every bucket for every label combination. For example:
+          </p>
+          <pre><code class="language-text">http_request_duration_seconds_bucket{instance="localhost:3000", le="0.01",  method="GET", route="/",     status_code="200"} 3
+http_request_duration_seconds_bucket{instance="localhost:3000", le="0.05",  method="GET", route="/",     status_code="200"} 3
+http_request_duration_seconds_bucket{instance="localhost:3000", le="0.1",   method="GET", route="/",     status_code="200"} 3
+http_request_duration_seconds_bucket{instance="localhost:3000", le="0.5",   method="GET", route="/",     status_code="200"} 3
+http_request_duration_seconds_bucket{instance="localhost:3000", le="+Inf",  method="GET", route="/",     status_code="200"} 3
+http_request_duration_seconds_bucket{instance="localhost:3000", le="1",     method="GET", route="/slow", status_code="200"} 0
+http_request_duration_seconds_bucket{instance="localhost:3000", le="2",     method="GET", route="/slow", status_code="200"} 1
+http_request_duration_seconds_bucket{instance="localhost:3000", le="+Inf",  method="GET", route="/slow", status_code="200"} 1</code></pre>
+          <p style="margin-bottom: 0">
+            The <code>/</code> route: all 3 requests landed in the
+            <code>le="0.01"</code> bucket (under 10ms). The
+            <code>/slow</code> route: 0 in <code>le="1"</code> but 1 in
+            <code>le="2"</code> — confirming it took ~2 seconds.
+          </p>
+        </div>
+
+        <h3>Step 3: Check the _sum and _count</h3>
+        <pre><code class="language-promql">http_request_duration_seconds_sum
+http_request_duration_seconds_count</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-circle-info"></i> What These Mean</span
+          >
+          <ul style="margin-bottom: 0">
+            <li>
+              <code>_count</code> — total number of requests observed (same as a
+              Counter)
+            </li>
+            <li>
+              <code>_sum</code> — total seconds spent across all requests
+              combined
+            </li>
+            <li>
+              Dividing <code>_sum / _count</code> gives you the average (but use
+              percentiles instead!)
+            </li>
+          </ul>
+        </div>
+
+        <h3>Step 4: Query p95 Latency</h3>
+        <p>
+          This is the most useful query. Paste it into the Prometheus search
+          bar:
+        </p>
+        <pre><code class="language-promql">histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1m]))</code></pre>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Reading the Result
+          </span>
+          <p style="color: var(--text-primary)">
+            If the result is <code>0.0082</code> — that means 95% of your
+            requests completed in under <strong>8.2ms</strong>. If you then hit
+            <code>/slow</code> and re-run, you'll see the p95 jump to ~2s.
+          </p>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Switch to the <strong>Graph</strong> tab in Prometheus UI to see
+            this change over time as a line chart.
+          </p>
+        </div>
+
+        <h3>Step 5: Filter by Route</h3>
+        <p>Narrow down to a specific endpoint:</p>
+        <pre><code class="language-promql">histogram_quantile(0.99,
+  rate(http_request_duration_seconds_bucket{route="/slow"}[1m])
+)</code></pre>
+
+        <h3>Quick Reference: Prometheus UI Tabs</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Tab</th>
+              <th>Use It For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Table</strong></td>
+              <td>See current raw values for each label combination</td>
+            </tr>
+            <tr>
+              <td><strong>Graph</strong></td>
+              <td>See how a metric changes over time (line chart)</td>
+            </tr>
+            <tr>
+              <td><strong>Explain</strong></td>
+              <td>Understand how Prometheus parsed your PromQL query</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box danger" style="margin-top: 1.5rem">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Common Gotcha
+          </span>
+          <p style="margin-bottom: 0">
+            If you see <strong>"no data"</strong> in Prometheus, it usually
+            means:
+          </p>
+          <ul style="margin-bottom: 0; margin-top: 0.5rem">
+            <li>
+              Your app isn't running or isn't reachable at the configured target
+            </li>
+            <li>Prometheus hasn't scraped yet — wait 15 seconds and refresh</li>
+            <li>
+              You haven't hit any routes yet — generate some traffic first
+            </li>
+            <li>
+              The metric name is wrong — check
+              <code>http://localhost:3000/metrics</code> directly
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ─── READING REAL OUTPUT ──────────────────────────────── -->
+      <section id="reading-output">
+        <h2>READING REAL PROMETHEUS OUTPUT</h2>
+
+        <p>Let's decode this exact output you see in Prometheus:</p>
+
+        <pre><code class="language-text">http_request_duration_seconds_bucket{le="0.5",  method="GET", route="/read", status_code="304"} 0
+http_request_duration_seconds_bucket{le="1",    method="GET", route="/read", status_code="304"} 0
+http_request_duration_seconds_bucket{le="2.5",  method="GET", route="/read", status_code="304"} 0
+http_request_duration_seconds_bucket{le="5",    method="GET", route="/read", status_code="304"} 1
+http_request_duration_seconds_bucket{le="10",   method="GET", route="/read", status_code="304"} 1</code></pre>
+
+        <h3>What is <code>le</code>?</h3>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> le = "less than or equal"
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>le</code> is the <strong>upper boundary</strong> of each bucket.
+            <code>le="5"</code> means: <em>"how many requests took 5 seconds or less?"</em>
+          </p>
+        </div>
+
+        <h3>⚠️ Are the Values in Seconds or Milliseconds?</h3>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> The metric name tells you the unit
+          </span>
+          <p>
+            The metric is called <code>http_request_duration_<strong>seconds</strong></code>.
+            So <strong>all <code>le</code> values are in SECONDS</strong>, not milliseconds.
+          </p>
+          <table style="margin-bottom:0;margin-top:0.5rem">
+            <thead>
+              <tr><th>le value</th><th>Means</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>le="0.5"</code></td><td>500 milliseconds (0.5 seconds)</td></tr>
+              <tr><td><code>le="1"</code></td><td>1000 milliseconds (1 second)</td></tr>
+              <tr><td><code>le="2.5"</code></td><td>2500 milliseconds (2.5 seconds)</td></tr>
+              <tr><td><code>le="5"</code></td><td>5000 milliseconds (5 seconds)</td></tr>
+              <tr><td><code>le="10"</code></td><td>10000 milliseconds (10 seconds)</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Decoding the Values (0, 0, 0, 1, 1)</h3>
+        <p>Now let's read each line one by one:</p>
+
+        <div style="background:var(--bg-secondary);padding:2rem;border-radius:8px;border:1px solid var(--border);margin-top:1rem">
+          <div style="display:flex;flex-direction:column;gap:0.75rem">
+
+            <div style="display:flex;align-items:center;gap:1rem">
+              <code style="width:80px;text-align:right;color:var(--danger);flex-shrink:0">le="0.5"  → 0</code>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;padding:0.6rem 1rem">
+                <span style="color:var(--danger)">0 requests finished in ≤ 500ms</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:1rem">
+              <code style="width:80px;text-align:right;color:var(--danger);flex-shrink:0">le="1"    → 0</code>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;padding:0.6rem 1rem">
+                <span style="color:var(--danger)">0 requests finished in ≤ 1 second</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:1rem">
+              <code style="width:80px;text-align:right;color:var(--danger);flex-shrink:0">le="2.5"  → 0</code>
+              <div style="flex:1;background:var(--bg-tertiary);border-radius:4px;padding:0.6rem 1rem">
+                <span style="color:var(--danger)">0 requests finished in ≤ 2.5 seconds</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:1rem">
+              <code style="width:80px;text-align:right;color:var(--accent);flex-shrink:0">le="5"    → 1</code>
+              <div style="flex:1;background:rgba(52,211,153,0.1);border-radius:4px;padding:0.6rem 1rem;border:1px solid var(--accent)">
+                <span style="color:var(--accent)">✓ 1 request finished in ≤ 5 seconds ← first bucket with a count!</span>
+              </div>
+            </div>
+
+            <div style="display:flex;align-items:center;gap:1rem">
+              <code style="width:80px;text-align:right;color:var(--accent);flex-shrink:0">le="10"   → 1</code>
+              <div style="flex:1;background:rgba(52,211,153,0.1);border-radius:4px;padding:0.6rem 1rem;border:1px solid var(--accent)">
+                <span style="color:var(--accent)">✓ 1 request finished in ≤ 10 seconds (same request, cumulative)</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <h3>What This Tells You</h3>
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:1rem">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-magnifying-glass"></i> Conclusion
+          </span>
+          <p style="color:var(--text-primary)">
+            The <code>GET /read</code> request with status <code>304</code> took
+            <strong>between 2.5 and 5 seconds</strong>.
+          </p>
+          <ul style="color:var(--text-primary);margin-bottom:0">
+            <li>It did NOT finish in 0.5s, 1s, or 2.5s (all zeros)</li>
+            <li>It DID finish by 5s (count jumped to 1)</li>
+            <li>The count stays 1 at le="10" — same request, just also fits in the bigger bucket</li>
+            <li>So the actual duration was somewhere in the range <strong>2.5s &lt; duration ≤ 5s</strong></li>
+          </ul>
+        </div>
+
+        <h3>How to Calculate the Exact Range</h3>
+        <p>
+          Histograms don't store the exact duration — they only store which
+          bucket it fell into. To find the range:
+        </p>
+        <pre><code class="language-text">Find the first bucket where count > 0:
+  le="5" has count = 1  ← this is the upper bound
+
+Find the previous bucket (still 0):
+  le="2.5" has count = 0  ← this is the lower bound
+
+Conclusion: the request took between 2.5s and 5s
+
+In milliseconds: between 2500ms and 5000ms</code></pre>
+
+        <h3>Why is status_code 304?</h3>
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-circle-info"></i> HTTP 304 Not Modified</span>
+          <p style="margin-bottom:0">
+            A <code>304</code> response means the browser already has a cached
+            version of the resource and the server confirmed it hasn't changed.
+            No body is sent — just the status code. This is normal for static
+            files and GET requests with caching headers.
+          </p>
+        </div>
+
+        <h3>Full Picture: Converting le to Human-Readable</h3>
+        <table>
+          <thead>
+            <tr><th>le (seconds)</th><th>In milliseconds</th><th>Count</th><th>Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>0.5</code></td><td>500ms</td><td style="color:var(--danger)">0</td><td>No requests this fast</td></tr>
+            <tr><td><code>1</code></td><td>1000ms</td><td style="color:var(--danger)">0</td><td>No requests this fast</td></tr>
+            <tr><td><code>2.5</code></td><td>2500ms</td><td style="color:var(--danger)">0</td><td>No requests this fast</td></tr>
+            <tr><td><code>5</code></td><td>5000ms</td><td style="color:var(--accent)">1</td><td>✓ Request landed here (2.5s–5s)</td></tr>
+            <tr><td><code>10</code></td><td>10000ms</td><td style="color:var(--accent)">1</td><td>Same request, also fits here</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── PROMQL ────────────────────────────────────────── -->
+      <section id="promql">
+        <h2>PROMQL QUERIES</h2>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-clock"></i> p95 Latency over 5 minutes</span
+          >
+          <pre><code class="language-promql">histogram_quantile(0.95,
+  rate(http_request_duration_seconds_bucket[5m])
+)</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top: 1rem">
+          <span class="note-title"
+            ><i class="fa-solid fa-clock"></i> p99 Latency</span
+          >
+          <pre><code class="language-promql">histogram_quantile(0.99,
+  rate(http_request_duration_seconds_bucket[5m])
+)</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top: 1rem">
+          <span class="note-title"
+            ><i class="fa-solid fa-percent"></i> % of requests under 100ms</span
+          >
+          <pre><code class="language-promql">rate(http_request_duration_seconds_bucket{le="0.1"}[5m])
+/
+rate(http_request_duration_seconds_count[5m])</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top: 1rem">
+          <span class="note-title"
+            ><i class="fa-solid fa-calculator"></i> Average latency (for
+            reference only)</span
+          >
+          <pre><code class="language-promql">rate(http_request_duration_seconds_sum[5m])
+/
+rate(http_request_duration_seconds_count[5m])</code></pre>
+        </div>
+      </section>
+
+      <!-- ─── WHEN TO USE ───────────────────────────────────── -->
+      <section id="when">
+        <h2>WHEN TO USE A HISTOGRAM</h2>
+
+        <div class="comparison-grid">
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--accent);
+            "
+          >
+            <h4 style="color: var(--accent); margin-top: 0">
+              ✅ Use Histogram For
+            </h4>
+            <ul style="margin-bottom: 0">
+              <li>HTTP request durations</li>
+              <li>Database query times</li>
+              <li>Response payload sizes</li>
+              <li>Queue wait times</li>
+              <li>Any value with a distribution</li>
+            </ul>
+          </div>
+          <div
+            style="
+              background: var(--bg-secondary);
+              padding: 1.5rem;
+              border-radius: 8px;
+              border-left: 4px solid var(--danger);
+            "
+          >
+            <h4 style="color: var(--danger); margin-top: 0">
+              ❌ Don't Use Histogram For
+            </h4>
+            <ul style="margin-bottom: 0">
+              <li>Counting events (use Counter)</li>
+              <li>Current state (use Gauge)</li>
+              <li>Values that don't have a range</li>
+              <li>Low-volume, high-precision needs (use Summary)</li>
+            </ul>
+          </div>
+        </div>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+            margin-top: 3rem;
+          "
+        >
+          <span
+            class="note-title"
+            style="color: var(--accent); font-size: 1rem"
+          >
+            💡 Golden Rule
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Never alert on average latency. Always alert on
+            <strong>p95 or p99</strong>. Averages lie — percentiles tell the
+            truth about what your real users are experiencing.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>What is a Histogram? — Observability Guide</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

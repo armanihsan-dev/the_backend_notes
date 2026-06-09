@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OIDC UserInfo Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* --- General Styling and Theme Setup --- */
+      :root {
+        /* VS Code Dark Theme Colors */
+        --bg-color: #1e1e1e; /* Main background */
+        --fg-color: #d4d4d4; /* Foreground text color */
+        --header-color: #569cd6; /* Blue for headings */
+        --block-bg: #252526; /* Background for code blocks/sections */
+        --primary-highlight: #4ec9b0; /* Light green/teal for keywords/methods */
+        --secondary-highlight: #c586c0; /* Purple for strings */
+        --comment-color: #6a9955; /* Green for comments */
+        --variable-color: #9cdcfe; /* Light blue for variables */
+        --error-color: #f44747; /* Red for errors */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--fg-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: var(--block-bg);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1 {
+        color: var(--header-color);
+        font-weight: 900;
+        border-bottom: 2px solid #569cd650;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: var(--header-color);
+        margin-top: 30px;
+        font-weight: 700;
+      }
+
+      p,
+      ul {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--primary-highlight);
+      }
+
+      /* List Styling */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 8px;
+        position: relative;
+      }
+
+      ul li:before {
+        content: '➤';
+        position: absolute;
+        left: -20px;
+        color: var(--primary-highlight);
+        font-size: 0.8em;
+        line-height: 1.6;
+      }
+
+      /* --- Code Block Styling (VS Code Theme) --- */
+      .code-snippet {
+        background-color: #16161a; /* Even darker background for code */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin-top: 15px;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.4);
+      }
+
+      pre {
+        margin: 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+        color: var(--fg-color);
+      }
+
+      /* Syntax Highlighting Classes (Mimicking VS Code) */
+      .keyword {
+        color: var(--primary-highlight);
+        font-weight: bold;
+      } /* const, async, function, return, try, catch */
+      .method {
+        color: var(--primary-highlight);
+      } /* fetch, await, log, error */
+      .variable {
+        color: var(--variable-color);
+      } /* GOOGLE_USERINFO_URL, token, response */
+      .string {
+        color: var(--secondary-highlight);
+      } /* "https://...", 'GET', 'Bearer ' */
+      .comment {
+        color: var(--comment-color);
+        font-style: italic;
+      }
+      .number {
+        color: #b5cea8;
+      } /* e.g. 200, 401 */
+      .object-key {
+        color: var(--variable-color);
+      }
+      .error {
+        color: var(--error-color);
+      }
+
+      /* JSON Block Styling */
+      .json-block {
+        background-color: #16161a;
+        padding: 15px;
+        border-left: 3px solid #646c77;
+        border-radius: 4px;
+        margin-top: 10px;
+      }
+
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Calling userInfo endpoint with acces token</h1>
+      <p>
+        Calling the **UserInfo endpoint** using an **Access Token** is a **core
+        step** in the OpenID Connect (OIDC) flow to retrieve authenticated user
+        details. Here is a deep dive into the process, clear syntax in Node.js,
+        and how it works.
+      </p>
+
+      <hr />
+
+      <h2><span class="emoji">🧐</span> How the UserInfo Endpoint Works</h2>
+      <p>
+        The UserInfo endpoint is a **protected resource** provided by the
+        **Authorization Server** (or Identity Provider) as part of the OpenID
+        Connect specification.
+      </p>
+      <ul>
+        <li>
+          **Request Protection:** To access this endpoint, a client application
+          must provide a <span class="keyword">valid Access Token</span>. This
+          token serves as a credential to prove the application's authorization
+          to request information on behalf of the user.
+        </li>
+        <li>
+          **Access Token Transmission:** The Access Token is typically passed in
+          the **Authorization HTTP header** using the **Bearer scheme**.
+        </li>
+        <li>
+          **Scope Validation:** The Authorization Server verifies the token's
+          validity, checks if it has expired, and—crucially—ensures the token's
+          associated <span class="variable">scopes (permissions)</span> allow
+          access to the user attributes requested. The required scope is usually
+          **openid**, and often **profile**, **email**, etc., to request
+          specific claims.
+        </li>
+        <li>
+          **Response:** If the token is valid and the scopes are sufficient, the
+          server returns the user's information (called **claims**) in a **JSON
+          object** format.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>
+        <span class="emoji">💻</span> Node.js Syntax with Google UserInfo
+        Endpoint
+      </h2>
+      <p>
+        Since you are using the modern <span class="method">fetch</span> API
+        syntax, we'll use a standard Node.js environment that supports it
+        (Node.js v18+ or an environment with a polyfill like
+        <span class="variable">node-fetch</span>).
+      </p>
+
+      <h3>Node.js Code Snippet (using fetch)</h3>
+      <p><span class="variable">JavaScript</span></p>
+      <div class="code-snippet">
+        <pre>
+<span class="comment">// NOTE: This code assumes a modern Node.js environment (v18+)</span>
+<span class="comment">// or that the 'node-fetch' package has been imported/polyfilled.</span>
+
+<span class="comment">// 1. Define the UserInfo Endpoint and Access Token</span>
+<span class="keyword">const</span> <span class="variable">GOOGLE_USERINFO_URL</span> = <span class="string">"https://openidconnect.googleapis.com/v1/userinfo"</span>;
+<span class="keyword">const</span> <span class="variable">accessToken</span> = <span class="string">'YOUR_GOOGLE_OBTAINED_ACCESS_TOKEN_HERE'</span>; 
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="method">getGoogleUserInfo</span>(<span class="variable">token</span>) {
+  <span class="keyword">try</span> {
+    <span class="comment">// 2. Make the GET request</span>
+    <span class="keyword">const</span> <span class="variable">response</span> = <span class="keyword">await</span> <span class="method">fetch</span>(<span class="variable">GOOGLE_USERINFO_URL</span>, {
+      <span class="object-key">method</span>: <span class="string">'GET'</span>,
+      <span class="object-key">headers</span>: {
+        <span class="comment">// Crucially, the Access Token is passed using the Bearer scheme</span>
+        <span class="string">'Authorization'</span>: <span class="string">`Bearer ${</span><span class="variable">token</span><span class="string">}`</span>
+      }
+    });
+
+    <span class="comment">// 3. Handle non-200 status codes (e.g., 401 Unauthorized)</span>
+    <span class="keyword">if</span> (!<span class="variable">response</span>.<span class="object-key">ok</span>) {
+      <span class="keyword">const</span> <span class="variable">errorBody</span> = <span class="keyword">await</span> <span class="variable">response</span>.<span class="method">text</span>();
+      <span class="keyword">throw</span> <span class="keyword">new</span> <span class="error">Error</span>(<span class="string">`HTTP Error! Status: ${</span><span class="variable">response</span>.<span class="object-key">status</span><span class="string">}. Response: ${</span><span class="variable">errorBody</span><span class="string">}`</span>);
+    }
+
+    <span class="comment">// 4. Parse the JSON response body to get user claims</span>
+    <span class="keyword">const</span> <span class="variable">userInfo</span> = <span class="keyword">await</span> <span class="variable">response</span>.<span class="method">json</span>();
+    
+    <span class="method">console</span>.<span class="method">log</span>(<span class="string">'Successfully fetched Google User Info:'</span>);
+    <span class="method">console</span>.<span class="method">log</span>(<span class="variable">userInfo</span>); 
+
+    <span class="keyword">return</span> <span class="variable">userInfo</span>;
+  } <span class="keyword">catch</span> (<span class="variable">error</span>) {
+    <span class="method">console</span>.<span class="method">error</span>(<span class="string">'An error occurred during UserInfo fetch:'</span>, <span class="variable">error</span>.<span class="object-key">message</span>);
+  }
+}
+
+<span class="comment">// Call the function</span>
+<span class="method">getGoogleUserInfo</span>(<span class="variable">accessToken</span>);
+</pre>
+      </div>
+
+      <hr />
+
+      <h2>
+        <span class="emoji">⚙️</span> How It Works with Google's OIDC Service
+      </h2>
+      <p>
+        This interaction is the **final step** in using an OAuth 2.0 Access
+        Token to identify a user via the OpenID Connect (OIDC) protocol.
+      </p>
+      <ul>
+        <li>
+          **Authorization:** The request is sent to the Google Identity Service.
+          The <span class="string">Authorization: Bearer ${token}</span> header
+          is the **credential** that proves the request is authorized on behalf
+          of the user.
+        </li>
+        <li>
+          **Google's Validation:** Google validates the Access Token by checking
+          several factors:
+          <ul>
+            <li>Is the token correctly signed and valid?</li>
+            <li>Has the token expired?</li>
+            <li>
+              Does the token have the necessary **scopes** (permissions) to
+              retrieve user information? (For Google OIDC, the required scopes
+              usually include **openid**, **email**, and **profile**).
+            </li>
+          </ul>
+        </li>
+        <li>
+          **Claim Retrieval:** If the validation succeeds, Google retrieves the
+          user's data (known as **Claims** in OIDC) that correspond to the
+          scopes granted.
+        </li>
+        <li>
+          **Response:** Google returns a **JSON object** with the user's
+          details.
+        </li>
+      </ul>
+
+      <h3>Example Claims from Google</h3>
+      <p>
+        If your Access Token included the scopes
+        <span class="variable">openid</span>,
+        <span class="variable">email</span>, and
+        <span class="variable">profile</span>, the successful response (<span
+          class="method"
+          >HTTP 200 OK</span
+        >) would look similar to this:
+      </p>
+
+      <p><span class="variable">JSON</span></p>
+      <div class="json-block">
+        <pre>
+{
+  "<span class="object-key">sub</span>": "<span class="string">123456789012345678901</span>",
+  "<span class="object-key">name</span>": "<span class="string">Alex Gemini</span>",
+  "<span class="object-key">given_name</span>": "<span class="string">Alex</span>",
+  "<span class="object-key">family_name</span>": "<span class="string">Gemini</span>",
+  "<span class="object-key">picture</span>": "<span class="string">https://lh3.googleusercontent.com/a/...</span>",
+  "<span class="object-key">email</span>": "<span class="string">alex.g@gmail.com</span>",
+  "<span class="object-key">email_verified</span>": <span class="keyword">true</span>,
+  "<span class="object-key">locale</span>": "<span class="string">en</span>"
+}
+</pre>
+      </div>
+
+      <ul>
+        <li>
+          **<span class="variable">sub</span> (Subject Identifier):** This is
+          the **unique and persistent ID** for the user provided by Google. It
+          is the primary way to identify the user in your application.
+        </li>
+        <li>
+          **<span class="variable">email</span> and
+          <span class="variable">email_verified</span>:** Provided if the
+          <span class="variable">email</span> scope was requested.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Base64 Encoding in Node.js - Notes</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3, h4 {
+            color: #2c3e50;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        h1 {
+            font-size: 2.2em;
+            text-align: center;
+            border-bottom: 3px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 1.8em;
+        }
+
+        h3 {
+            font-size: 1.4em;
+            color: #34495e;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            font-size: 1.2em;
+            color: #555;
+            margin-top: 20px;
+        }
+
+        pre {
+            background-color: #ecf0f1;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #e0e6ea;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            padding-left: 0;
+        }
+
+        ol {
+            list-style-type: decimal;
+            margin-left: 20px;
+            padding-left: 0;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .note {
+            background-color: #f9f9e0;
+            border-left: 5px solid #ffcc00;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .example-code {
+            background-color: #e8f5e9;
+            border-left: 5px solid #4CAF50;
+        }
+
+        .html-code {
+            background-color: #e3f2fd;
+            border-left: 5px solid #2196F3;
+        }
+
+        .warning {
+            background-color: #ffe0b2;
+            border-left: 5px solid #ff9800;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+
+        strong {
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Base64 Encoding in Node.js</h1>
+
+        <p>Node.js has built-in support for Base64 encoding and decoding through its <code>Buffer</code> module.</p>
+
+        <h2>How to do Base64 Encoding in Node.js:</h2>
+        <p>To encode data to Base64:</p>
+        <div class="example-code">
+            <h3>JavaScript</h3>
+            <pre><code>// Example of encoding a string
+const originalString = "Hello, Base64!";
+const encodedString = Buffer.from(originalString).toString('base64');
+console.log("Original String:", originalString);
+console.log("Encoded String:", encodedString);
+
+// Example of decoding a string
+const decodedString = Buffer.from(encodedString, 'base64').toString('utf8');
+console.log("Decoded String:", decodedString);
+
+// Example of encoding binary data (e.g., from a file)
+const fs = require('fs');
+// Assuming you have a file named 'image.png' in the same directory
+fs.readFile('image.png', (err, data) => {
+    if (err) {
+        console.error("Error reading file:", err);
+        return;
+    }
+    const encodedImage = data.toString('base64');
+    console.log("\nBase64 encoded image (first 100 chars):", encodedImage.substring(0, 100) + "...");
+
+    // To decode it back to a buffer
+    const decodedImageBuffer = Buffer.from(encodedImage, 'base64');
+    // You could then write this buffer to a new file:
+    // fs.writeFile('decoded_image.png', decodedImageBuffer, (err) => {
+    //     if (err) console.error("Error writing file:", err);
+    //     else console.log("Decoded image saved as decoded_image.png");
+    // });
+});</code></pre>
+        </div>
+
+        <h2>Where is it Used Practically?</h2>
+        <p>Base64 encoding is widely used in various scenarios:</p>
+        <ul>
+            <li>
+                <strong>Embedding Images/Small Files in HTML/CSS/JSON:</strong> Instead of making separate HTTP requests for small images (like icons), you can embed them directly into your HTML, CSS, or JSON data using <code>data:</code> URIs. This reduces the number of HTTP requests and can improve page load performance for small assets.
+                <div class="html-code">
+                    <h3>HTML</h3>
+                    <pre><code>&lt;img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red Dot"&gt;</code></pre>
+                </div>
+            </li>
+            <li>
+                <strong>Email Attachments:</strong> Emails are traditionally text-based. To send binary attachments (images, documents, etc.), they are Base64 encoded to be safely transmitted as part of the email's body.
+            </li>
+            <li>
+                <strong>HTTP Basic Authentication:</strong> In HTTP Basic Authentication, usernames and passwords are concatenated with a colon (e.g., <code>username:password</code>) and then Base64 encoded before being sent in the <code>Authorization</code> header.
+                <pre><code>Authorization: Basic &lt;base64 encoded username:password&gt;</code></pre>
+            </li>
+            <li>
+                <strong>Transferring Binary Data over Text-Based Protocols:</strong> Any protocol that is primarily designed for text (like JSON, XML, or some older communication protocols) needs a way to safely transmit binary data. Base64 provides that mechanism by converting binary into a text representation.
+            </li>
+            <li>
+                <strong>Storing Binary Data in Text Databases:</strong> While not always the most efficient, Base64 can be used to store small binary blobs (like user avatars or small documents) directly within text-based database fields (e.g., <code>VARCHAR</code> or <code>TEXT</code> columns).
+            </li>
+            <li>
+                <strong>Cryptography and Digital Signatures:</strong> Although Base64 is not encryption, it's often used to represent cryptographic keys, signatures, and encrypted payloads in a text-safe format.
+            </li>
+        </ul>
+
+        <h2>Why the Size of File Gets Increased When it is Encoded with Base64?</h2>
+        <p>Base64 encoding works by representing every 3 bytes of binary data as 4 ASCII characters.</p>
+        <p>Here's why this leads to an increase in size:</p>
+        <ul>
+            <li>
+                <strong>Mapping:</strong> Each group of 3 bytes has $3 \times 8 = 24$ bits. Base64 then converts these 24 bits into four 6-bit chunks. Each 6-bit chunk maps to one of 64 possible ASCII characters (A-Z, a-z, 0-9, +, /, and = for padding).
+            </li>
+            <li>
+                <strong>Overhead:</strong> Since 4 characters are used to represent 3 bytes, there's an inherent overhead. $\frac{4 \text{ characters}}{3 \text{ bytes}} = \frac{4 \text{ bytes (approx.)}}{3 \text{ bytes}} \approx 1.33$ This means the encoded data will be approximately 33% larger than the original binary data.
+            </li>
+            <li>
+                <strong>Padding:</strong> If the original data size is not a multiple of 3, padding characters (<code>=</code>) are added to the end of the Base64 string to make it a multiple of 4 characters. Each padding character still takes up space.
+            </li>
+        </ul>
+
+        <h3>Simplified Explanation: "Text-Only" Roads / The "Alphabet Conversion"</h3>
+        <p>Imagine you have a beautiful, complex painting (your binary data, like an image file). It's full of millions of colors and shades.</p>
+        <p>Now, you want to send this painting through a very old, very strict postal service. This postal service has one rule: **they ONLY deliver letters written with a very limited set of characters.** Think of it like this:</p>
+        <ul>
+            <li>They only recognize the characters <code>A-Z</code>, <code>a-z</code>, <code>0-9</code>, <code>+</code>, <code>/</code>, and <code>=</code>.</li>
+            <li>They **do not** understand or allow any other characters (like a special character that might represent a specific shade of purple, or a control character that means "end of file"). If you send them anything outside their allowed list, they'll either discard it, corrupt it, or just plain stop processing your message.</li>
+        </ul>
+        <p>This postal service is like many older internet protocols (email, early web forms, some API formats) that were primarily designed for simple text. They can't handle raw, "unfiltered" binary data because binary data can contain any byte value from 0 to 255, and many of those values might be interpreted as special instructions or corrupted characters by these "text-only" systems.</p>
+
+        <h4>How Base64 Works: The "Alphabet Conversion"</h4>
+        <p>Since you can't send your painting directly, you need a way to describe every detail of that painting using only the allowed <code>A-Z, a-z, 0-9, +, /, =</code> characters.</p>
+        <ol>
+            <li>
+                <strong>Breaking Down the Painting:</strong> Base64 takes your painting (the original binary data) and breaks it down into very small, precise chunks of information.
+            </li>
+            <li>
+                <strong>Converting to the Allowed Alphabet:</strong> It then translates each chunk of information into one or more of those specific <code>A-Z, a-z, 0-9, +, /, =</code> characters. It's like finding the closest match in this limited alphabet for every tiny detail of your painting.
+            </li>
+        </ol>
+
+        <h4>Why the Size Increases: The "Verbose Description"</h4>
+        <p>Because your allowed alphabet is so limited, you often need **more letters** to accurately describe something.</p>
+        <ul>
+            <li>Imagine trying to describe a complex color (like "periwinkle with a hint of gray-blue") using only basic color names (red, blue, green). You'd have to use a longer phrase: "It's like blue, but softer, and a bit purplish, and slightly muted."</li>
+            <li>If you had a richer vocabulary, you could just say "periwinkle."</li>
+        </ul>
+        <p>This is exactly what happens with Base64.</p>
+        <ul>
+            <li>Your original binary data uses a "rich vocabulary" where each byte (character) can represent 256 different things.</li>
+            <li>Base64 converts this into a "limited vocabulary" where each Base64 character can only represent 64 different things.</li>
+        </ul>
+        <p>Since each Base64 character carries **less information** than an original binary byte, you need **more Base64 characters** to represent the same amount of original information.</p>
+
+        <h4>The "3 into 4" Rule:</h4>
+        <p>This is why you get the "3 bytes become 4 characters" rule:</p>
+        <ul>
+            <li><strong>Original:</strong> 3 tiny chunks of original data (very dense information).</li>
+            <li><strong>Base64 Translation:</strong> To precisely represent those 3 chunks using *only* the allowed Base64 alphabet, it takes 4 characters from that alphabet.</li>
+        </ul>
+        <p>You're taking something compact and making it **more verbose** so that it can safely travel through a "text-only" system. That verbosity (more characters) inherently means a larger size.</p>
+        <p><strong>Think of it like this:</strong></p>
+        <p>If you write "cat" on a piece of paper, it's 3 letters. If you encode "cat" into morse code (<code>-.-. .- -</code>), it takes more "dots and dashes" to represent the same information. Morse code is safer for some forms of transmission (like flashing lights), but it's more verbose. Base64 is similar; it's safer for text-based systems but more verbose.</p>
+
+
+        <h2>Let's Convert a Small PNG to Base64 Text and Convert This Text Back Again to PNG with Size Check.</h2>
+        <p>First, you'll need a small PNG file. Let's assume you have a file named <code>tiny.png</code> in the same directory as your Node.js script. If not, you can create one or download a very small one.</p>
+        <div class="example-code">
+            <h3>JavaScript</h3>
+            <pre><code>const fs = require('fs');
+const path = require('path');
+
+const inputImagePath = path.join(__dirname, 'tiny.png'); // Make sure you have a tiny.png
+const outputImagePath = path.join(__dirname, 'decoded_tiny.png');
+
+// --- Step 1: Encode PNG to Base64 ---
+fs.readFile(inputImagePath, (err, imageData) => {
+    if (err) {
+        console.error("Error reading PNG file:", err);
+        console.log("Please ensure 'tiny.png' exists in the same directory as the script.");
+        return;
+    }
+
+    const originalSize = imageData.length;
+    const base64EncodedImage = imageData.toString('base64');
+    const encodedSize = Buffer.byteLength(base64EncodedImage, 'utf8'); // Get size of the string in bytes
+
+    console.log(`\n--- PNG to Base64 Encoding ---`);
+    console.log(`Original PNG file size: ${originalSize} bytes`);
+    console.log(`Base64 encoded string size: ${encodedSize} bytes`);
+    console.log(`Size increase: ${(((encodedSize - originalSize) / originalSize) * 100).toFixed(2)}%`);
+    console.log(`Base64 (first 50 chars): ${base64EncodedImage.substring(0, 50)}...`);
+
+    // --- Step 2: Decode Base64 back to PNG ---
+    const decodedImageBuffer = Buffer.from(base64EncodedImage, 'base64');
+
+    fs.writeFile(outputImagePath, decodedImageBuffer, (err) => {
+        if (err) {
+            console.error("Error writing decoded PNG file:", err);
+            return;
+        }
+
+        const decodedSize = fs.statSync(outputImagePath).size;
+        console.log(`\n--- Base64 to PNG Decoding ---`);
+        console.log(`Decoded PNG file size: ${decodedSize} bytes`);
+
+        if (originalSize === decodedSize) {
+            console.log("Original and decoded file sizes match! Encoding/decoding successful.");
+        } else {
+            console.error("Warning: Original and decoded file sizes do NOT match!");
+        }
+        console.log(`Decoded PNG saved as: ${outputImagePath}`);
+    });
+});</code></pre>
+        </div>
+        <h4>To run this example:</h4>
+        <ol>
+            <li>Save the code as a <code>.js</code> file (e.g., <code>base64_example.js</code>).</li>
+            <li>Place a small PNG file named <code>tiny.png</code> in the same directory.</li>
+            <li>Run from your terminal: <code>node base64_example.js</code></li>
+        </ol>
+        <p>You will see the size increase percentage, and a new <code>decoded_tiny.png</code> file will be created, which should be identical to your original <code>tiny.png</code>.</p>
+
+        <h2>What is baseURL? Where it is Used in Node.js?</h2>
+        <p>The term <code>baseURL</code> is commonly encountered in web development, but its meaning and usage in Node.js can vary depending on the context. It's not a core, built-in Node.js concept like <code>Buffer</code> or <code>fs</code>.</p>
+        <p>Here are the most common contexts where you might see <code>baseURL</code> in Node.js:</p>
+        <ul>
+            <li>
+                <strong>HTTP Clients (like Axios, Fetch API in Node.js):</strong> When making HTTP requests to an API, you often have a common base URL for all your endpoints. Libraries like <code>axios</code> (a popular HTTP client for Node.js and browsers) allow you to configure a <code>baseURL</code> for an instance. This simplifies your code by letting you specify only the relative paths for individual requests.
+                <div class="example-code">
+                    <h3>JavaScript</h3>
+                    <pre><code>const axios = require('axios'); // npm install axios
+
+const api = axios.create({
+    baseURL: 'https://api.example.com/v1', // Your API base URL
+    timeout: 10000,
+    headers: {'X-Custom-Header': 'foobar'}
+});
+
+// Now you can make requests using relative paths
+api.get('/users') // This will request https://api.example.com/v1/users
+    .then(response => console.log(response.data))
+    .catch(error => console.error(error));
+
+api.post('/products', { name: 'New Product' }) // This will request https://api.example.com/v1/products
+    .then(response => console.log(response.data))
+    .catch(error => console.error(error));</code></pre>
+                </div>
+                <p>In this scenario, <code>baseURL</code> acts as a prefix for all relative URLs used with that <code>axios</code> instance.</p>
+            </li>
+            <li>
+                <strong>Frontend Build Tools (Bundlers like Webpack, Vite, Parcel):</strong> While these are primarily for frontend development, Node.js is heavily used in their build processes. When building single-page applications (SPAs) or static sites, you might configure a <code>publicPath</code> or <code>baseURL</code> in your bundler's configuration. This tells the bundler where your assets (JavaScript, CSS, images) will be served from on your web server. This is less about Node.js runtime behavior and more about the build environment.
+            </li>
+            <li>
+                <strong>Module Resolution (Less Common for "baseURL"):</strong> Sometimes, in more complex module setups or monorepos, you might encounter configurations that define "base paths" for module resolution. This isn't typically called <code>baseURL</code> but serves a similar purpose of defining a root for resolving import paths. TypeScript's <code>baseUrl</code> option in <code>tsconfig.json</code> is an example, but it's specifically for TypeScript's module resolution, not directly a Node.js runtime concept in the same way as <code>axios.baseURL</code>.
+            </li>
+            <li>
+                <strong>Custom Applications/Frameworks:</strong> You might define a <code>baseURL</code> configuration variable in your own Node.js application or framework to store the base URL of your application itself. This could be used for:
+                <ul>
+                    <li>Generating absolute URLs in emails or API responses.</li>
+                    <li>Configuring external services that need to know your application's public URL.</li>
+                </ul>
+                <div class="example-code">
+                    <h3>JavaScript</h3>
+                    <pre><code>// config.js
+module.exports = {
+    app: {
+        port: 3000,
+        baseURL: process.env.NODE_ENV === 'production' ? 'https://myapp.com' : 'http://localhost:3000'
+    },
+    database: { /* ... */ }
+};
+
+// server.js
+const config = require('./config');
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+    res.send(`Welcome to ${config.app.baseURL}`);
+});
+
+app.listen(config.app.port, () => {
+    console.log(`Server running at ${config.app.port}`);
+});</code></pre>
+                </div>
+            </li>
+        </ul>
+        <p>In summary, <code>baseURL</code> in Node.js typically refers to a common prefix for URLs, most often used with HTTP client libraries to simplify API requests, or in custom application configurations for managing your application's own public address. It's not a fundamental built-in global variable or module like <code>__dirname</code> or <code>process</code>.</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lemon Squeezy API Notes (Blackish Theme)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Lemon Squeezy API Integration Notes</h1>
+
+      <section>
+        <h2>1. First, Get Your API Key</h2>
+        <ul class="steps">
+          <li>Go to your **Lemon Squeezy dashboard**</li>
+          <li>Navigate to **Settings → API**</li>
+          <li>Create a new API key with appropriate permissions</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>2. Basic Setup</h2>
+        <span class="js-tag">javascript</span>
+        <pre><code><span class="cmt">// config.js - Keep your API key secure (don't commit to public repos!)</span>
+<span class="kw">const</span> <span class="prop">LEMON_SQUEEZY_API_KEY</span> <span class="op">=</span> <span class="str">'your_api_key_here'</span>;
+<span class="kw">const</span> <span class="prop">API_BASE_URL</span> <span class="op">=</span> <span class="str">'https://api.lemonsqueezy.com/v1'</span>;
+
+<span class="cmt">// Common headers for all requests</span>
+<span class="kw">const</span> <span class="prop">headers</span> <span class="op">=</span> {
+  <span class="str">'Accept'</span>: <span class="str">'application/vnd.api+json'</span>,
+  <span class="str">'Content-Type'</span>: <span class="str">'application/vnd.api+json'</span>,
+  <span class="str">'Authorization'</span>: <span class="str">`Bearer ${LEMON_SQUEEZY_API_KEY}`</span>
+};</code></pre>
+      </section>
+
+      <section>
+        <h2>Example 1: List All Stores</h2>
+        <span class="js-tag">javascript</span>
+        <pre><code><span class="cmt">// Example 1: List all stores</span>
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">listStores</span>() {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">response</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">`${API_BASE_URL}/stores`</span>, {
+      <span class="prop">method</span>: <span class="str">'GET'</span>,
+      <span class="prop">headers</span>: <span class="prop">headers</span>
+    });
+
+    <span class="kw">if</span> (<span class="op">!</span><span class="prop">response</span>.<span class="prop">ok</span>) {
+      <span class="kw">throw</span> <span class="kw">new</span> <span class="dir">Error</span>(<span class="str">`HTTP error! Status: ${response.status}`</span>);
+    }
+
+    <span class="kw">const</span> <span class="prop">data</span> <span class="op">=</span> <span class="kw">await</span> <span class="prop">response</span>.<span class="dir">json</span>();
+    
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Total stores:'</span>, <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">total</span>);
+    
+    <span class="cmt">// Display store information</span>
+    <span class="prop">data</span>.<span class="prop">data</span>.<span class="dir">forEach</span>(<span class="prop">store</span> <span class="op">=></span> {
+      <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`
+        Store ID: ${store.id}
+        Name: ${store.attributes.name}
+        URL: ${store.attributes.url}
+        Created: ${new Date(store.attributes.created_at).toLocaleDateString()}
+      `</span>);
+    });
+    
+    <span class="kw">return</span> <span class="prop">data</span>.<span class="prop">data</span>;
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Error fetching stores:'</span>, <span class="prop">error</span>);
+    <span class="kw">throw</span> <span class="prop">error</span>;
+  }
+}
+
+<span class="cmt">// Usage</span>
+<span class="dir">listStores</span>()
+  .<span class="dir">then</span>(<span class="prop">stores</span> <span class="op">=></span> {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Fetched stores:'</span>, <span class="prop">stores</span>);
+  })
+  .<span class="dir">catch</span>(<span class="prop">error</span> <span class="op">=></span> {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Failed to fetch stores:'</span>, <span class="prop">error</span>);
+  });</code></pre>
+      </section>
+
+      <section>
+        <h2>Example 2: List Products with Pagination</h2>
+        <span class="js-tag">javascript</span>
+        <pre><code><span class="cmt">// Example 2: List products with pagination support</span>
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">listProducts</span>(<span class="prop">storeId</span>, <span class="prop">page</span> <span class="op">=</span> <span class="lit">1</span>) {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">url</span> <span class="op">=</span> <span class="kw">new</span> <span class="dir">URL</span>(<span class="str">`${API_BASE_URL}/products`</span>);
+    
+    <span class="cmt">// Add query parameters</span>
+    <span class="prop">url</span>.<span class="prop">searchParams</span>.<span class="dir">append</span>(<span class="str">'page[number]'</span>, <span class="prop">page</span>);
+    <span class="prop">url</span>.<span class="prop">searchParams</span>.<span class="dir">append</span>(<span class="str">'page[size]'</span>, <span class="lit">10</span>); <span class="cmt">// 10 per page</span>
+    
+    <span class="kw">if</span> (<span class="prop">storeId</span>) {
+      <span class="prop">url</span>.<span class="prop">searchParams</span>.<span class="dir">append</span>(<span class="str">'filter[store_id]'</span>, <span class="prop">storeId</span>);
+    }
+    
+    <span class="kw">const</span> <span class="prop">response</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">fetch</span>(<span class="prop">url</span>, {
+      <span class="prop">method</span>: <span class="str">'GET'</span>,
+      <span class="prop">headers</span>: <span class="prop">headers</span>
+    });
+
+    <span class="kw">if</span> (<span class="op">!</span><span class="prop">response</span>.<span class="prop">ok</span>) {
+      <span class="kw">throw</span> <span class="kw">new</span> <span class="dir">Error</span>(<span class="str">`HTTP error! Status: ${response.status}`</span>);
+    }
+
+    <span class="kw">const</span> <span class="prop">data</span> <span class="op">=</span> <span class="kw">await</span> <span class="prop">response</span>.<span class="dir">json</span>();
+    
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Page info:'</span>, {
+      <span class="prop">currentPage</span>: <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">currentPage</span>,
+      <span class="prop">totalPages</span>: <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">totalPages</span>,
+      <span class="prop">totalProducts</span>: <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">total</span>
+    });
+    
+    <span class="cmt">// Display product information</span>
+    <span class="prop">data</span>.<span class="prop">data</span>.<span class="dir">forEach</span>(<span class="prop">product</span> <span class="op">=></span> {
+      <span class="kw">const</span> <span class="prop">attributes</span> <span class="op">=</span> <span class="prop">product</span>.<span class="prop">attributes</span>;
+      <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`
+        Product ID: ${product.id}
+        Name: ${attributes.name}
+        Description: ${attributes.description.substring(0, 100)}...
+        Status: ${attributes.status}
+        Price: $${(attributes.price / 100).toFixed(2)} ${attributes.currency.toUpperCase()}
+        Buy Now URL: ${attributes.buy_now_url}
+      `</span>);
+    });
+    
+    <span class="kw">return</span> {
+      <span class="prop">products</span>: <span class="prop">data</span>.<span class="prop">data</span>,
+      <span class="prop">pagination</span>: {
+        <span class="prop">currentPage</span>: <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">currentPage</span>,
+        <span class="prop">totalPages</span>: <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">totalPages</span>,
+        <span class="prop">totalItems</span>: <span class="prop">data</span>.<span class="prop">meta</span>.<span class="prop">page</span>.<span class="prop">total</span>
+      }
+    };
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Error fetching products:'</span>, <span class="prop">error</span>);
+    <span class="kw">throw</span> <span class="prop">error</span>;
+  }
+}
+
+<span class="cmt">// Usage with store ID</span>
+<span class="kw">const</span> <span class="prop">STORE_ID</span> <span class="op">=</span> <span class="str">'your_store_id_here'</span>;
+
+<span class="dir">listProducts</span>(<span class="prop">STORE_ID</span>, <span class="lit">1</span>)
+  .<span class="dir">then</span>(<span class="prop">result</span> <span class="op">=></span> {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Fetched products:'</span>, <span class="prop">result</span>.<span class="prop">products</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Pagination info:'</span>, <span class="prop">result</span>.<span class="prop">pagination</span>);
+  })
+  .<span class="dir">catch</span>(<span class="prop">error</span> <span class="op">=></span> {
+    <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Failed to fetch products:'</span>, <span class="prop">error</span>);
+  });</code></pre>
+      </section>
+    </div>
+  </body>
+</html>

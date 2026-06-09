@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collecting Custom Metrics in Prometheus | Complete Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-chart-simple"></i> CUSTOM METRICS</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Setup</div>
+        <a href="#installation" class="nav-link">Installation</a>
+        <a href="#full-example" class="nav-link">Complete Example</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Metric Types</div>
+        <a href="#counter" class="nav-link">Counter</a>
+        <a href="#gauge" class="nav-link">Gauge</a>
+        <a href="#labels" class="nav-link">Labels</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Practice</div>
+        <a href="#testing" class="nav-link">Testing Metrics</a>
+        <a href="#output" class="nav-link">Expected Output</a>
+        <a href="#best-practices" class="nav-link">Best Practices</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">prom-client</span>
+        <h1>COLLECTING CUSTOM METRICS</h1>
+        <p>COUNTERS, GAUGES & LABELS IN PROMETHEUS WITH NODE.JS</p>
+      </section>
+
+      <!-- ─── INSTALLATION ──────────────────────────────────── -->
+      <section id="installation">
+        <h2>INSTALLATION</h2>
+        <p>Install the official Prometheus client library for Node.js:</p>
+        <pre><code class="language-bash">npm install prom-client</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-circle-info"></i> ES6 Modules
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            All examples below use <strong>ES6 import/export</strong> syntax.
+            Make sure your <code>package.json</code> has <code>"type": "module"</code>
+            or use <code>.mjs</code> file extensions.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── FULL EXAMPLE ──────────────────────────────────── -->
+      <section id="full-example">
+        <h2>COMPLETE EXAMPLE</h2>
+        <p>A full Express.js application with custom Counter and Gauge metrics:</p>
+
+        <pre><code class="language-javascript">import express from 'express';
+import client from 'prom-client';
+
+const app = express();
+
+// Create a Registry to register all metrics
+const register = new client.Registry();
+
+// ─── 1. COUNTER: HTTP Request Total ───────────────────────────
+// Counters only increase — perfect for counting total requests
+const httpRequestTotal = new client.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests received',
+  labelNames: ['method', 'route', 'status_code']
+});
+
+// ─── 2. GAUGE: Active HTTP Requests ───────────────────────────
+// Gauges go up and down — perfect for current active requests
+const activeHttpRequests = new client.Gauge({
+  name: 'http_requests_active',
+  help: 'Number of HTTP requests currently being processed'
+});
+
+// Register both metrics
+register.registerMetric(httpRequestTotal);
+register.registerMetric(activeHttpRequests);
+
+// Collect default Node.js metrics (memory, CPU, event loop, etc.)
+client.collectDefaultMetrics({ register });
+
+// ─── MIDDLEWARE: Track metrics for every request ───────────────
+app.use((req, res, next) => {
+  activeHttpRequests.inc();
+
+  res.on('finish', () => {
+    activeHttpRequests.dec();
+
+    httpRequestTotal.inc({
+      method: req.method,
+      route: req.route ? req.route.path : req.path,
+      status_code: res.statusCode
+    });
+  });
+
+  next();
+});
+
+// ─── ROUTES ────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({ message: 'Hello World!' });
+});
+
+app.get('/api/users', (req, res) => {
+  setTimeout(() => {
+    res.json({ users: ['Alice', 'Bob', 'Charlie'] });
+  }, 100);
+});
+
+app.post('/api/users', (req, res) => {
+  res.status(201).json({ message: 'User created' });
+});
+
+// ─── /metrics ENDPOINT for Prometheus to scrape ────────────────
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    const metrics = await register.metrics();
+    res.end(metrics);
+  } catch (err) {
+    res.status(500).end(err);
+  }
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Metrics available at http://localhost:${PORT}/metrics`);
+});</code></pre>
+      </section>
+
+      <!-- ─── COUNTER ───────────────────────────────────────── -->
+      <section id="counter">
+        <h2>COUNTER METRIC: http_requests_total</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-arrow-trend-up"></i> What is a Counter?
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Counters are metrics that <strong>only increase</strong> over time.
+            They reset when the application restarts — perfect for counting
+            events like requests, errors, or tasks completed.
+          </p>
+        </div>
+
+        <h3>Key Methods</h3>
+        <pre><code class="language-javascript">// Increment by 1
+httpRequestTotal.inc();
+
+// Increment by a specific value
+httpRequestTotal.inc(5);
+
+// Increment with labels
+httpRequestTotal.inc({ method: 'GET', route: '/api', status_code: 200 });</code></pre>
+
+        <h3>When to Use a Counter</h3>
+        <ul>
+          <li>Total HTTP requests received</li>
+          <li>Total errors thrown</li>
+          <li>Total tasks completed</li>
+          <li>Total bytes sent/received</li>
+        </ul>
+      </section>
+
+      <!-- ─── GAUGE ─────────────────────────────────────────── -->
+      <section id="gauge">
+        <h2>GAUGE METRIC: http_requests_active</h2>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-arrows-up-down"></i> What is a Gauge?
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Gauges can <strong>go up or down</strong> — ideal for tracking
+            current values like active requests, memory usage, or queue sizes.
+          </p>
+        </div>
+
+        <h3>Key Methods</h3>
+        <pre><code class="language-javascript">// Set to a specific value
+activeHttpRequests.set(10);
+
+// Increment (increase by 1)
+activeHttpRequests.inc();
+
+// Decrement (decrease by 1)
+activeHttpRequests.dec();
+
+// Increment by specific value
+activeHttpRequests.inc(5);
+
+// Decrement by specific value
+activeHttpRequests.dec(3);</code></pre>
+
+        <h3>When to Use a Gauge</h3>
+        <ul>
+          <li>Active/in-flight requests</li>
+          <li>Current memory usage</li>
+          <li>Queue depth</li>
+          <li>Number of connected users</li>
+          <li>Temperature or CPU usage</li>
+        </ul>
+
+        <h3>Counter vs Gauge — At a Glance</h3>
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #3b82f6">
+            <h4 style="color:#3b82f6;margin-top:0"><i class="fa-solid fa-arrow-up"></i> Counter</h4>
+            <ul style="margin-bottom:0">
+              <li>Only goes up ↑</li>
+              <li>Resets on restart</li>
+              <li>Use <code>rate()</code> to query</li>
+              <li>Example: total requests</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #8b5cf6">
+            <h4 style="color:#8b5cf6;margin-top:0"><i class="fa-solid fa-arrows-up-down"></i> Gauge</h4>
+            <ul style="margin-bottom:0">
+              <li>Goes up and down ↕</li>
+              <li>Reflects current state</li>
+              <li>Query directly</li>
+              <li>Example: active requests</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── LABELS ────────────────────────────────────────── -->
+      <section id="labels">
+        <h2>ADDING LABELS FOR BETTER INSIGHTS</h2>
+
+        <p>
+          Labels allow you to segment your metrics by dimensions like HTTP
+          method, route, or status code.
+        </p>
+
+        <pre><code class="language-javascript">import client from 'prom-client';
+
+const httpRequestDuration = new client.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'HTTP request duration in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.1, 0.5, 1, 2, 5]   // buckets in seconds
+});
+
+// In your middleware
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+
+  res.on('finish', () => {
+    end({
+      method: req.method,
+      route: req.route ? req.route.path : req.path,
+      status_code: res.statusCode
+    });
+  });
+
+  next();
+});</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> High Cardinality Warning
+          </span>
+          <p style="margin-bottom:0">
+            Never use <strong>user IDs, session tokens, or request IDs</strong>
+            as label values. Each unique combination creates a new time series —
+            millions of users = millions of series = Prometheus crashes.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── TESTING ───────────────────────────────────────── -->
+      <section id="testing">
+        <h2>TESTING YOUR METRICS</h2>
+
+        <div class="note-box">
+          <span class="note-title"><i class="fa-solid fa-1"></i> Run your application</span>
+          <pre><code class="language-bash">node app.js</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-2"></i> Generate some traffic</span>
+          <pre><code class="language-bash">curl http://localhost:3000/
+curl http://localhost:3000/api/users
+curl -X POST http://localhost:3000/api/users</code></pre>
+        </div>
+
+        <div class="note-box" style="margin-top:1rem">
+          <span class="note-title"><i class="fa-solid fa-3"></i> View your metrics</span>
+          <pre><code class="language-bash">curl http://localhost:3000/metrics</code></pre>
+        </div>
+      </section>
+
+      <!-- ─── OUTPUT ────────────────────────────────────────── -->
+      <section id="output">
+        <h2>EXPECTED OUTPUT</h2>
+        <p>After generating traffic, your <code>/metrics</code> endpoint should return:</p>
+
+        <pre><code class="language-text"># HELP http_requests_total Total number of HTTP requests received
+# TYPE http_requests_total counter
+http_requests_total{method="GET",route="/",status_code="200"} 1
+http_requests_total{method="GET",route="/api/users",status_code="200"} 1
+http_requests_total{method="POST",route="/api/users",status_code="201"} 1
+
+# HELP http_requests_active Number of HTTP requests currently being processed
+# TYPE http_requests_active gauge
+http_requests_active 0</code></pre>
+      </section>
+
+      <!-- ─── BEST PRACTICES ────────────────────────────────── -->
+      <section id="best-practices">
+        <h2>BEST PRACTICES</h2>
+
+        <h3>✅ Do's</h3>
+        <ul>
+          <li>
+            <strong>Use meaningful metric names</strong> — follow Prometheus
+            naming conventions: <code>snake_case</code>, include units
+            (<code>_seconds</code>, <code>_bytes</code>, <code>_total</code>)
+          </li>
+          <li>
+            <strong>Always add help text</strong> — describe what the metric
+            measures so future-you understands it
+          </li>
+          <li>
+            <strong>Use labels for dimensions</strong> — method, route, status
+            code are good label candidates
+          </li>
+          <li>
+            <strong>Register all metrics</strong> — always call
+            <code>register.registerMetric()</code> for custom metrics
+          </li>
+          <li>
+            <strong>Use histograms for latency</strong> — they give you
+            percentiles (p95, p99) which are far more useful than averages
+          </li>
+        </ul>
+
+        <h3>❌ Don'ts</h3>
+        <ul>
+          <li>
+            <strong>Don't use high-cardinality labels</strong> — avoid
+            <code>user_id</code>, <code>request_id</code>, <code>session_token</code>
+          </li>
+          <li>
+            <strong>Don't track averages</strong> — use histograms instead
+          </li>
+          <li>
+            <strong>Don't expose sensitive data</strong> — no passwords or
+            tokens in metric names or labels
+          </li>
+        </ul>
+
+        <div
+          class="note-box"
+          style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem"
+        >
+          <span class="note-title" style="color:var(--accent);font-size:1rem">
+            💡 Golden Rule
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Start with the Four Golden Signals — Latency, Traffic, Errors,
+            Saturation. Add custom metrics only when you need to answer a
+            specific question that default metrics can't answer.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Collecting Custom Metrics in Prometheus</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

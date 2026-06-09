@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Express.js Static Files & res.sendFile()</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --heading-color: #ffffff;
+        --code-bg: #1e1e1e;
+        --code-text: #d4d4d4;
+        --code-keyword: #569cd6;
+        --code-string: #ce9178;
+        --code-comment: #6a9955;
+        --code-number: #b5cea8;
+        --code-function: #dcdcaa;
+        --code-variable: #9cdcfe;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 2rem;
+        line-height: 1.6;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        border-bottom: 2px solid #333;
+        padding-bottom: 0.5rem;
+      }
+
+      p,
+      ul,
+      pre {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .section-separator {
+        border: 0;
+        height: 1px;
+        background: #444;
+        margin: 2rem 0;
+      }
+
+      /* VS Code Dark Theme for code blocks */
+      pre,
+      code {
+        font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+        background-color: var(--code-bg);
+        color: var(--code-text);
+        padding: 1.25rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      code.inline-code {
+        padding: 0.2rem 0.4rem;
+        background-color: #2a2a2a;
+        border-radius: 4px;
+      }
+
+      pre span.comment {
+        color: var(--code-comment);
+      }
+      pre span.keyword {
+        color: var(--code-keyword);
+      }
+      pre span.string {
+        color: var(--code-string);
+      }
+      pre span.number {
+        color: var(--code-number);
+      }
+      pre span.variable {
+        color: var(--code-variable);
+      }
+      pre span.function {
+        color: var(--code-function);
+      }
+      pre span.operator {
+        color: #d4d4d4;
+      }
+      pre span.punctuation {
+        color: #d4d4d4;
+      }
+      pre span.path {
+        color: #ce9178;
+      }
+      pre span.tag {
+        color: #569cd6;
+      }
+      pre span.attribute {
+        color: #9cdcfe;
+      }
+      pre span.value {
+        color: #ce9178;
+      }
+      pre span.doctype {
+        color: #569cd6;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Serving Static Files in Express.js</h1>
+    <p>
+      Serving static files in Express.js is a straightforward process that
+      allows you to make assets like HTML, CSS, JavaScript, and images
+      accessible to the client's browser. The most common way to do this is by
+      using the built-in middleware function,
+      <code class="inline-code">express.static()</code>.
+    </p>
+
+    <h2>How express.static() Works</h2>
+    <p>
+      The <code class="inline-code">express.static()</code> middleware is a
+      powerful function that serves static assets from a specified directory.
+      When a request comes in, this middleware intercepts it and checks if the
+      requested file path matches a file within the designated static directory.
+      If it finds a match, it serves the file; otherwise, it passes the request
+      on to the next middleware or route handler.
+    </p>
+
+    <h3>Step 1: Set Up Your Project Structure</h3>
+    <p>
+      First, organize your project to have a dedicated folder for your static
+      files. A common convention is to name this folder
+      <code class="inline-code">public</code>.
+    </p>
+    <pre>
+<span class="path">/my-express-app</span>
+<span class="punctuation">|--</span> <span class="path">/node_modules</span>
+<span class="punctuation">|--</span> <span class="path">/public</span>
+<span class="punctuation">|</span>   <span class="punctuation">|--</span> <span class="path">/css</span>
+<span class="punctuation">|</span>   <span class="punctuation">|</span>   <span class="punctuation">|--</span> <span class="path">style.css</span>
+<span class="punctuation">|</span>   <span class="punctuation">|--</span> <span class="path">/js</span>
+<span class="punctuation">|</span>   <span class="punctuation">|</span>   <span class="punctuation">|--</span> <span class="path">script.js</span>
+<span class="punctuation">|</span>   <span class="punctuation">|--</span> <span class="path">index.html</span>
+<span class="punctuation">|--</span> <span class="path">app.js</span>
+<span class="punctuation">|--</span> <span class="path">package.json</span></pre>
+
+    <h3>Step 2: Write the Code</h3>
+    <p>
+      In your main application file (e.g.,
+      <code class="inline-code">app.js</code>), you need to import Express and
+      then tell it to use the
+      <code class="inline-code">express.static()</code> middleware.
+    </p>
+    <pre><span class="keyword">const</span> <span class="variable">express</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">path</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> <span class="operator">=</span> <span class="function">express</span>();
+<span class="keyword">const</span> <span class="variable">port</span> <span class="operator">=</span> <span class="number">3000</span>;
+
+<span class="comment">// Serve static files from the "public" directory</span>
+<span class="variable">app</span>.<span class="function">use</span>(<span class="variable">express</span>.<span class="function">static</span>(<span class="string">'public'</span>));
+
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) <span class="operator">=></span> {
+  <span class="variable">res</span>.<span class="function">sendFile</span>(<span class="variable">path</span>.<span class="function">join</span>(__<span class="variable">dirname</span>, <span class="string">'public'</span>, <span class="string">'index.html'</span>));
+});
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="variable">port</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span>.<span class="function">log</span>(<span class="string">`App listening at http://localhost:${port}`</span>);
+});</pre>
+    <p>
+      In this example,
+      <code class="inline-code">app.use(express.static('public'))</code> tells
+      Express to serve files from the public directory. Now, if a user navigates
+      to <code class="inline-code">http://localhost:3000/style.css</code>,
+      Express will automatically serve the
+      <code class="inline-code">style.css</code> file from the
+      <code class="inline-code">public/css</code> folder. Notice how the URL
+      path is relative to the root of the static directory you configured, not
+      the absolute file path on the server.
+    </p>
+
+    <h3>Step 3: Example Static Files</h3>
+    <p>Here's what the content of your static files might look like.</p>
+
+    <h4>public/index.html</h4>
+    <pre><span class="doctype">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html</span> <span class="attribute">lang</span><span class="operator">=</span><span class="value">"en"</span><span class="tag">&gt;</span>
+<span class="tag">&lt;head&gt;</span>
+  <span class="tag">&lt;meta</span> <span class="attribute">charset</span><span class="operator">=</span><span class="value">"UTF-8"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;title&gt;</span>Static Files Example<span class="tag">&lt;/title&gt;</span>
+  <span class="tag">&lt;link</span> <span class="attribute">rel</span><span class="operator">=</span><span class="value">"stylesheet"</span> <span class="attribute">href</span><span class="operator">=</span><span class="value">"/css/style.css"</span><span class="tag">&gt;</span>
+<span class="tag">&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+  <span class="tag">&lt;h1&gt;</span>Hello, Express!<span class="tag">&lt;/h1&gt;</span>
+  <span class="tag">&lt;p&gt;</span>This is a static HTML page.<span class="tag">&lt;/p&gt;</span>
+  <span class="tag">&lt;script</span> <span class="attribute">src</span><span class="operator">=</span><span class="value">"/js/script.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></pre>
+
+    <h4>public/css/style.css</h4>
+    <pre><span class="variable">body</span> {
+  <span class="variable">background-color</span>: <span class="keyword">lightblue</span>;
+  <span class="variable">font-family</span>: <span class="keyword">Arial</span>, <span class="keyword">sans-serif</span>;
+  <span class="variable">text-align</span>: <span class="keyword">center</span>;
+}</pre>
+
+    <h4>public/js/script.js</h4>
+    <pre><span class="variable">console</span>.<span class="function">log</span>(<span class="string">'This script is being served statically.'</span>);</pre>
+
+    <h2>Advanced Options</h2>
+
+    <h3>Multiple Static Directories</h3>
+    <p>
+      You can serve static files from multiple directories by calling
+      <code class="inline-code">app.use(express.static())</code> multiple times.
+      Express will look for files in the order you specify the directories.
+    </p>
+    <pre><span class="variable">app</span>.<span class="function">use</span>(<span class="variable">express</span>.<span class="function">static</span>(<span class="string">'public'</span>));
+<span class="variable">app</span>.<span class="function">use</span>(<span class="variable">express</span>.<span class="function">static</span>(<span class="string">'files'</span>));</pre>
+
+    <h3>Virtual Path Prefix</h3>
+    <p>
+      Sometimes, you might want to create a "virtual" prefix for your static
+      files. This means the URL path is different from the actual directory
+      structure on the server.
+    </p>
+    <pre><span class="comment">// The URL will be http://localhost:3000/static/style.css</span>
+<span class="variable">app</span>.<span class="function">use</span>(<span class="string">'/static'</span>, <span class="variable">express</span>.<span class="function">static</span>(<span class="string">'public'</span>));</pre>
+    <p>
+      In this case, the public directory's contents are available under the
+      <code class="inline-code">/static</code> virtual path. So,
+      <code class="inline-code">public/css/style.css</code> would be accessed
+      via
+      <code class="inline-code">http://localhost:3000/static/css/style.css</code
+      >. 🛣️
+    </p>
+
+    <hr class="section-separator" />
+
+    <h1>What is res.sendFile()</h1>
+    <p>
+      <code class="inline-code">res.sendFile()</code> is an Express.js method
+      used to send a file at a given path as a response. It is a more robust
+      alternative to methods like
+      <code class="inline-code">res.send()</code> for serving files because it
+      handles several tasks automatically, such as setting the appropriate
+      <code class="inline-code">Content-Type</code> header based on the file's
+      extension.
+    </p>
+
+    <h2>Key Features</h2>
+    <ul>
+      <li>
+        <strong>Absolute Path Required:</strong> You must provide an absolute
+        path to the file you want to send. Using a relative path will result in
+        an error. The <code class="inline-code">path</code> module, particularly
+        <code class="inline-code">path.join()</code>, is commonly used to create
+        a safe, absolute path.
+      </li>
+      <li>
+        <strong>Automatic Content-Type:</strong> It automatically infers the
+        correct <code class="inline-code">Content-Type</code> (e.g.,
+        <code class="inline-code">text/html</code>,
+        <code class="inline-code">image/jpeg</code>) for the response header,
+        saving you the trouble of manually setting it.
+      </li>
+      <li>
+        <strong>Error Handling:</strong> It has a built-in callback function for
+        error handling. If the file can't be found or there's an issue reading
+        it, the callback is executed.
+      </li>
+    </ul>
+
+    <h2>Basic Syntax and Usage</h2>
+    <p>
+      The syntax for <code class="inline-code">res.sendFile()</code> is
+      straightforward.
+    </p>
+    <pre><span class="variable">res</span>.<span class="function">sendFile</span>(<span class="variable">path</span>, [<span class="variable">options</span>], [<span class="variable">callback</span>])</pre>
+    <ul>
+      <li>
+        <strong>path:</strong> The absolute path to the file. This is the only
+        required argument.
+      </li>
+      <li>
+        <strong>options:</strong> An optional object that can be used to control
+        aspects of the response, such as the
+        <code class="inline-code">root</code> directory or the
+        <code class="inline-code">headers</code> to be sent.
+      </li>
+      <li>
+        <strong>callback:</strong> An optional function that's called after the
+        transfer is complete or if an error occurs.
+      </li>
+    </ul>
+
+    <h2>Example</h2>
+    <p>
+      Here's a common example using
+      <code class="inline-code">res.sendFile()</code> to serve an
+      <code class="inline-code">index.html</code> file. We use
+      <code class="inline-code">path.join()</code> to construct a safe,
+      cross-platform absolute path.
+    </p>
+    <pre><span class="keyword">const</span> <span class="variable">express</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">path</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> <span class="operator">=</span> <span class="function">express</span>();
+
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) <span class="operator">=></span> {
+  <span class="comment">// __dirname is the absolute path to the directory containing the currently executing file.</span>
+  <span class="variable">res</span>.<span class="function">sendFile</span>(<span class="variable">path</span>.<span class="function">join</span>(__<span class="variable">dirname</span>, <span class="string">'public'</span>, <span class="string">'index.html'</span>));
+});
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="number">3000</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'Server is running on http://localhost:3000'</span>);
+});</pre>
+
+    <h2>Using the root Option</h2>
+    <p>
+      Instead of concatenating the path with
+      <code class="inline-code">__dirname</code> every time, you can specify a
+      <code class="inline-code">root</code> directory in the options object.
+      This makes your code cleaner and allows you to use relative paths from
+      that root.
+    </p>
+    <pre><span class="keyword">const</span> <span class="variable">express</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">path</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> <span class="operator">=</span> <span class="function">express</span>();
+
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) <span class="operator">=></span> {
+  <span class="variable">res</span>.<span class="function">sendFile</span>(<span class="string">'index.html'</span>, { <span class="variable">root</span>: <span class="variable">path</span>.<span class="function">join</span>(__<span class="variable">dirname</span>, <span class="string">'public'</span>) });
+});
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="number">3000</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'Server is running on http://localhost:3000'</span>);
+});</pre>
+    <p>
+      This example achieves the same result as the previous one, but the path
+      passed to <code class="inline-code">res.sendFile()</code> is relative to
+      the <code class="inline-code">root</code> directory. The
+      <code class="inline-code">path</code> module is still used to define the
+      <code class="inline-code">root</code> directory itself.
+    </p>
+  </body>
+</html>

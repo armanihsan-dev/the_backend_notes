@@ -1,0 +1,1512 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LogQL: Complete Loki Query Language Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+  <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-magnifying-glass-chart"></i> LOGQL GUIDE</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Foundation</div>
+        <a href="#intro" class="nav-link">What is LogQL?</a>
+        <a href="#label-selectors" class="nav-link">1. Label Selectors</a>
+        <a href="#line-filters" class="nav-link">2. Line Filters</a>
+        <a href="#parsers" class="nav-link">3. Parsers & Filtering</a>
+        <a href="#metric-queries" class="nav-link">4. Metric Queries</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Core Concepts</div>
+        <a href="#query-patterns" class="nav-link">Common Patterns</a>
+        <a href="#functions" class="nav-link">Functions & Aggregation</a>
+        <a href="#reference" class="nav-link">Quick Reference Card</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Application Example</div>
+        <a href="#express-app" class="nav-link">Enhanced Express.js App</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Complete Tutorial</div>
+        <a href="#real-examples" class="nav-link">Real Queries (1-12)</a>
+        <a href="#grafana-testing" class="nav-link">Testing in Grafana & API</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Grafana Loki & Observability</span>
+        <h1>LogQL: Complete Guide</h1>
+        <p>THE COMPREHENSIVE TUTORIAL FOR LOKI QUERY LANGUAGE</p>
+      </section>
+
+      <section id="intro">
+        <h2>What is LogQL?</h2>
+        <p>LogQL (Log Query Language) is Loki's query language, inspired by PromQL (Prometheus Query Language). It's used to query and filter log data stored in Loki.</p>
+
+        <h3>The Core Concept</h3>
+        <p>LogQL has two types of queries:</p>
+        <ul>
+            <li><strong>Log queries</strong> - Return actual log lines</li>
+            <li><strong>Metric queries</strong> - Return time series data (counts, rates, etc.)</li>
+        </ul>
+
+        <h3>Basic Structure</h3>
+        <pre><code class="language-text">{labels} [filtering][line_filter] [parser] [functions]</code></pre>
+      </section>
+
+      <section id="label-selectors">
+        <h2>Part 1: Label Selectors (Always Required)</h2>
+        <p>Labels are the foundation - they're indexed and fast to query.</p>
+
+        <h3>Basic Label Selection</h3>
+        <pre><code class="language-text"># Single label
+{app="my-app"}
+
+# Multiple labels (AND condition)
+{app="my-app", environment="production"}
+
+# Multiple values (OR condition using regex)
+{app=~"my-app|another-app"}
+
+# Negation
+{app!="my-app"}
+
+# Label existence
+{app!=""}  # app label exists</code></pre>
+
+        <h3>Label Operators</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Operator</th>
+                    <th>Meaning</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>=</td><td>Equals</td><td>{level="error"}</td></tr>
+                <tr><td>!=</td><td>Not equals</td><td>{level!="debug"}</td></tr>
+                <tr><td>=~</td><td>Regex match</td><td>{app=~"api-.*"}</td></tr>
+                <tr><td>!~</td><td>Regex not match</td><td>{app!~"test-.*"}</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Real Examples</h3>
+        <pre><code class="language-text"># All production errors
+{environment="production", level="error"}
+
+# All logs from API services (api-gateway, auth-api, payment-api)
+{app=~".*-api"}
+
+# All logs except debug level
+{level!="debug"}
+
+# All logs with a 'user_id' label present
+{user_id!=""}</code></pre>
+      </section>
+
+      <section id="line-filters">
+        <h2>Part 2: Line Filters (Fast Text Search)</h2>
+        <p>Line filters search through log content. They're faster than regex parsers.</p>
+
+        <h3>Filter Operators</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Operator</th>
+                    <th>Name</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>|=</td><td>Contains</td><td>{app="nginx"} |= "error"</td></tr>
+                <tr><td>|!=</td><td>Does not contain</td><td>{app="nginx"} |= "debug"</td></tr>
+                <tr><td>|~</td><td>Regex matches</td><td>{app="nginx"} |~ "err...</td></tr>
+                <tr><td>|!~</td><td>Regex not matches</td><td>{app="nginx"} |!~ "debug"</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Examples</h3>
+        <pre><code class="language-text"># Find all error logs containing "timeout"
+{app="api"} |= "timeout"
+
+# Exclude debug messages
+{app="web"} != "DEBUG"
+
+# Regex: Find IP addresses
+{app="nginx"} |~ "\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}"
+
+# Complex: Errors without "connection refused"
+{level="error"} |= "database" != "connection refused"</code></pre>
+      </section>
+
+      <section id="parsers">
+        <h2>Part 3: Parsers (Structured Logging)</h2>
+        <p>Parsers extract structured data from log lines for better filtering.</p>
+
+        <h3>JSON Parser</h3>
+        <p>Works with JSON logs from Pino:</p>
+        <pre><code class="language-text"># Parse JSON logs
+{app="my-app"} | json
+
+# After parsing, you can filter on fields
+{app="my-app"} | json | user_id = "123"
+
+# Filter on numeric values
+{app="api"} | json | duration_ms > 500
+
+# Real example with Pino logs
+{application="munnu-express"} | json | level = "error"</code></pre>
+
+        <h3>Logfmt Parser</h3>
+        <p>For key=value formatted logs:</p>
+        <pre><code class="language-text"># Parse key=value format
+{app="nginx"} | logfmt
+
+# After parsing
+{app="nginx"} | logfmt | status >= 400</code></pre>
+
+        <h3>Regex Parser</h3>
+        <p>For custom formats:</p>
+        <pre><code class="language-text"># Extract using regex
+{app="my-app"} | regexp "(?P<ip>\\d+\\.\\d+\\.\\d+\\.\\d+)"
+
+# Filter on extracted field
+{app="my-app"} | regexp "(?P<method>\\w+) (?P<path>\\/\\w+)" | method = "GET"</code></pre>
+
+        <h3>Unpack Parser</h3>
+        <p>For logs with embedded JSON in messages:</p>
+        <pre><code class="language-text">{app="my-app"} | json | line | unpack</code></pre>
+
+        <h2 style="margin-top: 3rem;">Part 4: Label Filtering (After Parsing)</h2>
+        <p>Once you've parsed structured data, you can filter on extracted labels:</p>
+        <pre><code class="language-text"># Basic label filters
+{app="api"} | json | status_code >= 400
+
+# Multiple conditions
+{app="api"} | json | status_code >= 400 | method = "POST"
+
+# String matching on parsed fields
+{app="web"} | logfmt | user_id =~ "user-.*"
+
+# Numeric comparisons
+{app="payment"} | json | amount > 1000
+
+# Duration comparisons (converts to nanoseconds)
+{app="api"} | json | duration > 10ms
+
+# Byte size comparisons
+{app="upload"} | json | size > 10MB</code></pre>
+      </section>
+
+      <section id="metric-queries">
+        <h2>Part 5: Metric Queries</h2>
+        <p>These return time series data (numbers over time) - great for dashboards.</p>
+
+        <h3>Count Over Time (Rate/Throughput)</h3>
+        <pre><code class="language-text"># Count all logs per second
+count_over_time({app="api"}[1m])
+
+# Count errors per minute
+count_over_time({app="api", level="error"}[1m])
+
+# Rate of logs per second
+rate({app="api"}[5m])
+
+# Error rate as percentage
+sum(rate({app="api", level="error"}[5m])) / sum(rate({app="api"}[5m]))</code></pre>
+
+        <h3>Bytes Rate</h3>
+        <pre><code class="language-text"># Data throughput
+bytes_rate({app="api"}[5m])
+
+# Filter for large responses
+bytes_rate({app="api"} | json | size > 1MB [5m])</code></pre>
+
+        <h3>Quantiles (P95, P99)</h3>
+        <pre><code class="language-text"># 95th percentile of response times
+quantile_over_time(0.95, {app="api"} | json | duration_ms[5m])
+
+# 99th percentile with filtering
+quantile_over_time(0.99, {app="api", level="error"} | json | duration_ms[1h])
+<br>
+<br>
+<p style="color: burlywood;">To check if 95% of requests finished faster than a threshold (e.g., 500ms), use:</p>
+<pre>
+    <code>
+# Method 1: Direct P95 calculation
+quantile_over_time(0.95, 
+  {app="your-app"} | json | unwrap duration_ms [5m]
+) < 500
+
+# This returns "true" (1) if P95 latency is under 500ms
+# Returns "false" (0) if P95 latency is over 500ms
+    </code>
+</pre>
+</code></pre>
+      </section>
+
+      <section id="query-patterns">
+        <h2>Common Query Patterns</h2>
+        
+        <h4>1. Find All Errors in Last Hour</h4>
+        <pre><code class="language-text">{environment="production"} |= "error" | json</code></pre>
+
+        <h4>2. Show User Activity for Specific User</h4>
+        <pre><code class="language-text">{app="web"} | json | user_id = "12345"</code></pre>
+
+        <h4>3. Find Slow Requests (> 1 second)</h4>
+        <pre><code class="language-text">{app="api"} | json | duration > 1s</code></pre>
+
+        <h4>4. Error Rate Dashboard Query</h4>
+        <pre><code class="language-text">sum(rate({app="api", level="error"}[5m])) / sum(rate({app="api"}[5m])) * 100</code></pre>
+
+        <h4>5. Top 10 Error Messages</h4>
+        <pre><code class="language-text">topk(10, sum by (msg) (count_over_time({level="error"}[1h])))</code></pre>
+
+        <h4>6. Exclude Health Check Endpoints</h4>
+        <pre><code class="language-text">{app="nginx"} | logfmt | path != "/health" | method = "GET"</code></pre>
+
+        <h3>Real-World Example: Pino JSON Logs</h3>
+        <p>Given this Pino log:</p>
+        <pre><code class="language-json">{
+  "level": 30,
+  "time": 1745678900000,
+  "msg": "User logged in",
+  "user_id": "12345",
+  "duration_ms": 45,
+  "method": "POST",
+  "path": "/api/login"
+}</code></pre>
+
+        <p>Useful Queries:</p>
+        <pre><code class="language-text"># Find all logs for specific user
+{application="munnu-express"} | json | user_id = "12345"
+
+# Find slow operations (> 100ms)
+{application="munnu-express"} | json | duration_ms > 100
+
+# Find POST requests
+{application="munnu-express"} | json | method = "POST"
+
+# Average response time per endpoint
+avg_over_time({application="munnu-express"} | json | duration_ms[5m]) by (path)
+
+# Error count per hour
+sum(count_over_time({application="munnu-express", level="error"}[1h]))</code></pre>
+
+        <h3>Time Ranges</h3>
+        <p>Specify time range in your query:</p>
+        <pre><code class="language-text"># Last 5 minutes
+{app="api"} [5m]
+
+# Last hour
+{app="api"} [1h]
+
+# Relative times
+{app="api"} [30m]  # 30 minutes
+{app="api"} [24h]  # 24 hours
+
+# Absolute times (in Grafana using UI)
+# Or in API: ?start=2024-01-15T10:00:00Z&end=2024-01-15T11:00:00Z</code></pre>
+
+        <h3>Combining Multiple Filters</h3>
+        <pre><code class="language-text"># Complex real-world query
+{app="my-api", environment="production"}
+  | json
+  | level = "error"
+  | status_code >= 400
+  | path != "/health"
+  | duration_ms > 500
+  |~ "database.*timeout"</code></pre>
+      </section>
+
+      <section id="functions">
+        <h2>Functions for Metric Queries</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Function</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>count_over_time()</td><td>Count log entries</td><td>count_over_time({app="api"}[5m])</td></tr>
+                <tr><td>rate()</td><td>Entries per second</td><td>rate({app="api"}[5m])</td></tr>
+                <tr><td>sum()</td><td>Sum of values</td><td>sum(rate({app="api"}[5m]))</td></tr>
+                <tr><td>avg()</td><td>Average</td><td>avg(rate({app="api"}[5m]))</td></tr>
+                <tr><td>max()</td><td>Maximum</td><td>max(rate({app="api"}[5m]))</td></tr>
+                <tr><td>quantile_over_time()</td><td>Percentile</td><td>quantile_over_time(0.95, {app="api"} | json | duration[1h])</td></tr>
+                <tr><td>absent_over_time()</td><td>Check for missing data</td><td>absent_over_time({app="api"}[5m])</td></tr>
+                <tr><td>stdvar_over_time()</td><td>Variance</td><td>stdvar_over_time({app="api"} | json | duration[1h])</td></tr>
+            </tbody>
+        </table>
+
+        <h3>Aggregation Operators</h3>
+        <p>Group results by labels:</p>
+        <pre><code class="language-text">sum by (level) (count_over_time({app="api"}[5m]))</code></pre>
+        
+        <p>Available operators:</p>
+        <ul>
+            <li><code>sum</code> - Sum values</li>
+            <li><code>avg</code> - Average values</li>
+            <li><code>min</code> - Minimum value</li>
+            <li><code>max</code> - Maximum value</li>
+            <li><code>stddev</code> - Standard deviation</li>
+            <li><code>stdvar</code> - Standard variance</li>
+            <li><code>count</code> - Count series</li>
+            <li><code>topk</code> - Top K values</li>
+            <li><code>bottomk</code> - Bottom K values</li>
+        </ul>
+
+        <h3>Practical Examples for Your Express App</h3>
+        
+        <h4>1. Dashboard: Request Rate by Endpoint</h4>
+        <pre><code class="language-text">sum by (path) (rate({application="munnu-express"} | json | path != "" [5m]))</code></pre>
+        
+        <h4>2. Alert: High Error Rate (> 5% in 5 minutes)</h4>
+        <pre><code class="language-text">sum(rate({application="munnu-express", level="error"}[5m])) / sum(rate({application="munnu-express"}[5m])) > 0.05</code></pre>
+        
+        <h4>3. Debug: Slow Endpoints in Last Hour</h4>
+        <pre><code class="language-text">{application="munnu-express"} | json | duration_ms > 1000</code></pre>
+        
+        <h4>4. User Tracing: All Actions by User</h4>
+        <pre><code class="language-text">{application="munnu-express"} | json | user_id = "12345"</code></pre>
+        
+        <h4>5. Performance: 95th Percentile Response Time</h4>
+        <pre><code class="language-text">quantile_over_time(0.95, {application="munnu-express"} | json | duration_ms[1h])</code></pre>
+      </section>
+
+      <section id="reference">
+        <h2>Performance Best Practices</h2>
+        <p>Fast (uses indexes):</p>
+        <pre><code class="language-text">{app="api", level="error"}  # Labels only</code></pre>
+        <p>Medium (line filter on indexed data):</p>
+        <pre><code class="language-text">{app="api"} |= "error"  # Filter after label match</code></pre>
+        <p>Slow (regex on all logs):</p>
+        <pre><code class="language-text">{app="api"} |~ "error.*timeout"  # Avoid if possible</code></pre>
+        <p>Slower (full parsing on all logs):</p>
+        <pre><code class="language-text">{app="api"} | json | duration > 1000  # Parses every log line</code></pre>
+
+        <h3>Quick Reference Card</h3>
+        <pre><code class="language-text"># Label selectors
+{label="value"}
+{label=~"regex"}
+{label!="value"}
+
+# Line filters
+{app="api"} |= "text"
+{app="api"} != "text"
+{app="api"} |~ "regex"
+{app="api"} !~ "regex"
+
+# Parsers
+| json
+| logfmt
+| regexp "pattern"
+| unpack
+
+# Filter expressions
+| label = "value"
+| label =~ "regex"
+| numeric > 100
+
+# Metric functions
+count_over_time(logs[1m])
+rate(logs[5m])
+quantile_over_time(0.95, value[1h])
+
+# Aggregation
+sum by (label) (metric)
+topk(10, metric)</code></pre>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-list-check"></i> Summary</span>
+            <p>Labels are the only indexed part - use them for fast filtering</p>
+            <p>Line filters (|=, !=, |~) are next fastest</p>
+            <p>Parsers extract structured data from log content</p>
+            <p>Label filters work on parsed fields</p>
+            <p>Metric queries return time series for dashboards</p>
+            <p>Start simple, add filters as needed</p>
+            <p style="margin-bottom: 0;">Test queries in Grafana Explore first</p>
+        </div>
+      </section>
+
+      <section id="express-app">
+        <h2>Part 1: Enhanced Express.js Application</h2>
+        <p>Here's your <code>app.js</code> with more endpoints for comprehensive LogQL practice:</p>
+
+        <pre><code class="language-javascript">import express from "express";
+import crypto from "crypto";
+import logger from './logger.js';
+
+const app = express();
+app.use(express.json());
+
+// In-memory data stores
+const posts =[
+    {
+        id: "1",
+        title: "Introduction to Node.js",
+        content: "Node.js lets us run JavaScript outside the browser.",
+        authorId: "101",
+        createdAt: new Date().toISOString(),
+        tags: ["javascript", "nodejs", "beginner"]
+    },
+    {
+        id: "2",
+        title: "What is Express Middleware?",
+        content: "Middleware runs during the request response cycle.",
+        authorId: "102",
+        createdAt: new Date().toISOString(),
+        tags:["express", "middleware", "backend"]
+    },
+];
+
+const users =[
+    { id: "101", name: "Alice Johnson", email: "alice@example.com", role: "admin" },
+    { id: "102", name: "Bob Smith", email: "bob@example.com", role: "user" },
+    { id: "103", name: "Charlie Brown", email: "charlie@example.com", role: "user" },
+];
+
+const orders =[
+    { id: "1001", userId: "101", amount: 299.99, status: "completed", items: 3 },
+    { id: "1002", userId: "102", amount: 49.99, status: "pending", items: 1 },
+    { id: "1003", userId: "101", amount: 1599.99, status: "completed", items: 5 },
+];
+
+// Request tracking middleware
+app.use((req, res, next) => {
+    req.id = crypto.randomUUID();
+    req.startTime = Date.now();
+    
+    req.log = logger.child({
+        requestId: req.id,
+        method: req.method,
+        path: req.originalUrl,
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+    });
+    
+    // Log request start
+    req.log.info({ 
+        event: "request_started",
+        query: req.query,
+        body: req.body 
+    }, "Incoming request");
+    
+    // Track response time
+    res.on('finish', () => {
+        const duration = Date.now() - req.startTime;
+        req.log.info({
+            event: "request_completed",
+            statusCode: res.statusCode,
+            duration_ms: duration,
+            contentLength: res.get('Content-Length')
+        }, "Request completed");
+    });
+    
+    next();
+});
+
+// ============= POSTS ENDPOINTS =============
+
+// GET all posts with filtering
+app.get("/api/posts", async (req, res, next) => {
+    try {
+        const { authorId, tag, limit = 10, offset = 0 } = req.query;
+        
+        req.log.info({ 
+            operation: "fetch_posts",
+            filters: { authorId, tag, limit, offset }
+        }, "Fetching posts with filters");
+        
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        let filteredPosts = [...posts];
+        
+        if (authorId) {
+            filteredPosts = filteredPosts.filter(p => p.authorId === authorId);
+            req.log.debug({ authorId }, "Filtering by author");
+        }
+        
+        if (tag) {
+            filteredPosts = filteredPosts.filter(p => p.tags.includes(tag));
+            req.log.debug({ tag }, "Filtering by tag");
+        }
+        
+        const paginated = filteredPosts.slice(offset, offset + limit);
+        
+        req.log.info({ 
+            operation: "posts_fetched",
+            total: filteredPosts.length,
+            returned: paginated.length,
+            filters: { authorId, tag }
+        }, "Posts retrieved successfully");
+        
+        res.json({
+            success: true,
+            data: paginated,
+            pagination: { limit, offset, total: filteredPosts.length }
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET single post by ID
+app.get("/api/posts/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        req.log.info({ operation: "fetch_post", postId: id }, "Fetching single post");
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const post = posts.find(p => p.id === id);
+        
+        if (!post) {
+            const error = new Error(`Post with id ${id} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        req.log.info({ postId: id, title: post.title }, "Post found successfully");
+        
+        res.json({
+            success: true,
+            data: post
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// CREATE new post
+app.post("/api/posts", async (req, res, next) => {
+    try {
+        const { title, content, authorId, tags =[] } = req.body;
+        
+        req.log.info({ 
+            operation: "create_post",
+            payload: { title, authorId, contentLength: content?.length }
+        }, "Creating new post");
+        
+        // Validation
+        if (!title || !content || !authorId) {
+            const error = new Error("Missing required fields: title, content, authorId");
+            error.statusCode = 400;
+            error.details = { provided: Object.keys(req.body) };
+            throw error;
+        }
+        
+        // Check if author exists
+        const author = users.find(u => u.id === authorId);
+        if (!author) {
+            const error = new Error(`Author with id ${authorId} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        const newPost = {
+            id: String(posts.length + 1),
+            title,
+            content,
+            authorId,
+            tags,
+            createdAt: new Date().toISOString()
+        };
+        
+        posts.push(newPost);
+        
+        req.log.info({ 
+            operation: "post_created",
+            postId: newPost.id,
+            authorId,
+            tags
+        }, "Post created successfully");
+        
+        res.status(201).json({
+            success: true,
+            data: newPost
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// UPDATE post
+app.put("/api/posts/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { title, content, tags } = req.body;
+        
+        req.log.info({ operation: "update_post", postId: id, updates: { title, tags } }, "Updating post");
+        
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        const postIndex = posts.findIndex(p => p.id === id);
+        
+        if (postIndex === -1) {
+            const error = new Error(`Post ${id} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        // Update fields
+        if (title) posts[postIndex].title = title;
+        if (content) posts[postIndex].content = content;
+        if (tags) posts[postIndex].tags = tags;
+        posts[postIndex].updatedAt = new Date().toISOString();
+        
+        req.log.info({ 
+            operation: "post_updated",
+            postId: id,
+            updatedFields: Object.keys(req.body)
+        }, "Post updated successfully");
+        
+        res.json({
+            success: true,
+            data: posts[postIndex]
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// DELETE post
+app.delete("/api/posts/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        req.log.warn({ operation: "delete_post", postId: id }, "Attempting to delete post");
+        
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        const postIndex = posts.findIndex(p => p.id === id);
+        
+        if (postIndex === -1) {
+            const error = new Error(`Post ${id} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        const deletedPost = posts.splice(postIndex, 1)[0];
+        
+        req.log.warn({ 
+            operation: "post_deleted",
+            postId: id,
+            deletedPost: { title: deletedPost.title, authorId: deletedPost.authorId }
+        }, "Post deleted successfully");
+        
+        res.json({
+            success: true,
+            message: `Post ${id} deleted`,
+            data: deletedPost
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============= USERS ENDPOINTS =============
+
+// GET all users
+app.get("/api/users", async (req, res, next) => {
+    try {
+        const { role, search } = req.query;
+        
+        req.log.info({ operation: "fetch_users", filters: { role, search } }, "Fetching users");
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        let filteredUsers = [...users];
+        
+        if (role) {
+            filteredUsers = filteredUsers.filter(u => u.role === role);
+            req.log.debug({ role }, "Filtering by role");
+        }
+        
+        if (search) {
+            filteredUsers = filteredUsers.filter(u => 
+                u.name.toLowerCase().includes(search.toLowerCase()) ||
+                u.email.toLowerCase().includes(search.toLowerCase())
+            );
+            req.log.debug({ search }, "Filtering by search term");
+        }
+        
+        req.log.info({ total: filteredUsers.length }, "Users fetched");
+        
+        res.json({
+            success: true,
+            data: filteredUsers,
+            count: filteredUsers.length
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET user by ID with their posts
+app.get("/api/users/:id", async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        
+        req.log.info({ operation: "fetch_user", userId: id }, "Fetching user details");
+        
+        await new Promise(resolve => setTimeout(resolve, 120));
+        
+        const user = users.find(u => u.id === id);
+        
+        if (!user) {
+            const error = new Error(`User ${id} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        const userPosts = posts.filter(p => p.authorId === id);
+        
+        req.log.info({ 
+            userId: id, 
+            userName: user.name, 
+            postCount: userPosts.length 
+        }, "User found");
+        
+        res.json({
+            success: true,
+            data: { ...user, posts: userPosts }
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// CREATE user
+app.post("/api/users", async (req, res, next) => {
+    try {
+        const { name, email, role = "user" } = req.body;
+        
+        req.log.info({ operation: "create_user", name, email, role }, "Creating new user");
+        
+        if (!name || !email) {
+            const error = new Error("Name and email are required");
+            error.statusCode = 400;
+            throw error;
+        }
+        
+        // Check if email exists
+        if (users.find(u => u.email === email)) {
+            const error = new Error(`User with email ${email} already exists`);
+            error.statusCode = 409;
+            throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        const newUser = {
+            id: String(users.length + 101),
+            name,
+            email,
+            role,
+            createdAt: new Date().toISOString()
+        };
+        
+        users.push(newUser);
+        
+        req.log.info({ operation: "user_created", userId: newUser.id, email }, "User created");
+        
+        res.status(201).json({
+            success: true,
+            data: newUser
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============= ORDERS ENDPOINTS =============
+
+// GET user orders
+app.get("/api/users/:userId/orders", async (req, res, next) => {
+    try {
+        const { userId } = req.params;
+        
+        req.log.info({ operation: "fetch_orders", userId }, "Fetching user orders");
+        
+        await new Promise(resolve => setTimeout(resolve, 180));
+        
+        const userOrders = orders.filter(o => o.userId === userId);
+        
+        const totalAmount = userOrders.reduce((sum, o) => sum + o.amount, 0);
+        
+        req.log.info({ 
+            userId, 
+            orderCount: userOrders.length, 
+            totalAmount,
+            completedOrders: userOrders.filter(o => o.status === "completed").length
+        }, "Orders fetched");
+        
+        res.json({
+            success: true,
+            data: userOrders,
+            summary: {
+                count: userOrders.length,
+                totalAmount,
+                averageOrderValue: userOrders.length ? totalAmount / userOrders.length : 0
+            }
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// CREATE order
+app.post("/api/orders", async (req, res, next) => {
+    try {
+        const { userId, items, amount } = req.body;
+        
+        req.log.info({ 
+            operation: "create_order", 
+            userId, 
+            itemsCount: items?.length,
+            amount 
+        }, "Creating new order");
+        
+        if (!userId || !items || !amount) {
+            const error = new Error("userId, items, and amount are required");
+            error.statusCode = 400;
+            throw error;
+        }
+        
+        const user = users.find(u => u.id === userId);
+        if (!user) {
+            const error = new Error(`User ${userId} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 250));
+        
+        const newOrder = {
+            id: String(orders.length + 1001),
+            userId,
+            amount,
+            status: "pending",
+            items: items.length,
+            createdAt: new Date().toISOString()
+        };
+        
+        orders.push(newOrder);
+        
+        req.log.info({ 
+            operation: "order_created", 
+            orderId: newOrder.id, 
+            userId, 
+            amount,
+            status: newOrder.status
+        }, "Order created");
+        
+        res.status(201).json({
+            success: true,
+            data: newOrder
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// UPDATE order status
+app.patch("/api/orders/:orderId/status", async (req, res, next) => {
+    try {
+        const { orderId } = req.params;
+        const { status } = req.body;
+        
+        req.log.info({ operation: "update_order_status", orderId, newStatus: status }, "Updating order status");
+        
+        if (!["pending", "completed", "cancelled"].includes(status)) {
+            const error = new Error("Invalid status. Must be: pending, completed, cancelled");
+            error.statusCode = 400;
+            throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        const order = orders.find(o => o.id === orderId);
+        
+        if (!order) {
+            const error = new Error(`Order ${orderId} not found`);
+            error.statusCode = 404;
+            throw error;
+        }
+        
+        const oldStatus = order.status;
+        order.status = status;
+        order.updatedAt = new Date().toISOString();
+        
+        req.log.info({ 
+            operation: "order_status_updated",
+            orderId, 
+            oldStatus, 
+            newStatus: status 
+        }, "Order status updated");
+        
+        res.json({
+            success: true,
+            data: order
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============= ANALYTICS ENDPOINTS =============
+
+// Get posts analytics
+app.get("/api/analytics/posts", async (req, res, next) => {
+    try {
+        req.log.info({ operation: "analytics_posts" }, "Generating posts analytics");
+        
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const authorStats = {};
+        posts.forEach(post => {
+            if (!authorStats[post.authorId]) {
+                authorStats[post.authorId] = { count: 0, posts:[] };
+            }
+            authorStats[post.authorId].count++;
+            authorStats[post.authorId].posts.push(post.title);
+        });
+        
+        const tagStats = {};
+        posts.forEach(post => {
+            post.tags.forEach(tag => {
+                tagStats[tag] = (tagStats[tag] || 0) + 1;
+            });
+        });
+        
+        req.log.info({ 
+            operation: "analytics_complete",
+            totalPosts: posts.length,
+            uniqueAuthors: Object.keys(authorStats).length,
+            uniqueTags: Object.keys(tagStats).length
+        }, "Analytics generated");
+        
+        res.json({
+            success: true,
+            data: {
+                totalPosts: posts.length,
+                postsByAuthor: authorStats,
+                postsByTag: tagStats,
+                recentPosts: posts.slice(-5)
+            }
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============= Performance Test Endpoints =============
+
+// Fast endpoint (< 50ms)
+app.get("/api/health", (req, res) => {
+    req.log.debug({ operation: "health_check" }, "Health check");
+    res.json({ status: "healthy", timestamp: new Date().toISOString() });
+});
+
+// Slow endpoint (simulates heavy computation)
+app.get("/api/slow", async (req, res, next) => {
+    try {
+        const delay = parseInt(req.query.delay) || 2000;
+        
+        req.log.warn({ operation: "slow_endpoint", delay_ms: delay }, "Processing slow request");
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        req.log.info({ operation: "slow_complete", delay_ms: delay }, "Slow request completed");
+        
+        res.json({ 
+            message: "Slow operation completed", 
+            delay_ms: delay,
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Endpoint that randomly fails (for error testing)
+app.get("/api/unstable", async (req, res, next) => {
+    const random = Math.random();
+    
+    if (random < 0.3) {
+        req.log.error({ operation: "unstable_endpoint", errorType: "timeout" }, "Request failed - timeout");
+        const error = new Error("Service temporarily unavailable");
+        error.statusCode = 503;
+        throw error;
+    } else if (random < 0.6) {
+        req.log.warn({ operation: "unstable_endpoint", errorType: "rate_limit" }, "Request rate limited");
+        const error = new Error("Rate limit exceeded");
+        error.statusCode = 429;
+        throw error;
+    } else {
+        req.log.info({ operation: "unstable_endpoint", success: true }, "Request succeeded");
+        res.json({ success: true, message: "Request succeeded!" });
+    }
+});
+
+// ============= ERROR HANDLING =============
+
+// 404 handler
+app.use((req, res) => {
+    const error = new Error(`Route ${req.method} ${req.originalUrl} not found`);
+    error.statusCode = 404;
+    throw error;
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
+    const errorLog = {
+        operation: "error_handler",
+        error: err.message,
+        stack: err.stack,
+        statusCode,
+        path: req.originalUrl,
+        method: req.method,
+        requestId: req.id
+    };
+    
+    if (statusCode >= 500) {
+        req.log.error(errorLog, "Server error occurred");
+    } else if (statusCode >= 400) {
+        req.log.warn(errorLog, "Client error occurred");
+    } else {
+        req.log.info(errorLog, "Request error");
+    }
+    
+    res.status(statusCode).json({
+        success: false,
+        message: err.message || "Internal Server Error",
+        statusCode,
+        requestId: req.id
+    });
+});
+
+const PORT = process.env.PORT || 4100;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+    console.log(`📊 Available endpoints:`);
+    console.log(`   GET    /api/posts`);
+    console.log(`   GET    /api/posts/:id`);
+    console.log(`   POST   /api/posts`);
+    console.log(`   PUT    /api/posts/:id`);
+    console.log(`   DELETE /api/posts/:id`);
+    console.log(`   GET    /api/users`);
+    console.log(`   GET    /api/users/:id`);
+    console.log(`   POST   /api/users`);
+    console.log(`   GET    /api/users/:userId/orders`);
+    console.log(`   POST   /api/orders`);
+    console.log(`   PATCH  /api/orders/:orderId/status`);
+    console.log(`   GET    /api/analytics/posts`);
+    console.log(`   GET    /api/health`);
+    console.log(`   GET    /api/slow?delay=1000`);
+    console.log(`   GET    /api/unstable`);
+});</code></pre>
+      </section>
+
+      <section id="real-examples">
+        <h2>Part 2: Complete LogQL Tutorial with Real Examples</h2>
+        <p>Now let's explore LogQL using actual logs generated from this application.</p>
+
+        <h4>1. Basic Label Queries</h4>
+        <p>After running your app and making some requests, you'll have logs with labels like:</p>
+        <ul>
+            <li><code>application="munnu-express"</code></li>
+            <li><code>method="GET"</code>, <code>method="POST"</code></li>
+            <li><code>path="/api/posts"</code>, <code>path="/api/users"</code></li>
+        </ul>
+
+        <pre><code class="language-text"># Show all logs from your app
+{application="munnu-express"}
+
+# Show only GET requests
+{application="munnu-express", method="GET"}
+
+# Show all API requests (excluding health checks)
+{application="munnu-express", path=~"/api/.*"}
+
+# Show all operations except health checks
+{application="munnu-express", path!="/api/health"}
+
+# Show requests with specific requestId (great for debugging specific requests)
+{application="munnu-express"} | json | requestId = "your-uuid-here"</code></pre>
+
+        <h4>2. Line Filter Queries</h4>
+        <pre><code class="language-text"># Find all logs containing "error" in the message
+{application="munnu-express"} |= "error"
+
+# Find all POST requests (in the log message)
+{application="munnu-express"} |~ "POST"
+
+# Exclude debug logs
+{application="munnu-express"} != "debug"
+
+# Find slow requests (> 1000ms)
+{application="munnu-express"} | json | duration_ms > 1000
+
+# Find completed requests with status 200
+{application="munnu-express"} |= "request_completed" | json | statusCode = 200</code></pre>
+
+        <h4>3. JSON Parsing Queries</h4>
+        <p>Since Pino outputs JSON, this is extremely powerful:</p>
+        <pre><code class="language-text"># Parse all logs as JSON
+{application="munnu-express"} | json
+
+# After parsing, filter on any field
+{application="munnu-express"} | json | operation = "create_post"
+
+# Find failed requests (status >= 400)
+{application="munnu-express"} | json | statusCode >= 400
+
+# Find requests to a specific endpoint
+{application="munnu-express"} | json | path = "/api/posts"
+
+# Find requests by a specific user
+{application="munnu-express"} | json | userId = "101"
+
+# Find posts created by a specific author
+{application="munnu-express"} | json | authorId = "102"
+
+# Find large payloads (content length > 100)
+{application="munnu-express"} | json | contentLength > 100
+
+# Complex filter: POST requests with errors
+{application="munnu-express"} | json 
+| method = "POST" 
+| statusCode >= 400</code></pre>
+
+        <h4>4. Metric Queries (Counts and Rates)</h4>
+        <pre><code class="language-text"># Count total requests per minute
+count_over_time({application="munnu-express"}[1m])
+
+# Count requests per endpoint
+sum by (path) (count_over_time({application="munnu-express"}[5m]))
+
+# Request rate per second
+rate({application="munnu-express"}[1m])
+
+# Error rate (4xx and 5xx)
+rate({application="munnu-express"} | json | statusCode >= 400 [1m])
+
+# Successful request rate
+rate({application="munnu-express"} | json | statusCode = 200 [1m])
+
+# POST request rate
+rate({application="munnu-express", method="POST"}[5m])
+
+# Error percentage
+(
+  sum(rate({application="munnu-express"} | json | statusCode >= 400 [5m]))
+  /
+  sum(rate({application="munnu-express"}[5m]))
+) * 100</code></pre>
+
+        <h4>5. Performance Analysis Queries</h4>
+        <pre><code class="language-text"># Average response time per endpoint
+avg_over_time({application="munnu-express"} | json | duration_ms [5m]) by (path)
+
+# P95 response time
+quantile_over_time(0.95, {application="munnu-express"} | json | duration_ms [1h])
+
+# Find endpoints with P99 > 500ms
+quantile_over_time(0.99, {application="munnu-express"} | json | duration_ms [1h]) > 500
+
+# Slowest requests (duration > 2 seconds)
+{application="munnu-express"} | json | duration_ms > 2000
+
+# Response time trend per minute
+avg(rate({application="munnu-express"} | json | duration_ms [1m]))
+
+# Top 5 slowest endpoints
+topk(5, avg_over_time({application="munnu-express"} | json | duration_ms[1h]) by (path))</code></pre>
+
+        <h4>6. User Activity Tracking</h4>
+        <pre><code class="language-text"># User login/logout patterns
+{application="munnu-express"} | json | event = "user_logged_in"
+
+# Specific user actions
+{application="munnu-express"} | json | userId = "101"
+
+# User creation events
+{application="munnu-express"} | json | operation = "create_user"
+
+# User order history pattern
+{application="munnu-express"} | json | operation = "create_order"
+
+# Active users per minute (unique userId)
+count_over_time({application="munnu-express"} | json | userId != "" [5m])</code></pre>
+
+        <h4>7. Error Analysis Queries</h4>
+        <pre><code class="language-text"># All server errors (5xx)
+{application="munnu-express"} | json | statusCode >= 500
+
+# Client errors (4xx)
+{application="munnu-express"} | json | statusCode >= 400 | statusCode < 500
+
+# 404 errors by endpoint
+{application="munnu-express"} | json | statusCode = 404
+
+# Validation errors (400 with specific message)
+{application="munnu-express"} 
+| json 
+| statusCode = 400 
+| error =~ ".*required.*"
+
+# Rate limit errors (429)
+{application="munnu-express"} | json | statusCode = 429
+
+# Most common error messages
+topk(10, count_over_time({application="munnu-express"} | json | error != "" [1h]) by (error))</code></pre>
+
+        <h4>8. Business Analytics Queries</h4>
+        <pre><code class="language-text"># Order creation rate
+rate({application="munnu-express"} | json | operation = "create_order" [1h])
+
+# Average order value over time
+avg_over_time({application="munnu-express"} | json | operation = "order_created" | amount [1h])
+
+# Total revenue per hour
+sum(rate({application="munnu-express"} | json | operation = "order_created" | amount [1h]))
+
+# Popular post tags
+{application="munnu-express"} | json | tags != "[]"
+
+# Post creation rate by author
+sum by (authorId) (rate({application="munnu-express"} | json | operation = "post_created" [1h]))</code></pre>
+
+        <h4>9. Real-time Alerting Queries</h4>
+        <pre><code class="language-text"># Alert: High error rate (> 10% in 5 minutes)
+(
+  sum(rate({application="munnu-express"} | json | statusCode >= 400 [5m]))
+  /
+  sum(rate({application="munnu-express"}[5m]))
+) > 0.10
+
+# Alert: High latency (P95 > 1 second)
+quantile_over_time(0.95, {application="munnu-express"} | json | duration_ms [5m]) > 1000
+
+# Alert: No requests for 5 minutes (potential downtime)
+absent_over_time({application="munnu-express"}[5m])
+
+# Alert: High rate of 5xx errors (> 10 per minute)
+sum(rate({application="munnu-express"} | json | statusCode >= 500 [1m])) > 10
+
+# Alert: Unstable endpoint failing frequently
+rate({application="munnu-express", path="/api/unstable"} | json | statusCode >= 400[5m]) > 0.5</code></pre>
+
+        <h4>10. Debugging Specific Scenarios</h4>
+        <pre><code class="language-text"># Debug: Track a specific request through the system
+{requestId="550e8400-e29b-41d4-a716-446655440000"}
+
+# Debug: Find all logs for a specific post being updated
+{application="munnu-express"} | json | postId = "2" | operation =~ "update|delete"
+
+# Debug: Show database query performance
+{application="munnu-express"} | json | operation =~ ".*db.*"
+
+# Debug: See request lifecycle (start to finish)
+{requestId="your-req-id"} | json
+
+# Debug: Find memory/performance bottlenecks
+{application="munnu-express"} | json | duration_ms > 1000 | path != "/api/slow"</code></pre>
+
+        <h4>11. Dashboard Queries</h4>
+        <pre><code class="language-text"># Total requests per 5 minutes
+sum(rate({application="munnu-express"}[5m]))
+
+# Request breakdown by HTTP method
+sum by (method) (rate({application="munnu-express"}[5m]))
+
+# Status code distribution
+sum by (statusCode) (rate({application="munnu-express"} | json | statusCode != "" [5m]))
+
+# Top 10 active endpoints
+topk(10, sum by (path) (rate({application="munnu-express"}[5m])))
+
+# Response time heatmap data
+sum by (path, statusCode) (avg_over_time({application="munnu-express"} | json | duration_ms [5m]))</code></pre>
+
+        <h4>12. Advanced LogQL Techniques</h4>
+        <pre><code class="language-text"># Combining multiple filters with boolean logic
+{application="munnu-express"} 
+| json 
+| (statusCode >= 400 and duration_ms < 100) or (method = "DELETE")
+
+# Using regex on parsed fields
+{application="munnu-express"} | json | email =~ ".*@example\\.com"
+
+# Mathematical operations on extracted values
+{application="munnu-express"} | json | amount > 100 | amount < 1000
+
+# Sampling large result sets (for performance)
+{application="munnu-express"} | json | duration_ms > 0 | line_format "{{.message}}" | limit 100
+
+# Comparing two time periods
+(
+  sum(rate({application="munnu-express"} | json | statusCode >= 400[5m]))
+  /
+  sum(rate({application="munnu-express"} [5m]))
+) 
+- 
+(
+  sum(rate({application="munnu-express"} | json | statusCode >= 400 [5m] offset 1h))
+  /
+  sum(rate({application="munnu-express"} [5m] offset 1h))
+)</code></pre>
+      </section>
+
+      <section id="grafana-testing">
+        <h2>Testing Queries in Grafana</h2>
+        
+        <h3>Step-by-step Grafana Setup:</h3>
+        <p>Add Loki data source:</p>
+        <ul>
+            <li>URL: <code>http://localhost:3100</code></li>
+            <li>Save & Test</li>
+        </ul>
+
+        <p>Create a dashboard panel:</p>
+        <pre><code class="language-yaml">Panel Type: Logs
+Query: {application="munnu-express"} | json</code></pre>
+
+        <p>Add metric panel:</p>
+        <pre><code class="language-yaml">Panel Type: Time series
+Query A: sum(rate({application="munnu-express"}[1m]))
+Query B: sum(rate({application="munnu-express"} | json | statusCode >= 400 [1m]))</code></pre>
+
+        <p>Create variables:</p>
+        <pre><code class="language-yaml">Variable name: endpoint
+Query: label_values(path)
+Use in query: {path="$endpoint"}</code></pre>
+
+        <h2 style="margin-top: 3rem;">Part 4: Using the API Endpoints</h2>
+        <pre><code class="language-bash"># Create test data
+curl -X POST http://localhost:4100/api/posts \
+  -H "Content-Type: application/json" \
+  -d '{"title":"LogQL is powerful","content":"Learning LogQL","authorId":"101","tags":["logging","loki"]}'
+
+curl -X POST http://localhost:4100/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId":"101","items":["item1","item2"],"amount":199.99}'
+
+# Generate errors
+curl http://localhost:4100/api/posts/999
+curl http://localhost:4100/api/unstable
+
+# Test slow endpoint
+curl http://localhost:4100/api/slow?delay=3000
+
+# Get analytics
+curl http://localhost:4100/api/analytics/posts</code></pre>
+
+        <h3>Using curl for LogQL Testing</h3>
+        <pre><code class="language-bash"># Log query
+curl "http://localhost:3100/loki/api/v1/query?query={app=\"my-app\"}"
+
+# Log query with time range
+curl "http://localhost:3100/loki/api/v1/query_range?query={app=\"my-app\"}&start=2024-01-15T10:00:00Z&end=2024-01-15T11:00:00Z"
+
+# Metric query
+curl "http://localhost:3100/loki/api/v1/query_range?query=count_over_time({app=\"my-app\"}[5m])"
+
+# URL encode complex queries
+# {app="my-app"} | json | duration > 1000
+# Becomes:
+curl "http://localhost:3100/loki/api/v1/query_range?query=%7Bapp%3D%22my-app%22%7D%20%7C%20json%20%7C%20duration%20%3E%201000"</code></pre>
+
+        <h3>Grafana Tips</h3>
+        <ul>
+            <li><strong>Use Variables:</strong> Create template variables for dynamic dashboards</li>
+            <li><strong>Live Tail:</strong> Use "Live" button to see logs in real-time</li>
+            <li><strong>Derived Fields:</strong> Create links from log fields (e.g., trace IDs)</li>
+            <li><strong>Log Details:</strong> Click on any log line to see parsed fields</li>
+            <li><strong>Query Inspector:</strong> See exactly what query was sent to Loki</li>
+        </ul>
+
+        <div class="note-box" style="margin-top: 2rem;">
+            <span class="note-title"><i class="fa-solid fa-list-check"></i> Summary</span>
+            <p>This setup provides:</p>
+            <ul>
+                <li>Realistic REST API with CRUD operations</li>
+                <li>Structured logging with Pino</li>
+                <li>Multiple data types (posts, users, orders)</li>
+                <li>Performance metrics (response times, status codes)</li>
+                <li>Error scenarios (4xx, 5xx, timeouts)</li>
+                <li>Business analytics (orders, user activity)</li>
+            </ul>
+            <p style="margin-top: 1rem;">Use these LogQL queries to:</p>
+            <ul>
+                <li>Monitor application health</li>
+                <li>Debug production issues</li>
+                <li>Track business metrics</li>
+                <li>Create dashboards</li>
+            </ul>
+        </div>
+      </section>
+
+      <footer>
+        <p>LogQL Complete Guide</p>
+        <p>Generated for <strong>Grafana Loki & Observability</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem;">
+            <a href="https://www.linkedin.com/in/arman-khan-5a790430a/" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+              <i class="fab fa-linkedin" style="font-size: 1.2rem;"></i>
+              Connect on LinkedIn
+            </a>
+          </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+
+<script src="script.js"></script>
+    </script>
+  </body>
+</html>

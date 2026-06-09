@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zanzibar & OpenFGA Authorization Notes</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap');
+
+      :root {
+        --bg-color: #121212;
+        --container-bg: #1f1f1f;
+        --text-color: #e0e0e0;
+        --primary-color: #ffc107; /* Gold/Yellow for main headings */
+        --secondary-color: #00bcd4; /* Cyan/Teal for subheadings/structure */
+        --code-bg: #1e1e1e; /* VSCode Dark+ background */
+        --code-text: #d4d4d4;
+        --keyword-color: #569cd6; /* Blue for keywords (const, function, class) */
+        --string-color: #ce9178; /* Orange for strings/messages */
+        --method-color: #dcdcaa; /* Yellow for functions/methods */
+        --comment-color: #6a9955; /* Green for comments */
+        --number-color: #b5cea8; /* Light Green for numbers */
+        --operator-color: #c5c5c5; /* Light Gray for operators */
+        --type-color: #4ec9b0; /* Teal/Cyan for Types */
+        --variable-color: #9cdcfe; /* Light Blue for variables */
+        --prop-color: #c586c0; /* Magenta for object properties/keys */
+        --constant-color: #569cd6; /* Blue for special constants/methods (e.g., true, false) */
+        --emoji-color: #ff7043; /* Orange for section emojis */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--container-bg);
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+      }
+
+      h1,
+      h2 {
+        color: var(--primary-color);
+        font-size: 2.2em;
+        border-bottom: 3px solid var(--primary-color);
+        padding-bottom: 10px;
+        margin-top: 40px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+        color: var(--secondary-color);
+        border-bottom: 1px solid #333;
+      }
+
+      h3 {
+        font-size: 1.4em;
+        color: var(--text-color);
+        margin-top: 25px;
+        font-weight: 700;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      .highlight-text {
+        color: var(--primary-color);
+        font-weight: 700;
+      }
+
+      /* --- Code & Pre-formatted Text --- */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 0.9em;
+        margin: 15px 0;
+        border-left: 5px solid var(--secondary-color);
+        font-family: 'Fira Code', monospace;
+        line-height: 1.4;
+      }
+
+      code {
+        font-family: 'Fira Code', monospace;
+        color: var(--code-text);
+      }
+
+      .inline-code {
+        background-color: #333;
+        color: var(--type-color);
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+
+      .code-keyword {
+        color: var(--keyword-color);
+      }
+      .code-string {
+        color: var(--string-color);
+      }
+      .code-method {
+        color: var(--method-color);
+      }
+      .code-type {
+        color: var(--type-color);
+      }
+      .code-variable {
+        color: var(--variable-color);
+      }
+      .code-prop {
+        color: var(--prop-color);
+      }
+      .code-constant {
+        color: var(--constant-color);
+      }
+
+      /* --- Table Styling --- */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2d2d2d;
+        color: var(--code-text);
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid #444444;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3c3c3c;
+        color: var(--secondary-color);
+        font-weight: 700;
+      }
+
+      /* Specific coloring for table contents */
+      table td:nth-child(2) {
+        color: var(--text-color);
+      }
+      table td:nth-child(3) {
+        color: var(--type-color);
+      }
+
+      /* --- List Styles --- */
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 8px;
+        position: relative;
+      }
+
+      ul li::before {
+        content: '•';
+        color: var(--primary-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Custom Separator */
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #444;
+        margin: 20px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Google Zanzibar: The Authorization Engine</h1>
+
+      <p>
+        Google **Zanzibar** is a **globally distributed, high-performance
+        system** designed for **authorization** and **access control** in
+        Google's services. It answers the fundamental question:
+        <span class="highlight-text">"Can user X access object Y?"</span>.
+      </p>
+      <p>
+        It was built to handle the **massive scale** (trillions of objects) and
+        **strict consistency** requirements of Google products like YouTube,
+        Google Cloud, and Google Drive, where access rules are complex and must
+        be checked almost instantly.
+      </p>
+
+      <h2 id="core-concepts">
+        <span style="color: var(--emoji-color)">🏛️</span> Core Concepts of
+        Zanzibar
+      </h2>
+      <p>
+        Zanzibar's design is centered around the concept of **relationship
+        tuples** and a specialized query language based on them.
+      </p>
+
+      <h3>1. Relationship Tuples</h3>
+      <p>
+        The entire authorization model is defined by these three-part
+        statements, which form the **core data** stored in Zanzibar's database:
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Object</td>
+            <td>
+              The resource being accessed (e.g., a document, photo, video, or
+              group).
+            </td>
+            <td><span class="inline-code">document:proposal</span></td>
+          </tr>
+          <tr>
+            <td>Relation</td>
+            <td>
+              The specific type of relationship or access the user has with the
+              object.
+            </td>
+            <td>
+              <span class="inline-code">owner, reader, can_edit, member</span>
+            </td>
+          </tr>
+          <tr>
+            <td>User/Set</td>
+            <td>
+              The principal who has the relationship. This can be a user or a
+              group of users (a user set).
+            </td>
+            <td>
+              <span class="inline-code">user:alice, group:eng_team#member</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><strong>Example Tuple:</strong></p>
+      <pre><code><span class="code-type">document:my\_doc#reader@user:bob</span></code></pre>
+      <p>
+        This tuple reads: "Bob has the **reader** relation on the
+        **document:my_doc** object."
+      </p>
+
+      <h3>2. Namespaces and Schemas</h3>
+      <p>
+        To manage the structure and semantics of these tuples, Zanzibar uses
+        **Namespaces** and a declarative **Configuration Language (Schema)**.
+      </p>
+      <ul>
+        <li>
+          **Namespace:** Defines the type of object (e.g.,
+          <span class="inline-code">document</span>,
+          <span class="inline-code">user</span>,
+          <span class="inline-code">group</span>).
+        </li>
+        <li>
+          **Schema (Configuration):** Defines the **valid relations** within a
+          namespace and, crucially, **how those relations are computed**. This
+          is where the core logic of RBAC and ACLs lives.
+        </li>
+      </ul>
+
+      <p>
+        The schema uses a specialized syntax to define relations based on
+        existing ones:
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Relation Definition Type</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Directly defined</td>
+            <td>Access is granted only via an explicit tuple.</td>
+            <td><span class="inline-code">define owner as user:*</span></td>
+          </tr>
+          <tr>
+            <td>Union</td>
+            <td>Combines the results of multiple relations (**OR** logic).</td>
+            <td>
+              <span class="inline-code"
+                >define can_read as owner or editor</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td>Intersection</td>
+            <td>
+              Requires a user to be in both specified sets (**AND** logic).
+            </td>
+            <td>
+              <span class="inline-code"
+                >define admin_edit as admin and editor</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td>Exclusion (Difference)</td>
+            <td>
+              Grants access to one set, excluding members of another (**NOT**
+              logic).
+            </td>
+            <td>
+              <span class="inline-code"
+                >define public_reader as reader but not banned_user</span
+              >
+            </td>
+          </tr>
+          <tr>
+            <td>Computed Userset</td>
+            <td>Propagates a relation from a related object.</td>
+            <td>
+              <span class="inline-code"
+                >define reader as owner from parent</span
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        This declarative approach allows complex rules (like "an editor of a
+        folder is also a reader of all documents inside it") to be defined
+        statically and evaluated efficiently.
+      </p>
+
+      <hr />
+
+      <h2 id="components-data-flow">
+        <span style="color: var(--emoji-color)">⚙️</span> Zanzibar Components
+        and Data Flow
+      </h2>
+      <p>
+        Zanzibar is a **distributed system** composed of several primary
+        services designed for **low latency**, **high availability**, and
+        **strong consistency**.
+      </p>
+
+      <h3>1. Client and the Check Service</h3>
+      <ul>
+        <li>
+          **Client (Application):** The Google service (e.g., Drive) that needs
+          to perform an authorization check.
+        </li>
+        <li>
+          **Check Service:** The public interface of Zanzibar. Applications
+          query this service using the **Check** operation:
+          <span class="inline-code">Check(user, relation, object)</span>.
+        </li>
+        <li>
+          Example:
+          <span class="inline-code"
+            >Check(user:alice, reader, document:report)</span
+          >.
+        </li>
+      </ul>
+
+      <h3>2. Relationship Database (Spanner)</h3>
+      <ul>
+        <li>
+          The core persistence layer is built on a **highly consistent, globally
+          distributed database**, often cited as being based on **Google
+          Spanner**.
+        </li>
+        <li>It stores the vast collection of relationship tuples.</li>
+        <li>
+          **Consistency:** Zanzibar provides a form of **"external
+          consistency"** for reads, ensuring that every check observes a
+          globally consistent view of the access control state.
+        </li>
+      </ul>
+
+      <h3>3. Change and Watch Services</h3>
+      <p>
+        To maintain consistency and minimize latency, Zanzibar uses a mechanism
+        to track and propagate changes to access control state.
+      </p>
+      <ul>
+        <li>
+          **Change Service:** Handles updates (**writes**) to the relationship
+          tuples. This includes adding or removing relationships.
+        </li>
+        <li>
+          **Watch Service:** Allows clients (like caching layers or other
+          applications) to subscribe to changes in the relationship tuples. This
+          is crucial for **cache invalidation** and real-time security
+          responses.
+        </li>
+      </ul>
+
+      <h3>4. Cache and Enforcement Layers</h3>
+      <ul>
+        <li>
+          **Caches:** Zanzibar uses multiple layers of caching, including local
+          caches within the service frontends, due to the high frequency of
+          authorization checks.
+        </li>
+        <li>
+          **Timestamping (Zookie):** To ensure cached results don't violate
+          consistency, every authorization check is performed against the
+          relationship data as of a specific **timestamp** (or **Zookie**).
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="consistency-scalability">
+        <span style="color: var(--emoji-color)">📈</span> Consistency and
+        Scalability
+      </h2>
+      <p>Zanzibar tackles two major engineering challenges:</p>
+
+      <h3>1. Scaling the Check</h3>
+      <p>
+        The system is designed to scale horizontally to handle **millions of
+        authorization checks per second**. It uses techniques like:
+      </p>
+      <ul>
+        <li>
+          **Distributed Evaluation:** Complex permission checks are broken down
+          into sub-checks and run concurrently across many servers.
+        </li>
+        <li>
+          **Low Latency:** Optimized to return results in the **low single-digit
+          milliseconds**.
+        </li>
+      </ul>
+
+      <h3>2. Consistency (The "Zookie")</h3>
+      <p>
+        This ensures strong consistency between a write (share) and a subsequent
+        read (check).
+      </p>
+      <ul>
+        <li>
+          **Zookies (Consistency Tokens):** A Zookie is a **read timestamp**
+          that represents the state of the system at the moment of a write
+          operation.
+        </li>
+        <li>
+          When an application writes a new tuple, Zanzibar returns a Zookie.
+        </li>
+        <li>
+          The application then passes this Zookie back for subsequent
+          read/verify operations.
+        </li>
+        <li>
+          Zanzibar guarantees the read will be performed against a database
+          snapshot that is **at least as new** as the time indicated by the
+          Zookie, preventing stale reads.
+        </li>
+      </ul>
+      <p>
+        This strong consistency model is essential for maintaining trust and
+        security in a distributed environment.
+      </p>
+
+      <hr />
+
+      <h1>OpenFGA: Open Source Authorization</h1>
+
+      <p>
+        **OpenFGA** is an **open-source authorization system** based on the
+        principles and core design of Google's **Zanzibar**. It provides a fast,
+        flexible, and reliable service to determine whether a user can access a
+        specific object. OpenFGA focuses on solving the **Authorization
+        (AuthZ)** problem—specifically, answering the question:
+        <span class="highlight-text">"Can user X access object Y?"</span>.
+      </p>
+      <p>
+        OpenFGA is designed to be highly scalable and strongly consistent,
+        making it suitable for complex authorization needs in large, distributed
+        applications.
+      </p>
+
+      <h2 id="fga-core-concepts">
+        <span style="color: var(--emoji-color)">🏗️</span> Core Concepts and
+        Components
+      </h2>
+      <p>
+        OpenFGA is built around three primary concepts that define the
+        authorization model:
+      </p>
+
+      <h3>1. Relationship Tuples (Data)</h3>
+      <p>
+        Authorization state is stored as a set of immutable three-part
+        relationships, similar to Zanzibar. These tuples represent explicit
+        grants of access.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Object</td>
+            <td>The resource being protected, defined by its type and ID.</td>
+            <td><span class="inline-code">document:roadmap_2026</span></td>
+          </tr>
+          <tr>
+            <td>Relation</td>
+            <td>The type of relationship between the user and the object.</td>
+            <td><span class="inline-code">reader, owner, editor</span></td>
+          </tr>
+          <tr>
+            <td>User</td>
+            <td>
+              The principal accessing the object, which can be a user, a group,
+              or even a public token.
+            </td>
+            <td>
+              <span class="inline-code">user:alice, group:devs#member</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        <strong>Example Tuple:</strong>
+        <span class="inline-code"
+          >document:report#reader@group:sales#member</span
+        >
+        (A member of the 'sales' group is a reader of 'document:report').
+      </p>
+
+      <h3>2. Authorization Model (Schema)</h3>
+      <p>
+        The model is the **blueprint** that defines the object types, the valid
+        relations, and the logic used to compute complex access rules. It is
+        written in the **FGA Domain Specific Language (DSL)**.
+      </p>
+
+      <p>
+        The model defines relations in terms of other relations using
+        specialized keywords:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Keyword</th>
+            <th>Logic</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">define viewer as self</span></td>
+            <td>Direct Grant</td>
+            <td>User is explicitly granted access (via a tuple).</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">or writer</span></td>
+            <td>Union (**OR**)</td>
+            <td>
+              If the user is a <span class="inline-code">viewer</span> **or** a
+              <span class="inline-code">writer</span>, they are granted access.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">but not banned</span></td>
+            <td>Exclusion (**NOT**)</td>
+            <td>
+              User is a <span class="inline-code">viewer</span> but **not** a
+              <span class="inline-code">banned</span> user.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">from parent</span></td>
+            <td>Computed Userset</td>
+            <td>
+              Access is granted via an existing relation on a related object
+              (e.g., if you are the <span class="inline-code">owner</span> of
+              the folder, you are the <span class="inline-code">reader</span> of
+              the document inside).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3. API Endpoints (Operations)</h3>
+      <p>
+        OpenFGA provides a simple gRPC/REST API for applications to interact
+        with the authorization data. The two primary operations are:
+      </p>
+      <ul>
+        <li>
+          **Check:** The fundamental authorization query. It takes a user, a
+          relation, and an object, and returns **true** or **false**.
+          <p>
+            Query:
+            <span class="inline-code"
+              >Check(user:alice, reader, document:report)</span
+            >
+          </p>
+        </li>
+        <li>
+          **Write:** Used to create or delete relationship tuples. This is how
+          access is granted or revoked.
+          <p>
+            Query:
+            <span class="inline-code"
+              >Write(document:report#owner@user:bob)</span
+            >
+          </p>
+        </li>
+        <li>
+          **ListObjects:** Finds all objects of a given type that a specific
+          user has a relation to. This is crucial for building user interfaces
+          (e.g., "Show me all documents Alice can read").
+        </li>
+        <li>
+          **ListUsers:** Finds all users who have a specific relation with a
+          given object.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="fga-benefits-use-cases">
+        <span style="color: var(--emoji-color)">💡</span> Benefits and Use Cases
+      </h2>
+
+      <h3>Why Use OpenFGA?</h3>
+      <ul>
+        <li>
+          **Performance and Scale:** Inheriting Zanzibar's distributed
+          architecture, OpenFGA is built for low-latency checks at **massive
+          scale**, often crucial for highly active APIs.
+        </li>
+        <li>
+          **Decoupling:** It **separates the authorization logic** from the
+          application logic. Your application no longer needs to query multiple
+          databases or run complex nested joins to figure out access.
+        </li>
+        <li>
+          **Strong Consistency:** Ensures that a change in access (a **Write**)
+          is **immediately reflected** in subsequent access checks (**Check**),
+          preventing security gaps caused by stale caches.
+        </li>
+        <li>
+          **Flexibility:** Easily models various authorization patterns,
+          including:
+          <ul>
+            <li>
+              **Role-Based Access Control (RBAC):** Defining access via roles
+              (e.g., <span class="inline-code">role:admin</span>).
+            </li>
+            <li>
+              **Attribute-Based Access Control (ABAC):** Complex relations can
+              model attributes (e.g., membership in a department group).
+            </li>
+            <li>
+              **Access Control Lists (ACLs):** Direct user-to-resource grants
+              (e.g., direct sharing).
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3>Common Use Cases</h3>
+      <ul>
+        <li>
+          **Multi-Tenant SaaS Applications:** Defining permissions across
+          different organizations and tenants (e.g., restricting a user to
+          resources within their own
+          <span class="inline-code">tenant:id</span>).
+        </li>
+        <li>
+          **Document and File Sharing:** Implementing complex sharing models
+          like those found in Google Drive or Dropbox.
+        </li>
+        <li>
+          **Microservices:** Providing a centralized, consistent authorization
+          layer that every microservice can query reliably.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Fuzzy Search Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Blackish Theme */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark Background */
+        --text-color: #d4d4d4; /* Light text for readability */
+        --heading-color: #569cd6; /* VS Code Blue/Cyan for headings */
+        --accent-color: #ce9178; /* VS Code Orange for emphasis/links */
+        --code-bg: #252526; /* Darker code block background */
+        --code-keyword: #569cd6; /* Blue for keywords (const, await) */
+        --code-string: #ce9178; /* Orange for strings ('product:1') */
+        --code-comment: #6a9955; /* Green for comments */
+        --code-variable: #9cdcfe; /* Light blue for variables/functions */
+        --code-operator: #d4d4d4; /* White for operators */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: #2c2c2c; /* Slightly lighter container for depth */
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1 {
+        color: #d7ba7d; /* Gold for main title */
+        border-bottom: 2px solid #569cd6;
+        padding-bottom: 10px;
+        margin-bottom: 30px;
+        font-weight: 800;
+      }
+      h2 {
+        color: var(--heading-color);
+        font-weight: 700;
+        margin-top: 25px;
+        border-bottom: 1px dashed #3e3e3e;
+        padding-bottom: 5px;
+      }
+      h3 {
+        color: #89ddff; /* Lighter cyan for subheadings */
+        font-weight: 600;
+        margin-top: 15px;
+      }
+
+      /* General Text Styles */
+      p strong {
+        color: #d7ba7d; /* Gold for important bold words */
+      }
+
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      /* Code Block Styling (VS Code Blackish Theme) */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        border-left: 4px solid #007acc; /* VS Code Blue sidebar accent */
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+        margin-top: 10px;
+        margin-bottom: 20px;
+      }
+
+      code {
+        color: var(--text-color);
+      }
+
+      /* Syntax Highlighting Classes (Mimicking VS Code) */
+      .comment {
+        color: var(--code-comment);
+      }
+      .keyword {
+        color: var(--code-keyword);
+        font-weight: 600;
+      }
+      .string {
+        color: var(--code-string);
+      }
+      .function {
+        color: var(--code-variable);
+      }
+      .variable {
+        color: #4ec9b0;
+      } /* Teal */
+      .number {
+        color: #b5cea8;
+      } /* Light Green */
+      .operator {
+        color: var(--code-operator);
+      }
+      .type {
+        color: #808080;
+      } /* Gray for type annotations */
+      .language {
+        color: #ff00ff;
+        font-weight: 700;
+      } /* Magenta for language label */
+
+      /* List Styles */
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+      ul li:before {
+        content: '•';
+        color: var(--accent-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        color: var(--text-color);
+      }
+      th,
+      td {
+        border: 1px solid #444;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #3e3e3e;
+        color: #d4d4d4;
+        font-weight: 700;
+      }
+
+      /* Math/LaTeX */
+      .math-display {
+        display: block;
+        text-align: center;
+        font-size: 1.2em;
+        color: #f08080; /* Light red for equations */
+        margin: 15px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Implementing Fuzzy Search in Redis from Node.js</h1>
+      <p>
+        Implementing **fuzzy search** in Redis from Node.js is primarily done
+        using the **Redis Stack** (specifically the **RediSearch** module) and a
+        compatible **Node.js client** or **Object-Mapping (OM) library**.
+      </p>
+      <p>
+        Fuzzy search allows you to find strings that are **approximately equal**
+        to a given pattern, which is great for handling misspellings or typos.
+        The core mechanism in RediSearch for fuzzy matching is the use of the
+        **percent sign (<span class="string">%</span>)** around terms in your
+        query.
+      </p>
+      <p>Here is a general overview of the steps involved:</p>
+
+      <hr />
+
+      <h2>1. Prerequisites and Setup <span class="emoji">⚙️</span></h2>
+      <p>
+        You'll need a Redis server running with the **RediSearch module**
+        enabled (which is included by default in **Redis Stack**).
+      </p>
+
+      <h3>A. Install Node.js Dependencies</h3>
+      <p>
+        You will typically use the
+        <span class="variable">@redis/search</span> module or a higher-level
+        library like <span class="variable">redis-om-node</span> (Redis Object
+        Mapper for Node.js). For this example, we'll focus on the raw
+        **node-redis client**, which includes the necessary search commands.
+      </p>
+
+      <pre><span class="language">Bash</span>
+<span class="function">npm</span> <span class="keyword">install</span> redis</pre>
+
+      <h3>B. Connect to Redis</h3>
+      <p>Establish a connection in your Node.js application:</p>
+
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">import</span> { <span class="variable">createClient</span> } <span class="keyword">from</span> <span class="string">'redis'</span>;
+<span class="comment">// Connect to your Redis server (ensure it's running Redis Stack/RediSearch)</span>
+<span class="keyword">const</span> <span class="variable">client</span> = <span class="variable">createClient</span>(); 
+
+<span class="variable">client</span>.<span class="function">on</span>(<span class="string">'error'</span>, <span class="variable">err</span> =&gt; <span class="function">console</span>.<span class="function">error</span>(<span class="string">'Redis Client Error'</span>, <span class="variable">err</span>));
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="function">connect</span>();</pre>
+
+      <hr />
+
+      <h2>2. Creating a Search Index <span class="emoji">📝</span></h2>
+      <p>
+        RediSearch works by creating a **secondary index** over your data (which
+        is typically stored as **Redis Hashes** or **JSON documents**).
+      </p>
+
+      <h3>A. Define the Schema</h3>
+      <p>
+        You need to tell RediSearch which fields to index and what type of data
+        they hold (e.g., <span class="variable">TEXT</span>,
+        <span class="variable">TAG</span>,
+        <span class="variable">NUMERIC</span>).
+      </p>
+      <p>
+        In this example, let's index a field called
+        <span class="variable">name</span> as
+        <span class="variable">TEXT</span>.
+      </p>
+
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">import</span> { <span class="variable">SchemaFieldTypes</span> } <span class="keyword">from</span> <span class="string">'redis'</span>;
+<span class="keyword">const</span> <span class="variable">indexName</span> = <span class="string">'productIdx'</span>;
+<span class="keyword">try</span> {
+    <span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">create</span>(<span class="variable">indexName</span>, {
+        <span class="variable">name</span>: {
+            <span class="variable">type</span>: <span class="variable">SchemaFieldTypes</span>.<span class="variable">TEXT</span>,
+            <span class="variable">SORTABLE</span>: <span class="keyword">true</span> <span class="comment">// Optional: allows sorting by this field</span>
+        },
+        <span class="variable">description</span>: {
+            <span class="variable">type</span>: <span class="variable">SchemaFieldTypes</span>.<span class="variable">TEXT</span>
+        }
+    }, {
+        <span class="variable">ON</span>: <span class="string">'HASH'</span>, <span class="comment">// Index Redis Hashes</span>
+        <span class="variable">PREFIX</span>: <span class="string">'product:'</span> <span class="comment">// Only index keys starting with 'product:'</span>
+    });
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Index ${<span class="variable">indexName</span>} created.`</span>);
+} <span class="keyword">catch</span> (<span class="variable">e</span>) {
+    <span class="keyword">if</span> (<span class="variable">e</span>.<span class="variable">message</span> <span class="operator">===</span> <span class="string">'Index already exists'</span>) {
+        <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Index ${<span class="variable">indexName</span>} already exists.`</span>);
+    } <span class="keyword">else</span> {
+        <span class="keyword">throw</span> <span class="variable">e</span>;
+    }
+}</pre>
+
+      <h3>B. Add Documents</h3>
+      <p>
+        Store some data (products) using the defined key prefix (<span
+          class="string"
+          >product:</span
+        >):
+      </p>
+
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="function">hSet</span>(<span class="string">'product:1'</span>, { <span class="variable">name</span>: <span class="string">'Apple Watch Series 9'</span>, <span class="variable">description</span>: <span class="string">'The latest smart watch from Apple.'</span> });
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="function">hSet</span>(<span class="string">'product:2'</span>, { <span class="variable">name</span>: <span class="string">'Samsung Galaxy Watch 6'</span>, <span class="variable">description</span>: <span class="string">'A sleek Android-compatible smartwatch.'</span> });
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="function">hSet</span>(<span class="string">'product:3'</span>, { <span class="variable">name</span>: <span class="string">'Googal Pixel Watch 2'</span>, <span class="variable">description</span>: <span class="string">'A stylish smart watch.'</span> });</pre>
+
+      <hr />
+
+      <h2>3. Performing a Fuzzy Search <span class="emoji">🔍</span></h2>
+      <p>
+        The key to fuzzy search in RediSearch is wrapping the search term in the
+        **percent symbol (<span class="string">%</span>)**.
+      </p>
+      <ul>
+        <li>
+          <span class="variable">%term%</span>: This performs a fuzzy match with
+          a **Levenshtein distance of 1**. This means it can find terms with one
+          character substitution, insertion, or deletion.
+        </li>
+        <li>
+          <span class="variable">%%term%%</span>: This increases the Levenshtein
+          distance to **2** (more "fuzzy" results, but potentially less
+          accurate).
+        </li>
+        <li><span class="variable">%%%term%%%</span>: **Distance of 3**.</li>
+      </ul>
+      <p>Let's search for "Googal" (which is a misspelling of "Google"):</p>
+
+      <pre><span class="language">JavaScript</span>
+<span class="comment">/**
+ * @param {string} index The name of the index
+ * @param {string} searchTerm The term to search for (e.g., 'watch')
+ * @param {boolean} fuzzy Use true for fuzzy search (%term%)
+ */</span>
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function">performSearch</span>(<span class="variable">index</span>, <span class="variable">searchTerm</span>, <span class="variable">fuzzy</span> = <span class="keyword">false</span>) {
+    <span class="keyword">const</span> <span class="variable">queryTerm</span> = <span class="variable">fuzzy</span> ? <span class="string">`%${<span class="variable">searchTerm</span>}%`</span> : <span class="variable">searchTerm</span>;
+    
+    <span class="comment">// The query targets the 'name' field using the syntax: @field:term</span>
+    <span class="keyword">const</span> <span class="variable">query</span> = <span class="string">`@name:${<span class="variable">queryTerm</span>}`</span>;
+    
+    <span class="keyword">const</span> <span class="variable">results</span> = <span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="variable">index</span>, <span class="variable">query</span>);
+
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`\nSearch for '${<span class="variable">searchTerm</span>}' (Fuzzy: ${<span class="variable">fuzzy</span>})`</span>);
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Found ${<span class="variable">results</span>.<span class="variable">total</span>} results:`</span>);
+    <span class="variable">results</span>.<span class="variable">documents</span>.<span class="function">forEach</span>(<span class="variable">doc</span> => {
+        <span class="function">console</span>.<span class="function">log</span>(<span class="string">`- Key: ${<span class="variable">doc</span>.<span class="variable">id</span>}, Name: ${<span class="variable">doc</span>.<span class="variable">value</span>.<span class="variable">name</span>}`</span>);
+    });
+}
+<span class="comment">// 1. Exact/Prefix Search (No results for the typo)</span>
+<span class="keyword">await</span> <span class="function">performSearch</span>(<span class="variable">indexName</span>, <span class="string">'Googal'</span>, <span class="keyword">false</span>); <span class="comment">// Output: Found 0 results</span>
+<span class="comment">// 2. Fuzzy Search (Finds the match)</span>
+<span class="keyword">await</span> <span class="function">performSearch</span>(<span class="variable">indexName</span>, <span class="string">'Googal'</span>, <span class="keyword">true</span>); <span class="comment">// Output: Found 1 results, Name: Googal Pixel Watch 2</span></pre>
+
+      <h3>Summary of the Fuzzy Query Syntax</h3>
+      <p>
+        When building your query string for
+        <span class="variable">client.ft.search()</span>, remember the fuzzy
+        syntax:
+      </p>
+      <div class="math-display">$$@\text{field}:\%\text{term}\%$$</div>
+      <p>
+        This approach leverages the power of the RediSearch module to
+        efficiently handle the complex task of approximate string matching.
+      </p>
+
+      <hr />
+
+      <h2>1. Logical Operations (OR and Exclusion)</h2>
+      <p>
+        RediSearch uses standard logical operators to combine or exclude terms.
+        By default, terms are combined with a logical **AND**.
+      </p>
+
+      <h3><span class="emoji">🌠</span> Search by Any Word (Logical OR)</h3>
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="string">"userIdx"</span>, <span class="string">"Bhupesh|Sahil"</span>);</pre>
+      <ul>
+        <li>
+          **Syntax:** The **vertical bar (<span class="operator">|</span>)**
+          acts as the logical **OR** operator.
+        </li>
+        <li>
+          **Result:** This query searches the
+          <span class="variable">userIdx</span> index for documents that contain
+          **either** the word "Bhupesh" **or** the word "Sahil" in any indexed
+          field.
+        </li>
+        <li>
+          **Example:** If one document has "Bhupesh is a developer" and another
+          has "Sahil is a designer," both will be returned.
+        </li>
+      </ul>
+
+      <h3>
+        <span class="emoji">🚫</span> Excluding Words from Search (Logical NOT)
+      </h3>
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="string">"userIdx"</span>, <span class="string">"-Sanat"</span>);</pre>
+      <ul>
+        <li>
+          **Syntax:** The **minus sign (<span class="operator">-</span>)** acts
+          as the logical **NOT** operator.
+        </li>
+        <li>
+          **Result:** This query returns **all** documents in the
+          <span class="variable">userIdx</span> index **except** for those that
+          contain the word "Sanat".
+        </li>
+        <li>
+          **Combining:** Exclusion is often used with other terms, e.g.,
+          <span class="variable">Delhi -Gurgaon</span> returns documents that
+          contain "Delhi" but not "Gurgaon".
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>2. Paging Results (Pagination)</h2>
+      <p>
+        This is crucial for handling large result sets and displaying them to a
+        user across multiple pages.
+      </p>
+
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="string">"userIdx"</span>, <span class="string">"Delhi"</span>, {
+  <span class="variable">LIMIT</span>: {
+    <span class="variable">from</span>: <span class="number">10</span>,
+    <span class="variable">size</span>: <span class="number">5</span>,
+  },
+});</pre>
+      <ul>
+        <li>
+          **Purpose:** The <span class="variable">LIMIT</span> parameter allows
+          you to control which slice of the total result set is returned.
+        </li>
+        <li>
+          <span class="variable">from</span> **(Offset):** This is the
+          **starting index** (zero-based) of the first document you want to
+          retrieve. A value of <span class="number">10</span> skips the first 10
+          matching documents.
+        </li>
+        <li>
+          <span class="variable">size</span> **(Count):** This is the **maximum
+          number of documents** to return in the current page. A value of
+          <span class="number">5</span> returns the next 5 documents.
+        </li>
+        <li>
+          **Result:** This specific query finds all documents containing the
+          word "Delhi," skips the first 10, and returns the **next 5 documents**
+          (documents 11 through 15 from the full, sorted list).
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>3. Partial Word Search (Wildcards)</h2>
+      <p>
+        RediSearch supports **wildcard matching** using the **asterisk (<span
+          class="operator"
+          >*</span
+        >)**, which is similar to prefix, suffix, and substring matching in
+        traditional SQL databases.
+      </p>
+
+      <h3><span class="emoji">🔠</span> Prefix Match</h3>
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="string">"userIdx"</span>, <span class="string">"Kum*"</span>);</pre>
+      <ul>
+        <li>
+          **Syntax:** The asterisk (<span class="operator">*</span>) is placed
+          at the **end** of the term.
+        </li>
+        <li>
+          **Result:** This query searches for all words that **start** with
+          "Kum" (e.g., "Kumar", "Kumari", "Kumbh").
+        </li>
+        <li>
+          **Efficiency Note:** Prefix searches are generally very fast in
+          RediSearch because of the underlying data structures (like a
+          **Trie**).
+        </li>
+      </ul>
+
+      <h3>Suffix Match</h3>
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="string">"userIdx"</span>, <span class="string">"*mar"</span>);</pre>
+      <ul>
+        <li>
+          **Syntax:** The asterisk (<span class="operator">*</span>) is placed
+          at the **beginning** of the term.
+        </li>
+        <li>
+          **Result:** This searches for all words that **end** with "mar" (e.g.,
+          "Kumar", "Omar", "Samar").
+        </li>
+        <li>
+          **Efficiency Note:** Suffix searches are **slower** than prefix
+          searches, as the index is optimized for prefixes. For better
+          performance on frequent suffix searches, you might use a special
+          indexing technique called **suffix indexing**.
+        </li>
+      </ul>
+
+      <h3>Specific Suffix Match</h3>
+      <pre><span class="language">JavaScript</span>
+<span class="keyword">await</span> <span class="variable">client</span>.<span class="variable">ft</span>.<span class="function">search</span>(<span class="string">"userIdx"</span>, <span class="string">"*maar"</span>);</pre>
+      <ul>
+        <li>**Syntax:** Same as a general suffix match.</li>
+        <li>
+          **Result:** This searches for all words that **end** with "maar". It
+          is simply a more specific version of the suffix query above, looking
+          for terms like "Gumaar" or "Nirmaar."
+        </li>
+        <li>
+          **Substring/Infix Match:** You can also combine wildcards for a
+          substring search (e.g., <span class="variable">*ma*</span> would find
+          "Kumar," "Samar," "Manual," etc.).
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Summary Table of Query Modifiers</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Query Type</th>
+            <th>Syntax Example</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>**OR**</td>
+            <td><span class="string">`term1|term2`</span></td>
+            <td>Match documents containing *either* term1 *or* term2.</td>
+          </tr>
+          <tr>
+            <td>**NOT**</td>
+            <td><span class="string">`-term1`</span></td>
+            <td>Match documents that *do not* contain term1.</td>
+          </tr>
+          <tr>
+            <td>**Prefix**</td>
+            <td><span class="string">`term*`</span></td>
+            <td>Match words that *start* with the prefix.</td>
+          </tr>
+          <tr>
+            <td>**Suffix**</td>
+            <td><span class="string">`*term`</span></td>
+            <td>Match words that *end* with the suffix.</td>
+          </tr>
+          <tr>
+            <td>**Paging**</td>
+            <td><span class="variable">LIMIT: {from: X, size: Y}</span></td>
+            <td>Skip X results and return the next Y results.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

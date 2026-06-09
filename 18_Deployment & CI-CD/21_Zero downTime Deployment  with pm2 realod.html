@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zero Downtime Deployment | PM2 Cluster Mode & Reload</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b;
+        --bg-secondary: #18181b;
+        --bg-tertiary: #27272a;
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399; /* Emerald Green */
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --border: #27272a;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-link.active {
+        color: var(--accent);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--accent-dim) 0%,
+          transparent 100%
+        );
+        font-weight: 600;
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.3rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-server"></i> PM2 ZERO DOWNTIME
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-zero-downtime" class="nav-link"
+          >What is Zero Downtime?</a
+        >
+        <a href="#pm2-cluster" class="nav-link">PM2 Cluster Mode</a>
+        <a href="#ecosystem-config" class="nav-link">Ecosystem Configuration</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Implementation</div>
+        <a href="#setup-cluster" class="nav-link">Setup Cluster Mode</a>
+        <a href="#cluster-internals" class="nav-link">How Cluster Works</a>
+        <a href="#zero-downtime-deployment" class="nav-link"
+          >Zero Downtime Deployment</a
+        >
+        <a href="#reload-magic" class="nav-link">PM2 Reload Magic</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Operations</div>
+        <a href="#monitoring" class="nav-link">Monitoring & Maintenance</a>
+        <a href="#common-commands" class="nav-link">Common Commands</a>
+        <a href="#troubleshooting" class="nav-link">Troubleshooting</a>
+        <a href="#summary" class="nav-link">Summary & Best Practices</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">PM2 & Node.js</span>
+        <h1>ZERO DOWNTIME DEPLOYMENT</h1>
+        <p>MASTER PM2 CLUSTER MODE & RELOAD FOR PRODUCTION</p>
+      </section>
+
+      <section id="what-is-zero-downtime">
+        <h2>PART 1: WHAT IS ZERO DOWNTIME DEPLOYMENT?</h2>
+
+        <h3>The Problem with Regular Deployments</h3>
+        <ul>
+          <li><strong>Stop server</strong> → Users see "Cannot connect"</li>
+          <li><strong>Update code</strong> → Still down</li>
+          <li><strong>Start server</strong> → 5-10 seconds downtime</li>
+          <li><strong>Result:</strong> Angry users, lost revenue</li>
+        </ul>
+
+        <h3>Zero Downtime Solution</h3>
+        <ul>
+          <li><strong>Multiple instances</strong> running simultaneously</li>
+          <li>
+            <strong>Rolling updates</strong> - update one instance at a time
+          </li>
+          <li><strong>Load balancing</strong> - distribute traffic</li>
+          <li><strong>Result:</strong> Users never notice updates</li>
+        </ul>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-lightbulb"></i> Real-Life Analogy</span
+          >
+          <p>
+            <strong>Regular Deployment:</strong> Close restaurant → Renovate →
+            Reopen (customers wait outside)
+          </p>
+          <p>
+            <strong>Zero Downtime:</strong> Keep serving customers while
+            renovating one table at a time
+          </p>
+        </div>
+      </section>
+
+      <section id="pm2-cluster">
+        <h2>PART 2: PM2 CLUSTER MODE EXPLAINED</h2>
+
+        <h3>What is PM2 Cluster Mode?</h3>
+        <p>
+          PM2 creates multiple copies (workers) of your Node.js app and
+          distributes incoming requests between them.
+        </p>
+
+        <pre><code class="language-text">Single Instance:               Cluster Mode (4 instances):
++-----------------+          +-----------------+
+|   User Request  |          |   User Request  |
++-----------------+          +-----------------+
+         ↓                           ↓
++-----------------+          +-----------------+
+|   Node.js App   |          |   PM2 Master    |
+|   (Single)      |          |  (Load Balancer)|
++-----------------+          +-----------------+
+                                      ↓
+                    +-----------------------------------+
+                    | Worker1 | Worker2 | Worker3 | Worker4 |
+                    +-----------------------------------+
+                            (4 instances of your app)</code></pre>
+
+        <h3>Benefits of Cluster Mode</h3>
+        <ul>
+          <li>
+            <strong>CPU Utilization:</strong> Use all CPU cores (4 cores = 4
+            workers)
+          </li>
+          <li>
+            <strong>High Availability:</strong> If one worker crashes, others
+            continue
+          </li>
+          <li><strong>Zero Downtime:</strong> Update workers one by one</li>
+          <li>
+            <strong>Better Performance:</strong> Handle more concurrent requests
+          </li>
+        </ul>
+      </section>
+
+      <section id="ecosystem-config">
+        <h2>PART 3: ECOSYSTEM CONFIGURATION</h2>
+
+        <h3>Create ecosystem.config.js</h3>
+        <pre><code class="language-javascript">// ecosystem.config.js
+module.exports = [{
+  name: "mern-app",
+  script: "./server/server.js",
+  
+  // CLUSTER CONFIGURATION
+  instances: "max",              // Create one instance per CPU core
+  exec_mode: "cluster",          // Enable cluster mode
+  
+  // PRODUCTION SETTINGS
+  watch: false,                  // Don't auto-restart in production
+  max_memory_restart: "1G",      // Restart if memory > 1GB
+  max_restarts: 10,              // Max restarts in 60s
+  min_uptime: "30s",             // Consider app stable after 30s
+  
+  // Logging
+  log_date_format: "YYYY-MM-DD HH:mm:ss",
+  error_file: "/home/ubuntu/.pm2/logs/mern-app-error.log",
+  out_file: "/home/ubuntu/.pm2/logs/mern-app-out.log",
+  combine_logs: true,            // Merge logs from all instances
+  merge_logs: true,
+  
+  // Environment variables
+  env: {
+    NODE_ENV: "production",
+    PORT: 5000,
+    NODE_OPTIONS: "--experimental-modules"  // For ES6 modules
+  },
+  
+  // Development environment (pm2 start ecosystem.config.js --env development)
+  env_development: {
+    NODE_ENV: "development",
+    PORT: 3000
+  },
+  
+  // Test environment
+  env_test: {
+    NODE_ENV: "test",
+    PORT: 4000
+  },
+  
+  // Graceful shutdown
+  kill_timeout: 5000,            // Wait 5s before force kill
+  listen_timeout: 10000,         // Time to wait for app to be ready
+  
+  // Advanced
+  node_args: [
+    "--max-old-space-size=1024", // 1GB memory limit
+    "--experimental-modules"     // Enable ES6 modules
+  ],
+  
+  // Deployment
+  post_deploy: "npm install && pm2 reload ecosystem.config.js --env production",
+  deploy: {
+    production: {
+      user: "ubuntu",
+      host: ["your-ec2-ip"],
+      ref: "origin/main",
+      repo: "git@github.com:yourusername/mern-app.git",
+      path: "/home/ubuntu/mern-app",
+      "post-deploy": "npm install && npm run build && pm2 reload ecosystem.config.js --env production"
+    }
+  }
+}];</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-gear"></i> Common Key Settings
+            Explained</span
+          >
+          <ul>
+            <li>
+              <code>instances: "max"</code> = Create one instance per CPU core
+            </li>
+            <li><code>exec_mode: "cluster"</code> = Enable cluster mode</li>
+            <li>
+              <code>watch: false</code> = Don't auto-restart in production
+            </li>
+            <li>
+              <code>max_memory_restart</code> = Auto-restart if memory leaks
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="setup-cluster">
+        <h2>PART 4: START YOUR APP IN CLUSTER MODE</h2>
+
+        <pre><code class="language-bash">cd /home/ubuntu/mern-app
+
+# Start in cluster mode
+pm2 start ecosystem.config.js
+
+# Check status
+pm2 status
+
+# See all instances
+pm2 list</code></pre>
+
+        <h3>Output will show:</h3>
+        <pre><code class="language-text">┌─────┬─────────────┬──────────────┬─────┬──────────┬──────────┬──────────┐
+│ id  │ name        │ mode         │ ↺   │ status   │ cpu      │ memory   │
+├─────┼─────────────┼──────────────┼─────┼──────────┼──────────┼──────────┤
+│ 0   │ mern-app    │ cluster      │ 0   │ online   │ 0%       │ 45 MB    │
+│ 1   │ mern-app    │ cluster      │ 0   │ online   │ 0%       │ 46 MB    │
+│ 2   │ mern-app    │ cluster      │ 0   │ online   │ 0%       │ 44 MB    │
+│ 3   │ mern-app    │ cluster      │ 0   │ online   │ 0%       │ 47 MB    │
+└─────┴─────────────┴──────────────┴─────┴──────────┴──────────┴──────────┘</code></pre>
+        <p><strong>4 instances running! One per CPU core.</strong></p>
+      </section>
+
+      <section id="cluster-internals">
+        <h2>PART 5: HOW PM2 FINDS AND RUNS YOUR SCRIPT</h2>
+
+        <h3>The Search Process - Step by Step</h3>
+        <pre><code class="language-text">1. You type: pm2 start ecosystem.config.js
+   ↓
+2. PM2 looks in CURRENT directory for ecosystem.config.js
+   ↓
+3. Finds it! Reads the configuration
+   ↓
+4. Sees: script: "./server/server.js"
+   ↓
+5. PM2 calculates ABSOLUTE path:
+   Current Directory: /home/ubuntu/mern-app
+   + 
+   Relative Path: ./server/server.js
+   =
+   Absolute Path: /home/ubuntu/mern-app/server/server.js
+   ↓
+6. Checks if file exists
+   ↓
+7. Starts Node.js with that file</code></pre>
+
+        <h3>How Cluster Mode Works Internally</h3>
+        <pre><code class="language-text">Before Cluster:               After Cluster Mode:
++-----------------+          +-----------------+
+|   User Request  |          |   User Request  |
++-----------------+          +-----------------+
+         ↓                           ↓
++-----------------+          +-----------------+
+|   Node.js App   |          |   PM2 Master    |
+|   (Single)      |          |  (Load Balancer)|
++-----------------+          +-----------------+
+                                      ↓
+                    +-----------------------------------+
+                    | Worker1 | Worker2 | Worker3 | Worker4 |
+                    +-----------------------------------+
+                            (4 instances of your app)</code></pre>
+
+        <h4>Key Components:</h4>
+        <ul>
+          <li>
+            <strong>Master Process:</strong> Manages workers, listens on port
+            5000
+          </li>
+          <li>
+            <strong>Worker Processes:</strong> Actual app instances (2, 4, 8,
+            etc.)
+          </li>
+          <li>
+            <strong>IPC:</strong> Inter-process communication between master and
+            workers
+          </li>
+        </ul>
+      </section>
+
+      <section id="zero-downtime-deployment">
+        <h2>PART 6: ZERO DOWNTIME DEPLOYMENT - STEP BY STEP</h2>
+
+        <h3>Method 1: Using PM2 Reload (Easiest)</h3>
+        <h4>Deployment Script:</h4>
+        <pre><code class="language-bash">#!/bin/bash
+# deploy-zero-downtime.sh
+
+echo "🚀 Starting Zero Downtime Deployment..."
+
+# 1. Pull latest code
+echo "📥 Pulling latest code..."
+cd /home/ubuntu/mern-app
+git pull origin main
+
+# 2. Install dependencies
+echo "📦 Installing dependencies..."
+cd CI-CD-MERN-APP/server && npm install --production
+cd ../client && npm install && npm run build
+
+# 3. Zero Downtime Reload
+echo "🔄 Performing zero-downtime reload..."
+pm2 reload ecosystem.config.js --update-env
+
+# 4. Health check
+echo "✅ Zero downtime deployment complete!"</code></pre>
+      </section>
+
+      <section id="reload-magic">
+        <h2>PART 7: THE MAGIC BEHIND PM2 RELOAD</h2>
+
+        <h3>What Happens WITHOUT PM2 Reload:</h3>
+        <p>Normal <code>pm2 restart</code>:</p>
+        <pre><code class="language-text">1. Stop ALL workers at once:  [X][X][X][X]  (ALL DEAD!)
+2. Users see: "Cannot connect to server"
+3. Start new workers:         [1][2][3][4] (Starting...)
+4. Downtime: 5-10 seconds</code></pre>
+
+        <h3>What Happens WITH PM2 Reload (The Magic):</h3>
+        <h4>Step-by-Step Visualization:</h4>
+        <pre><code class="language-text">BEFORE:           [Worker1][Worker2][Worker3][Worker4]
+                  All serving users
+
+STEP 1:           [Worker1][Worker2][Worker3][Worker4]
+                  ↑ Start NEW Worker5 in background
+                  (Old workers still running!)
+
+STEP 2:           [Worker1][Worker2][Worker3][Worker4][Worker5]
+                  New worker ready, start accepting connections
+                  PM2 stops sending NEW users to Worker1
+
+STEP 3:           [X][Worker2][Worker3][Worker4][Worker5]
+                  Worker1 finishes current requests → Gracefully stops
+                  Users moved to other workers
+
+STEP 4: Repeat for all workers one by one...
+                  [X][X][X][X][Worker5][Worker6][Worker7][Worker8]
+
+FINAL:            [Worker5][Worker6][Worker7][Worker8]
+                  All old workers replaced, ZERO downtime!</code></pre>
+      </section>
+
+      <section id="monitoring">
+        <h2>PART 8: MONITORING & MAINTENANCE</h2>
+
+        <h3>Monitor Your Cluster:</h3>
+        <pre><code class="language-bash"># Basic monitoring
+pm2 monit              # Real-time dashboard
+pm2 logs mern-app      # View all logs
+pm2 logs mern-app --err  # Only errors
+pm2 flush              # Clear logs
+
+# Get cluster info
+pm2 describe mern-app  # Detailed info
+pm2 show mern-app      # Show config
+
+# Metrics
+pm2 list               # CPU/Memory usage
+pm2 status             # Status summary</code></pre>
+      </section>
+
+      <section id="common-commands">
+        <h2>PART 9: COMMON COMMANDS</h2>
+
+        <pre><code class="language-bash"># Start/Stop/Restart
+pm2 start ecosystem.config.js   # Start cluster
+pm2 stop mern-app              # Stop all instances
+pm2 restart mern-app           # Restart (downtime)
+pm2 reload mern-app            # Zero downtime reload
+
+# Scale up/down
+pm2 scale mern-app +2          # Add 2 more workers
+pm2 scale mern-app -1          # Remove 1 worker
+pm2 scale mern-app 8           # Set to exactly 8 workers
+
+# Maintenance
+pm2 save                       # Save current process list
+pm2 startup                    # Auto-start on reboot
+pm2 resurrect                  # Restore saved processes</code></pre>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>PART 10: TROUBLESHOOTING</h2>
+
+        <h3>Common Issues & Solutions:</h3>
+
+        <h4>1. Port already in use:</h4>
+        <pre><code class="language-bash"># Find what's using port 5000
+sudo lsof -i :5000
+sudo netstat -tulpn | grep :5000
+
+# Kill process
+sudo kill -9 $(sudo lsof -t -i:5000)</code></pre>
+
+        <h4>2. Memory issues:</h4>
+        <pre><code class="language-javascript">// In ecosystem.config.js
+max_memory_restart: "500M",  // Lower memory limit
+instances: 2,                // Reduce instances</code></pre>
+
+        <h4>3. Slow deployments:</h4>
+        <pre><code class="language-bash"># Use --parallel for faster reloads
+pm2 reload ecosystem.config.js --parallel 2</code></pre>
+
+        <h4>4. Check cluster health:</h4>
+        <pre><code class="language-javascript">// Create health endpoint in your server.js
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    timestamp: new Date(),
+    instance: process.env.INSTANCE_ID || 'master'
+  });
+});
+
+// Test from terminal
+curl http://localhost:5000/health</code></pre>
+      </section>
+
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <h3>Key Points:</h3>
+        <ul>
+          <li>
+            <strong>PM2 Cluster Mode</strong> = Multiple app instances for zero
+            downtime
+          </li>
+          <li><code>pm2 reload</code> = The magic command for zero downtime</li>
+          <li><code>instances: "max"</code> = Use all CPU cores</li>
+          <li><strong>Nginx</strong> = Front-facing load balancer</li>
+          <li><strong>Health checks</strong> = Essential for reliability</li>
+        </ul>
+
+        <h3>When to Use:</h3>
+        <ul>
+          <li>✅ Production deployments - No downtime</li>
+          <li>✅ High traffic apps - Better load handling</li>
+          <li>✅ Critical services - Always available</li>
+          <li>✅ Microservices - Easy scaling</li>
+        </ul>
+
+        <h3>When NOT to Use:</h3>
+        <ul>
+          <li>❌ Development - Use single instance</li>
+          <li>❌ Memory-intensive apps - Each instance uses memory</li>
+          <li>❌ Simple apps - Overkill for small projects</li>
+        </ul>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-rocket"></i> Pro Tip</span
+          >
+          <p>
+            Start with 2-4 instances, monitor memory usage, and adjust based on
+            your EC2 size (t2.micro = 1-2 instances, t2.large = 4-8 instances).
+          </p>
+          <p>
+            <strong>Your EC2 users will never see downtime again! 🎉</strong>
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Zero Downtime Deployment with PM2 Guide</p>
+        <p>Generated for <strong>Node.js Production Deployment</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <!-- Active Section Highlighter -->
+    <script>
+      const sections = document.querySelectorAll('section[id]');
+      const navLinks = document.querySelectorAll('.nav-link');
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              navLinks.forEach((link) => link.classList.remove('active'));
+              const activeLink = document.querySelector(
+                `a[href="#${entry.target.id}"]`
+              );
+              if (activeLink) {
+                activeLink.classList.add('active');
+              }
+            }
+          });
+        },
+        {
+          rootMargin: '-20% 0px -70% 0px',
+        }
+      );
+
+      sections.forEach((section) => observer.observe(section));
+    </script>
+  </body>
+</html>

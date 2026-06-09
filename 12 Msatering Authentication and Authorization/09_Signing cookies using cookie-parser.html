@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signed Cookies & HMAC in Express.js</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling */
+      body {
+        background-color: #121212; /* Darker background */
+        color: #e0e0e0; /* Light text for contrast */
+        font-family: 'Nunito', sans-serif;
+        margin: 20px;
+        line-height: 1.6;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc; /* Light purple for headings/emphasis */
+        border-bottom: 2px solid #333333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      /* Typography */
+      p,
+      li {
+        font-size: 16px;
+      }
+
+      /* Lists */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+      ul li::before {
+        content: '•';
+        color: #03dac6; /* Teal color for list bullets */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Code Block (VS Code Dark Theme Emulation) */
+      .code-block {
+        background-color: #1e1e1e; /* VS Code background */
+        border-radius: 6px;
+        padding: 15px;
+        margin: 15px 0;
+        overflow-x: auto;
+        border: 1px solid #333333;
+      }
+
+      .code-block pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      /* Code Syntax Highlighting (Basic Emulation) */
+      .keyword {
+        color: #569cd6;
+      } /* Blue for keywords (const, require, app.use) */
+      .string {
+        color: #ce9178;
+      } /* Orange for strings */
+      .comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .method {
+        color: #dcdcaa;
+      } /* Yellow for methods (get, post, send) */
+      .variable {
+        color: #9cdcfe;
+      } /* Light blue for variables/properties (req, res, signed) */
+      .numeric {
+        color: #b5cea8;
+      } /* Light green for numbers */
+      .class {
+        color: #4ec9b0;
+      } /* Teal for classes/types (cookieParser) */
+      .property {
+        color: #c586c0;
+      } /* Pink for object properties (httpOnly, maxAge) */
+      .math {
+        color: #ffffff;
+        font-style: italic;
+      } /* White for math formulas */
+
+      /* Notes and Blockquotes */
+      .note {
+        border-left: 4px solid #fbc02d; /* Amber for notes */
+        padding: 10px 15px;
+        background-color: #282828;
+        margin: 15px 0;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        color: #e0e0e0;
+        background-color: #1e1e1e;
+      }
+      th,
+      td {
+        border: 1px solid #333333;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #333333;
+        color: #03dac6;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🍪 What is Meant by Signing Cookies?</h1>
+    <p>
+      Signing a cookie means adding a **cryptographic signature** (often an
+      **HMAC**) to the cookie's value before sending it to the client. This
+      signature is generated using a **secret key** known only to the server.
+    </p>
+    <p>The primary purpose of signing a cookie is **tamper detection**.</p>
+
+    <ul>
+      <li>
+        When the server sets the cookie: It computes a signature of the cookie's
+        value using a secret key and appends it to the value.
+      </li>
+      <li>
+        When the client sends the cookie back: The server (using
+        **cookie-parser**) re-computes the signature based on the value it
+        received and compares it to the attached signature.
+      </li>
+      <li>
+        If the signatures **match**: The server can be reasonably confident that
+        the cookie's value has **not been altered** by the user or an attacker.
+      </li>
+      <li>
+        If the signatures **don't match**: The server knows the cookie has been
+        **tampered with** and will ignore the tampered value.
+      </li>
+    </ul>
+
+    <div class="note">
+      **Note:** Signing does not **encrypt** the cookie's value, which means the
+      content is still **readable** by the client. It only ensures
+      **integrity**.
+    </div>
+
+    <h1>🛠️ Signing Cookies with cookie-parser in Express.js</h1>
+    <p>
+      You sign cookies by passing a secret string when initializing the
+      **cookie-parser** middleware.
+    </p>
+
+    <h2>1. Initialize cookie-parser</h2>
+    <p>
+      The secret key is used internally by the middleware for all signing and
+      verification.
+    </p>
+    <div class="code-block">
+      <pre><span class="keyword">const</span> <span class="variable">cookieParser</span> = <span class="keyword">require</span>(<span class="string">'cookie-parser'</span>);
+<span class="keyword">const</span> <span class="variable">express</span> = <span class="keyword">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> = <span class="variable">express</span>();
+
+<span class="comment">// Use a long, random, and secret string for the secret</span>
+<span class="keyword">const</span> <span class="variable">SECRET_KEY</span> = <span class="string">'your_super_secret_key_123456789'</span>;
+
+<span class="variable">app</span>.<span class="method">use</span>(<span class="variable">cookieParser</span>(<span class="variable">SECRET_KEY</span>));</pre>
+    </div>
+
+    <h2>2. Setting a Signed Cookie</h2>
+    <p>
+      When setting a cookie using <span class="variable">res</span>.<span
+        class="method"
+        >cookie</span
+      >(), you must pass the option
+      <span class="property">{ signed: true }</span>.
+    </p>
+    <div class="code-block">
+      <pre><span class="variable">app</span>.<span class="method">get</span>(<span class="string">'/set-signed-cookie'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="comment">// This cookie will be signed using the SECRET_KEY</span>
+    <span class="variable">res</span>.<span class="method">cookie</span>(<span class="string">'user_id'</span>, <span class="string">'12345'</span>, { 
+        <span class="property">signed</span>: <span class="keyword">true</span>, <span class="comment">// <--- Key part for signing</span>
+        <span class="property">httpOnly</span>: <span class="keyword">true</span>, <span class="comment">// Recommended for security (not accessible via client-side JS)</span>
+        <span class="property">maxAge</span>: <span class="numeric">3600000</span> <span class="comment">// 1 hour</span>
+    });
+    <span class="variable">res</span>.<span class="method">send</span>(<span class="string">'Signed cookie set!'</span>);
+});</pre>
+    </div>
+    <p>
+      The cookie sent to the browser will look something like this: **<span
+        class="string"
+        >user_id=s:12345.HMAC_SIGNATURE_HERE</span
+      >**. The **<span class="string">s:</span>** prefix indicates it's a signed
+      cookie.
+    </p>
+
+    <h2>3. Reading a Signed Cookie</h2>
+    <p>
+      **cookie-parser** automatically attempts to verify and parse signed
+      cookies. Verified signed cookies are available on the **<span
+        class="variable"
+        >req.signedCookies</span
+      >** object, while unsigned cookies are on
+      <span class="variable">req.cookies</span>.
+    </p>
+    <div class="code-block">
+      <pre><span class="variable">app</span>.<span class="method">get</span>(<span class="string">'/read-cookies'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="keyword">const</span> <span class="variable">userId</span> = <span class="variable">req</span>.<span class="variable">signedCookies</span>.<span class="variable">user_id</span>;
+    
+    <span class="keyword">if</span> (<span class="variable">userId</span>) {
+        <span class="comment">// Cookie is present and verified (signature matches)</span>
+        <span class="variable">res</span>.<span class="method">send</span>(<span class="string">`Verified User ID: ${userId}`</span>);
+    } <span class="keyword">else</span> {
+        <span class="comment">// Cookie is either not present, or was tampered with (signature mismatch)</span>
+        <span class="variable">res</span>.<span class="method">send</span>(<span class="string">'No valid signed user_id cookie found.'</span>);
+    }
+    <span class="comment">// req.cookies will contain the raw, potentially tampered value (e.g., 's:12345.SIGNATURE')</span>
+    <span class="comment">// req.signedCookies will contain the *verified* value (e.g., '12345')</span>
+});</pre>
+    </div>
+
+    <h1>⚙️ How cookie-parser Works Behind the Scenes</h1>
+    <p>
+      When you use <span class="variable">app</span>.<span class="method"
+        >use</span
+      >(<span class="variable">cookieParser</span>(<span class="variable"
+        >SECRET_KEY</span
+      >)), the middleware is executed for every incoming HTTP request:
+    </p>
+
+    <ul>
+      <li>
+        **Read Header:** It reads the
+        <span class="property">Cookie</span> header from the client's request.
+        <ul>
+          <li>
+            *Example header:*
+            <span class="string"
+              >Cookie: session_id=abc1234; user_id=s:54321.HMAC_SIG</span
+            >
+          </li>
+        </ul>
+      </li>
+      <li>
+        **Parse and Attach <span class="variable">req.cookies</span>:** It
+        splits the header into key/value pairs and attaches the raw, unsigned
+        values to <span class="variable">req.cookies</span>.
+        <ul>
+          <li>
+            <span class="variable">req.cookies.session_id</span>
+            <span class="string">→ 'abc1234'</span>
+          </li>
+          <li>
+            <span class="variable">req.cookies.user_id</span>
+            <span class="string">→ 's:54321.HMAC_SIG'</span>
+          </li>
+        </ul>
+      </li>
+      <li>
+        **Identify Signed Cookies:** It looks for cookies prefixed with
+        <span class="string">s:</span> (e.g.,
+        <span class="variable">user_id</span>).
+      </li>
+      <li>
+        **Verification and Attach
+        <span class="variable">req.signedCookies</span>:** For each signed
+        cookie:
+        <ul>
+          <li>
+            It extracts the original value (<span class="numeric">54321</span>)
+            and the attached signature (<span class="variable">HMAC_SIG</span>).
+          </li>
+          <li>
+            It re-computes the expected signature of the value (<span
+              class="numeric"
+              >54321</span
+            >) using the server's secret key (<span class="variable"
+              >SECRET_KEY</span
+            >).
+          </li>
+          <li>
+            If the re-computed signature **matches** the attached signature
+            (<span class="variable">HMAC_SIG</span>): The cookie is considered
+            valid and the original value is attached to
+            <span class="variable">req.signedCookies</span>.
+            <ul>
+              <li>
+                <span class="variable">req.signedCookies.user_id</span>
+                <span class="string">→ '54321'</span>
+              </li>
+            </ul>
+          </li>
+          <li>
+            If the signatures **do NOT match**: The cookie is considered
+            tampered with. It is ignored and not attached to
+            <span class="variable">req.signedCookies</span> (or attached as
+            <span class="keyword">false</span> depending on the version/config).
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h1>
+      🔒 Complete Authentication Example (Login/Signup with Signed Cookies)
+    </h1>
+    <p>
+      This is a conceptual example focusing on the cookie mechanism. For a
+      real-world app, you would integrate this with a database (like MongoDB or
+      PostgreSQL) and use a library for password hashing (like **bcrypt**).
+    </p>
+    <p>
+      Dependencies:
+      <span class="string">npm install express cookie-parser body-parser</span>
+    </p>
+
+    <h2>server.js:</h2>
+    <div class="code-block">
+      <pre><span class="keyword">const</span> <span class="variable">express</span> = <span class="keyword">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">cookieParser</span> = <span class="keyword">require</span>(<span class="string">'cookie-parser'</span>);
+<span class="keyword">const</span> <span class="variable">bodyParser</span> = <span class="keyword">require</span>(<span class="string">'body-parser'</span>);
+<span class="keyword">const</span> <span class="variable">app</span> = <span class="variable">express</span>();
+<span class="keyword">const</span> <span class="variable">PORT</span> = <span class="numeric">3000</span>;
+
+<span class="comment">// --- CONFIGURATION ---</span>
+<span class="keyword">const</span> <span class="variable">SESSION_SECRET</span> = <span class="string">'a_very_secure_and_random_string_for_signing'</span>; 
+<span class="keyword">const</span> <span class="variable">COOKIE_NAME</span> = <span class="string">'sessionId'</span>;
+
+<span class="comment">// --- IN-MEMORY USER DATA (Replace with a DB in production) ---</span>
+<span class="keyword">const</span> <span class="variable">users</span> = []; <span class="comment">// { id: 1, username: 'test', password: 'hashedpassword' }</span>
+<span class="keyword">let</span> <span class="variable">nextUserId</span> = <span class="numeric">1</span>;
+
+<span class="comment">// --- MIDDLEWARE SETUP ---</span>
+<span class="variable">app</span>.<span class="method">use</span>(<span class="variable">bodyParser</span>.<span class="method">json</span>()); 
+<span class="variable">app</span>.<span class="method">use</span>(<span class="variable">cookieParser</span>(<span class="variable">SESSION_SECRET</span>)); 
+
+<span class="comment">// --- HELPER FUNCTION: Simple Session ID Generation (Replace with a real session/JWT) ---</span>
+<span class="keyword">const</span> <span class="variable">generateSessionId</span> = (<span class="variable">userId</span>) => {
+    <span class="comment">// In a real app, this would be a long, cryptographically secure ID, </span>
+    <span class="comment">// often stored in a server-side session store (e.g., Redis). </span>
+    <span class="comment">// Here, we'll just use the user ID as a simplified example.</span>
+    <span class="keyword">return</span> <span class="string">`session_${userId}_${Date.now()}`</span>;
+};
+
+<span class="comment">// --- ROUTES ---</span>
+<span class="comment">// 1. SIGNUP Route</span>
+<span class="variable">app</span>.<span class="method">post</span>(<span class="string">'/signup'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="keyword">const</span> { <span class="variable">username</span>, <span class="variable">password</span> } = <span class="variable">req</span>.<span class="variable">body</span>;
+    
+    <span class="keyword">if</span> (<span class="variable">users</span>.<span class="method">find</span>(<span class="variable">u</span> => <span class="variable">u</span>.<span class="variable">username</span> === <span class="variable">username</span>)) {
+        <span class="keyword">return</span> <span class="variable">res</span>.<span class="method">status</span>(<span class="numeric">400</span>).<span class="method">send</span>(<span class="string">'User already exists.'</span>);
+    }
+    
+    <span class="comment">// In real app, HASH the password here (e.g., with bcrypt)</span>
+    <span class="keyword">const</span> <span class="variable">newUser</span> = { <span class="variable">id</span>: <span class="variable">nextUserId</span>++, <span class="variable">username</span>, <span class="variable">password</span> }; 
+    <span class="variable">users</span>.<span class="method">push</span>(<span class="variable">newUser</span>);
+    
+    <span class="variable">res</span>.<span class="method">status</span>(<span class="numeric">201</span>).<span class="method">send</span>(<span class="string">`User ${username} registered successfully. ID: ${newUser.id}`</span>);
+});
+
+<span class="comment">// 2. LOGIN Route</span>
+<span class="variable">app</span>.<span class="method">post</span>(<span class="string">'/login'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="keyword">const</span> { <span class="variable">username</span>, <span class="variable">password</span> } = <span class="variable">req</span>.<span class="variable">body</span>;
+    
+    <span class="keyword">const</span> <span class="variable">user</span> = <span class="variable">users</span>.<span class="method">find</span>(<span class="variable">u</span> => <span class="variable">u</span>.<span class="variable">username</span> === <span class="variable">username</span>);
+    
+    <span class="comment">// In real app, COMPARE the password HASH here (e.g., with bcrypt.compare)</span>
+    <span class="keyword">if</span> (!<span class="variable">user</span> || <span class="variable">user</span>.<span class="variable">password</span> !== <span class="variable">password</span>) {
+        <span class="keyword">return</span> <span class="variable">res</span>.<span class="method">status</span>(<span class="numeric">401</span>).<span class="method">send</span>(<span class="string">'Invalid credentials.'</span>);
+    }
+    
+    <span class="comment">// Successful login:</span>
+    <span class="keyword">const</span> <span class="variable">sessionId</span> = <span class="variable">generateSessionId</span>(<span class="variable">user</span>.<span class="variable">id</span>);
+
+    <span class="comment">// Set a SIGNED, HTTP-ONLY cookie to hold the session identifier</span>
+    <span class="variable">res</span>.<span class="method">cookie</span>(<span class="variable">COOKIE_NAME</span>, <span class="variable">sessionId</span>, {
+        <span class="property">signed</span>: <span class="keyword">true</span>,          <span class="comment">// &lt;--- THIS is how we sign the cookie</span>
+        <span class="property">httpOnly</span>: <span class="keyword">true</span>,        <span class="comment">// Prevents client-side JS access (XSS defense)</span>
+        <span class="property">maxAge</span>: <span class="numeric">24</span> * <span class="numeric">60</span> * <span class="numeric">60</span> * <span class="numeric">1000</span>, <span class="comment">// 24 hours</span>
+        <span class="comment">// secure: true,       // Use in production for HTTPS only</span>
+    });
+    
+    <span class="variable">res</span>.<span class="method">send</span>(<span class="string">'Login successful! Signed cookie set.'</span>);
+});
+
+<span class="comment">// 3. AUTHENTICATION MIDDLEWARE</span>
+<span class="keyword">const</span> <span class="variable">requireAuth</span> = (<span class="variable">req</span>, <span class="variable">res</span>, <span class="variable">next</span>) => {
+    <span class="comment">// 1. Check req.signedCookies for the session ID. </span>
+    <span class="comment">//    cookie-parser has already verified its signature.</span>
+    <span class="keyword">const</span> <span class="variable">sessionId</span> = <span class="variable">req</span>.<span class="variable">signedCookies</span>[<span class="variable">COOKIE_NAME</span>]; 
+    
+    <span class="keyword">if</span> (!<span class="variable">sessionId</span>) {
+        <span class="comment">// No cookie, or cookie was tampered with (signature mismatch)</span>
+        <span class="keyword">return</span> <span class="variable">res</span>.<span class="method">status</span>(<span class="numeric">401</span>).<span class="method">send</span>(<span class="string">'Access Denied: Not authenticated or session tampered.'</span>);
+    }
+
+    <span class="comment">// 2. In a real app, LOOK UP the sessionId in your database/session store </span>
+    <span class="comment">//    to retrieve the associated user and ensure the session hasn't expired/revoked.</span>
+    <span class="comment">//    For this example, we'll just assume validity.</span>
+    
+    <span class="comment">// Optional: Attach user data to the request object</span>
+    <span class="comment">// req.user = lookUpUserBySessionId(sessionId); </span>
+
+    <span class="variable">console</span>.<span class="method">log</span>(<span class="string">`Verified session ID: ${sessionId}`</span>);
+    <span class="method">next</span>(); <span class="comment">// Proceed to the protected route</span>
+};
+
+<span class="comment">// 4. PROTECTED Route</span>
+<span class="variable">app</span>.<span class="method">get</span>(<span class="string">'/dashboard'</span>, <span class="variable">requireAuth</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="variable">res</span>.<span class="method">send</span>(<span class="string">'Welcome to the PROTECTED dashboard! Your session is verified.'</span>);
+});
+
+<span class="comment">// 5. LOGOUT Route</span>
+<span class="variable">app</span>.<span class="method">post</span>(<span class="string">'/logout'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="comment">// To 'delete' a cookie, you set it again with a past expiration date.</span>
+    <span class="variable">res</span>.<span class="method">clearCookie</span>(<span class="variable">COOKIE_NAME</span>);
+    <span class="comment">// In a real app, you would also delete the session record from your database.</span>
+    <span class="variable">res</span>.<span class="method">send</span>(<span class="string">'Logged out successfully.'</span>);
+});
+
+<span class="comment">// Start Server</span>
+<span class="variable">app</span>.<span class="method">listen</span>(<span class="variable">PORT</span>, () => {
+    <span class="variable">console</span>.<span class="method">log</span>(<span class="string">`Server running on http://localhost:${PORT}`</span>);
+});</pre>
+    </div>
+
+    <h2>🧠 How Things Work:</h2>
+    <ul>
+      <li>**Sign Up:** A new user is created.</li>
+      <li>
+        **Login (<span class="string">/login</span>):**
+        <ul>
+          <li>The server authenticates the user (checks username/password).</li>
+          <li>
+            A unique <span class="variable">sessionId</span> is created for the
+            user.
+          </li>
+          <li>
+            <span class="variable">res</span>.<span class="method">cookie</span
+            >(<span class="variable">COOKIE_NAME</span>,
+            <span class="variable">sessionId</span>,
+            <span class="property">{ signed: true, ... }</span>) is called. The
+            **<span class="variable">cookie-parser secret</span>** is used to
+            create an **HMAC signature** of the
+            <span class="variable">sessionId</span>, and the combined value
+            (value + signature) is sent to the client.
+          </li>
+        </ul>
+      </li>
+      <li>
+        **Access Protected Route (<span class="string">/dashboard</span>):**
+        <ul>
+          <li>
+            The client's browser automatically sends the signed cookie back in
+            the <span class="property">Cookie</span> header.
+          </li>
+          <li>
+            The <span class="variable">requireAuth</span> middleware runs.
+          </li>
+          <li>
+            **cookie-parser's logic runs first**, verifying the signature
+            against its secret key.
+          </li>
+          <li>
+            If **valid**, the original
+            <span class="variable">sessionId</span> is available at
+            <span class="variable">req.signedCookies.sessionId</span>.
+          </li>
+          <li>
+            If **tampered with**, the value is not added to
+            <span class="variable">req.signedCookies</span>, and the check
+            <span class="keyword">if</span> (!<span class="variable"
+              >sessionId</span
+            >) fails, denying access.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h1>
+      How <span class="variable">cookie-parser</span> makes the cookie signed
+      even though the cookie is set from another module:
+    </h1>
+    <p>
+      The way **<span class="variable">cookie-parser</span>** enables signing
+      cookies, even when they are set from another module or deep within a route
+      handler, is by **attaching the secret key to the Express
+      <span class="variable">req</span> object** and by **overriding the native
+      <span class="variable">res.cookie()</span> method**.
+    </p>
+
+    <h2>🔑 1. The Secret Key is Globalized on the Request</h2>
+    <p>
+      When you initialize **<span class="variable">cookie-parser</span>** and
+      pass it a secret key:
+    </p>
+    <div class="code-block">
+      <pre><span class="keyword">const</span> <span class="variable">cookieParser</span> = <span class="keyword">require</span>(<span class="string">'cookie-parser'</span>);
+<span class="variable">app</span>.<span class="method">use</span>(<span class="variable">cookieParser</span>(<span class="string">'your_secret_key_here'</span>));</pre>
+    </div>
+    <p>
+      The **<span class="variable">cookie-parser</span>** middleware function
+      runs first for every incoming request. Its primary task for signing is to:
+    </p>
+    <ul>
+      <li>Read the secret key you provided.</li>
+      <li>
+        Attach this secret key to the incoming request object as **<span
+          class="variable"
+          >req.secret</span
+        >**.
+      </li>
+    </ul>
+    <p>
+      This makes the secret key accessible to any subsequent middleware or route
+      handler that receives the <span class="variable">req</span> object,
+      regardless of which module or file it is in.
+    </p>
+
+    <h2>
+      ✍️ 2. Express's <span class="variable">res.cookie()</span> Method Uses
+      <span class="variable">req.secret</span>
+    </h2>
+    <p>
+      Express is designed to integrate with middleware like **<span
+        class="variable"
+        >cookie-parser</span
+      >**. When you call <span class="variable">res</span>.<span class="method"
+        >cookie</span
+      >() in any of your modules:
+    </p>
+    <div class="code-block">
+      <pre><span class="comment">// This can be in a controller file, a service file, or an auth middleware</span>
+<span class="variable">res</span>.<span class="method">cookie</span>(<span class="string">'my_cookie'</span>, <span class="string">'my_value'</span>, { <span class="property">signed</span>: <span class="keyword">true</span> });</pre>
+    </div>
+    <p>
+      The **<span class="variable">res.cookie()</span>** method in Express
+      checks for two things when the
+      <span class="property">{ signed: true }</span> option is present:
+    </p>
+    <ul>
+      <li>
+        It checks if a secret key is available on **<span class="variable"
+          >req.secret</span
+        >**.
+      </li>
+      <li>
+        If **<span class="variable">req.secret</span>** exists, it uses the key
+        and an internal signing utility (often the **<span class="variable"
+          >cookie-signature</span
+        >** module, which is part of the Express ecosystem) to generate an
+        **HMAC signature** for the cookie's value.
+      </li>
+    </ul>
+
+    <h3>The Signing Formula</h3>
+    <p>
+      The final cookie value that is sent in the
+      <span class="property">Set-Cookie</span> header follows this format:
+    </p>
+    $$\text{Final Cookie Value} =
+    \text{s:}+\text{Value}+\text{.}+\text{HMAC}(\text{Value, req.secret})$$
+    <p>
+      The cookie is then correctly formatted into the HTTP response header and
+      sent back to the browser.
+    </p>
+
+    <h2>🔁 Summary of the Flow</h2>
+    <p>
+      The key takeaway is that **<span class="variable">cookie-parser</span>**
+      only needs to run once at the beginning of the middleware stack to
+      **inject the secret**. The actual signing logic is then executed by the
+      built-in <span class="variable">res.cookie()</span> method later in the
+      request cycle, leveraging the secret that **<span class="variable"
+        >cookie-parser</span
+      >** prepared.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Action</th>
+          <th>Responsibility</th>
+          <th>Mechanism</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1. Initialization</td>
+          <td>
+            <span class="variable">app</span>.<span class="method">use</span
+            >(<span class="variable">cookieParser</span>(SECRET))
+          </td>
+          <td><span class="variable">cookie-parser</span></td>
+          <td>
+            Attaches <span class="variable">SECRET</span> to the Express
+            <span class="variable">req</span> object as
+            <span class="variable">req.secret</span>.
+          </td>
+        </tr>
+        <tr>
+          <td>2. Setting</td>
+          <td>
+            <span class="variable">res</span>.<span class="method">cookie</span
+            >(name, value, <span class="property">{ signed: true }</span>)
+          </td>
+          <td>Express's <span class="variable">res.cookie()</span></td>
+          <td>
+            Checks for <span class="property">{ signed: true }</span>. If
+            <span class="keyword">true</span>, it retrieves the secret from
+            <span class="variable">req.secret</span> and uses it to sign the
+            cookie value before setting the
+            <span class="property">Set-Cookie</span> header.
+          </td>
+        </tr>
+        <tr>
+          <td>3. Reading/Verification</td>
+          <td><span class="variable">req.signedCookies.name</span></td>
+          <td><span class="variable">cookie-parser</span></td>
+          <td>
+            On the next request, it runs again, retrieves the cookie, and uses
+            <span class="variable">req.secret</span> to verify the signature.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h1>
+      How behind the <span class="variable">cookie-parser</span> sets the cookie
+      with HMAC?
+    </h1>
+    <p>
+      The actual process of setting a cookie with an **HMAC signature** is
+      handled by **Express's
+      <span class="variable">res.cookie()</span> method**, which uses an
+      underlying utility module like **<span class="variable"
+        >cookie-signature</span
+      >**.
+    </p>
+    <p>
+      The role of the **<span class="variable">cookie-parser</span>** middleware
+      is to **prepare the environment** so that Express knows **what secret to
+      use** for the signing.
+    </p>
+
+    <h2>1. Middleware Setup: Providing the Secret Key 🔑</h2>
+    <p>
+      The process begins when you configure the
+      <span class="variable">cookie-parser</span> middleware:
+    </p>
+    <div class="code-block">
+      <pre><span class="variable">app</span>.<span class="method">use</span>(<span class="variable">cookieParser</span>(<span class="string">'your_strong_secret_key'</span>));</pre>
+    </div>
+    <p>
+      When this middleware runs, it performs one critical action to enable
+      signing:
+    </p>
+    <ul>
+      <li>
+        It assigns the provided string (<span class="string"
+          >'your_strong_secret_key'</span
+        >) to the **<span class="variable">req.secret</span>** property of the
+        Express request object. This makes the secret accessible to all
+        subsequent middleware and route handlers.
+      </li>
+    </ul>
+
+    <h2>2. Cookie Setting: Triggering the Signature Generation ✍️</h2>
+    <p>
+      In your route handler, when you instruct Express to set a signed cookie:
+    </p>
+    <div class="code-block">
+      <pre><span class="variable">res</span>.<span class="method">cookie</span>(<span class="string">'user_id'</span>, <span class="string">'12345'</span>, { <span class="property">signed</span>: <span class="keyword">true</span> });</pre>
+    </div>
+    <p>
+      Express's <span class="variable">res.cookie()</span> method checks the
+      options. When it sees <span class="property">signed: true</span>, it does
+      the following:
+    </p>
+    <ul>
+      <li>
+        **Retrieves the Secret:** It looks for the secret on **<span
+          class="variable"
+          >req.secret</span
+        >**.
+      </li>
+      <li>
+        **Calls the Signing Utility:** It calls an internal function (from a
+        library like <span class="variable">cookie-signature</span>) to create
+        the HMAC. The inputs for the HMAC function are:
+        <ul>
+          <li>The cookie value: <span class="string">'12345'</span></li>
+          <li>
+            The secret key: <span class="string">'your_strong_secret_key'</span>
+          </li>
+        </ul>
+      </li>
+      <li>
+        **Generates the HMAC:** The **HMAC** (Hash-based Message Authentication
+        Code) is calculated as a unique cryptographic digest of the value and
+        the secret. HMAC ensures that if the value is ever tampered with, the
+        signature will no longer be valid.
+      </li>
+      <li>
+        **Concatenates the Final Value:** The cookie value is then formatted
+        into a single string to be sent to the client.
+      </li>
+    </ul>
+
+    <p>The final string format sent to the client is:</p>
+    $$\text{s:}\langle\text{original value}\rangle\text{.}\langle\text{HMAC
+    signature}\rangle$$
+    <p>For the example above, the final cookie value might look like this:</p>
+    <p><span class="string">s:12345.M4T67uJg...</span></p>
+
+    <h2>3. Response: Sending the Cookie to the Client 🌐</h2>
+    <p>
+      The final signed value is placed into the HTTP **<span class="property"
+        >Set-Cookie</span
+      >
+      header** of the response and sent to the client's browser.
+    </p>
+    <p>
+      The signature is for **integrity**, not **encryption**. The cookie value
+      (<span class="numeric">12345</span>) is still visible to the client, but
+      any attempt to change it (e.g., to
+      <span class="string">s:99999.M4T67uJg...</span>) will be detected on the
+      next request because the signature will not match the recalculated HMAC
+      for the new value.
+    </p>
+  </body>
+</html>

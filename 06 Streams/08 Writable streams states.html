@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Writable Stream States in Node.js</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+        color: #333;
+        line-height: 1.6;
+        padding: 20px;
+    }
+    h1, h2 {
+        color: #0056b3;
+    }
+    h1 {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .note-section {
+        background: #ffffff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0px 3px 8px rgba(0,0,0,0.05);
+    }
+    ul {
+        margin-left: 20px;
+    }
+    code {
+        background: #eee;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+    }
+    table, th, td {
+        border: 1px solid #ccc;
+    }
+    th {
+        background: #f1f1f1;
+    }
+    th, td {
+        padding: 10px;
+        text-align: left;
+    }
+    .highlight {
+        background: #d1ecf1;
+        padding: 10px;
+        border-left: 4px solid #0c5460;
+        margin: 10px 0;
+    }
+</style>
+</head>
+<body>
+
+<h1>Writable Stream States in Node.js</h1>
+
+<div class="note-section">
+    <h2>1. Writable State (<code>writable.writable</code>)</h2>
+    <p>In Node.js, a Writable stream goes through a few important states during its lifecycle. You can think of these as moods the stream gets into while writing data.</p>
+    <p>Boolean indicating if the stream is still open for writing.</p>
+    <ul>
+        <li><strong>true</strong> → You can still write.</li>
+        <li><strong>false</strong> → The stream is closed or destroyed.</li>
+    </ul>
+    <p><strong>Changes when:</strong></p>
+    <ul>
+        <li>You call <code>.end()</code> and it finishes writing.</li>
+        <li>An error occurs and the stream is destroyed.</li>
+    </ul>
+</div>
+
+<div class="note-section">
+    <h2>2. <code>writable.writableEnded</code></h2>
+    <p>Boolean showing if <code>.end()</code> has been called.</p>
+    <p>It means "No more writes allowed", but it may still be flushing the last chunks.</p>
+</div>
+
+<div class="note-section">
+    <h2>3. <code>writable.writableFinished</code></h2>
+    <p>Boolean that becomes true when:</p>
+    <ul>
+        <li><code>.end()</code> was called.</li>
+        <li>All buffered writes have been flushed.</li>
+        <li>The <code>finish</code> event has been emitted.</li>
+    </ul>
+</div>
+
+<div class="note-section">
+    <h2>4. <code>writable.destroyed</code></h2>
+    <p><code>true</code> if <code>.destroy()</code> was called or an error caused destruction.</p>
+    <p>Once destroyed, you can’t write again.</p>
+</div>
+
+<div class="note-section">
+    <h2>5. Buffer/Backpressure State</h2>
+    <p>These are tied to internal write buffering:</p>
+    <table>
+        <tr>
+            <th>Property</th>
+            <th>Meaning</th>
+        </tr>
+        <tr>
+            <td><code>writable.writableNeedDrain</code></td>
+            <td><code>true</code> if the internal buffer is full and you should wait for the "drain" event before writing again.</td>
+        </tr>
+        <tr>
+            <td><code>writable.writableCorked</code></td>
+            <td>How many <code>.cork()</code> calls are active (delays flushing until <code>.uncork()</code> is called).</td>
+        </tr>
+        <tr>
+            <td><code>writable.writableHighWaterMark</code></td>
+            <td>Max buffer size before backpressure kicks in.</td>
+        </tr>
+        <tr>
+            <td><code>writable.writableLength</code></td>
+            <td>How many bytes/chunks are currently queued in the buffer.</td>
+        </tr>
+    </table>
+</div>
+
+<div class="note-section">
+    <h2>6. Events That Reflect State Changes</h2>
+    <ul>
+        <li><code>drain</code> → Internal buffer emptied, you can write more.</li>
+        <li><code>finish</code> → All data flushed after <code>.end()</code>.</li>
+        <li><code>close</code> → Stream closed (may happen after finish or destroy).</li>
+        <li><code>error</code> → Something went wrong.</li>
+    </ul>
+</div>
+
+<div class="note-section">
+    <h2>State Flow in Practice</h2>
+    <div class="highlight">
+        <ol>
+            <li>Start: <code>writable = true</code>, <code>writableEnded = false</code></li>
+            <li>You write chunks (<code>.write()</code>).</li>
+            <li>Buffer fills → <code>writableNeedDrain = true</code>.</li>
+            <li>"drain" event → buffer ready for more writes.</li>
+            <li>Call <code>.end()</code> → <code>writableEnded = true</code>.</li>
+            <li>All buffered data flushed → "finish" event → <code>writableFinished = true</code>.</li>
+            <li>Stream closes → <code>writable = false</code>.</li>
+        </ol>
+    </div>
+    <p>If you want, I can make you a diagram showing how a Writable stream transitions through these states in Node.js. It makes it way easier to remember.</p>
+</div>
+
+<div class="note-section">
+    <h2>What is <code>cork()</code>?</h2>
+    <p>In Node.js writable streams, <code>cork()</code> is like telling the stream: "Hold your horses — don’t actually send the chunks right now. I’ll let you know when to flush them all at once."</p>
+    <h3>What it does</h3>
+    <p>Normally, when you call <code>.write(chunk)</code>, the chunk may be processed and flushed to the underlying resource immediately. <code>writable.cork()</code> tells Node.js to buffer all writes in memory instead of sending them right away.</p>
+    <p>Later, when you call <code>writable.uncork()</code>, all buffered writes are flushed together in one batch.</p>
+    <h3>Why use it?</h3>
+    <ul>
+        <li><strong>Performance optimization:</strong> If you know you’ll be doing several small <code>.write()</code> calls in quick succession, corking them reduces the number of syscalls by batching writes.</li>
+        <li>This is especially useful for file or network writes, where each write has overhead.</li>
+    </ul>
+    <h3>Example:</h3>
+    <pre><code>import fs from 'fs';
+
+const stream = fs.createWriteStream('example.txt');
+
+// Start corking (buffer writes)
+stream.cork();
+
+stream.write('Hello ');
+stream.write('world!');
+stream.write('\n');
+
+// Now flush all at once
+stream.uncork();
+
+// End the stream
+stream.end();</code></pre>
+    <p>Without corking, each <code>.write()</code> might trigger a separate system call. With corking, all three writes are batched and flushed together when <code>uncork()</code> is called.</p>
+    <h3>Things to remember</h3>
+    <ul>
+        <li>You can cork multiple times; you’ll need to call <code>uncork()</code> the same number of times to actually flush (this is tracked by <code>writable.writableCorked</code>).</li>
+        <li>If you call <code>.end()</code> while corked, Node will automatically uncork and flush the data before closing.</li>
+        <li>It’s mainly an internal optimization, but you can use it manually if you know your writes will come in quick bursts.</li>
+    </ul>
+</div>
+
+</body>
+</html>

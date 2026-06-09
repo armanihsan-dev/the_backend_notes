@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Database Indexing: Blackish Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling & Dark Theme */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark Background */
+        --text-color: #d4d4d4; /* Light text for contrast */
+        --heading-color: #569cd6; /* Blue for primary headings */
+        --highlight-color: #ce9178; /* Orange-ish for key terms/analogy */
+        --code-bg: #1f1f1f; /* Slightly lighter/different code block bg */
+        --code-text: #c586c0; /* VS Code Purple for keywords */
+        --code-property: #9cd656; /* Green for properties */
+        --code-string: #ce9178; /* Orange for strings/values */
+        --table-header-bg: #3c3c3c;
+        --hr-color: #333333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #252526; /* Slightly lighter body background than overall theme */
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--hr-color);
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+        font-weight: 900;
+      }
+
+      p {
+        margin-bottom: 15px;
+        font-weight: 300;
+      }
+
+      /* Analogy and Special Text */
+      .intro-text {
+        font-size: 1.1em;
+        margin-bottom: 25px;
+        color: #dcdcaa; /* Yellowish for a welcoming tone */
+      }
+
+      strong {
+        color: #dcdcaa; /* VS Code Yellow for bold */
+        font-weight: 700;
+      }
+
+      /* Analogy Block */
+      .analogy {
+        background-color: #303031;
+        padding: 15px;
+        border-left: 5px solid var(--highlight-color);
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+      .analogy strong {
+        color: var(--highlight-color);
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        overflow-x: auto;
+        border-radius: 4px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        border: 1px solid #3c3c3c;
+      }
+
+      .code-language {
+        color: var(--heading-color);
+        font-weight: 700;
+        margin-bottom: 5px;
+        display: block;
+      }
+
+      .code-keyword {
+        color: var(--code-text);
+      }
+      .code-function {
+        color: #dcdcaa;
+      } /* Yellow */
+      .code-property {
+        color: var(--code-property);
+      }
+      .code-string-val {
+        color: var(--code-string);
+      }
+      .code-number {
+        color: #b5cea8;
+      } /* Light green */
+      .code-comment {
+        color: #6a9955;
+      } /* Darker green for comments */
+
+      /* Lists */
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 10px;
+        position: relative;
+        padding-left: 15px;
+      }
+
+      ul li::before {
+        content: '•';
+        color: var(--heading-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--hr-color);
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--table-header-bg);
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #2c2c2c;
+      }
+
+      /* Inline math formatting */
+      .math {
+        font-family: 'Consolas', 'Monaco', monospace;
+        background-color: #303031;
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: #4ec9b0; /* Teal/Cyan for math terms */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Indexes in Database</h1>
+      <p class="intro-text">
+        That's a great set of questions about indexing! It's a critical concept
+        in databases, and it's normal to find it confusing initially.
+      </p>
+      <p class="intro-text">
+        Here is a breakdown of database indexing, its purpose, and how to work
+        with it in MongoDB.
+      </p>
+
+      <h2>What are Indexes and Why are They Needed?</h2>
+      <p>
+        A **database index** is a specialized data structure that stores a
+        small, organized copy of data from one or more columns (or fields) of
+        your main table or collection. This structure also includes **pointers**
+        (or links) to the full records in the original location.
+      </p>
+
+      <div class="analogy">
+        <p>Think of it like the **index at the back of a book** 📚:</p>
+        <ul>
+          <li>The **book** is your main table/collection of data.</li>
+          <li>
+            The **index** is your database index. It lists keywords (the indexed
+            field values) and the page numbers (pointers) where you can find the
+            detailed information.
+          </li>
+        </ul>
+      </div>
+
+      <h3>Need for Indexes</h3>
+      <p>
+        Indexes are needed primarily to **speed up data retrieval** (read
+        operations). Without an index, when you search for a record (e.g., a
+        customer by their name), the database must perform a **full table
+        scan**—meaning it checks every single record in the table sequentially
+        until it finds a match. This is very slow for large amounts of data.
+      </p>
+
+      <hr style="border-color: var(--hr-color)" />
+
+      <h2>How Indexing Makes Querying Fast</h2>
+      <p>
+        Indexing speeds up queries by replacing the slow **full table scan**
+        with a much faster **index search** (often implemented using data
+        structures like a **B-tree**).
+      </p>
+
+      <ul>
+        <li>
+          <strong>Search Efficiency:</strong> Instead of checking every row, the
+          database uses the index, which is sorted and structured (like a
+          **B-tree**), to quickly narrow down the location of the desired data.
+          Searching a B-tree is incredibly fast, typically completing in
+          **logarithmic time** (<span class="math">$O(\log N)$</span>), which is
+          a huge improvement over the **linear time** (<span class="math"
+            >$O(N)$</span
+          >) of a full table scan.
+        </li>
+        <li>
+          <strong>Direct Access:</strong> Once the index finds the specific
+          value you're looking for (e.g., "John Smith"), it uses the recorded
+          pointer to jump directly to the exact physical location of the full
+          record in the table/collection, avoiding any further unnecessary
+          searching.
+        </li>
+      </ul>
+
+      <hr style="border-color: var(--hr-color)" />
+
+      <h2>"ID is Indexed by Default"</h2>
+      <p>
+        The statement "**ID is indexed by default**" is generally **true**
+        across most database systems (both relational like SQL and NoSQL like
+        MongoDB).
+      </p>
+
+      <ul>
+        <li>
+          <strong>In Relational Databases (like MySQL, PostgreSQL):</strong> The
+          **Primary Key** (which is often named **id**) is automatically
+          indexed. This is typically a **clustered index**, which determines the
+          physical order of the data on disk, making lookups by ID extremely
+          fast.
+        </li>
+        <li>
+          <strong>In MongoDB:</strong> The **<code
+            style="color: var(--code-property)"
+            >_id</code
+          >** field is automatically created as a **unique index** on every
+          collection. This is a non-clustered index by default and ensures every
+          document has a unique identifier, which is critical for document
+          retrieval.
+        </li>
+      </ul>
+
+      <hr style="border-color: var(--hr-color)" />
+
+      <h2>Unique vs. Non-Unique Indexes</h2>
+      <p>
+        The key difference lies in the **constraint** they enforce on the data:
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Unique Index</th>
+            <th>Non-Unique Index</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Purpose</strong></td>
+            <td>
+              Speeds up lookups **and** enforces that **no two documents/rows**
+              can have the same value for the indexed field(s).
+            </td>
+            <td>
+              Speeds up lookups **only**. Allows duplicate values for the
+              indexed field(s).
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Examples</strong></td>
+            <td>
+              <code style="color: var(--code-string)">email</code>,
+              <code style="color: var(--code-string)"
+                >social security number</code
+              >, or a **Primary Key**.
+            </td>
+            <td>
+              <code style="color: var(--code-string)">last_name</code>,
+              <code style="color: var(--code-string)">city</code>,
+              <code style="color: var(--code-string)">product_category</code>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Which Type of Index to Make?</h3>
+      <p>You should create an index on a field if:</p>
+      <ul>
+        <li>
+          You frequently **filter** by that field (i.e., it appears in
+          <code style="color: var(--code-keyword)">WHERE</code> clauses in SQL
+          or <code style="color: var(--code-string)">query</code> objects in
+          MongoDB).
+        </li>
+        <li>
+          You frequently **sort** results by that field (i.e., it appears in
+          <code style="color: var(--code-keyword)">ORDER BY</code> clauses or
+          the MongoDB
+          <code style="color: var(--code-function)">sort()</code> method).
+        </li>
+      </ul>
+
+      <p>You should use a **Unique Index** specifically when:</p>
+      <ul>
+        <li>
+          The field **must** contain distinct values (e.g., enforcing that every
+          user's email address is unique). This is about **data integrity** as
+          much as performance.
+        </li>
+      </ul>
+
+      <p>You should use a **Non-Unique Index** when:</p>
+      <ul>
+        <li>
+          The field is frequently searched or sorted, but it's **expected** to
+          have duplicate values (e.g., many users have the same city). This is
+          purely for **performance**.
+        </li>
+      </ul>
+
+      <hr style="border-color: var(--hr-color)" />
+
+      <h2>
+        Working with Indexes in MongoDB (using
+        <code style="color: var(--code-string)">mongosh</code>)
+      </h2>
+      <p>
+        In MongoDB, you use the
+        <code style="color: var(--code-function)"
+          >db.collection.createIndex()</code
+        >
+        method in <code style="color: var(--code-string)">mongosh</code> to
+        create indexes.
+      </p>
+
+      <h3>1. Creating a Simple Index</h3>
+      <p>
+        To create a non-unique, ascending index on the
+        <code style="color: var(--code-string)">name</code> field in a
+        collection called <code style="color: var(--code-string)">users</code>:
+      </p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="code-keyword">db</span>.<span class="code-function">users</span>.<span class="code-function">createIndex</span>({ <span class="code-property">name</span>: <span class="code-number">1</span> })
+</pre>
+      <p>
+        <code style="color: var(--code-keyword)">{ name: 1 }</code> specifies
+        the field to index and the sort order (<code
+          style="color: var(--code-number)"
+          >1</code
+        >
+        for ascending, <code style="color: var(--code-number)">-1</code> for
+        descending).
+      </p>
+
+      <h3>2. Creating a Unique Index</h3>
+      <p>
+        To enforce uniqueness on the
+        <code style="color: var(--code-string)">email</code> field while also
+        indexing it for fast lookups:
+      </p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="code-keyword">db</span>.<span class="code-function">users</span>.<span class="code-function">createIndex</span>({ <span class="code-property">email</span>: <span class="code-number">1</span> }, { <span class="code-property">unique</span>: <span class="code-keyword">true</span> })
+</pre>
+      <p>
+        The second argument,
+        <code style="color: var(--code-keyword)">{ unique: true }</code>, makes
+        this a unique index.
+      </p>
+
+      <h3>3. Creating a Compound Index</h3>
+      <p>
+        To create an index on multiple fields, which is often useful for
+        filtering on a combination of fields (e.g., searching by
+        <code style="color: var(--code-string)">status</code> and sorting by
+        <code style="color: var(--code-string)">date</code>):
+      </p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="code-keyword">db</span>.<span class="code-function">orders</span>.<span class="code-function">createIndex</span>({ <span class="code-property">status</span>: <span class="code-number">1</span>, <span class="code-property">order_date</span>: <span class="code-number">-1</span> })
+</pre>
+      <p>
+        This creates a compound index on
+        <code style="color: var(--code-property)">status</code> (ascending) and
+        <code style="color: var(--code-property)">order_date</code>
+        (descending).
+      </p>
+
+      <h3>4. Viewing Existing Indexes</h3>
+      <p>To see all indexes on a collection:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="code-keyword">db</span>.<span class="code-function">users</span>.<span class="code-function">getIndexes</span>()
+</pre>
+      <p>
+        This will show the default
+        <code style="color: var(--code-property)">_id</code> index and any
+        others you've created.
+      </p>
+
+      <h3>5. Dropping an Index</h3>
+      <p>
+        If an index is no longer needed (too much write overhead or not used in
+        queries), you can drop it by name:
+      </p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="code-keyword">db</span>.<span class="code-function">users</span>.<span class="code-function">dropIndex</span>(<span class="code-string-val">"email_1"</span>) <span class="code-comment">// Use the index name from getIndexes()</span>
+</pre>
+    </div>
+  </body>
+</html>

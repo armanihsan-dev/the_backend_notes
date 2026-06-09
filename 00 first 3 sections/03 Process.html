@@ -1,0 +1,581 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operating System Concepts - Notes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            margin: auto;
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+        }
+        h2 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+            margin-top: 25px;
+        }
+        h3 {
+            margin-top: 20px;
+        }
+        ul {
+            list-style-type: disc;
+            margin-left: 20px;
+        }
+        ol {
+            list-style-type: decimal;
+            margin-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        b {
+            color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .highlight {
+            background-color: #e6f7ff;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Operating System Concepts</h1>
+
+        <hr>
+
+        <h2>Process ID (PID)</h2>
+        <ul>
+            <li>A <b>unique numerical identifier</b> assigned by an operating system (like Windows, Linux, or macOS) to each running program or "process."</li>
+            <li>Think of it like a Social Security Number for a program that's currently active on your computer.</li>
+        </ul>
+
+        <h3>Need to the Processor (and the Operating System)</h3>
+        <p>The PID is absolutely essential for the operating system to manage and control processes efficiently. Here's why it's so crucial, especially in relation to the processor:</p>
+        <ol>
+            <li><b>Unique Identification:</b> In a multitasking environment, many programs can be running simultaneously. The PID ensures that the operating system can distinguish between them, even if multiple instances of the same program are running. Without a unique identifier, the OS wouldn't know which specific instance of a program to interact with.</li>
+            <li><b>Process Management:</b> The operating system's primary role is to manage all the active processes. The PID allows it to:
+                <ul>
+                    <li><b>Allocate Resources:</b> The OS needs to know which process gets how much CPU time, memory, disk I/O, etc. The PID helps in tracking and allocating these resources to the correct process.</li>
+                    <li><b>Schedule Execution:</b> The processor can only execute one instruction at a time (per core). The operating system's scheduler uses PIDs to decide which process gets to use the CPU next and for how long.</li>
+                    <li><b>Control State:</b> Processes can be in different states (running, waiting, ready, etc.). The OS uses the PID to track the current state of each process and manage transitions between these states.</li>
+                    <li><b>Termination:</b> When a process needs to be stopped (either gracefully or forcefully), the OS uses its PID to target and terminate it, freeing up its resources. This is what happens when you "end task" in Task Manager (Windows) or use the kill command (Linux).</li>
+                </ul>
+            </li>
+            <li><b>Inter-Process Communication (IPC):</b> If different processes need to communicate or share data, they often use PIDs to refer to each other. For example, one process might send a signal or message to another process using its PID.</li>
+            <li><b>Monitoring and Troubleshooting:</b> System administrators and users rely on PIDs to monitor system performance, identify resource-intensive processes, and troubleshoot issues. Tools like Task Manager (Windows) or ps and top (Linux) display PIDs, allowing users to see what's running and take action if needed.</li>
+            <li><b>Parent-Child Relationships:</b> When one process creates another (e.g., a web browser launching a new tab, or a command-line shell executing a command), the new process is called a "child process," and the creating process is the "parent process." The operating system often tracks these parent-child relationships using PIDs (e.g., each child process also has a Parent Process ID or PPID). This helps in managing process hierarchies.</li>
+        </ol>
+
+        <hr>
+
+        <h2>1. What is a Process?</h2>
+        <h3>Definition:</h3>
+        <ul>
+            <li>A <b>program in execution</b>.</li>
+            <li>A process in Node.js is an instance of a running program that has its own memory space and system resources. Node.js provides the child_process module to create and manage subprocesses, allowing you to execute system commands or other programs from within your Node.js application.</li>
+        </ul>
+
+        <h3>Process vs. Program</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Program</th>
+                    <th>Process</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><b>Nature</b></td>
+                    <td>Passive entity (e.g., an executable file)</td>
+                    <td>Active entity (an instance of a program being executed)</td>
+                </tr>
+                <tr>
+                    <td><b>State</b></td>
+                    <td>Static, on disk</td>
+                    <td>Dynamic, exists in memory, has a state (running, waiting, etc.)</td>
+                </tr>
+                <tr>
+                    <td><b>Resources</b></td>
+                    <td>No direct resource allocation</td>
+                    <td>Requires CPU time, memory, I/O devices, files</td>
+                </tr>
+                <tr>
+                    <td><b>Execution</b></td>
+                    <td>Cannot execute itself</td>
+                    <td>Executes instructions, consumes resources</td>
+                </tr>
+                <tr>
+                    <td><b>Multiple Instances</b></td>
+                    <td>One copy on disk</td>
+                    <td>Multiple instances of the same program can run simultaneously as separate processes (e.g., multiple tabs in browser)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Process Lifecycle: New &rarr; Ready &rarr; Running &rarr; Waiting &rarr; Terminated</h3>
+        <p>Processes move through various states during their lifetime. This lifecycle describes the typical transitions:</p>
+        <ul>
+            <li><b>New:</b> The process is being created. Resources are being allocated, and the Process Control Block (PCB) is being initialized.</li>
+            <li><b>Ready:</b> The process is waiting to be assigned to a processor. It has all the necessary resources allocated and is ready to execute, but the CPU is currently busy with another process.</li>
+            <li><b>Running:</b> The process's instructions are being executed by the CPU. At any given time, only one process can be running on each CPU core.</li>
+            <li><b>Waiting (or Blocked) OR Sleep State:</b> The process is waiting for some event to occur, such as the completion of an I/O operation (e.g., reading from a disk, waiting for user input), or the availability of a resource. While waiting, the process is not consuming CPU time.</li>
+            <li><b>Terminated (or Exit):</b> The process has finished execution, either normally (completed its task) or abnormally (due to an error or termination signal). Resources are deallocated, and its PCB might be retained for a short period for parent processes to collect its exit status.</li>
+        </ul>
+
+        <h3>States of a Process</h3>
+        <p>These states provide a more detailed view of the process lifecycle. The transitions between these states are managed by the operating system's scheduler.</p>
+        <ul>
+            <li><b>Admitted:</b> Transition from New to Ready.</li>
+            <li><b>Dispatcher (CPU Scheduler):</b> Selects a process from the Ready queue and assigns it to the CPU (Ready to Running).</li>
+            <li><b>Interrupt:</b> A running process can be interrupted (e.g., by a timer interrupt or a higher-priority process arriving) and moved back to the Ready state (Running to Ready).</li>
+            <li><b>I/O or Event Wait:</b> A running process requests an I/O operation or waits for some event, moving to the Waiting state (Running to Waiting).</li>
+            <li><b>I/O or Event Completion:</b> The event the process was waiting for occurs, moving it back to the Ready state (Waiting to Ready).</li>
+            <li><b>Exit:</b> The process finishes execution (Running to Terminated).</li>
+        </ul>
+
+        <h3>Process Control Block (PCB)</h3>
+        <ul>
+            <li>The <b>Process Control Block (PCB)</b>, also known as a <b>task control block</b>, is a data structure maintained by the operating system for each process.</li>
+            <li>It contains all the information needed to manage a process, essentially serving as its "identity card or process ID" and "status report."</li>
+            <li>When a process is switched out of the CPU (context switch), its state is saved in its PCB, and when it's reloaded, the information from the PCB is used to restore its context.</li>
+            <li>Typical information stored in a PCB includes:
+                <ul>
+                    <li><b>Process State:</b> (e.g., new, ready, running, waiting, terminated)</li>
+                    <li><b>Program Counter:</b> The address of the next instruction to be executed for this process.</li>
+                    <li><b>CPU Registers:</b> Values of all CPU registers (accumulators, index registers, stack pointers, general-purpose registers, etc.) when the process was last running.</li>
+                    <li><b>CPU Scheduling Information:</b> Process priority, pointers to scheduling queues, and other scheduling parameters.</li>
+                    <li><b>Memory-Management Information:</b> Base and limit registers, page tables, segment tables, etc., depending on the memory management scheme.</li>
+                    <li><b>Accounting Information:</b> CPU time used, real time elapsed, time limits, account numbers, process IDs, etc.</li>
+                    <li><b>I/O Status Information:</b> List of I/O devices allocated to the process, list of open files, etc.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>2. Process Management</h2>
+        <p>Process management involves creating, scheduling, terminating, and coordinating processes. The operating system is responsible for these crucial tasks to ensure efficient resource utilization and system stability.</p>
+
+        <h3>Process Creation: fork(), exec(), wait() in Unix/Linux</h3>
+        <p>In Unix-like operating systems, process creation typically involves a combination of these three system calls:</p>
+        <ul>
+            <li><b>fork():</b>
+                <ul>
+                    <li>Creates a new process, called the <b>child process</b>, which is an almost identical copy of the calling process, known as the <b>parent process</b>.</li>
+                    <li>Both parent and child processes continue execution from the point of the <span class="highlight">fork()</span> call.</li>
+                    <li><span class="highlight">fork()</span> returns 0 to the child process and the PID (Process ID) of the child process to the parent process. It returns -1 on failure.</li>
+                    <li>The child process inherits copies of the parent's memory segments (code, data, stack, heap), file descriptors, and environmental variables.</li>
+                </ul>
+            </li>
+            <li><b>exec()</b> (e.g., execve, execlp, etc.):
+                <ul>
+                    <li>Replaces the current process's image (code, data, stack, heap) with a new program.</li>
+                    <li>It does not create a new process. Instead, the calling process is transformed into the new program. The PID remains the same.</li>
+                    <li>Typically, <span class="highlight">fork()</span> is followed by <span class="highlight">exec()</span> in the child process. The child process uses <span class="highlight">exec()</span> to load and run a different program, while the parent continues its original execution path (or waits for the child).</li>
+                </ul>
+            </li>
+            <li><b>wait()</b> (e.g., waitpid, wait):
+                <ul>
+                    <li>The parent process uses <span class="highlight">wait()</span> to pause its own execution until one of its child processes terminates.</li>
+                    <li>When a child process terminates, its exit status is returned to the parent, and the child process's resources are fully deallocated.</li>
+                    <li><span class="highlight">wait()</span> prevents zombie processes.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Parent-child relationships</h3>
+        <p>Processes form a hierarchy. The process that creates another process is its parent, and the newly created process is its child. This relationship is critical for:</p>
+        <ul>
+            <li><b>Resource Inheritance:</b> Children often inherit resources like file descriptors from their parents.</li>
+            <li><b>Process Grouping:</b> Related processes can be grouped together.</li>
+            <li><b>Termination:</b> If a parent terminates, its children might become orphan processes (though the init process often adopts them). Conversely, a parent often waits for its children to complete before terminating itself.</li>
+        </ul>
+
+        <h3>Process Termination</h3>
+        <p>A process can terminate in several ways:</p>
+        <ul>
+            <li><b>Normal Exit:</b> The process completes its last instruction and explicitly calls <span class="highlight">exit()</span> (or implicitly returns from <span class="highlight">main()</span>).</li>
+            <li><b>Error Exit:</b> The process terminates due to an unrecoverable error (e.g., division by zero, invalid memory access).</li>
+            <li><b>Killed by Another Process:</b> A process (usually the parent or a privileged process) sends a signal to terminate another process (e.g., <span class="highlight">kill</span> command in Unix/Linux).</li>
+            <li><b>Killed by the Operating System:</b> The OS might terminate a process due to system errors, resource limits, or security violations.</li>
+        </ul>
+
+        <h3>Zombie & Orphan Processes</h3>
+        <ul>
+            <li><b>Zombie Process (Defunct Process):</b>
+                <ul>
+                    <li>A process that has completed its execution (terminated) but its entry in the process table still exists because its parent process has not yet called <span class="highlight">wait()</span> to collect its exit status.</li>
+                    <li>The OS retains the PCB of a zombie process so the parent can retrieve information about its child's termination.</li>
+                    <li>Zombie processes consume minimal system resources (just a process table entry) but too many can exhaust process table entries. They cannot be killed by signals directly. The parent process must call <span class="highlight">wait()</span> or terminate itself for the zombie to be fully removed.</li>
+                </ul>
+            </li>
+            <li><b>Orphan Process:</b>
+                <ul>
+                    <li>A child process whose parent process has terminated before the child process.</li>
+                    <li>Orphan processes are automatically "adopted" by the <b>init process</b> (PID 1 in Unix/Linux systems). The init process is responsible for periodically calling <span class="highlight">wait()</span> on its adopted children, thus preventing them from becoming zombies. Orphan processes continue to run normally under init's guardianship.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>3. Threads and Multithreading</h2>
+        <p>While a process is a program in execution with its own isolated memory space, a thread is a lightweight unit of execution within a process. Multithreading allows a single process to have multiple threads of execution, enabling parallelism within that process.</p>
+
+        <h3>Difference between Process and Thread</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Process</th>
+                    <th>Thread</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><b>Isolation</b></td>
+                    <td>Independent, isolated memory space</td>
+                    <td>Share the same memory space (code, data, heap) with other threads in the same process</td>
+                </tr>
+                <tr>
+                    <td><b>Resource Ownership</b></td>
+                    <td>Owns its own resources (memory, files, I/O)</td>
+                    <td>Shares resources of its parent process</td>
+                </tr>
+                <tr>
+                    <td><b>Overhead</b></td>
+                    <td>High overhead for creation, termination, context switching</td>
+                    <td>Low overhead for creation, termination, context switching</td>
+                </tr>
+                <tr>
+                    <td><b>Communication</b></td>
+                    <td>IPC mechanisms (complex)</td>
+                    <td>Easy (shared memory, no explicit IPC needed)</td>
+                </tr>
+                <tr>
+                    <td><b>Robustness</b></td>
+                    <td>Failure of one process doesn't affect others</td>
+                    <td>Failure of one thread can crash the entire process</td>
+                </tr>
+                <tr>
+                    <td><b>Switching</b></td>
+                    <td>Context switching involves changing memory maps and registers</td>
+                    <td>Context switching involves saving/restoring thread-specific registers and stack</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>User-level vs. Kernel-level Threads</h3>
+        <ul>
+            <li><b>User-level Threads (ULTs):</b>
+                <ul>
+                    <li>Managed by a thread library at the user level, without kernel involvement.</li>
+                    <li>The kernel is unaware of their existence; it sees only a single process.</li>
+                    <li><b>Advantages:</b> Faster to create/destroy and switch between (no kernel mode switch), flexible scheduling by the application.</li>
+                    <li><b>Disadvantages:</b> If one ULT blocks (e.g., for I/O), the entire process blocks. Cannot take advantage of multiple CPU cores as the kernel only schedules the single underlying process.</li>
+                </ul>
+            </li>
+            <li><b>Kernel-level Threads (KLTs):</b>
+                <ul>
+                    <li>Managed directly by the operating system kernel.</li>
+                    <li>The kernel maintains context information for each thread.</li>
+                    <li><b>Advantages:</b> If one KLT blocks, other KLTs in the same process can still run. Can be scheduled on different CPU cores, enabling true parallelism.</li>
+                    <li><b>Disadvantages:</b> Slower to create/destroy and switch between (requires kernel mode switch).</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Benefits of Multithreading</h3>
+        <ul>
+            <li><b>Responsiveness:</b> A program can remain responsive to user input even if a part of it is blocked or performing a long operation.</li>
+            <li><b>Resource Sharing:</b> Threads within the same process can easily share resources (code, data, files) without complex IPC mechanisms.</li>
+            <li><b>Economy:</b> Cheaper to create, terminate, and context switch between threads than processes.</li>
+            <li><b>Scalability:</b> On multi-core processors, multiple threads can execute in parallel, significantly improving performance for computationally intensive tasks.</li>
+        </ul>
+
+        <h3>Thread Lifecycle</h3>
+        <p>Similar to processes, threads also go through various states:</p>
+        <ul>
+            <li><b>New:</b> Thread is created.</li>
+            <li><b>Runnable (Ready):</b> Thread is ready to run, waiting for CPU time.</li>
+            <li><b>Running:</b> Thread is currently executing on a CPU core.</li>
+            <li><b>Blocked (Waiting):</b> Thread is waiting for an event (e.g., I/O completion, acquiring a lock, sleep timer).</li>
+            <li><b>Terminated (Dead):</b> Thread has completed its execution or was explicitly stopped.</li>
+        </ul>
+
+        <h3>Thread Libraries: POSIX threads (pthreads), Windows threads</h3>
+        <ul>
+            <li><b>POSIX threads (pthreads):</b>
+                <ul>
+                    <li>A standard API for thread creation and synchronization.</li>
+                    <li>Widely used in Unix-like operating systems (Linux, macOS) and supported on Windows.</li>
+                    <li>Provides functions for thread creation (<span class="highlight">pthread_create</span>), termination (<span class="highlight">pthread_exit</span>), joining (<span class="highlight">pthread_join</span>), mutexes (<span class="highlight">pthread_mutex_init</span>), condition variables, etc.</li>
+                </ul>
+            </li>
+            <li><b>Windows threads:</b>
+                <ul>
+                    <li>The threading API specific to Microsoft Windows operating systems.</li>
+                    <li>Provides functions like <span class="highlight">CreateThread</span>, <span class="highlight">ExitThread</span>, <span class="highlight">WaitForSingleObject</span>, <span class="highlight">CreateMutex</span>, etc.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>4. CPU Scheduling</h2>
+        <p>CPU scheduling is the process of deciding which of the ready processes (or threads) in the ready queue should be allocated the CPU. Its goal is to maximize CPU utilization, ensure fairness, and meet performance objectives.</p>
+
+        <h3>Scheduling Criteria</h3>
+        <ul>
+            <li><b>CPU Utilization:</b> Keep the CPU as busy as possible. Range from 0% to 100%.</li>
+            <li><b>Throughput:</b> The number of processes completed per unit time.</li>
+            <li><b>Turnaround Time:</b> The total time from process submission to completion (including waiting, ready, execution, and I/O).</li>
+            <li><b>Waiting Time:</b> The total amount of time a process spends in the ready queue waiting for the CPU.</li>
+            <li><b>Response Time:</b> For interactive systems, the time from submission of a request until the first response is produced.</li>
+            <li><b>Fairness:</b> Ensure that each process gets a fair share of the CPU.</li>
+        </ul>
+
+        <h3>Types of Schedulers</h3>
+        <ul>
+            <li><b>Long-term Scheduler (Job Scheduler):</b>
+                <ul>
+                    <li>Selects processes from the job pool (e.g., programs on disk) and loads them into the ready queue (main memory) for execution.</li>
+                    <li>Controls the <b>degree of multiprogramming</b> (number of processes in memory).</li>
+                    <li>Executes much less frequently than short-term schedulers.</li>
+                </ul>
+            </li>
+            <li><b>Short-term Scheduler (CPU Scheduler):</b>
+                <ul>
+                    <li>Selects a process from the ready queue and allocates the CPU to it.</li>
+                    <li>Executes very frequently (milliseconds), so it must be fast.</li>
+                </ul>
+            </li>
+            <li><b>Medium-term Scheduler:</b>
+                <ul>
+                    <li>Part of a swapping scheme. It removes processes from memory (swapping them out) to reduce the degree of multiprogramming and swap them back in later.</li>
+                    <li>Used to manage memory and reduce contention for the CPU.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Scheduling Algorithms</h3>
+        <ul>
+            <li><b>First-Come, First-Served (FCFS):</b>
+                <ul>
+                    <li><b>Non-preemptive:</b> Processes are executed in the order they arrive in the ready queue. Once a process starts, it runs until completion or it blocks.</li>
+                    <li>Simple to implement.</li>
+                    <li><b>Disadvantage:</b> Can lead to high average waiting time if a long process arrives before short ones (convoy effect).</li>
+                </ul>
+            </li>
+            <li><b>Shortest-Job-First (SJF):</b>
+                <ul>
+                    <li><b>Non-preemptive:</b> Selects the process with the smallest next CPU burst time.</li>
+                    <li><b>Preemptive (Shortest-Remaining-Time-First - SRTF):</b> If a new process arrives with a shorter CPU burst time than the remaining time of the currently executing process, the current process is preempted.</li>
+                    <li><b>Optimal:</b> Gives the minimum average waiting time for a given set of processes.</li>
+                    <li><b>Disadvantage:</b> Requires knowledge of the next CPU burst length, which is difficult to predict accurately in real systems (often estimated).</li>
+                </ul>
+            </li>
+            <li><b>Priority Scheduling:</b>
+                <ul>
+                    <li>Each process is assigned a priority, and the CPU is allocated to the process with the highest priority.</li>
+                    <li>Can be preemptive or non-preemptive.</li>
+                    <li><b>Problem:</b> Starvation – low-priority processes may never execute if high-priority processes keep arriving.</li>
+                    <li><b>Solution:</b> Aging – gradually increasing the priority of processes that wait for a long time.</li>
+                </ul>
+            </li>
+            <li><b>Round Robin (RR):</b>
+                <ul>
+                    <li>Designed for time-sharing systems.</li>
+                    <li>Each process gets a small unit of CPU time, called a <b>time quantum (time slice)</b>.</li>
+                    <li>If a process does not complete within the time quantum, it is preempted and added to the end of the ready queue.</li>
+                    <li><b>Preemptive.</b></li>
+                    <li><b>Advantages:</b> Fair, good response time for interactive systems.</li>
+                    <li><b>Disadvantage:</b> Higher context switching overhead. Performance highly depends on the choice of time quantum.</li>
+                </ul>
+            </li>
+            <li><b>Multilevel Queue & Multilevel Feedback Queue:</b>
+                <ul>
+                    <li><b>Multilevel Queue:</b> Partitions the ready queue into multiple separate queues (e.g., foreground interactive processes, background batch processes). Each queue might have its own scheduling algorithm. Processes are permanently assigned to a queue.</li>
+                    <li><b>Multilevel Feedback Queue (MLFQ):</b> More flexible. Processes can move between queues based on their CPU burst characteristics. A process that uses too much CPU time might be moved to a lower-priority queue. A process that waits too long in a lower-priority queue might be moved to a higher-priority queue (aging). Prevents starvation and allows for different priorities.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Context Switching</h3>
+        <p>When the CPU switches from one process (or thread) to another, it performs a <b>context switch</b>. This involves:</p>
+        <ol>
+            <li>Saving the state (CPU registers, program counter, etc.) of the currently executing process into its PCB.</li>
+            <li>Loading the saved state of the next process from its PCB into the CPU registers.</li>
+        </ol>
+        <p>Context switching is pure overhead; the system does no useful work during this time. The efficiency of context switching is crucial for overall system performance, especially in systems with many processes or threads and frequent switching (e.g., Round Robin).</p>
+
+        <hr>
+
+        <h2>5. Inter-Process Communication (IPC)</h2>
+        <p><b>Inter-Process Communication (IPC)</b> refers to mechanisms that allow independent processes to communicate and synchronize their actions with each other. Since processes typically have isolated memory spaces, direct data access is not possible. IPC is essential for:</p>
+
+        <h3>Why IPC is needed</h3>
+        <ul>
+            <li><b>Information Sharing:</b> Multiple processes may need to access and share the same data (e.g., a shared database server).</li>
+            <li><b>Computation Speedup:</b> A task can be divided into subtasks that run concurrently as separate processes, speeding up overall execution.</li>
+            <li><b>Modularity:</b> Breaking down a complex system into smaller, manageable processes.</li>
+            <li><b>Convenience:</b> For instance, allowing a shell script to pipe the output of one command to the input of another.</li>
+        </ul>
+
+        <h3>Mechanisms:</h3>
+        <ul>
+            <li><b>Pipes (Named & Unnamed):</b>
+                <ul>
+                    <li><b>Unnamed Pipes (Anonymous Pipes):</b>
+                        <ul>
+                            <li>Used for communication between related processes (e.g., parent and child) that share a common ancestor.</li>
+                            <li>One-way communication (simplex).</li>
+                            <li>Created using <span class="highlight">pipe()</span> system call in Unix/Linux.</li>
+                            <li>Data is written to one end and read from the other.</li>
+                        </ul>
+                    </li>
+                    <li><b>Named Pipes (FIFOs - First-In, First-Out):</b>
+                        <ul>
+                            <li>Can be used for communication between unrelated processes.</li>
+                            <li>Exist as a special file in the file system.</li>
+                            <li>Can be opened by multiple processes for reading and writing, providing a two-way (but still half-duplex) communication channel.</li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li><b>Message Queues:</b>
+                <ul>
+                    <li>A linked list of messages stored within the kernel.</li>
+                    <li>Processes can send messages to a queue, and other processes can read messages from the queue.</li>
+                    <li>Messages are tagged with types, allowing processes to selectively retrieve messages.</li>
+                    <li>Provides asynchronous communication.</li>
+                </ul>
+            </li>
+            <li><b>Shared Memory:</b>
+                <ul>
+                    <li>The fastest IPC mechanism.</li>
+                    <li>A region of memory that is jointly accessible by multiple processes.</li>
+                    <li>Once the shared memory region is established, processes can read and write data to it directly, bypassing the kernel for each data transfer.</li>
+                    <li><b>Challenge:</b> Requires careful synchronization to prevent race conditions (multiple processes accessing and modifying the shared data concurrently without proper coordination).</li>
+                </ul>
+            </li>
+            <li><b>Semaphores:</b>
+                <ul>
+                    <li>Not primarily a data transfer mechanism, but a synchronization tool.</li>
+                    <li>A variable or an abstract data type used to control access to a common resource by multiple processes in a concurrent system.</li>
+                    <li>Can be binary (like a mutex, 0 or 1) or counting (for managing multiple instances of a resource).</li>
+                    <li><b>Operations:</b> <span class="highlight">wait()</span> (or P or down) decrements the semaphore; <span class="highlight">signal()</span> (or V or up) increments it.</li>
+                </ul>
+            </li>
+            <li><b>Sockets:</b>
+                <ul>
+                    <li>A more general and flexible IPC mechanism, especially for network communication (processes on different machines) but also usable for inter-process communication on the same machine.</li>
+                    <li>An endpoint for communication.</li>
+                    <li>Can be stream-oriented (TCP) or datagram-oriented (UDP).</li>
+                    <li>Allows for client-server communication models.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>6. Process Synchronization</h2>
+        <p>Process synchronization deals with the problem of ensuring that concurrent processes (or threads) execute in an orderly manner, especially when they share resources or data. The goal is to prevent inconsistencies and maintain data integrity.</p>
+
+        <h3>Race Conditions</h3>
+        <p>A <b>race condition</b> occurs when two or more processes (or threads) access and manipulate shared data concurrently, and the final outcome depends on the specific order in which their accesses take place. This can lead to unpredictable and incorrect results, as the output is not deterministic.</p>
+
+        <h3>Critical Section Problem</h3>
+        <p>The <b>critical section problem</b> is a classic synchronization problem. It defines a segment of code in which a process accesses shared resources. The challenge is to design a protocol such that:</p>
+        <ol>
+            <li><b>Mutual Exclusion:</b> Only one process can be executing in its critical section at any given time.</li>
+            <li><b>Progress:</b> If no process is executing in its critical section and some processes wish to enter their critical sections, then only those processes that are not executing in their remainder section can participate in the decision of which process will enter its critical section next, and this selection cannot be postponed indefinitely.</li>
+            <li><b>Bounded Waiting:</b> There must be a limit on the number of times other processes are allowed to enter their critical sections after a process has made a request to enter its critical section and before that request is granted.</li>
+        </ol>
+
+        <h3>Software Solutions: Peterson’s algorithm</h3>
+        <ul>
+            <li><b>Peterson's Algorithm:</b> A classic software-based solution to the critical-section problem for two processes. It uses two shared variables: <span class="highlight">flag[2]</span> (to indicate if a process wants to enter its critical section) and <span class="highlight">turn</span> (to indicate whose turn it is).</li>
+            <li><b>Pros:</b> Satisfies all three critical-section requirements (mutual exclusion, progress, bounded waiting).</li>
+            <li><b>Cons:</b> Limited to two processes, relies on busy waiting (consumes CPU cycles while waiting), and might not work correctly on modern architectures with aggressive compiler optimizations or caching.</li>
+        </ul>
+
+        <h3>Hardware Support: Test-and-set, Compare-and-swap</h3>
+        <p>Modern systems provide hardware instructions to facilitate synchronization, which are typically <b>atomic (indivisible) operations</b>:</p>
+        <ul>
+            <li><b>test_and_set():</b>
+                <ul>
+                    <li>Reads the value of a memory word and sets it to true (or 1) in a single, atomic operation.</li>
+                    <li>If the original value was false (or 0), the process can enter the critical section.</li>
+                    <li>Used to implement mutual exclusion.</li>
+                </ul>
+            </li>
+            <li><b>compare_and_swap() (CAS):</b>
+                <ul>
+                    <li>Compares the content of a memory location with a given value. If they are equal, it updates the content of the memory location to a new given value. All as an atomic operation.</li>
+                    <li>More powerful than <span class="highlight">test_and_set</span> and can be used to implement more complex synchronization primitives, including lock-free data structures.</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>Synchronization Tools:</h3>
+        <p>These are higher-level programming constructs built using hardware support or lower-level primitives to simplify synchronization.</p>
+        <ul>
+            <li><b>Mutexes (Mutual Exclusion Locks):</b>
+                <ul>
+                    <li>A binary semaphore (can be in one of two states: locked or unlocked).</li>
+                    <li>Used to protect a critical section. Only one thread can hold the mutex at a time.</li>
+                    <li>A thread acquires the mutex before entering the critical section and releases it upon exiting. If a thread tries to acquire a locked mutex, it will block until the mutex is released.</li>
+                </ul>
+            </li>
+            <li><b>Semaphores:</b>
+                <ul>
+                    <li>As mentioned in IPC, semaphores are integer variables (or abstract data types) used for signaling between processes/threads.</li>
+                    <li>A <span class="highlight">wait()</span> operation decrements the semaphore's value; a <span class="highlight">signal()</span> operation increments it.</li>
+                    <li>If a <span class="highlight">wait()</span> operation causes the value to become negative, the process blocks.</li>
+                    <li>Can be used to implement mutual exclusion (binary semaphore) or to control access to a resource with multiple instances (counting semaphore).</li>
+                </ul>
+            </li>
+            <li><b>Monitors:</b>
+                <ul>
+                    <li>A high-level synchronization construct that encapsulates data and the procedures that operate on that data.</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>
+```

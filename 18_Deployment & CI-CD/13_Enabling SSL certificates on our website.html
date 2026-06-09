@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Mastery: Certbot & SSL Setup</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Part 6: Certbot Installation & SSL Setup Guide (Ubuntu + Nginx)</h1>
+
+    <h2>⚙️ 1. Understanding Certbot</h2>
+    <p>
+      <strong>Certbot</strong> is the official tool from the
+      <strong>Electronic Frontier Foundation (EFF)</strong> that automates:
+    </p>
+    <ul>
+      <li>Getting SSL/TLS certificates from <strong>Let’s Encrypt</strong></li>
+      <li>Installing them in your web server (like Nginx)</li>
+      <li>Renewing them automatically</li>
+    </ul>
+    <p>
+      Let’s Encrypt certificates are <strong>100% free</strong>, trusted by all
+      browsers, and valid for <strong>90 days</strong> (Certbot handles
+      auto-renewal).
+    </p>
+
+    <h2>🧩 2. Installing Certbot using APT (Old Method)</h2>
+    <h3>📦 Step 1 — Install Certbot</h3>
+    <pre><code><span class="kw">sudo</span> apt update
+<span class="kw">sudo</span> apt install -y certbot python3-certbot-nginx</code></pre>
+    <p>This installs Certbot and its Nginx plugin.</p>
+
+    <h3>🧠 Step 2 — Verify installation</h3>
+    <pre><code>certbot --version</code></pre>
+    <p>Example output: <code>certbot 2.9.0</code></p>
+
+    <div class="warning-box">
+      <h2>❌ 3. Uninstalling Certbot (APT version)</h2>
+      <p>
+        If you ever installed Certbot via <strong>apt</strong>, you should
+        remove it <strong>before switching to Snap</strong> (as recommended by
+        Let’s Encrypt).
+      </p>
+      <p>Run:</p>
+      <pre><code><span class="kw">sudo</span> apt remove --purge certbot python3-certbot-nginx -y
+<span class="kw">sudo</span> apt autoremove -y</code></pre>
+      <p>
+        Check if any remnants remain: <code>which certbot</code>. If it shows
+        <code>/usr/bin/certbot</code>, it’s the APT version. If it shows nothing
+        — good, it’s fully removed.
+      </p>
+    </div>
+
+    <h2>✅ 4. Installing Certbot using SNAP (Recommended Method)</h2>
+    <p>
+      <strong>Let’s Encrypt officially recommends</strong> using Snap for new
+      installations because:
+    </p>
+    <ul>
+      <li>Snap version is always up-to-date</li>
+      <li>It includes all necessary dependencies</li>
+      <li>It auto-updates automatically in the background</li>
+    </ul>
+
+    <h3>📦 Step 1 — Install Snap (if not already installed)</h3>
+    <pre><code><span class="kw">sudo</span> apt update
+<span class="kw">sudo</span> apt install -y snapd
+<span class="kw">sudo</span> snap install core
+<span class="kw">sudo</span> snap refresh core</code></pre>
+
+    <h3>⚙️ Step 2 — Install Certbot (latest)</h3>
+    <pre><code><span class="kw">sudo</span> snap install --classic certbot</code></pre>
+    <p>Then create a symlink for convenience:</p>
+    <pre><code><span class="kw">sudo</span> ln -s /snap/bin/certbot /usr/bin/certbot</code></pre>
+
+    <h3>🧠 Step 3 — Verify installation</h3>
+    <pre><code>certbot --version</code></pre>
+    <p>You should see something like: <code>certbot 5.1.0</code></p>
+
+    <h2>🌐 5. Prepare Nginx for SSL</h2>
+    <p>Before generating the certificate, make sure:</p>
+    <ul>
+      <li>Your domain points to your EC2 public IP.</li>
+      <li>Your Nginx configuration listens on port 80 (HTTP).</li>
+    </ul>
+    <p>Example minimal config:</p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> api.procodrr.org;
+
+    <span class="kw">location</span> / {
+        <span class="prop">proxy_pass</span> http://localhost:4000;
+        <span class="prop">proxy_set_header</span> Host <span class="str">$host</span>;
+        <span class="prop">proxy_set_header</span> X-Real-IP <span class="str">$remote_addr</span>;
+        <span class="prop">proxy_set_header</span> X-Forwarded-For <span class="str">$proxy_add_x_forwarded_for</span>;
+        <span class="prop">proxy_set_header</span> X-Forwarded-Proto <span class="str">$scheme</span>;
+    }
+}</code></pre>
+    <p>
+      Check syntax and reload:
+      <code>sudo nginx -t && sudo systemctl reload nginx</code>
+    </p>
+
+    <h2>🔐 6. Generate and Install SSL Certificate Automatically</h2>
+    <p>The easiest one-liner:</p>
+    <pre><code><span class="kw">sudo</span> certbot --nginx -d api.procodrr.org --redirect</code></pre>
+    <p>
+      This will: Detect Nginx server block, use HTTP-01 challenge, obtain
+      certificates, install them, add HTTPS redirection, and reload Nginx.
+    </p>
+
+    <h3>✅ Result</h3>
+    <p>Your config will now include lines like:</p>
+    <pre><code><span class="dir">listen</span> <span class="lit">443</span> ssl;
+<span class="prop">ssl_certificate</span> /etc/letsencrypt/live/api.procodrrlabs.com/fullchain.pem;
+<span class="prop">ssl_certificate_key</span> /etc/letsencrypt/live/api.procodrrlabs.com/privkey.pem;
+<span class="dir">include</span> /etc/letsencrypt/options-ssl-nginx.conf;
+<span class="dir">ssl_dhparam</span> /etc/letsencrypt/ssl-dhparams.pem;</code></pre>
+
+    <h2>🔁 7. Auto-Renewal</h2>
+    <p>
+      Certbot installs a <strong>systemd timer</strong> that runs twice a day.
+      Check status:
+    </p>
+    <pre><code><span class="kw">sudo</span> systemctl list-timers | grep certbot</code></pre>
+    <p>Test renewal manually: <code>sudo certbot renew --dry-run</code></p>
+
+    <h2>📂 8. Certificate File Locations</h2>
+    <p>
+      Certs are stored under:
+      <code>/etc/letsencrypt/live/&lt;your-domain&gt;/</code>
+    </p>
+    <ul>
+      <li><strong>fullchain.pem</strong>: SSL certificate + intermediate</li>
+      <li><strong>privkey.pem</strong>: Private key</li>
+    </ul>
+
+    <h2>🧩 9. List all existing certificates</h2>
+    <pre><code><span class="kw">sudo</span> certbot certificates</code></pre>
+
+    <h2>🧩 10. Delete a certificate</h2>
+    <pre><code><span class="kw">sudo</span> certbot delete --cert-name &lt;certificate_name&gt;</code></pre>
+
+    <hr />
+
+    <h1>Understanding Let’s Encrypt, EFF, and Certbot</h1>
+
+    <h3>🏛️ 1. Let’s Encrypt — The Certificate Authority (CA)</h3>
+    <p>
+      The authority that creates and signs your SSL certificate. Non-profit and
+      automated.
+    </p>
+
+    <h3>🧭 2. Electronic Frontier Foundation (EFF) — The Organization</h3>
+    <p>
+      Non-profit digital rights organization that created and maintains Certbot.
+    </p>
+
+    <h3>⚙️ 3. Certbot — The ACME Client (Tool You Use)</h3>
+    <p>
+      The tool you run on your server to talk to Let’s Encrypt and manage
+      certificates.
+    </p>
+
+    <h3>✅ Summary</h3>
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Role</th>
+      </tr>
+      <tr>
+        <td>Let’s Encrypt</td>
+        <td>Issues free certificates</td>
+      </tr>
+      <tr>
+        <td>EFF</td>
+        <td>Advocates for privacy; created Certbot</td>
+      </tr>
+      <tr>
+        <td>Certbot</td>
+        <td>Automatically obtains/renews certificates</td>
+      </tr>
+    </table>
+
+    <h3>🧩 Analogy (The Passport)</h3>
+    <ul>
+      <li>
+        <strong>Government issues passport:</strong> Let’s Encrypt issues cert.
+      </li>
+      <li>
+        <strong>NGO promotes digital identity:</strong> EFF promotes privacy.
+      </li>
+      <li>
+        <strong>Application software fills forms:</strong> Certbot automates the
+        process.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h1>Wildcard SSL Setup (Manual DNS Method)</h1>
+
+    <h2>⚙️ Step 1 — Run Certbot command</h2>
+    <pre><code><span class="kw">sudo</span> certbot certonly --manual --preferred-challenges=dns -d "*.procodrrlabs.com" -d procodrrlabs.com</code></pre>
+
+    <h2>🧩 Step 2 — Add TXT record in GoDaddy DNS</h2>
+    <p>
+      Add a record with Type: <strong>TXT</strong>, Name:
+      <strong>_acme-challenge</strong>, and the value provided by Certbot.
+    </p>
+
+    <h2>🧩 Step 4 — Configure Nginx for HTTPS</h2>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">443</span> ssl;
+    <span class="dir">server_name</span> api.procodrrlabs.com;
+
+    <span class="prop">ssl_certificate</span>     /etc/letsencrypt/live/procodrrlabs.com/fullchain.pem;
+    <span class="prop">ssl_certificate_key</span> /etc/letsencrypt/live/procodrrlabs.com/privkey.pem;
+}</code></pre>
+
+    <div class="warning-box">
+      <strong>⚠️ Important Note — Manual Renewal:</strong><br />
+      Since you used the <strong>--manual</strong> method, auto-renew will
+      <strong>not work</strong>. You must re-run the same command every 90 days.
+    </div>
+  </body>
+</html>

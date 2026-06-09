@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Security Deep Dive: 4 Types of XSS Attacks</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Theme and Font */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VS Code dark background */
+        color: #d4d4d4; /* Light text color */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter panel background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        font-weight: 700;
+        margin-top: 25px;
+        padding-bottom: 5px;
+      }
+
+      h1 {
+        color: #569cd6; /* VS Code blue for main title */
+        font-size: 2em;
+        border-bottom: 2px solid #3c3c3c;
+      }
+
+      h2 {
+        font-size: 1.5em;
+        color: #4ec9b0; /* Teal/Cyan color for attack types */
+        border-bottom: 1px dashed #3c3c3c;
+      }
+
+      h3 {
+        font-size: 1.2em;
+        color: #ff9d00; /* Orange/Yellow for key sections */
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ff9d00;
+      }
+
+      /* Table Styling (VS Code-like dark theme for data) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #1e1e1e; /* Code block background */
+        border: 1px solid #3c3c3c;
+        border-radius: 4px;
+      }
+
+      th {
+        background-color: #3c3c3c; /* Header background */
+        color: #d4d4d4;
+        padding: 12px;
+        text-align: left;
+        font-weight: 700;
+        font-size: 1.1em;
+        border-bottom: 2px solid #569cd6;
+      }
+
+      td {
+        padding: 12px;
+        border-bottom: 1px solid #3c3c3c;
+        vertical-align: top;
+      }
+
+      /* Syntax Highlighting Imitation within table data for better readability */
+      .risk-level {
+        color: #c586c0; /* Purple for high-value text */
+        font-weight: 700;
+      }
+
+      .code-inline {
+        font-family: 'Consolas', 'Courier New', monospace;
+        background-color: #333333;
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: #9cdcfe; /* Light blue for code */
+      }
+
+      .string-code {
+        color: #ce9178; /* Orange/brown for string */
+      }
+
+      .danger {
+        color: #ff5555; /* Red for critical risk */
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        <span style="color: #ff9d00">🛡️</span> Deep Dive into the 4 Types of XSS
+        Attacks
+      </h1>
+      <p>
+        Cross-Site Scripting (XSS) is a type of **injection attack** where an
+        attacker injects malicious client-side scripts into a website viewed by
+        other users. While XSS is often classified into three primary categories
+        (Stored, Reflected, and DOM-based), a fourth, less common but potent
+        type, **Self-XSS**, is sometimes included for completeness in risk
+        discussions.
+      </p>
+      <p>
+        Here is a deep dive into how each of the four types works, their primary
+        risks, and their typical risk levels.
+      </p>
+
+      <h2>1. Stored XSS (Persistent)</h2>
+      <p>
+        Stored XSS is the **most dangerous** and potent form of XSS because the
+        malicious script is permanently saved on the target server (e.g., in a
+        database, a comment file system, or a content management system).
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 20%">Aspect</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>How it Works</strong></td>
+            <td>
+              <strong>Injection:</strong> An attacker submits a malicious script
+              (e.g., in a comment box, user profile, or forum post).
+              <strong>Storage:</strong> The web application saves this script
+              directly to its backend database without proper sanitization.
+              <strong>Execution:</strong> When any legitimate user (including
+              administrators) views the page containing the stored content, the
+              malicious script is retrieved from the database, included in the
+              HTML response, and executed by the user's browser.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Primary Risk</strong></td>
+            <td>
+              <strong>Widespread and Persistent Compromise.</strong> Since the
+              payload is served to every user who visits the infected page, it
+              has a high potential for mass compromise, including session
+              hijacking, data theft, and defacement across a broad user base.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Risk Level</strong></td>
+            <td class="danger">
+              <span class="risk-level">Critical</span> (Highest severity)
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Analogy</strong></td>
+            <td>
+              A **booby-trapped water source**—once poisoned, everyone who
+              drinks from it is affected until the source is cleaned.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>2. Reflected XSS (Non-Persistent)</h2>
+      <p>
+        Reflected XSS is the **most common** type. The malicious script is
+        "reflected" off a web application back to an individual user, typically
+        delivered via an email or a malicious link.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Aspect</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>How it Works</strong></td>
+            <td>
+              <strong>Injection:</strong> An attacker crafts a URL containing a
+              malicious script as part of the query parameter (e.g.,
+              <span class="code-inline"
+                >https://example.com/search?q=&lt;script&gt;<span
+                  class="string-code"
+                  >alert('XSS')</span
+                >&lt;/script&gt;</span
+              >). <strong>Reflection:</strong> The attacker sends this link to a
+              victim. When the victim clicks the link, the application
+              immediately takes the script from the URL and includes it in the
+              HTTP response page (e.g., displaying the search query in an error
+              message). <strong>Execution:</strong> The victim's browser
+              executes the script immediately.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Primary Risk</strong></td>
+            <td>
+              <strong>Targeted Compromise.</strong> The attack only affects
+              users who click the specific malicious link. It is commonly used
+              for phishing, session hijacking, or harvesting credentials from
+              specific targets.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Risk Level</strong></td>
+            <td style="color: #ff9d00"><span class="risk-level">High</span></td>
+          </tr>
+          <tr>
+            <td><strong>Analogy</strong></td>
+            <td>
+              A **poison dart**—it targets a single, specific victim but is
+              immediately effective upon impact.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>3. DOM-based XSS (Client-Side)</h2>
+      <p>
+        DOM-based XSS occurs entirely within the **client-side browser
+        environment**, and the vulnerability is not visible in the server's
+        response. The payload is executed when client-side script (often
+        JavaScript) processes user-supplied data (e.g., from the URL hash
+        fragment) without sanitization, modifying the page's Document Object
+        Model (DOM).
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Aspect</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>How it Works</strong></td>
+            <td>
+              <strong>Injection:</strong> The attacker places a script in the
+              URL fragment (e.g.,
+              <span class="code-inline"
+                >https://example.com/page#name=&lt;script&gt;...&lt;/script&gt;</span
+              >). <strong>Execution:</strong> A legitimate script on the page
+              reads the data from the URL (like
+              <span class="code-inline">document.location.hash</span>) and
+              writes it back into the page's HTML using an unsafe sink (like
+              <span class="code-inline">element.innerHTML = ...</span>). The
+              script is executed by the browser without ever sending the
+              malicious payload to the server.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Primary Risk</strong></td>
+            <td>
+              <strong>Difficult to Detect.</strong> Since the malicious code
+              isn't seen by the server, traditional server-side security
+              scanners may miss it. It is often used to modify the page
+              interface (e.g., create a fake login form) or steal user data
+              processed locally.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Risk Level</strong></td>
+            <td style="color: #ff9d00"><span class="risk-level">High</span></td>
+          </tr>
+          <tr>
+            <td><strong>Analogy</strong></td>
+            <td>
+              A **faulty house blueprint**—the structure is sound, but a
+              specific worker (the vulnerable client-side script) misreads the
+              local instructions and builds a dangerous trap.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>4. Self-XSS (Social Engineering)</h2>
+      <p>
+        Self-XSS relies on **social engineering** to trick a user into executing
+        malicious code in their own browser console. While technically not a web
+        application vulnerability itself, it is a significant risk vector often
+        used to bypass security controls on major platforms.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Aspect</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>How it Works</strong></td>
+            <td>
+              <strong>Deception:</strong> The attacker convinces a victim (e.g.,
+              through a message promising a free item or a "hack" to view
+              private profiles) to copy and paste a malicious JavaScript payload
+              directly into their browser's developer console and execute it.
+              <strong>Execution:</strong> The victim executes the script, which
+              runs with full privileges within their session context.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Primary Risk</strong></td>
+            <td>
+              <strong>Session Compromise (Self-Inflicted).</strong> The script
+              can steal the victim's session cookies or perform actions on their
+              behalf, such as posting content, liking pages, or changing
+              settings.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Risk Level</strong></td>
+            <td style="color: #4ec9b0">
+              <span class="risk-level">Moderate to High</span> (Relies on user
+              error)
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Analogy</strong></td>
+            <td>
+              Tricking someone into **sabotaging their own car**—the tool used
+              is legitimate (the console), but the instructions provided lead to
+              harm.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

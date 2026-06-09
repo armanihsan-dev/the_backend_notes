@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Percentiles in Observability | PromQL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-chart-bar"></i> PERCENTILES</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. The Concept</div>
+        <a href="#analogy" class="nav-link">The Line Analogy</a>
+        <a href="#definition" class="nav-link">Simple Definition</a>
+        <a href="#class-example" class="nav-link">Class Example</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Observability</div>
+        <a href="#problem" class="nav-link">Why Averages Lie</a>
+        <a href="#reveal" class="nav-link">How Percentiles Help</a>
+        <a href="#common" class="nav-link">Common Percentiles</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Latency Percentile</div>
+        <a href="#latency-what" class="nav-link">What is Latency?</a>
+        <a href="#latency-percentile" class="nav-link">What is Latency Percentile?</a>
+        <a href="#latency-lifecycle" class="nav-link">Request Lifecycle</a>
+        <a href="#latency-read" class="nav-link">How to Read p50/p95/p99</a>
+        <a href="#latency-slo" class="nav-link">Latency SLOs</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Prometheus</div>
+        <a href="#buckets" class="nav-link">Histogram Buckets</a>
+        <a href="#promql" class="nav-link">PromQL Examples</a>
+        <a href="#quiz" class="nav-link">Test Your Understanding</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus</span>
+        <h1>PERCENTILES</h1>
+        <p>UNDERSTANDING PERCENTILES IN OBSERVABILITY — FROM ZERO TO HERO</p>
+      </section>
+
+      <!-- ─── ANALOGY ────────────────────────────────────────── -->
+      <section id="analogy">
+        <h2>THE BEST ANALOGY YOU WILL EVER READ</h2>
+
+        <p>
+          Imagine you and 99 other people are standing in a line from
+          <strong>shortest to tallest</strong>.
+        </p>
+
+        <!-- SVG: Line of people -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;overflow-x:auto">
+          <svg viewBox="0 0 620 110" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:620px;display:block;margin:0 auto;font-family:'JetBrains Mono',monospace">
+            <!-- Baseline -->
+            <line x1="40" y1="80" x2="580" y2="80" stroke="#3f3f46" stroke-width="1.5"/>
+
+            <!-- People silhouettes growing taller left to right -->
+            <rect x="50"  y="70" width="8" height="10" rx="2" fill="#52525b"/>
+            <rect x="80"  y="65" width="8" height="15" rx="2" fill="#52525b"/>
+            <rect x="110" y="60" width="8" height="20" rx="2" fill="#52525b"/>
+            <rect x="140" y="55" width="8" height="25" rx="2" fill="#52525b"/>
+            <rect x="170" y="50" width="8" height="30" rx="2" fill="#52525b"/>
+            <rect x="200" y="45" width="8" height="35" rx="2" fill="#52525b"/>
+            <rect x="230" y="40" width="8" height="40" rx="2" fill="#52525b"/>
+
+            <!-- p90 person highlighted -->
+            <rect x="430" y="28" width="10" height="52" rx="2" fill="#34d399"/>
+            <text x="435" y="20" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">p90</text>
+
+            <rect x="460" y="22" width="8" height="58" rx="2" fill="#52525b"/>
+            <rect x="490" y="18" width="8" height="62" rx="2" fill="#52525b"/>
+            <rect x="520" y="12" width="8" height="68" rx="2" fill="#52525b"/>
+            <rect x="550" y="5"  width="10" height="75" rx="2" fill="#3b82f6"/>
+            <text x="555" y="98" text-anchor="middle" fill="#3b82f6" font-size="9">🏀</text>
+
+            <!-- Labels -->
+            <text x="54"  y="100" text-anchor="middle" fill="#71717a" font-size="9">Position 1</text>
+            <text x="555" y="108" text-anchor="middle" fill="#71717a" font-size="9">Position 100</text>
+            <text x="310" y="98"  text-anchor="middle" fill="#52525b" font-size="9">← 99 people →</text>
+          </svg>
+        </div>
+
+        <h3>Now Answer These Simple Questions</h3>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-circle-question"></i> Question 1</span>
+          <p style="color:var(--text-primary);margin-bottom:0.25rem">If you are at <strong>position 90</strong>, what does that mean?</p>
+          <p style="color:var(--text-secondary);margin-bottom:0"><strong style="color:var(--accent)">Answer:</strong> You are taller than 89 people. Only 10 people are taller than you.</p>
+        </div>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6;margin-top:1rem">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-circle-question"></i> Question 2</span>
+          <p style="color:var(--text-primary);margin-bottom:0.25rem">If you are taller than <strong>95 people</strong>, what position are you at?</p>
+          <p style="color:var(--text-secondary);margin-bottom:0"><strong style="color:#3b82f6">Answer:</strong> Position 96 — because 95 people are shorter and 4 people are taller.</p>
+        </div>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:1.5rem">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-trophy"></i> Congratulations!</span>
+          <p style="color:var(--text-primary);margin-bottom:0">You just understood percentiles.</p>
+        </div>
+      </section>
+
+      <!-- ─── DEFINITION ─────────────────────────────────────── -->
+      <section id="definition">
+        <h2>THE SIMPLE DEFINITION</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-book"></i> Definition</span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem;font-size:1.05rem">
+            A <strong>percentile</strong> is your position in a sorted list,
+            expressed as a <strong>percentage</strong> instead of a position number.
+          </p>
+          <pre style="margin:0;background:var(--bg-tertiary)"><code class="language-text">Percentile = (Values below you / Total values) × 100</code></pre>
+        </div>
+
+        <h3>The Conversion</h3>
+        <table>
+          <thead><tr><th>Position</th><th>Percentile</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>Position 50</td><td><strong>p50</strong></td><td>Taller than 50% of people</td></tr>
+            <tr><td>Position 75</td><td><strong>p75</strong></td><td>Taller than 75% of people</td></tr>
+            <tr><td>Position 90</td><td><strong>p90</strong></td><td>Taller than 90% of people</td></tr>
+            <tr><td>Position 99</td><td><strong>p99</strong></td><td>Taller than 99% of people</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── CLASS EXAMPLE ──────────────────────────────────── -->
+      <section id="class-example">
+        <h2>THE CLASS EXAMPLE — STEP BY STEP</h2>
+
+        <p>10 students with marks, sorted lowest to highest:</p>
+
+        <table>
+          <thead><tr><th>Position</th><th>Student</th><th>Marks</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>J</td><td>50</td></tr>
+            <tr><td>2</td><td>I</td><td>55</td></tr>
+            <tr><td>3</td><td>H</td><td>60</td></tr>
+            <tr><td>4</td><td>G</td><td>65</td></tr>
+            <tr><td>5</td><td>F</td><td>70</td></tr>
+            <tr><td>6</td><td>E</td><td>75</td></tr>
+            <tr><td>7 <span style="color:var(--accent)">★</span></td><td>D</td><td><strong style="color:var(--accent)">80</strong></td></tr>
+            <tr><td>8</td><td>C</td><td>85</td></tr>
+            <tr><td>9</td><td>B</td><td>90</td></tr>
+            <tr><td>10</td><td>A</td><td>95</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Question 1 — What Percentile is the Student with 80 Marks?</h3>
+        <pre><code class="language-text">Students BELOW 80: J, I, H, G, F, E = 6 students
+
+Percentile = (6 / 10) × 100 = 60th percentile</code></pre>
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-check"></i> Meaning</span>
+          <p style="color:var(--text-primary);margin-bottom:0">This student scored better than <strong>60% of the class</strong>.</p>
+        </div>
+
+        <h3>Question 2 — What Marks Correspond to the 60th Percentile?</h3>
+        <pre><code class="language-text">Position = (Percentile / 100) × Total students
+         = (60 / 100) × 10
+         = 6
+
+Look at position 6 in sorted list → 75 marks</code></pre>
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-check"></i> Meaning</span>
+          <p style="color:var(--text-primary);margin-bottom:0"><strong>60% of students scored 75 or less.</strong></p>
+        </div>
+      </section>
+
+      <!-- ─── PROBLEM ────────────────────────────────────────── -->
+      <section id="problem">
+        <h2>WHY AVERAGES LIE</h2>
+
+        <p>Here's a real example from a web server with 100 API requests:</p>
+
+        <pre><code class="language-text">99 requests:  10ms   (very fast)
+ 1 request:  1000ms  (1 second slow)
+
+Average = (99 × 10 + 1000) / 100 = 19.9ms</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> What Your Dashboard Shows</span>
+          <p style="margin-bottom:0">
+            <strong>"Average response time = 20ms — GREAT!"</strong><br/>
+            But 1 user just waited <strong>1 full second</strong>. The average
+            completely hid the problem.
+          </p>
+        </div>
+
+        <table>
+          <thead><tr><th>Metric</th><th>Value</th><th>What It Tells You</th></tr></thead>
+          <tbody>
+            <tr><td>Average</td><td>20ms</td><td style="color:var(--danger)">❌ Misleading — hides the slow request</td></tr>
+            <tr><td>p50</td><td>10ms</td><td style="color:var(--accent)">✅ Typical user experience</td></tr>
+            <tr><td>p99</td><td>1000ms</td><td style="color:var(--accent)">✅ Reveals the 1 slow user</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── REVEAL ─────────────────────────────────────────── -->
+      <section id="reveal">
+        <h2>HOW PERCENTILES REVEAL THE TRUTH</h2>
+
+        <p>Sorting the 100 response times from fastest to slowest:</p>
+
+        <pre><code class="language-text">Position  1–99:  10ms
+Position 100:  1000ms</code></pre>
+
+        <table>
+          <thead><tr><th>Percentile</th><th>Value</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><strong>p50</strong> (median)</td><td>10ms</td><td>Typical user waits 10ms</td></tr>
+            <tr><td><strong>p95</strong></td><td>10ms</td><td>95% of users wait 10ms or less</td></tr>
+            <tr><td><strong style="color:var(--danger)">p99</strong></td><td style="color:var(--danger)">1000ms</td><td style="color:var(--danger)">Reveals the 1% who wait 1 second!</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Class Example vs API Monitoring — Same Math</h3>
+        <table>
+          <thead><tr><th>Class Example</th><th>API Monitoring</th></tr></thead>
+          <tbody>
+            <tr><td>Students</td><td>API Requests</td></tr>
+            <tr><td>Marks</td><td>Response Time (ms)</td></tr>
+            <tr><td>Sorted by marks</td><td>Sorted by response time</td></tr>
+            <tr><td>60th percentile = 75 marks</td><td>p60 = 75ms (60% of requests faster)</td></tr>
+            <tr><td>Student with 80 marks = 60th percentile</td><td>Request with 80ms = 60th percentile</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── COMMON ──────────────────────────────────────────── -->
+      <section id="common">
+        <h2>COMMON PERCENTILES IN OBSERVABILITY</h2>
+
+        <table>
+          <thead><tr><th>Percentile</th><th>What It Means</th><th>Why Use It</th></tr></thead>
+          <tbody>
+            <tr><td><strong>p50</strong> (Median)</td><td>Half your requests are faster than this</td><td>See the typical user experience</td></tr>
+            <tr><td><strong>p95</strong></td><td>95% of requests are faster than this</td><td>See the slow user experience</td></tr>
+            <tr><td><strong>p99</strong></td><td>99% of requests are faster than this</td><td>See the worst-case experience</td></tr>
+            <tr><td><strong>p99.9</strong></td><td>99.9% of requests are faster than this</td><td>Critical services / SLOs only</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Real Numbers Example</h3>
+        <pre><code class="language-text">p50   =   10ms  → "Most users wait 10ms"
+p95   =   50ms  → "5% of users wait 50ms or more"
+p99   =  200ms  → "1% of users wait 200ms or more"
+p99.9 = 1000ms  → "0.1% of users wait 1 second or more"</code></pre>
+      </section>
+
+      <!-- ─── LATENCY WHAT ───────────────────────────────────── -->
+      <section id="latency-what">
+        <h2>WHAT IS LATENCY?</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-book"></i> Definition</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <strong>Latency</strong> is the time it takes for a system to
+            respond to a request — measured from the moment the client sends
+            the request to the moment it receives the full response.
+          </p>
+        </div>
+
+        <h3>The Simple Analogy</h3>
+        <p>
+          You order a pizza. You start the timer when you place the order.
+          You stop the timer when the pizza arrives at your door.
+          <strong>That duration is latency.</strong>
+        </p>
+
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;overflow-x:auto">
+          <svg viewBox="0 0 620 80" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:620px;display:block;margin:0 auto;font-family:'JetBrains Mono',monospace">
+            <!-- Timeline -->
+            <line x1="60" y1="40" x2="560" y2="40" stroke="#3f3f46" stroke-width="2"/>
+            <!-- Start -->
+            <circle cx="60" cy="40" r="6" fill="#3b82f6"/>
+            <text x="60" y="25" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">REQUEST SENT</text>
+            <text x="60" y="62" text-anchor="middle" fill="#71717a" font-size="9">t = 0ms</text>
+            <!-- End -->
+            <circle cx="560" cy="40" r="6" fill="#34d399"/>
+            <text x="560" y="25" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">RESPONSE RECEIVED</text>
+            <text x="560" y="62" text-anchor="middle" fill="#71717a" font-size="9">t = 120ms</text>
+            <!-- Arrow + label -->
+            <line x1="60" y1="40" x2="560" y2="40" stroke="#34d399" stroke-width="2" stroke-dasharray="6,3"/>
+            <text x="310" y="35" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">← LATENCY = 120ms →</text>
+          </svg>
+        </div>
+
+        <h3>What Contributes to Latency?</h3>
+        <table>
+          <thead><tr><th>Component</th><th>What It Is</th><th>Typical Cost</th></tr></thead>
+          <tbody>
+            <tr><td>Network travel</td><td>Time for bytes to travel client → server</td><td>1–50ms</td></tr>
+            <tr><td>Server processing</td><td>CPU time to handle the request logic</td><td>1–500ms</td></tr>
+            <tr><td>Database query</td><td>Time waiting for DB to return data</td><td>1ms–5s</td></tr>
+            <tr><td>External API call</td><td>Waiting for a third-party service</td><td>10ms–10s</td></tr>
+            <tr><td>Network return</td><td>Time for response bytes to travel back</td><td>1–50ms</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Latency vs Response Time</span>
+          <p style="margin-bottom:0">
+            These terms are often used interchangeably. Strictly speaking,
+            <strong>latency</strong> is the network delay only, while
+            <strong>response time</strong> includes processing. In observability,
+            we almost always mean <em>total response time</em> when we say latency.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── LATENCY PERCENTILE ────────────────────────────── -->
+      <section id="latency-percentile">
+        <h2>WHAT IS LATENCY PERCENTILE?</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-book"></i> Definition</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            A <strong>latency percentile</strong> is the answer to:
+            <em>"What response time is X% of my requests completing within?"</em>
+            It applies the percentile concept directly to response time measurements
+            collected from real requests.
+          </p>
+        </div>
+
+        <h3>How It Works — Step by Step</h3>
+        <p>Imagine your server handled <strong>10 requests</strong> with these response times:</p>
+
+        <table>
+          <thead><tr><th>Request #</th><th>Response Time</th><th>Sorted Position</th></tr></thead>
+          <tbody>
+            <tr><td>req-7</td><td style="color:var(--accent)">8ms</td><td>1 (fastest)</td></tr>
+            <tr><td>req-2</td><td style="color:var(--accent)">12ms</td><td>2</td></tr>
+            <tr><td>req-9</td><td style="color:var(--accent)">15ms</td><td>3</td></tr>
+            <tr><td>req-1</td><td style="color:var(--accent)">18ms</td><td>4</td></tr>
+            <tr><td>req-5</td><td style="color:var(--accent)">22ms</td><td>5 ← p50</td></tr>
+            <tr><td>req-3</td><td>35ms</td><td>6</td></tr>
+            <tr><td>req-8</td><td>48ms</td><td>7</td></tr>
+            <tr><td>req-6</td><td>61ms</td><td>8</td></tr>
+            <tr><td>req-4</td><td style="color:#f59e0b">89ms</td><td>9 ← p90</td></tr>
+            <tr><td>req-10</td><td style="color:var(--danger)">430ms</td><td>10 ← p99 (slowest)</td></tr>
+          </tbody>
+        </table>
+
+        <pre><code class="language-text">p50 = 22ms   → 50% of requests finished in 22ms or less
+p90 = 89ms   → 90% of requests finished in 89ms or less
+p99 = 430ms  → 99% of requests finished in 430ms or less</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> The Key Insight</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            p99 = 430ms does <strong>not</strong> mean most users wait 430ms.
+            It means <strong>1 in 100 users</strong> waits that long. The other
+            99 users got their response in 89ms or less. Latency percentiles
+            let you see <em>both</em> the typical experience and the worst-case
+            experience at the same time.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── LATENCY LIFECYCLE ─────────────────────────────── -->
+      <section id="latency-lifecycle">
+        <h2>THE REQUEST LIFECYCLE — WHERE LATENCY COMES FROM</h2>
+
+        <p>Every millisecond of latency comes from somewhere. Here's the full journey of a request:</p>
+
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;overflow-x:auto">
+          <svg viewBox="0 0 620 200" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:620px;display:block;margin:0 auto;font-family:'JetBrains Mono',monospace">
+
+            <!-- Stages -->
+            <!-- 1: Client -->
+            <rect x="10" y="80" width="80" height="40" rx="6" fill="#27272a" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="50" y="96" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">CLIENT</text>
+            <text x="50" y="110" text-anchor="middle" fill="#71717a" font-size="8">browser/app</text>
+
+            <!-- Arrow 1 -->
+            <line x1="90" y1="100" x2="130" y2="100" stroke="#52525b" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="110" y="92" text-anchor="middle" fill="#f59e0b" font-size="8">~5ms</text>
+            <text x="110" y="116" text-anchor="middle" fill="#71717a" font-size="7">network</text>
+
+            <!-- 2: Load Balancer -->
+            <rect x="130" y="80" width="80" height="40" rx="6" fill="#27272a" stroke="#52525b" stroke-width="1.5"/>
+            <text x="170" y="96" text-anchor="middle" fill="#a1a1aa" font-size="9" font-weight="700">LOAD</text>
+            <text x="170" y="110" text-anchor="middle" fill="#a1a1aa" font-size="9">BALANCER</text>
+
+            <!-- Arrow 2 -->
+            <line x1="210" y1="100" x2="250" y2="100" stroke="#52525b" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="230" y="92" text-anchor="middle" fill="#f59e0b" font-size="8">~1ms</text>
+
+            <!-- 3: Server -->
+            <rect x="250" y="80" width="80" height="40" rx="6" fill="#27272a" stroke="#34d399" stroke-width="1.5"/>
+            <text x="290" y="96" text-anchor="middle" fill="#34d399" font-size="9" font-weight="700">SERVER</text>
+            <text x="290" y="110" text-anchor="middle" fill="#71717a" font-size="8">your code</text>
+
+            <!-- Arrow 3 -->
+            <line x1="330" y1="100" x2="370" y2="100" stroke="#52525b" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="350" y="92" text-anchor="middle" fill="#ef4444" font-size="8">~50ms</text>
+            <text x="350" y="116" text-anchor="middle" fill="#71717a" font-size="7">DB query</text>
+
+            <!-- 4: Database -->
+            <rect x="370" y="80" width="80" height="40" rx="6" fill="#27272a" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="410" y="96" text-anchor="middle" fill="#ef4444" font-size="9" font-weight="700">DATABASE</text>
+            <text x="410" y="110" text-anchor="middle" fill="#71717a" font-size="8">postgres/mongo</text>
+
+            <!-- Arrow 4 (return) -->
+            <line x1="450" y1="100" x2="530" y2="100" stroke="#52525b" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="490" y="92" text-anchor="middle" fill="#f59e0b" font-size="8">~5ms</text>
+            <text x="490" y="116" text-anchor="middle" fill="#71717a" font-size="7">network</text>
+
+            <!-- 5: Client receives -->
+            <rect x="530" y="80" width="80" height="40" rx="6" fill="#27272a" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="570" y="96" text-anchor="middle" fill="#3b82f6" font-size="9" font-weight="700">CLIENT</text>
+            <text x="570" y="110" text-anchor="middle" fill="#71717a" font-size="8">gets response</text>
+
+            <!-- Total latency brace -->
+            <line x1="10" y1="155" x2="610" y2="155" stroke="#34d399" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="10" y1="150" x2="10" y2="160" stroke="#34d399" stroke-width="1.5"/>
+            <line x1="610" y1="150" x2="610" y2="160" stroke="#34d399" stroke-width="1.5"/>
+            <text x="310" y="172" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">TOTAL LATENCY ≈ 61ms</text>
+            <text x="310" y="188" text-anchor="middle" fill="#71717a" font-size="9">(network + processing + DB + network return)</text>
+
+            <!-- Arrow marker -->
+            <defs>
+              <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="#52525b"/>
+              </marker>
+            </defs>
+          </svg>
+        </div>
+
+        <p>
+          When Prometheus records <code>http_request_duration_seconds</code>,
+          it captures the <strong>total time from when your server received the
+          request to when it sent the response</strong> — this is your
+          server-side latency. Network time between client and server is
+          <em>not</em> included unless you instrument the client too.
+        </p>
+      </section>
+
+      <!-- ─── LATENCY READ ───────────────────────────────────── -->
+      <section id="latency-read">
+        <h2>HOW TO READ p50 / p95 / p99</h2>
+
+        <p>Given this result from Prometheus:</p>
+        <pre><code class="language-text">p50 =  18ms
+p95 =  95ms
+p99 = 450ms</code></pre>
+
+        <h3>What Each Number Tells You</h3>
+        <table>
+          <thead><tr><th>Percentile</th><th>Value</th><th>Plain English</th><th>Who Experiences This</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong style="color:var(--accent)">p50</strong></td>
+              <td>18ms</td>
+              <td>Half of all users get a response in 18ms or less</td>
+              <td>Your typical user</td>
+            </tr>
+            <tr>
+              <td><strong style="color:#f59e0b">p95</strong></td>
+              <td>95ms</td>
+              <td>95 out of 100 users get a response in 95ms or less</td>
+              <td>Slightly unlucky users</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--danger)">p99</strong></td>
+              <td>450ms</td>
+              <td>99 out of 100 users get a response in 450ms or less</td>
+              <td>The 1 unlucky user in 100</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>The Gap Between p50 and p99 Tells a Story</h3>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem;text-transform:uppercase">✅ Small Gap — Healthy</p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.8rem"><code class="language-text">p50 =  20ms
+p99 =  80ms
+gap = 60ms</code></pre>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:0.75rem;margin-bottom:0">
+              Consistent performance. Even your slowest users have a good experience.
+            </p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem;text-transform:uppercase">❌ Large Gap — Investigate</p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.8rem"><code class="language-text">p50 =   20ms
+p99 = 4500ms
+gap = 4480ms</code></pre>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-top:0.75rem;margin-bottom:0">
+              High variance. Something is causing occasional massive slowdowns — DB timeouts, GC pauses, cold starts.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── LATENCY SLO ────────────────────────────────────── -->
+      <section id="latency-slo">
+        <h2>LATENCY SLOs — SETTING TARGETS</h2>
+
+        <p>
+          A <strong>Service Level Objective (SLO)</strong> is a target you set
+          for your latency percentiles. It defines what "good enough" looks like
+          for your users.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-bullseye"></i> Example SLO</span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            <strong>"99% of requests must complete within 500ms"</strong>
+          </p>
+          <p style="color:var(--text-secondary);margin-bottom:0">
+            This means your p99 latency must stay at or below 500ms. If it
+            exceeds 500ms, your SLO is breached and an alert should fire.
+          </p>
+        </div>
+
+        <h3>Common Latency SLO Targets by Service Type</h3>
+        <table>
+          <thead><tr><th>Service Type</th><th>p50 Target</th><th>p95 Target</th><th>p99 Target</th></tr></thead>
+          <tbody>
+            <tr><td>Static file / CDN</td><td>&lt; 10ms</td><td>&lt; 50ms</td><td>&lt; 100ms</td></tr>
+            <tr><td>REST API (simple)</td><td>&lt; 50ms</td><td>&lt; 200ms</td><td>&lt; 500ms</td></tr>
+            <tr><td>REST API (with DB)</td><td>&lt; 100ms</td><td>&lt; 500ms</td><td>&lt; 1000ms</td></tr>
+            <tr><td>Search / complex query</td><td>&lt; 200ms</td><td>&lt; 1000ms</td><td>&lt; 3000ms</td></tr>
+            <tr><td>Background job</td><td>&lt; 1s</td><td>&lt; 5s</td><td>&lt; 30s</td></tr>
+          </tbody>
+        </table>
+
+        <h3>The PromQL SLO Check</h3>
+        <pre><code class="language-promql"># Alert if p99 latency exceeds 500ms
+histogram_quantile(
+  0.99,
+  sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+) > 0.5</code></pre>
+
+        <div class="note-box danger">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Why p99 and Not p100?</span>
+          <p style="margin-bottom:0">
+            p100 (the maximum) is almost useless for SLOs — a single network
+            hiccup or server restart can spike it to 30 seconds. p99 gives you
+            a <strong>statistically stable</strong> view of your worst-case
+            experience without being thrown off by one-off outliers.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── BUCKETS ────────────────────────────────────────── -->
+      <section id="buckets">
+        <h2>HOW PROMETHEUS CALCULATES PERCENTILES</h2>
+
+        <p>
+          Prometheus doesn't store every individual request. Instead it stores
+          <strong>counts in pre-defined buckets</strong> — each bucket counts
+          how many requests completed within that threshold.
+        </p>
+
+        <h3>The Histogram Buckets</h3>
+        <table>
+          <thead><tr><th>Bucket (le=)</th><th>Count of Requests</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>le="0.01"</code> (10ms)</td><td>90</td><td>90 requests finished in ≤10ms</td></tr>
+            <tr><td><code>le="0.05"</code> (50ms)</td><td>95</td><td>95 requests finished in ≤50ms</td></tr>
+            <tr><td><code>le="0.1"</code> (100ms)</td><td>98</td><td>98 requests finished in ≤100ms</td></tr>
+            <tr><td><code>le="0.5"</code> (500ms)</td><td>99</td><td>99 requests finished in ≤500ms</td></tr>
+            <tr><td><code>le="1"</code> (1000ms)</td><td>100</td><td>100 requests finished in ≤1000ms</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Finding p95 From Buckets</h3>
+        <pre><code class="language-text">Total requests = 100
+95% of 100    = 95th request
+
+Find the bucket that first contains 95 requests:
+  le="0.01" → 90  (not enough)
+  le="0.05" → 95  ✅ found it!
+
+Therefore: p95 ≈ 50ms
+Meaning: 95% of requests completed within 50ms.</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> What le Means
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>le</code> stands for <strong>"less than or equal"</strong>.
+            Each bucket is <em>cumulative</em> — <code>le="0.05"</code> contains
+            all requests that took 50ms <em>or less</em>, not just exactly 50ms.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── PROMQL ─────────────────────────────────────────── -->
+      <section id="promql">
+        <h2>PROMQL EXAMPLES</h2>
+
+        <h3>Example 1 — p95 for All Requests</h3>
+        <pre><code class="language-promql">histogram_quantile(
+  0.95,
+  sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+)</code></pre>
+        <pre><code class="language-text">→ 0.25  (95% of requests complete within 250ms)</code></pre>
+
+        <h3>Example 2 — p99 Per Route</h3>
+        <pre><code class="language-promql">histogram_quantile(
+  0.99,
+  sum by (path, le) (rate(http_request_duration_seconds_bucket[5m]))
+)</code></pre>
+        <pre><code class="language-text">{path="/"}      → 0.1   (100ms p99 — healthy)
+{path="/fancy"} → 0.5   (500ms p99 — acceptable)
+{path="/users"} → 2.0   (2000ms p99 — SLOW! investigate)</code></pre>
+
+        <h3>Example 3 — Check if p99 Meets Your SLO</h3>
+        <pre><code class="language-promql">histogram_quantile(
+  0.99,
+  sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+) &lt;= 0.5</code></pre>
+        <pre><code class="language-text">1 = True  → p99 ≤ 500ms  ✅ SLO met
+0 = False → p99 > 500ms  ❌ ALERT!</code></pre>
+
+        <h3>Quick Reference — quantile Values</h3>
+        <table>
+          <thead><tr><th>Percentile</th><th>PromQL Value</th><th>Example Query</th></tr></thead>
+          <tbody>
+            <tr><td>p50</td><td><code>0.50</code></td><td><code>histogram_quantile(0.50, ...)</code></td></tr>
+            <tr><td>p95</td><td><code>0.95</code></td><td><code>histogram_quantile(0.95, ...)</code></td></tr>
+            <tr><td>p99</td><td><code>0.99</code></td><td><code>histogram_quantile(0.99, ...)</code></td></tr>
+            <tr><td>p99.9</td><td><code>0.999</code></td><td><code>histogram_quantile(0.999, ...)</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── QUIZ ───────────────────────────────────────────── -->
+      <section id="quiz">
+        <h2>TEST YOUR UNDERSTANDING</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-circle-question"></i> Question 1</span>
+          <p style="color:var(--text-primary);margin-bottom:0.75rem">
+            If <strong>p95 = 200ms</strong> for your API, what does this mean?
+          </p>
+          <details style="cursor:pointer">
+            <summary style="color:var(--text-secondary);font-size:0.9rem">Show Answer</summary>
+            <p style="color:var(--accent);margin-top:0.75rem;margin-bottom:0">
+              95% of requests complete within 200ms. Only 5% take longer than 200ms.
+            </p>
+          </details>
+        </div>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6;margin-top:1rem">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-circle-question"></i> Question 2</span>
+          <p style="color:var(--text-primary);margin-bottom:0.75rem">
+            You have <strong>1,000 requests</strong>. How many are slower than your p99?
+          </p>
+          <details style="cursor:pointer">
+            <summary style="color:var(--text-secondary);font-size:0.9rem">Show Answer</summary>
+            <div style="margin-top:1rem;display:flex;flex-direction:column;gap:0.75rem">
+
+              <div style="background:var(--bg-tertiary);border-radius:8px;padding:1rem;border:1px solid var(--border)">
+                <p style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Think of it as a fraction</p>
+                <p style="color:var(--text-primary);font-size:1.4rem;font-family:'JetBrains Mono',monospace;margin-bottom:0;text-align:center">
+                  p99 &nbsp;=&nbsp; <span style="color:#3b82f6">1%</span> &nbsp;=&nbsp;
+                  <span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.2">
+                    <span style="color:#3b82f6;border-bottom:2px solid #3b82f6;padding-bottom:2px">1</span>
+                    <span style="color:var(--text-secondary)">100</span>
+                  </span>
+                </p>
+              </div>
+
+              <div style="background:var(--bg-tertiary);border-radius:8px;padding:1rem;border:1px solid var(--border)">
+                <p style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Step 1 — Multiply top number by total</p>
+                <p style="color:var(--text-primary);font-size:1.3rem;font-family:'JetBrains Mono',monospace;margin-bottom:0;text-align:center">
+                  <span style="color:#3b82f6">1</span> &times; <span style="color:var(--accent)">1,000</span> &nbsp;=&nbsp; <span style="color:var(--text-primary)">1,000</span>
+                </p>
+              </div>
+
+              <div style="background:var(--bg-tertiary);border-radius:8px;padding:1rem;border:1px solid var(--border)">
+                <p style="color:var(--text-secondary);font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Step 2 — Divide by 100 (chop off two zeros)</p>
+                <p style="color:var(--text-primary);font-size:1.3rem;font-family:'JetBrains Mono',monospace;margin-bottom:0;text-align:center">
+                  <span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;line-height:1.2">
+                    <span style="color:var(--text-primary);border-bottom:2px solid var(--text-secondary);padding-bottom:2px">1,000</span>
+                    <span style="color:var(--text-secondary)">100</span>
+                  </span>
+                  &nbsp;=&nbsp; <span style="color:var(--accent);font-weight:700;font-size:1.6rem">10</span>
+                </p>
+              </div>
+
+              <div style="background:var(--accent-dim);border-radius:8px;padding:1rem;border:1px solid var(--accent);text-align:center">
+                <p style="color:var(--accent);font-size:1rem;font-family:'JetBrains Mono',monospace;margin-bottom:0">
+                  <strong>10 requests</strong> are slower than p99
+                </p>
+              </div>
+
+            </div>
+          </details>
+        </div>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #f59e0b;margin-top:1rem">
+          <span class="note-title" style="color:#f59e0b"><i class="fa-solid fa-circle-question"></i> Question 3</span>
+          <p style="color:var(--text-primary);margin-bottom:0.75rem">
+            How many of those 1,000 requests are slower than <strong>p75</strong>?
+          </p>
+          <details style="cursor:pointer">
+            <summary style="color:var(--text-secondary);font-size:0.9rem">Show Answer</summary>
+            <pre style="margin-top:0.75rem;margin-bottom:0;background:var(--bg-tertiary)"><code class="language-text">100 - 75 = 25% are slower than p75
+1,000 × 25 / 100 = 250 requests are slower than p75</code></pre>
+          </details>
+        </div>
+      </section>
+
+      <!-- ─── SUMMARY ────────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <p>
+          A percentile tells you the <strong>value below which a certain
+          percentage of your data falls</strong>.
+        </p>
+
+        <div class="note-box danger">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Why Not Just Use Averages?</span>
+          <p style="margin-bottom:0">
+            Averages hide slow requests. A single 10-second request drowned in
+            thousands of 10ms requests will barely move your average — but that
+            user just had a terrible experience. <strong>Percentiles reveal
+            what averages conceal.</strong>
+          </p>
+        </div>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:2rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">💡 Percentile Cheat Sheet</span>
+          <pre style="margin:0.75rem 0 0;background:var(--bg-secondary)"><code class="language-text">WHAT IS A PERCENTILE?
+  The value below which a given % of data falls.
+
+EXAMPLE: p95 = 500ms
+  → 95% of requests are FASTER than 500ms
+  →  5% of requests are SLOWER than 500ms
+
+COMMON PERCENTILES:
+  p50  = Median (half are faster)
+  p95  = Common SLO target (5% can be slow)
+  p99  = Critical SLO (1% can be slow)
+  p999 = Extreme SLO (0.1% can be slow)
+
+PROMQL SYNTAX:
+  histogram_quantile(0.99, sum(rate(metric_bucket[5m])) by (le))
+
+  p95  → 0.95
+  p99  → 0.99
+  p999 → 0.999</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Percentiles in Observability — PromQL Reference</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

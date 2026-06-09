@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adding Custom Domain in API Gateway</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-primary: #09090b;
+        --bg-secondary: #18181b;
+        --bg-tertiary: #27272a;
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399;
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --border: #27272a;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        font-family: 'Inter', sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 280px;
+        background: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+      }
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+      .nav-link:hover,
+      .nav-link.active {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        overflow-x: auto;
+      }
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+      p code,
+      li code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1.5rem 0;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+      th {
+        background: var(--bg-tertiary);
+        color: var(--accent);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin: 2rem 0;
+      }
+      .card {
+        background: var(--bg-secondary);
+        padding: 1.5rem;
+        border-radius: 8px;
+        border-left: 3px solid var(--accent);
+      }
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-globe"></i> CUSTOM DOMAIN</div>
+      <div class="nav-section">
+        <div class="nav-title">Overview</div>
+        <a href="#architecture" class="nav-link active">Architecture</a>
+        <a href="#services" class="nav-link">Services Involved</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">Steps</div>
+        <a href="#step1" class="nav-link">1. Get a Domain</a>
+        <a href="#step2" class="nav-link">2. SSL Certificate</a>
+        <a href="#step3" class="nav-link">3. API Gateway Setup</a>
+        <a href="#step4" class="nav-link">4. API Mapping</a>
+        <a href="#step5" class="nav-link">5. Configure DNS</a>
+        <a href="#step6" class="nav-link">6. Test It</a>
+      </div>
+      <div class="nav-section">
+        <div class="nav-title">Extras</div>
+        <a href="#real-example" class="nav-link">Real Example</a>
+        <a href="#common-mistakes" class="nav-link">Common Mistakes</a>
+        <a href="#best-setup" class="nav-link">Best Production Setup</a>
+        <a href="#cli" class="nav-link">CLI Method</a>
+        <a href="#checklist" class="nav-link">Quick Checklist</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">AWS Guide</span>
+        <h1>ADDING CUSTOM DOMAIN IN API GATEWAY</h1>
+        <p>MAP YOUR OWN DOMAIN TO AWS API GATEWAY FOR PRODUCTION-READY APIs</p>
+      </section>
+
+      <section id="architecture">
+        <h2>UNDERSTAND THE ARCHITECTURE</h2>
+
+        <h3>High-Level Flow</h3>
+        <pre><code class="language-text">https://api.yourdomain.com
+            ↓
+      API Gateway
+            ↓
+    Lambda / Backend</code></pre>
+
+        <h3>Detailed Request Flow</h3>
+        <pre><code class="language-text">User
+ ↓
+api.example.com
+ ↓
+DNS (Route53 / Cloudflare)
+ ↓
+API Gateway Custom Domain
+ ↓
+API Stage (prod)
+ ↓
+Lambda / Server</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-key"></i> Three Things Must Exist</span
+          >
+          <ul>
+            <li><strong>Domain</strong> — A registered domain name</li>
+            <li>
+              <strong>SSL Certificate</strong> — Issued via AWS Certificate
+              Manager
+            </li>
+            <li><strong>DNS Record</strong> — Pointing to API Gateway</li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="services">
+        <h2>SERVICES INVOLVED</h2>
+        <div class="grid-2">
+          <div class="card">
+            <h4><i class="fa-solid fa-plug"></i> Amazon API Gateway</h4>
+            <p>Manages your API routes and custom domain configuration.</p>
+          </div>
+          <div class="card">
+            <h4><i class="fa-solid fa-lock"></i> AWS Certificate Manager</h4>
+            <p>Issues free SSL/TLS certificates for your domain.</p>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <h4><i class="fa-solid fa-route"></i> Amazon Route 53</h4>
+            <p>AWS DNS service to point your domain to API Gateway.</p>
+          </div>
+          <div class="card">
+            <h4><i class="fa-solid fa-globe"></i> Domain Registrar</h4>
+            <p>Route53, Namecheap, GoDaddy, or Cloudflare.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="step1">
+        <h2>STEP 1 — GET A DOMAIN</h2>
+        <p>
+          You need a registered domain name. You'll typically use a
+          <strong>subdomain</strong> for your API.
+        </p>
+
+        <div class="grid-2">
+          <div class="card">
+            <h4>Domain</h4>
+            <pre><code class="language-text">example.com</code></pre>
+          </div>
+          <div class="card">
+            <h4>Subdomain We'll Use</h4>
+            <pre><code class="language-text">api.example.com</code></pre>
+          </div>
+        </div>
+
+        <p>You can buy domains from:</p>
+        <ul>
+          <li><strong>Route 53</strong> — AWS native</li>
+          <li><strong>Namecheap</strong></li>
+          <li><strong>GoDaddy</strong></li>
+          <li><strong>Cloudflare</strong></li>
+        </ul>
+      </section>
+
+      <section id="step2">
+        <h2>STEP 2 — CREATE SSL CERTIFICATE</h2>
+        <p>Go to <strong>AWS Console → Certificate Manager</strong></p>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-list-check"></i> Console Steps</span
+          >
+          <ol>
+            <li>Click <strong>Request Certificate</strong></li>
+            <li>Add domain: <code>api.example.com</code></li>
+            <li>Choose <strong>DNS Validation</strong> (recommended)</li>
+          </ol>
+        </div>
+
+        <p>AWS gives a DNS record to verify ownership:</p>
+        <pre><code class="language-text">Name:   _abcd.api.example.com
+Value:  xyz.acm-validations.aws</code></pre>
+
+        <p>Add this record to your DNS provider. After a minute or so:</p>
+
+        <div class="card">
+          <h4>✅ Status: Issued</h4>
+          <p>Now AWS trusts your domain and the certificate is ready to use.</p>
+        </div>
+      </section>
+
+      <section id="step3">
+        <h2>STEP 3 — OPEN API GATEWAY</h2>
+        <p>Go to <strong>Amazon API Gateway</strong> in the AWS Console.</p>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-list-check"></i> Console Steps</span
+          >
+          <ol>
+            <li>
+              In the left menu, click <strong>Custom Domain Names</strong>
+            </li>
+            <li>Click <strong>Create</strong></li>
+            <li>Fill in domain name: <code>api.example.com</code></li>
+            <li>Select certificate from <strong>ACM</strong></li>
+            <li>Set endpoint type: <strong>Regional</strong> (recommended)</li>
+            <li>Click <strong>Create domain</strong></li>
+          </ol>
+        </div>
+      </section>
+
+      <section id="step4">
+        <h2>STEP 4 — CREATE API MAPPING</h2>
+        <p>Now connect the custom domain to your actual API.</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Custom Domain</td>
+              <td>api.example.com</td>
+            </tr>
+            <tr>
+              <td>API</td>
+              <td>todo-api</td>
+            </tr>
+            <tr>
+              <td>Stage</td>
+              <td>prod</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Mapping Result</h3>
+        <pre><code class="language-text">api.example.com → todo-api → prod</code></pre>
+
+        <p>
+          After creating the mapping, API Gateway gives you a
+          <strong>Target Domain Name</strong>:
+        </p>
+        <pre><code class="language-text">d-abc123.execute-api.us-east-1.amazonaws.com</code></pre>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-circle-info"></i> Important</span
+          >
+          <p>
+            You need this target domain name for the DNS configuration in the
+            next step.
+          </p>
+        </div>
+      </section>
+
+      <section id="step5">
+        <h2>STEP 5 — CONFIGURE DNS</h2>
+
+        <div class="grid-2">
+          <div class="card">
+            <h4><i class="fa-solid fa-cloud"></i> If Using Route 53</h4>
+            <p>Create an <strong>Alias</strong> record:</p>
+            <pre><code class="language-text">Type:   A
+Alias:  Yes
+Target: API Gateway Domain</code></pre>
+          </div>
+          <div class="card">
+            <h4>
+              <i class="fa-solid fa-server"></i> If Using Cloudflare / Namecheap
+              / GoDaddy
+            </h4>
+            <p>Create a <strong>CNAME</strong> record:</p>
+            <pre><code class="language-text">Type:  CNAME
+Name:  api
+Value: d-abc123.execute-api
+       .us-east-1.amazonaws.com</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="step6">
+        <h2>STEP 6 — WAIT & TEST</h2>
+        <p>DNS propagation usually takes <strong>1 – 5 minutes</strong>.</p>
+
+        <h3>Test Your Custom Domain</h3>
+        <pre><code class="language-text">https://api.example.com
+
+or
+
+https://api.example.com/todos</code></pre>
+
+        <p>Your API should now respond through your custom domain.</p>
+      </section>
+
+      <section id="real-example">
+        <h2>REAL EXAMPLE</h2>
+
+        <div class="grid-2">
+          <div class="card" style="border-left-color: #ef4444">
+            <h4>❌ Default AWS URL</h4>
+            <pre><code class="language-text">https://abc123.execute-api
+  .us-east-1.amazonaws.com
+  /prod/users</code></pre>
+            <p>Long, ugly, hard to remember.</p>
+          </div>
+          <div class="card">
+            <h4>✅ After Custom Domain</h4>
+            <pre><code class="language-text">https://api.example.com/users</code></pre>
+            <p>Cleaner and production-ready.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="common-mistakes">
+        <h2>COMMON MISTAKES DEVELOPERS MAKE</h2>
+
+        <h3>1. Certificate Region Mismatch</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Critical</span
+          >
+          <p>
+            For <strong>Regional APIs</strong>, the certificate must be in the
+            <strong>same region</strong> as your API Gateway.
+          </p>
+        </div>
+        <pre><code class="language-text">API Gateway  → us-east-1
+Certificate  → us-east-1  ✅
+
+API Gateway  → us-east-1
+Certificate  → eu-west-1  ❌</code></pre>
+
+        <h3>2. Wrong DNS Record</h3>
+        <div class="grid-2">
+          <div class="card" style="border-left-color: #ef4444">
+            <h4>❌ Wrong</h4>
+            <pre><code class="language-text">A → execute-api.amazonaws.com</code></pre>
+          </div>
+          <div class="card">
+            <h4>✅ Correct</h4>
+            <pre><code class="language-text">Alias → API Gateway domain
+
+or
+
+CNAME → target domain AWS gives</code></pre>
+          </div>
+        </div>
+
+        <h3>3. Stage Not Mapped</h3>
+        <div class="card" style="border-left-color: #ef4444">
+          <h4>⚠️ Without mapping you get:</h4>
+          <pre><code class="language-text">403 Forbidden</code></pre>
+          <p>Always create the API mapping in Step 4 before testing.</p>
+        </div>
+      </section>
+
+      <section id="best-setup">
+        <h2>BEST PRODUCTION SETUP</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Environment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>api.example.com</code></td>
+              <td>Production</td>
+            </tr>
+            <tr>
+              <td><code>dev-api.example.com</code></td>
+              <td>Development</td>
+            </tr>
+            <tr>
+              <td><code>staging-api.example.com</code></td>
+              <td>Staging</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-shield-halved"></i> Why Separate
+            Domains?</span
+          >
+          <p>
+            You never want dev code hitting production. Separate domains ensure
+            <strong>complete isolation</strong> between environments.
+          </p>
+        </div>
+
+        <h3>Your Stack Example</h3>
+        <pre><code class="language-text">React / Mobile App
+        ↓
+  api.yourapp.com
+        ↓
+    API Gateway
+        ↓
+  AWS Lambda (Node.js)
+        ↓
+  DynamoDB / MongoDB</code></pre>
+      </section>
+
+      <section id="cli">
+        <h2>BONUS — CLI METHOD (REAL DEV WAY)</h2>
+
+        <h3>Create Domain</h3>
+        <pre><code class="language-bash">aws apigatewayv2 create-domain-name \
+  --domain-name api.example.com \
+  --domain-name-configurations CertificateArn=ARN</code></pre>
+
+        <h3>Create Mapping</h3>
+        <pre><code class="language-bash">aws apigatewayv2 create-api-mapping \
+  --domain-name api.example.com \
+  --api-id abc123 \
+  --stage prod</code></pre>
+      </section>
+
+      <section id="checklist">
+        <h2>QUICK CHECKLIST</h2>
+        <p>Before your custom domain works, make sure all of these are done:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Step</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>✔</td>
+              <td>Domain exists</td>
+            </tr>
+            <tr>
+              <td>✔</td>
+              <td>SSL certificate issued</td>
+            </tr>
+            <tr>
+              <td>✔</td>
+              <td>Custom domain created in API Gateway</td>
+            </tr>
+            <tr>
+              <td>✔</td>
+              <td>API mapping added</td>
+            </tr>
+            <tr>
+              <td>✔</td>
+              <td>DNS record created</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-exclamation-triangle"></i> Warning</span
+          >
+          <p>
+            <strong>Miss even one step and it fails.</strong> Go through the
+            checklist carefully before debugging.
+          </p>
+        </div>
+      </section>
+
+      <footer
+        style="
+          margin-top: 4rem;
+          border-top: 1px solid var(--border);
+          padding-top: 2rem;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        "
+      >
+        <p>AWS API Gateway Documentation</p>
+        <p>Adding Custom Domain Guide</p>
+        <p>Built with 💚</p>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script>
+      document.querySelectorAll('.nav-link').forEach((link) => {
+        link.addEventListener('click', function () {
+          document
+            .querySelectorAll('.nav-link')
+            .forEach((l) => l.classList.remove('active'));
+          this.classList.add('active');
+        });
+      });
+    </script>
+  </body>
+</html>

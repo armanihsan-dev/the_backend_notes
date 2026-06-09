@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTTP Anatomy Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        background-color: #252526;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6;
+        border-bottom: 2px solid #3e3e42;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2.5em;
+        margin-bottom: 15px;
+        border-bottom: none;
+      }
+
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      p,
+      li {
+        color: #d4d4d4;
+      }
+
+      strong {
+        color: #c586c0;
+      }
+
+      code {
+        background-color: #3e3e42;
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+        color: #d4d4d4;
+      }
+
+      pre {
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        border: 1px solid #333;
+        margin: 20px 0;
+        position: relative;
+      }
+
+      pre::before {
+        content: 'JavaScript'; /* Change to the appropriate language */
+        position: absolute;
+        top: 5px;
+        right: 10px;
+        color: #57a64a;
+        font-size: 0.8em;
+        font-family: 'Nunito', sans-serif;
+      }
+
+      pre.no-lang::before {
+        content: none;
+      }
+
+      pre code {
+        background: none;
+        color: #d4d4d4;
+        font-family: 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+        white-space: pre;
+        font-size: 14px;
+        display: block;
+      }
+
+      .comment {
+        color: #57a64a;
+      }
+      .keyword {
+        color: #c586c0;
+      }
+      .string {
+        color: #ce9178;
+      }
+      .number {
+        color: #b5cea8;
+      }
+      .variable {
+        color: #9cdcfe;
+      }
+      .function {
+        color: #dcdcaa;
+      }
+      .property {
+        color: #4ec9b0;
+      }
+      .operator {
+        color: #d4d4d4;
+      }
+      .tag {
+        color: #569cd6;
+      }
+      .attribute {
+        color: #9cdcfe;
+      }
+      .attribute-value {
+        color: #ce9178;
+      }
+
+      .table-container {
+        margin: 20px 0;
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background-color: #2a2a2a;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        border: 1px solid #373737;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3e3e42;
+        color: #fff;
+        font-weight: bold;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #3e3e42;
+        margin: 40px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Understanding the Anatomy of HTTP</h1>
+      <p>
+        Understanding the anatomy of HTTP requests and responses is fundamental
+        for web development and backend engineering (and it ties directly to the
+        Node.js HTTP module you’ve been studying). Let’s go step by step:
+      </p>
+
+      <hr />
+
+      <h2><span class="emoji">🌐</span> HTTP Basics</h2>
+      <p>
+        HTTP (HyperText Transfer Protocol) is the communication protocol between
+        a client (like a browser or app) and a server.
+      </p>
+      <p>Every communication involves two parts:</p>
+      <ul>
+        <li>
+          <strong>HTTP Request</strong> – sent by the client to the server.
+        </li>
+        <li>
+          <strong>HTTP Response</strong> – sent by the server back to the
+          client.
+        </li>
+      </ul>
+      <p>Both have a structured format made of:</p>
+      <ul>
+        <li>Start Line (Request-Line or Status-Line)</li>
+        <li>Headers</li>
+        <li>Blank line (\r\n)</li>
+        <li>Body (optional)</li>
+      </ul>
+
+      <hr />
+
+      <h2><span class="emoji">📨</span> Anatomy of an HTTP Request</h2>
+      <h3>1. Request Line</h3>
+      <p>Format:</p>
+      <pre
+        class="no-lang"
+      ><code><span class="tag">&lt;HTTP Method&gt;</span> <span class="tag">&lt;Request-Target / Path&gt;</span> <span class="tag">&lt;HTTP Version&gt;</span></code></pre>
+      <p>Example:</p>
+      <pre class="no-lang"><code>GET /products?id=10 HTTP/1.1</code></pre>
+      <ul>
+        <li>
+          <strong><code>GET</code></strong> → Method (what action is being
+          requested)
+        </li>
+        <li>
+          <strong><code>/products?id=10</code></strong> → Path + query string
+        </li>
+        <li>
+          <strong><code>HTTP/1.1</code></strong> → Protocol version
+        </li>
+      </ul>
+
+      <h3>2. Request Headers</h3>
+      <p>Provide metadata about the request (key-value pairs).</p>
+      <p>Syntax:</p>
+      <pre
+        class="no-lang"
+      ><code><span class="tag">Header-Name</span><span class="operator">:</span> <span class="tag">Header-Value</span></code></pre>
+      <p>Example:</p>
+      <pre
+        class="no-lang"
+      ><code><span class="property">Host</span><span class="operator">:</span> <span class="string">www.example.com</span>
+<span class="property">User-Agent</span><span class="operator">:</span> <span class="string">Mozilla/5.0</span>
+<span class="property">Accept</span><span class="operator">:</span> <span class="string">text/html</span>
+<span class="property">Content-Type</span><span class="operator">:</span> <span class="string">application/json</span>
+<span class="property">Content-Length</span><span class="operator">:</span> <span class="number">55</span></code></pre>
+
+      <h3>3. Blank Line</h3>
+      <p>Separates headers from the body.</p>
+      <p>Always required, even if no body is present.</p>
+
+      <h3>4. Request Body (optional)</h3>
+      <p>Contains data sent to the server (in POST, PUT, PATCH).</p>
+      <p>Example (JSON payload):</p>
+      <pre><code>{
+  <span class="string">"username"</span><span class="operator">:</span> <span class="string">"arman"</span><span class="operator">,</span>
+  <span class="string">"password"</span><span class="operator">:</span> <span class="string">"1234"</span>
+}</code></pre>
+
+      <h3><span class="emoji">✅</span> Full Example Request</h3>
+      <pre
+        class="no-lang"
+      ><code><span class="keyword">POST</span> /login <span class="keyword">HTTP</span>/1.1
+<span class="property">Host</span><span class="operator">:</span> <span class="string">www.example.com</span>
+<span class="property">Content-Type</span><span class="operator">:</span> <span class="string">application/json</span>
+<span class="property">Content-Length</span><span class="operator">:</span> <span class="number">38</span>
+
+{
+  <span class="string">"username"</span><span class="operator">:</span> <span class="string">"arman"</span><span class="operator">,</span>
+  <span class="string">"password"</span><span class="operator">:</span> <span class="string">"1234"</span>
+}</code></pre>
+
+      <hr />
+
+      <h2><span class="emoji">📩</span> Anatomy of an HTTP Response</h2>
+      <h3>1. Status Line</h3>
+      <p>Format:</p>
+      <pre
+        class="no-lang"
+      ><code><span class="tag">&lt;HTTP Version&gt;</span> <span class="tag">&lt;Status Code&gt;</span> <span class="tag">&lt;Status Text&gt;</span></code></pre>
+      <p>Example:</p>
+      <pre class="no-lang"><code>HTTP/1.1 200 OK</code></pre>
+      <ul>
+        <li>
+          <strong><code>HTTP/1.1</code></strong> → Protocol version
+        </li>
+        <li>
+          <strong><code>200</code></strong> → Status code
+        </li>
+        <li>
+          <strong><code>OK</code></strong> → Reason phrase
+        </li>
+      </ul>
+
+      <h3>2. Response Headers</h3>
+      <p>Metadata about the response.</p>
+      <p>Example:</p>
+      <pre
+        class="no-lang"
+      ><code><span class="property">Content-Type</span><span class="operator">:</span> <span class="string">text/html</span>
+<span class="property">Content-Length</span><span class="operator">:</span> <span class="number">1256</span>
+<span class="property">Date</span><span class="operator">:</span> <span class="string">Tue, 26 Aug 2025 10:00:00 GMT</span>
+<span class="property">Server</span><span class="operator">:</span> <span class="string">Node.js</span>
+<span class="property">Set-Cookie</span><span class="operator">:</span> <span class="string">sessionId=abc123</span></code></pre>
+
+      <h3>3. Blank Line</h3>
+      <p>Separates headers from the body.</p>
+
+      <h3>4. Response Body (optional)</h3>
+      <p>The actual content (HTML, JSON, image, file, etc.).</p>
+      <p>Example (HTML response body):</p>
+      <pre><code><span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+  <span class="tag">&lt;head&gt;</span><span class="tag">&lt;title&gt;</span><span class="string">Welcome</span><span class="tag">&lt;/title&gt;</span><span class="tag">&lt;/head&gt;</span>
+  <span class="tag">&lt;body&gt;</span><span class="tag">&lt;h1&gt;</span><span class="string">Hello Arman!</span><span class="tag">&lt;/h1&gt;</span><span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+
+      <h3><span class="emoji">✅</span> Full Example Response</h3>
+      <pre
+        class="no-lang"
+      ><code><span class="keyword">HTTP</span>/1.1 <span class="number">200</span> <span class="string">OK</span>
+<span class="property">Content-Type</span><span class="operator">:</span> <span class="string">text/html</span>
+<span class="property">Content-Length</span><span class="operator">:</span> <span class="number">137</span>
+<span class="property">Date</span><span class="operator">:</span> <span class="string">Tue, 26 Aug 2025 10:00:00 GMT</span>
+<span class="property">Server</span><span class="operator">:</span> <span class="string">Node.js</span>
+
+<span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html&gt;</span>
+  <span class="tag">&lt;head&gt;</span><span class="tag">&lt;title&gt;</span><span class="string">Welcome</span><span class="tag">&lt;/title&gt;</span><span class="tag">&lt;/head&gt;</span>
+  <span class="tag">&lt;body&gt;</span><span class="tag">&lt;h1&gt;</span><span class="string">Hello Arman!</span><span class="tag">&lt;/h1&gt;</span><span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+
+      <hr />
+
+      <h2><span class="emoji">🔎</span> Summary Table</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Part</th>
+              <th>Request Example</th>
+              <th>Response Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Start Line</td>
+              <td><code>GET /home HTTP/1.1</code></td>
+              <td><code>HTTP/1.1 200 OK</code></td>
+            </tr>
+            <tr>
+              <td>Headers</td>
+              <td><code>Host: example.com</code></td>
+              <td><code>Content-Type: text/html</code></td>
+            </tr>
+            <tr>
+              <td>Blank Line</td>
+              <td><code>\r\n</code></td>
+              <td><code>\r\n</code></td>
+            </tr>
+            <tr>
+              <td>Body (optional)</td>
+              <td>JSON, form data, file upload</td>
+              <td>HTML, JSON, image, video</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr />
+
+      <h2><span class="emoji">💡</span> Extra Notes</h2>
+      <ul>
+        <li>Requests always start with method + path.</li>
+        <li>Responses always start with status code.</li>
+        <li>
+          Both use headers for metadata (security, content type, caching,
+          cookies).
+        </li>
+        <li>The body is optional in both.</li>
+      </ul>
+      <img
+        src="./images/Anatomy of HTTP req and res.png"
+        width="100%"
+        height="600px"
+        alt=""
+      />
+    </div>
+  </body>
+</html>

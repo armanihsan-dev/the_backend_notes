@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS S3 API Low-Level Reference</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blackish Theme */
+      :root {
+        --color-bg: #05050b; /* Dark background, similar to VS Code */
+        --color-surface: #1b1b1f; /* Slightly lighter for containers/code blocks */
+        --color-text: #cccccc; /* Light gray text */
+        --color-primary: #569cd6; /* VS Code blue for keywords/titles */
+        --color-secondary: #dcdcaa; /* VS Code yellow for strings/definitions */
+        --color-accent: #c586c0; /* VS Code magenta for functions/directives */
+        --color-heading: #9cdcfe; /* Lighter blue for main headings */
+        --color-violation: #f08080; /* Light coral for warnings/violations */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-surface);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.6em;
+        text-shadow: 0 0 5px rgba(156, 220, 254, 0.3);
+      }
+
+      h3 {
+        font-size: 1.3em;
+        color: var(--color-primary);
+      }
+
+      /* Paragraphs and Emphasis */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--color-secondary);
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ul {
+        list-style: disc;
+        margin-left: 20px;
+        padding: 0;
+      }
+
+      /* Code Sections (VS Code Blackish Theme) */
+      pre {
+        background-color: var(--color-surface);
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        border: 1px solid #333;
+        margin: 20px 0;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: var(--color-text);
+        background-color: var(--color-surface);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+
+      pre code {
+        padding: 0;
+        background-color: transparent;
+      }
+
+      /* VS Code Syntax Highlighting Simulation */
+      .kw {
+        color: var(--color-primary);
+      } /* Keyword (const, import, if, etc.) */
+      .str {
+        color: var(--color-secondary);
+      } /* String literal */
+      .dir {
+        color: var(--color-accent);
+      } /* Directive/function name */
+      .prop {
+        color: #4ec9b0;
+      } /* Property/variable name */
+      .op {
+        color: #f08080;
+      } /* Violation/Error */
+      .cmt {
+        color: #6a9955;
+      } /* Comment */
+      .mono {
+        color: #4ec9b0;
+      } /* Monospace for URLs/URIs */
+      .type {
+        color: #808080;
+      } /* Types/Comments */
+      .lit {
+        color: #b5cea8;
+      } /* Numbers/Boolean literals */
+
+      /* Tables for Key Components */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2c2c2c;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+      }
+      th,
+      td {
+        border: 1px solid #444;
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background-color: #383838;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+      td code {
+        background-color: #383838;
+        padding: 4px 6px;
+      }
+      .icon {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>
+      <span class="icon">🛠️</span> The Power of
+      <code class="dir">aws s3api</code>: Low-Level S3 Interaction
+    </h2>
+    <p>
+      The <code class="dir">aws s3api</code> command is the
+      <strong class="kw">low-level, advanced interface</strong> within the AWS
+      CLI specifically designed for Amazon Simple Storage Service (S3). It
+      grants users the most <strong class="str">granular control</strong> over
+      S3 buckets and objects.
+    </p>
+
+    <h3>
+      <span class="icon">🧾</span> What is <code class="dir">aws s3api</code>?
+    </h3>
+    <p>
+      The <code class="prop">s3api</code> command is distinct from the simpler
+      <code class="dir">aws s3</code> command because it operates at the closest
+      layer to the underlying AWS infrastructure.
+    </p>
+    <ul>
+      <li>
+        <strong class="kw">Low-Level Command</strong>: It interacts
+        <strong class="kw">directly with the Amazon S3 API</strong> (Application
+        Programming Interface).
+      </li>
+      <li>
+        <strong class="kw">Fine-Grained Control</strong>: It gives you
+        <strong class="str">fine-grained control</strong> over buckets and
+        objects, allowing manipulation of properties not exposed by the simpler
+        <code class="dir">aws s3</code> commands.
+      </li>
+      <li>
+        <strong class="kw">1:1 Mapping</strong>: It maps
+        <strong class="str">1:1 with S3’s REST API operations</strong>, meaning
+        any action you could perform via the AWS SDKs (like Python's Boto3) or
+        raw REST endpoints can be done here.
+      </li>
+      <li>
+        <strong class="kw">Analogy</strong>: Think of it as the
+        <strong class="str">"raw power tool"</strong> version of working with
+        S3, meant for precise configuration and infrastructure management.
+      </li>
+    </ul>
+
+    <h2>
+      <span class="icon">⚡</span> Key Capabilities: Bucket and Object
+      Operations
+    </h2>
+    <p>
+      <code class="dir">aws s3api</code> is primarily used to manage the
+      configuration, security, and metadata of your storage resources.
+    </p>
+
+    <h3>
+      <span class="icon">✅</span> Bucket-Level Operations (Configuration and
+      Security)
+    </h3>
+    <p>
+      These commands deal with the settings of the container itself, managing
+      how data is handled within it.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Creation/Deletion</strong></td>
+          <td>Creating, deleting, and listing buckets.</td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Bucket Policies</strong></td>
+          <td>
+            Managing security access rules that govern who can do what with the
+            bucket's content.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">CORS Rules</strong></td>
+          <td>
+            Configuring Cross-Origin Resource Sharing (CORS) rules for web
+            browser access.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Lifecycle Rules</strong></td>
+          <td>
+            Defining policies to automatically transition objects to cheaper
+            storage tiers (like Glacier) or expire them after a set time.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Replication Settings</strong></td>
+          <td>
+            Configuring automatic replication of data to a different AWS region
+            or account.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Versioning</strong></td>
+          <td>
+            Managing the status of S3 Versioning (enabling/suspending) to keep
+            multiple versions of an object.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Logging & Encryption</strong></td>
+          <td>
+            Configuring access logging and enforcing server-side encryption
+            settings (SSE).
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>
+      <span class="icon">✅</span> Object-Level Operations (Metadata and Access)
+    </h3>
+    <p>
+      These commands focus on the properties and security of individual files
+      (objects).
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Upload/Download/Delete</strong></td>
+          <td>
+            High-level operations (<code class="prop">put-object</code>,
+            <code class="prop">get-object</code>,
+            <code class="prop">delete-object</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Copy/Rename</strong></td>
+          <td>
+            Using <code class="prop">copy-object</code> to duplicate or
+            effectively rename an object.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Get Metadata</strong></td>
+          <td>
+            Retrieving all user-defined and system metadata (<code class="prop"
+              >head-object</code
+            >).
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Manage ACLs and Tags</strong></td>
+          <td>
+            Setting explicit Access Control Lists (ACLs) and key-value tags on
+            individual objects.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>
+      <span class="icon">🎯</span> When to Use
+      <code class="dir">aws s3api</code>
+    </h2>
+    <p>
+      <code class="prop">s3api</code> should be the command of choice when
+      simplicity is less important than total control.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Use Case</th>
+          <th>Why <code class="dir">s3api</code> is Required</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Low-Level Control</strong></td>
+          <td>
+            It works directly with the S3 REST API, giving you access to all
+            parameters and features.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Scripting or Automation</strong></td>
+          <td>
+            Perfect for <strong class="str">CI/CD</strong>,
+            <strong class="str">DevOps</strong>, and
+            <strong class="str">Infrastructure as Code</strong> where
+            configuring features like versioning, encryption, and policies must
+            be done programmatically.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Advanced Features</strong></td>
+          <td>
+            Necessary for configuring features that are not simple file
+            transfers, such as <strong class="str">CORS</strong>,
+            <strong class="str">tagging</strong>,
+            <strong class="str">ACLs</strong>,
+            <strong class="str">encryption</strong>, and
+            <strong class="str">lifecycle management</strong>.
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">File Metadata/Permissions</strong></td>
+          <td>
+            When you need to read or modify specific object metadata or change
+            object-level access permissions.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>
+      <span class="icon">🆚</span> Comparison with
+      <code class="dir">aws s3</code>
+    </h2>
+    <p>
+      It is essential to know which tool to use. The distinction is between
+      functionality and simplicity.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th><code class="dir">aws s3api</code> (The Advanced Toolset)</th>
+          <th><code class="dir">aws s3</code> (The Simple Tool)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">Purpose</strong></td>
+          <td>
+            <strong class="str">Configuration, Metadata, and Security</strong>
+          </td>
+          <td>
+            <strong class="str">File Transfer, Sync, and Simple Listing</strong>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Simpler Syntax</strong></td>
+          <td><span class="op">❌ No</span> (It is verbose and complex)</td>
+          <td>
+            <span class="kw">✅ Yes</span> (Intuitive commands:
+            <code class="prop">cp</code>, <code class="prop">ls</code>,
+            <code class="prop">sync</code>)
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Upload/Download</strong></td>
+          <td>
+            <span class="kw">✅ Yes</span> (using
+            <code class="prop">put-object</code>/<code class="prop"
+              >get-object</code
+            >)
+          </td>
+          <td>
+            <span class="kw">✅ Yes</span> (Highly optimized for large recursive
+            transfers)
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Manage Policies</strong></td>
+          <td>
+            <span class="kw">✅ Yes</span> (e.g.,
+            <code class="dir">put-bucket-policy</code>)
+          </td>
+          <td><span class="op">❌ No</span></td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Manage Metadata</strong></td>
+          <td>
+            <span class="kw">✅ Yes</span> (Allows custom metadata on upload)
+          </td>
+          <td>
+            <span class="op">❌ No</span> (Only handles basic system metadata)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong class="kw">Summary:</strong></p>
+    <ul>
+      <li>
+        For everyday uploads, downloads, and directory synchronization, use the
+        simple and efficient <code class="dir">aws s3</code>.
+      </li>
+      <li>
+        For full control over
+        <strong class="str"
+          >buckets, permissions, metadata, CORS, versioning, and lifecycle
+          management</strong
+        >, use the powerful <code class="dir">aws s3api</code>.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>
+      <span class="icon">🪣</span> BUCKET OPERATIONS (with
+      <code class="dir">s3api</code>)
+    </h2>
+
+    <p><strong class="kw">✅ List all buckets</strong></p>
+    <pre><code class="language-bash"><span class="dir">aws s3api list-buckets</span></code></pre>
+
+    <p><strong class="kw">✅ Create a bucket</strong></p>
+    <p>
+      For <code class="str">us-east-1</code> (default location for new buckets):
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api create-bucket --bucket my-bucket-name --region us-east-1</span></code></pre>
+    <p>For other locations (e.g., <code class="str">ap-south-1</code>):</p>
+    <pre><code class="language-bash"><span class="dir">aws s3api create-bucket --bucket my-bucket-name --region ap-south-1 --create-bucket-configuration LocationConstraint=ap-south-1</span></code></pre>
+
+    <p><strong class="kw">✅ Delete a bucket</strong></p>
+    <pre><code class="language-bash"><span class="dir">aws s3api delete-bucket --bucket my-bucket-name</span></code></pre>
+
+    <hr />
+
+    <h2>
+      <span class="icon">📄</span> FILE & FOLDER OPERATIONS (with
+      <code class="dir">s3api</code>)
+    </h2>
+    <p>
+      S3 doesn't have real <strong class="str">folders</strong>, just key
+      prefixes. So these are
+      <strong class="str">object-level</strong> operations.
+    </p>
+
+    <p>
+      <strong class="kw"
+        >✅ List files (<code class="prop">list-objects-v2</code>)</strong
+      >
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api list-objects-v2 --bucket my-bucket-name</span></code></pre>
+
+    <p><strong class="kw">✅ List only a “folder”</strong></p>
+    <pre><code class="language-bash"><span class="dir">aws s3api list-objects-v2 --bucket my-bucket-name --prefix folder1/</span></code></pre>
+
+    <p>
+      <strong class="kw"
+        >✅ Upload a file (<code class="prop">put-object</code>)</strong
+      >
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api put-object --bucket my-bucket-name --key folder1/file.txt --body ./localfile.txt</span></code></pre>
+
+    <p>
+      <strong class="kw"
+        >✅ Download a file (<code class="prop">get-object</code>)</strong
+      >
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api get-object --bucket my-bucket-name --key folder1/file.txt ./localfile.txt</span></code></pre>
+
+    <p>
+      <strong class="kw"
+        >✅ Delete a file (<code class="prop">delete-object</code>)</strong
+      >
+    </p>
+    <pre><code class="language-bash"><span class="dir">aws s3api delete-object --bucket my-bucket-name --key folder1/file.txt</span></code></pre>
+
+    <p><strong class="kw">✅ Rename a file (copy + delete)</strong></p>
+    <pre><code class="language-bash"><span class="cmt"># Step 1: Copy the file to new name</span>
+<span class="dir">aws s3api copy-object \</span>
+  <span class="op">--bucket</span> <span class="prop">my-bucket-name \</span>
+  <span class="op">--copy-source</span> <span class="prop">my-bucket-name/folder1/old.txt \</span>
+  <span class="op">--key</span> <span class="prop">folder1/new.txt</span>
+
+<span class="cmt"># Step 2: Delete the old file</span>
+<span class="dir">aws s3api delete-object --bucket my-bucket-name --key folder1/old.txt</span></code></pre>
+  </body>
+</html>

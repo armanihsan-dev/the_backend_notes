@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Mastery: Variables</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Part 3: Understanding NGINX Variables</h1>
+
+    <h2>1️⃣ What are variables in NGINX? (Clear definition)</h2>
+    <p>
+      NGINX variables are <strong>runtime placeholders</strong> that hold
+      request-specific or connection-specific values.
+    </p>
+    <div class="note-box">
+      <strong>They:</strong>
+      <ul>
+        <li>Start with <code>$</code></li>
+        <li>Are evaluated per request</li>
+        <li>Change dynamically for each client</li>
+      </ul>
+    </div>
+
+    <p>
+      Example: <code>$host</code>, <code>$uri</code>, <code>$remote_addr</code>
+    </p>
+
+    <p><strong>Think of them like:</strong></p>
+    <ul>
+      <li><code>req.headers.host</code></li>
+      <li><code>req.url</code></li>
+      <li><code>req.ip</code></li>
+    </ul>
+    <p>...in Node.js.</p>
+
+    <h2>2️⃣ Why variables exist (use cases)</h2>
+    <p>Variables let you:</p>
+    <ul>
+      <li>Forward client info to backend</li>
+      <li>Route traffic dynamically</li>
+      <li>Customize headers</li>
+      <li>Log intelligently</li>
+      <li>Build condition-based configs (without <strong>if hell</strong>)</li>
+    </ul>
+
+    <h2>3️⃣ Variable syntax (important rules)</h2>
+    <p>Basic usage:</p>
+    <pre><code><span class="prop">proxy_set_header</span> Host <span class="str">$host</span>;</code></pre>
+
+    <p>Inside strings:</p>
+    <pre><code><span class="kw">add_header</span> X-Request <span class="str">"$request_method $uri"</span>;</code></pre>
+
+    <p>Default value fallback:</p>
+    <pre><code><span class="prop">proxy_set_header</span> Host <span class="str">$host:$server_port</span>;</code></pre>
+
+    <div class="warning-box">
+      <strong>⚠️ Variables are read-only</strong> (you don’t assign like JS).
+    </div>
+
+    <h2>4️⃣ Categories of NGINX variables (you should know this)</h2>
+    <ul>
+      <li><strong>A)</strong> Client & request variables</li>
+      <li><strong>B)</strong> URI & routing variables</li>
+      <li><strong>C)</strong> Header variables</li>
+      <li><strong>D)</strong> Proxy-related variables</li>
+      <li><strong>E)</strong> Connection variables</li>
+    </ul>
+
+    <h2>5️⃣ Most common variables (YOU WILL USE THESE)</h2>
+    <h3>🔹 Client / request info</h3>
+    <table>
+      <tr>
+        <th>Variable</th>
+        <th>Meaning</th>
+      </tr>
+      <tr>
+        <td>$remote_addr</td>
+        <td>Client IP</td>
+      </tr>
+      <tr>
+        <td>$remote_port</td>
+        <td>Client port</td>
+      </tr>
+      <tr>
+        <td>$request_method</td>
+        <td>GET / POST</td>
+      </tr>
+      <tr>
+        <td>$request_uri</td>
+        <td>Full URI with query</td>
+      </tr>
+      <tr>
+        <td>$uri</td>
+        <td>URI without query</td>
+      </tr>
+      <tr>
+        <td>$args</td>
+        <td>Query string</td>
+      </tr>
+      <tr>
+        <td>$scheme</td>
+        <td>http / https</td>
+      </tr>
+      <tr>
+        <td>$host</td>
+        <td>Requested host</td>
+      </tr>
+    </table>
+    <p>Example:</p>
+    <pre><code><span class="kw">add_header</span> X-Debug-Client <span class="str">"$remote_addr"</span>;</code></pre>
+
+    <h3>🔹 Header variables</h3>
+    <p>
+      NGINX exposes headers like this: <code>$http_&lt;header_name&gt;</code>
+    </p>
+    <p>
+      Example: <code>$http_user_agent</code>, <code>$http_authorization</code>,
+      <code>$http_cookie</code>
+    </p>
+    <p>Use case:</p>
+    <pre><code><span class="prop">proxy_set_header</span> Authorization <span class="str">$http_authorization</span>;</code></pre>
+
+    <h3>🔹 URI & routing variables</h3>
+    <table>
+      <tr>
+        <th>Variable</th>
+        <th>Meaning</th>
+      </tr>
+      <tr>
+        <td>$request_uri</td>
+        <td>/api/users?id=1</td>
+      </tr>
+      <tr>
+        <td>$uri</td>
+        <td>/api/users</td>
+      </tr>
+      <tr>
+        <td>$is_args</td>
+        <td>? or empty</td>
+      </tr>
+      <tr>
+        <td>$args</td>
+        <td>id=1</td>
+      </tr>
+    </table>
+    <p>Rebuild full URL: <code>$uri$is_args$args</code></p>
+
+    <h2>6️⃣ Proxy-related variables (MOST IMPORTANT FOR YOU)</h2>
+    <p>These are core reverse proxy variables.</p>
+
+    <h3>🔹 $proxy_add_x_forwarded_for</h3>
+    <p>Appends client IP to existing X-Forwarded-For:</p>
+    <pre><code><span class="prop">proxy_set_header</span> X-Forwarded-For <span class="str">$proxy_add_x_forwarded_for</span>;</code></pre>
+    <p>Result: <code>X-Forwarded-For: clientIP, proxyIP</code></p>
+
+    <h3>🔹 $remote_addr vs $proxy_add_x_forwarded_for</h3>
+    <table>
+      <tr>
+        <th>Variable</th>
+        <th>Meaning</th>
+      </tr>
+      <tr>
+        <td>$remote_addr</td>
+        <td>Direct client IP</td>
+      </tr>
+      <tr>
+        <td>$proxy_add_x_forwarded_for</td>
+        <td>Proxy chain</td>
+      </tr>
+    </table>
+    <div class="warning-box">
+      Never use <strong>$remote_addr</strong> alone in proxy chains.
+    </div>
+
+    <h3>🔹 $scheme</h3>
+    <p>Used to tell backend if request was HTTPS:</p>
+    <pre><code><span class="prop">proxy_set_header</span> X-Forwarded-Proto <span class="str">$scheme</span>;</code></pre>
+    <p>Node uses this for: Secure cookies, Redirects, Absolute URLs.</p>
+
+    <h3>🔹 $host</h3>
+    <pre><code><span class="prop">proxy_set_header</span> Host <span class="str">$host</span>;</code></pre>
+    <p>Keeps original domain for: Multi-tenant apps, Auth callbacks, CORS.</p>
+
+    <h3>🔹 $server_port</h3>
+    <pre><code><span class="prop">proxy_set_header</span> X-Forwarded-Port <span class="str">$server_port</span>;</code></pre>
+
+    <h2>7️⃣ Variables related to upstream (advanced)</h2>
+    <table>
+      <tr>
+        <th>Variable</th>
+        <th>Meaning</th>
+      </tr>
+      <tr>
+        <td>$upstream_addr</td>
+        <td>Backend server</td>
+      </tr>
+      <tr>
+        <td>$upstream_status</td>
+        <td>Backend status code</td>
+      </tr>
+      <tr>
+        <td>$upstream_response_time</td>
+        <td>Backend latency</td>
+      </tr>
+    </table>
+    <p>Logging example:</p>
+    <pre><code><span class="dir">log_format</span> proxylog <span class="str">'$remote_addr $upstream_addr $upstream_status $upstream_response_time'</span>;
+<span class="dir">access_log</span> /var/log/nginx/access.log proxylog;</code></pre>
+
+    <h2>8️⃣ Custom variables using map (VERY powerful)</h2>
+    <p>Example: detect mobile users</p>
+    <pre><code><span class="kw">map</span> <span class="str">$http_user_agent</span> <span class="prop">$is_mobile</span> {
+    <span class="kw">default</span> <span class="lit">0</span>;
+    <span class="str">"~*iphone|android"</span> <span class="lit">1</span>;
+}
+
+<span class="cmt"># Use it:</span>
+<span class="kw">add_header</span> X-Mobile <span class="str">$is_mobile</span>;</code></pre>
+
+    <h2>9️⃣ Common real-world proxy config (with variables)</h2>
+    <pre><code><span class="kw">location</span> / {
+    <span class="prop">proxy_pass</span> http://127.0.0.1:3000;
+
+    <span class="prop">proxy_set_header</span> Host <span class="str">$host</span>;
+    <span class="prop">proxy_set_header</span> X-Real-IP <span class="str">$remote_addr</span>;
+    <span class="prop">proxy_set_header</span> X-Forwarded-For <span class="str">$proxy_add_x_forwarded_for</span>;
+    <span class="prop">proxy_set_header</span> X-Forwarded-Proto <span class="str">$scheme</span>;
+}</code></pre>
+    <p>This is not optional — it’s required for sane backends.</p>
+
+    <h2>1️⃣0️⃣ Common mistakes (learn from others)</h2>
+    <ul>
+      <li>❌ Using <code>$http_host</code> instead of <code>$host</code></li>
+      <li>❌ Forgetting <code>$proxy_add_x_forwarded_for</code></li>
+      <li>❌ Assuming variables are global</li>
+      <li>❌ Using <code>if</code> instead of <code>map</code></li>
+      <li>❌ Hardcoding values instead of variables</li>
+    </ul>
+
+    <div class="note-box">
+      <strong>Final mental model (lock this in):</strong>
+      <p>
+        Variables = live request data. They are evaluated per request. NGINX
+        routes, logs, and proxies using them.
+      </p>
+    </div>
+
+    <p>
+      Once you master variables, you can:
+      <strong>Build dynamic routing</strong>, <strong>Debug traffic</strong>,
+      <strong>Secure headers</strong>, and <strong>Optimize proxies</strong>.
+    </p>
+  </body>
+</html>

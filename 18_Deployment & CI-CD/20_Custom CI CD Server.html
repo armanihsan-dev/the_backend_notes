@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Custom CI/CD Pipeline | Node.js & GitHub Webhooks</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b;
+        --bg-secondary: #18181b;
+        --bg-tertiary: #27272a;
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399; /* Emerald Green */
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --border: #27272a;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-link.active {
+        color: var(--accent);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--accent-dim) 0%,
+          transparent 100%
+        );
+        font-weight: 600;
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.3rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-brands fa-node-js"></i> CI/CD BUILDER</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-cicd" class="nav-link">What is CI/CD?</a>
+        <a href="#webhooks" class="nav-link">GitHub Webhooks</a>
+        <a href="#workflow" class="nav-link">The Workflow</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Implementation</div>
+        <a href="#structure" class="nav-link">Folder Structure</a>
+        <a href="#basic-server" class="nav-link">Basic Server Setup</a>
+        <a href="#pipeline-script" class="nav-link">MERN Pipeline Script</a>
+        <a href="#integration" class="nav-link">Integrating Pipeline</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Deployment</div>
+        <a href="#github-setup" class="nav-link">GitHub & Ngrok Setup</a>
+        <a href="#complete-example" class="nav-link">Complete Server Code</a>
+        <a href="#deployment" class="nav-link">Deploy to VPS</a>
+        <a href="#troubleshooting" class="nav-link">Troubleshooting</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Node.js & GitHub</span>
+        <h1>CUSTOM CI/CD PIPELINE</h1>
+        <p>BUILD YOUR OWN AUTOMATION SERVER FROM SCRATCH</p>
+      </section>
+
+      <section id="what-is-cicd">
+        <h2>PART 1: WHAT IS ALL THIS?</h2>
+
+        <h3>What is CI/CD?</h3>
+        <ul>
+          <li>
+            <strong>CI (Continuous Integration):</strong> "Every time you save
+            code, automatically test it."
+          </li>
+          <li>
+            <strong>CD (Continuous Deployment):</strong> "If tests pass,
+            automatically deploy to server."
+          </li>
+        </ul>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-bicycle"></i> Real-Life Analogy</span
+          >
+          <p>
+            <strong>Without CI/CD:</strong> Write code → Save files → Run tests
+            manually → Deploy manually (type many commands) → Check if it works.
+          </p>
+          <p>
+            <strong>With CI/CD:</strong> Write code → Push to GitHub → 🤖
+            <strong>MAGIC HAPPENS AUTOMATICALLY</strong> (Tested, Built,
+            Deployed).
+          </p>
+        </div>
+      </section>
+
+      <section id="webhooks">
+        <h2>WHAT ARE GITHUB WEBHOOKS?</h2>
+        <p>Think of it as GitHub calling your phone when something happens:</p>
+        <ul>
+          <li>You push code → GitHub calls your server (HTTP POST)</li>
+          <li>You create a pull request → GitHub calls your server</li>
+          <li>You merge code → GitHub calls your server</li>
+        </ul>
+      </section>
+
+      <section id="workflow">
+        <h2>PART 2: HOW IT ALL WORKS TOGETHER</h2>
+        <pre><code class="language-text">You Push Code to GitHub
+        ↓
+GitHub Sends a Webhook (HTTP POST)
+        ↓
+Your Node.js Server Receives It
+        ↓
+Server Runs Your Pipeline Script
+        ↓
+Pipeline: Test → Build → Deploy
+        ↓
+Server Reports Back to You</code></pre>
+      </section>
+
+      <section id="structure">
+        <h2>PART 3: PROJECT FOLDER STRUCTURE</h2>
+        <pre><code class="language-text">
+my-ci-cd-server # Main folder
+│
+├── client/                         # Frontend (Vite + React)
+│   ├── dist/
+│   ├── node_modules/
+│   ├── public/
+│   ├── src/
+│   ├── .gitignore
+│   ├── eslint.config.js
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── README.md
+│   └── vite.config.js
+│
+├── server/                         # Backend (Express API)
+│   ├── node_modules/
+│   ├── .env
+│   ├── .gitignore
+│   ├── package.json
+│   ├── package-lock.json
+│   └── server.js                   # Main backend server
+│
+├── deploy.sh                       # Bash deployment script
+│
+└── README.md (optional)
+</code></pre>
+      </section>
+
+      <section id="basic-server">
+        <h2>PART 4: BASIC SERVER SETUP</h2>
+
+        <h3>1. Initialize Project</h3>
+        <pre><code class="language-bash">mkdir my-ci-cd-server
+cd my-ci-cd-server
+mkdir client server 
+touch deploy.sh deploy.mjs
+
+cd server
+npm init -y
+touch server.js .env .gitignore 
+npm install express
+
+cd ..
+
+cd client
+npm create vite@latest
+</code></pre>
+
+        <h3>2. Inside server/server.js (server.js)</h3>
+        <pre><code class="language-javascript">
+import express from "express";
+import { spawn } from "child_process";
+import crypto from "crypto";
+
+const app = express();
+const PORT = 5000;
+
+/* ================================
+   🔐 VERIFY GITHUB SIGNATURE
+================================ */
+function verifyGitHub(req) {
+    //we will update this later
+}
+
+/* ================================
+   ⚠️ IMPORTANT MIDDLEWARE ORDER
+   raw body FIRST for webhook
+================================ */
+app.use("/githubwebhook", express.raw({ type: "*/*" }));
+
+// normal json middleware for other routes
+app.use(express.json());
+
+/* ================================
+   HOME ROUTE
+================================ */
+app.get("/", (req, res) => {
+  res.send("🚀 CI/CD Server running");
+});
+
+/* ================================
+   🔥 GITHUB WEBHOOK ROUTE
+================================ */
+app.post("/githubwebhook", (req, res) => {
+
+    // we will update this later
+
+  res.status(200).json({
+    success: true,
+    message: "🚀 Deployment started"
+  });
+});
+
+/* ================================
+   START SERVER
+================================ */
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+        </code></pre>
+      </section>
+
+      <section id="pipeline-script">
+        <h2>STEP 3: CREATE THE PIPELINE SCRIPT</h2>
+        <p>Update the deploy.sh in the root folder</p>
+
+        <pre><code class="language-javascript">
+#!/bin/bash
+
+echo "🚀 Starting MERN Deployment..."
+
+reactmsg=$1
+
+if [ -z "$reactmsg" ]; then
+  reactmsg="update project"
+fi
+
+echo "📦 Committing changes..."
+cd client
+
+npm install
+npm run build
+
+git add .
+git commit -m "$reactmsg"
+git push origin main
+
+echo "Setting up backend..."
+cd ../server
+npm install
+npm run dev
+
+
+echo "✅ Deployment complete!"
+        </code></pre>
+      </section>
+
+      <section id="github-setup">
+        <h2>PART 5: SETTING UP GITHUB WEBHOOK</h2>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-globe"></i> Expose Local Server</span
+          >
+          <p>
+            Since your server is localhost, GitHub can't reach it. Use
+            <strong>ngrok</strong>.
+          </p>
+          <pre><code class="language-bash">ngrok http 3000
+# Copy the URL: https://abc1234.ngrok.io</code></pre>
+        </div>
+
+        <h3>GitHub Steps:</h3>
+        <ol>
+          <li>
+            Go to Repository <strong>Settings</strong> →
+            <strong>Webhooks</strong>.
+          </li>
+          <li>Click <strong>Add webhook</strong>.</li>
+          <li>
+            <strong>Payload URL:</strong>
+            <code>https://abc1234.ngrok.io/webhook</code>
+          </li>
+          <li><strong>Content type:</strong> <code>application/json</code></li>
+          <li><strong>Events:</strong> Select "Just the push event".</li>
+          <li>Click <strong>Add webhook</strong>.</li>
+        </ol>
+      </section>
+
+      <section id="complete-example">
+        <h2>PART 6: COMPLETE SERVER WITH SECURITY</h2>
+        <p>
+          Here is the robust `server.js` including signature verification
+          (security) and deployment status tracking.
+        </p>
+
+        <pre><code class="language-javascript">
+import express from "express";
+import { spawn } from "child_process";
+import crypto from "crypto";
+
+const app = express();
+const PORT = 5000;
+
+/* ================================
+   🔐 VERIFY GITHUB SIGNATURE
+================================ */
+function verifyGitHub(req) {
+  const signature = req.headers["x-hub-signature-256"];
+  const secret = "cicdsec@123"; // MUST match GitHub webhook secret
+
+  if (!signature) return false;
+
+  const hash =
+    "sha256=" +
+    crypto.createHmac("sha256", secret).update(req.body).digest("hex");
+
+  const sigBuffer = Buffer.from(signature);
+  const hashBuffer = Buffer.from(hash);
+
+  if (sigBuffer.length !== hashBuffer.length) return false;
+
+  return crypto.timingSafeEqual(sigBuffer, hashBuffer);
+}
+
+/* ================================
+   ⚠️ IMPORTANT MIDDLEWARE ORDER
+   raw body FIRST for webhook
+================================ */
+app.use("/githubwebhook", express.raw({ type: "*/*" }));
+
+// normal json middleware for other routes
+app.use(express.json());
+
+/* ================================
+   HOME ROUTE
+================================ */
+app.get("/", (req, res) => {
+  res.send("🚀 CI/CD Server running");
+});
+
+/* ================================
+   🔥 GITHUB WEBHOOK ROUTE
+================================ */
+app.post("/githubwebhook", (req, res) => {
+  console.log("📩 Webhook received");
+
+  // verify request came from github
+  if (!verifyGitHub(req)) {
+    console.log("❌ Unauthorized webhook attempt blocked");
+    return res.status(401).send("Not allowed");
+  }
+
+  console.log("✅ GitHub webhook verified");
+  console.log("🚀 Starting deployment...");
+
+  // run deploy script
+  const bashChildProcess = spawn("bash", ['deploy.sh'], {
+    cwd: '../'
+  });
+
+  // show logs in terminal
+  bashChildProcess.stdout.on("data", (data) => {
+    console.log(`📦 ${data}`);
+  });
+
+  bashChildProcess.stderr.on("data", (data) => {
+    console.error(`❌ ERROR: ${data}`);
+  });
+
+  bashChildProcess.on("close", (code) => {
+    if (code === 0) {
+      console.log("✅ Deployment completed successfully");
+    } else {
+      console.log("❌ Deployment failed with code:", code);
+    }
+  });
+
+  bashChildProcess.on("error", (err) => {
+    console.error("❌ Failed to start deploy script:", err);
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "🚀 Deployment started"
+  });
+});
+
+/* ================================
+   START SERVER
+================================ */
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
+
+        </code></pre>
+      </section>
+
+      <section id="deployment">
+        <h2>PART 8: DEPLOY YOUR CI/CD SERVER</h2>
+        <p>
+          To keep this server running forever on a VPS (like DigitalOcean or
+          AWS).
+        </p>
+
+        <h3>Use PM2 (Process Manager)</h3>
+        <pre><code class="language-bash"># Install PM2
+npm install -g pm2
+
+# Start server
+pm2 start server.js --name "ci-cd-server"
+
+# Make it start on system boot
+pm2 startup
+pm2 save
+
+# View logs
+pm2 logs ci-cd-server</code></pre>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>PART 10: TROUBLESHOOTING</h2>
+
+        <h3>1. Webhook not arriving?</h3>
+        <pre><code class="language-bash"># Check if server is accessible
+curl http://localhost:3000
+
+# Test webhook locally
+curl -X POST http://localhost:3000/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"repository":{"name":"test"}}'</code></pre>
+
+        <h3>2. Permission Denied?</h3>
+        <pre><code class="language-bash"># Give execute permission to scripts
+chmod +x scripts/*.sh</code></pre>
+
+        <h3>3. Next Steps</h3>
+        <ul>
+          <li>Add Slack/Email notifications on failure.</li>
+          <li>Add a simple HTML dashboard to view logs.</li>
+          <li>Support multiple branches (staging vs production).</li>
+        </ul>
+      </section>
+
+      <footer>
+        <p>Custom CI/CD Pipeline Guide</p>
+        <p>Generated for <strong>Node.js Automation</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+    <!-- Active Section Highlighter -->
+    <script>
+      const sections = document.querySelectorAll('section[id]');
+      const navLinks = document.querySelectorAll('.nav-link');
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              navLinks.forEach((link) => link.classList.remove('active'));
+              const activeLink = document.querySelector(
+                `a[href="#${entry.target.id}"]`
+              );
+              if (activeLink) {
+                activeLink.classList.add('active');
+              }
+            }
+          });
+        },
+        {
+          rootMargin: '-20% 0px -70% 0px',
+        }
+      );
+
+      sections.forEach((section) => observer.observe(section));
+    </script>
+  </body>
+</html>

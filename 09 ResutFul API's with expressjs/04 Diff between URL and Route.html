@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>URL vs. Route in Express.js</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+        display: flex;
+        justify-content: center;
+      }
+
+      .container {
+        max-width: 900px;
+        width: 100%;
+        padding: 2rem;
+        background-color: #212121;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #f0f0f0;
+        margin-top: 1.5rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+      }
+      h2 {
+        font-size: 2rem;
+        border-bottom: 2px solid #333;
+        padding-bottom: 0.5rem;
+      }
+      h3 {
+        font-size: 1.5rem;
+        margin-top: 2rem;
+      }
+      h4 {
+        font-size: 1.2rem;
+        margin-top: 1.5rem;
+      }
+
+      p,
+      ul,
+      li {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      li {
+        background-color: #2a2a2a;
+        padding: 0.75rem 1rem;
+        border-radius: 5px;
+        margin-bottom: 0.5rem;
+        transition: background-color 0.3s;
+      }
+
+      li:hover {
+        background-color: #333;
+      }
+
+      .code-container {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        padding: 1rem;
+        margin: 1.5rem 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        overflow-x: auto;
+        border: 1px solid #3c3c3c;
+      }
+
+      pre {
+        margin: 0;
+        padding: 0;
+      }
+
+      code {
+        color: #d4d4d4;
+        display: block;
+      }
+
+      .keyword {
+        color: #569cd6;
+      } /* blue */
+      .string {
+        color: #ce9178;
+      } /* orange */
+      .comment {
+        color: #6a9955;
+      } /* green */
+      .variable {
+        color: #9cdcfe;
+      } /* light blue */
+      .property {
+        color: #c586c0;
+      } /* magenta */
+      .method {
+        color: #dcdcaa;
+      } /* yellow */
+      .punctuation {
+        color: #d4d4d4;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 2rem 0;
+        background-color: #2a2a2a;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid #333;
+      }
+
+      th {
+        background-color: #333;
+        color: #9cdcfe;
+        font-weight: bold;
+      }
+
+      tr:hover {
+        background-color: #3c3c3c;
+      }
+
+      .highlight {
+        color: #b5cea8;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Requested URL or URL vs Route in Express.js</h1>
+      <p>
+        In Express.js, the URL (or URL string) is the complete web address a
+        client requests, while a route is a specific path you define on your
+        server to handle requests to a particular URL. Here's a breakdown of the
+        differences and how they work together.
+      </p>
+      <hr />
+
+      <h2>What is a URL?</h2>
+      <p>
+        A URL (Uniform Resource Locator) is a string of characters that
+        identifies a resource on the internet. It includes several parts.
+      </p>
+      <p>
+        For example, in the URL
+        <span class="string"
+          >http://www.example.com:8080/users/profile?id=123#about</span
+        >, the important parts for Express.js are:
+      </p>
+      <ul>
+        <li>
+          <p><strong>Protocol:</strong> <span class="highlight">http</span></p>
+        </li>
+        <li>
+          <p>
+            <strong>Host:</strong>
+            <span class="highlight">www.example.com</span>
+          </p>
+        </li>
+        <li>
+          <p><strong>Port:</strong> <span class="highlight">8080</span></p>
+        </li>
+        <li>
+          <p>
+            <strong>Path:</strong> <span class="highlight">/users/profile</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Query String/Parameters:</strong>
+            <span class="highlight">?id=123</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Fragment:</strong> <span class="highlight">#about</span>
+          </p>
+        </li>
+      </ul>
+      <p>
+        When a client makes a request, Express.js uses the
+        <span class="highlight">path</span> to match it to a defined route. You
+        can access the full URL and its parts within your Express route handler
+        using the <span class="variable">req</span> (request) object. For
+        instance, <span class="variable">req.url</span> would give you the path
+        and query string (<span class="string">/users/profile?id=123</span>),
+        while <span class="variable">req.path</span> only gives the path
+        (<span class="string">/users/profile</span>).
+      </p>
+
+      <div class="code-container">
+        <pre><code class="language-javascript">
+<span class="comment">// Example: accessing URL parts in Express.js</span>
+<span class="keyword">const</span> express = <span class="keyword">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> app = express();
+
+app.get(<span class="string">'/users/profile'</span>, (req, res) => {
+  <span class="comment">// In a request to http://localhost:3000/users/profile?id=123</span>
+  
+  <span class="comment">// req.url: '/users/profile?id=123'</span>
+  console.log(<span class="string">'Full URL Path and Query:'</span>, req.url); 
+
+  <span class="comment">// req.path: '/users/profile'</span>
+  console.log(<span class="string">'Just the Path:'</span>, req.path); 
+  
+  <span class="comment">// req.query: { id: '123' }</span>
+  console.log(<span class="string">'Query Parameters:'</span>, req.query); 
+});
+
+<span class="comment">// req.query provides an object with all the URL parameters.</span>
+        </code></pre>
+      </div>
+
+      <hr />
+      <h2>What are URL Parameters?</h2>
+      <p>
+        URL parameters, also known as query parameters or the query string, are
+        key-value pairs appended to the end of a URL to send data to the server.
+        They always start with a question mark (<span class="highlight">?</span>)
+        and are separated by ampersands (<span class="highlight">&</span>).
+        They're commonly used for filtering, searching, and sorting data.
+      </p>
+      <p>
+        For example:
+        <span class="string"
+          >https://www.example.com/products?category=electronics&sort=price</span
+        >
+      </p>
+      <ul>
+        <li>
+          <p>
+            <strong>key:</strong>
+            <span class="highlight">category</span>, <strong>value:</strong>
+            <span class="highlight">electronics</span>
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>key:</strong>
+            <span class="highlight">sort</span>, <strong>value:</strong>
+            <span class="highlight">price</span>
+          </p>
+        </li>
+      </ul>
+      <p>
+        In Express.js, you access these parameters using the
+        <span class="variable">req.query</span> object. The example above would
+        result in a <span class="variable">req.query</span> object like this:
+      </p>
+
+      <div class="code-container">
+        <pre><code class="language-javascript">
+<span class="comment">// In Express route handler for /products</span>
+console.log(req.query); <span class="comment">// { category: 'electronics', sort: 'price' }</span>
+        </code></pre>
+      </div>
+      <hr />
+
+      <h2>What is a Route?</h2>
+      <p>
+        A route is a section of Express.js code that associates an HTTP method
+        (like GET, POST, PUT, DELETE) with a specific path. It defines what
+        happens when a client requests a particular URL. Routes are created
+        using methods on the <span class="variable">app</span> object, such as
+        <span class="variable">app.get()</span>,
+        <span class="variable">app.post()</span>, etc.
+      </p>
+      <p>
+        A route is a path (URL) + HTTP method combination on the server that
+        tells: "When a client requests this URL using this method, run this
+        specific code."
+      </p>
+
+      <p>
+        <strong>Syntax:</strong>
+        <span class="variable">app.METHOD(PATH, HANDLER)</span>
+      </p>
+      <ul>
+        <li>
+          <p><strong>METHOD:</strong> The HTTP verb (e.g., get, post).</p>
+        </li>
+        <li>
+          <p>
+            <strong>PATH:</strong> The path string for the route (e.g.,
+            <span class="string">/users/:id</span>).
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>HANDLER:</strong> A function that executes when the path is
+            matched. It takes (<span class="variable">req</span>,
+            <span class="variable">res</span>) as arguments.
+          </p>
+        </li>
+      </ul>
+      <p>
+        A route can include
+        <span class="highlight">route parameters</span> (e.g.,
+        <span class="string">:id</span> in
+        <span class="string">/users/:id</span>), which act as placeholders for
+        dynamic parts of the URL. These parameters are stored in
+        <span class="variable">req.params</span> and are different from query
+        parameters.
+      </p>
+      <hr />
+
+      <h2>Route Parameters vs. Query Parameters</h2>
+      <p>
+        It's crucial to distinguish between **route parameters** and **query
+        parameters**, as they serve different purposes.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Route Parameters (<span class="variable">req.params</span>)</th>
+            <th>Query Parameters (<span class="variable">req.query</span>)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Syntax</strong></td>
+            <td>Part of the path: <span class="string">/users/:userId</span></td>
+            <td>After the path: <span class="string">/users?id=123</span></td>
+          </tr>
+          <tr>
+            <td><strong>Purpose</strong></td>
+            <td>Identify a specific resource. (e.g., the user with ID 123)</td>
+            <td>Filter or sort resources. (e.g., find users by name, filter by status)</td>
+          </tr>
+          <tr>
+            <td><strong>Example URL</strong></td>
+            <td><span class="string">/users/123</span></td>
+            <td><span class="string">/users?name=john&status=active</span></td>
+          </tr>
+          <tr>
+            <td><strong>In Express</strong></td>
+            <td>
+              Accessed as <span class="variable">req.params.userId</span>
+              (from <span class="string">/users/:userId</span>)
+            </td>
+            <td>
+              Accessed as <span class="variable">req.query.name</span> and
+              <span class="variable">req.query.status</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+      <h2>Key Differences</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>URL (Requested URL)</th>
+            <th>Route</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Definition</strong></td>
+            <td>The full address a client requests to find a resource.</td>
+            <td>
+              A defined path and HTTP method on the server to handle a request.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Purpose</strong></td>
+            <td>Specifies the exact location of a resource on a server.</td>
+            <td>Determines what code to run for a specific request.</td>
+          </tr>
+          <tr>
+            <td><strong>Example</strong></td>
+            <td>
+              <span class="string">http://api.example.com/products/123</span>
+            </td>
+            <td>
+              <span class="variable">app.get</span>(<span class="string"
+                >' /products/:productId'</span
+              >, ...)
+            </td>
+          </tr>
+          <tr>
+            <td><strong>In Express</strong></td>
+            <td>
+              Accessed via the <span class="variable">req</span> object (<span
+                class="variable"
+                >req.url</span
+              >, <span class="variable">req.path</span>).
+            </td>
+            <td>
+              A function defined using <span class="variable">app.get()</span>,
+              <span class="variable">app.post()</span>, etc.
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Mutability</strong></td>
+            <td>Sent by the client; a fixed string for a single request.</td>
+            <td>
+              Defined by the developer; can handle many different URLs that
+              match its pattern.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        In short: A URL is what the client asks for, and a route is how your
+        server responds to that request. You define a route pattern (like
+        <span class="string">/users/:id</span>) to match incoming URLs (like
+        <span class="string">/users/1</span> or
+        <span class="string">/users/42</span>).
+      </p>
+    </div>
+  </body>
+</html>

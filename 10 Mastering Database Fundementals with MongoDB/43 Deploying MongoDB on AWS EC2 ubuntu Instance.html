@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Deployment Guide - AWS EC2</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for Blakish Theme */
+      body {
+        background-color: #1e1e1e; /* Dark, VSCode-like background */
+        color: #d4d4d4; /* Light text color */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      h1,
+      h2 {
+        color: #569cd6; /* VSCode Blue for headings */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      p,
+      li {
+        font-size: 16px;
+      }
+
+      strong {
+        color: #c586c0; /* VSCode Purple for strong words */
+      }
+
+      /* Code Block Styling (VSCode-like Dark Theme) */
+      .code-container {
+        background-color: #1f1f1f; /* Slightly darker than body for contrast */
+        border: 1px solid #3c3c3c;
+        border-radius: 5px;
+        padding: 10px 15px;
+        margin: 15px 0;
+        overflow-x: auto;
+      }
+
+      pre {
+        margin: 0;
+        padding: 0;
+        white-space: pre-wrap; /* Ensures long lines wrap */
+        word-wrap: break-word;
+      }
+
+      code {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 14px;
+        color: #d4d4d4; /* Default code text color */
+      }
+
+      /* Syntax Highlighting Imitation */
+      .cli-prompt {
+        color: #569cd6;
+      } /* Blue for the language/prompt */
+      .command {
+        color: #c586c0;
+      } /* Purple for the actual command */
+      .comment {
+        color: #6a9955;
+      } /* Green for comments/explanations */
+      .flag {
+        color: #9cd656;
+      } /* Light green for flags/options */
+      .path {
+        color: #ce9178;
+      } /* Orange for paths/strings */
+      .variable {
+        color: #4fc1ff;
+      } /* Light blue for variables */
+      .keyword {
+        color: #c586c0;
+      } /* Purple for keywords (e.g., const, async) */
+      .method {
+        color: #ffd700;
+      } /* Gold for methods (e.g., .connect, .create) */
+      .string {
+        color: #ce9178;
+      } /* Orange for strings */
+      .operator {
+        color: #d4d4d4;
+      }
+      .property {
+        color: #9cd6f7;
+      } /* Lighter blue for object properties */
+      .note {
+        color: #f44747;
+      } /* Red for important notes/placeholders */
+
+      /* Specific styles for lists and blocks */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+      ul li:before {
+        content: '•';
+        color: #4ec9b0; /* Teal/Cyan for list bullets */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+      .explanation-block {
+        background-color: #252526;
+        border-left: 4px solid #4ec9b0;
+        padding: 10px 15px;
+        margin: 10px 0;
+      }
+      .emoji {
+        font-size: 1.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <p>
+      That's a great, comprehensive goal! Deploying a
+      <strong>MongoDB</strong> server on an
+      <strong>AWS EC2 Ubuntu instance</strong>, configuring it for production
+      use, and connecting to it from a <strong>Node.js</strong> application
+      involves several distinct steps.
+    </p>
+
+    <p>
+      I'll break down the complete process, explaining every significant
+      <strong>command-line interface (CLI)</strong> action.
+    </p>
+
+    <p>
+      Since this process involves many specific, up-to-date commands (especially
+      for installation and firewall configuration), I must first verify the
+      current best practices and stable versions. This guide covers the
+      **deployment, security, configuration (Replication Set), data restoration,
+      and Node.js connection** for your MongoDB server on an AWS EC2 Ubuntu
+      instance.
+    </p>
+
+    <p>
+      The commands assume you are logged into your Ubuntu EC2 instance as a user
+      with <code>sudo</code> privileges (e.g., **ubuntu** or **ec2-user**).
+    </p>
+
+    <h2>
+      1. AWS EC2 Setup and Network Configuration <span class="emoji">🌐</span>
+    </h2>
+
+    <p>
+      Before starting, ensure you've done the following in the
+      <strong>AWS Console</strong>:
+    </p>
+
+    <ul>
+      <li>
+        <strong>Launched an EC2 Instance:</strong> Use a recent
+        <strong>Ubuntu Server AMI</strong> (e.g., 22.04 LTS).
+      </li>
+      <li>
+        <strong>Configured the Security Group (Firewall):</strong>
+        <ul>
+          <li>
+            <strong>Inbound Rule 1 (SSH):</strong> Allow <strong>TCP</strong> on
+            port <strong>22</strong> from your IP or <code>0.0.0.0/0</code> (for
+            testing, but less secure).
+          </li>
+          <li>
+            <strong>Inbound Rule 2 (MongoDB):</strong> Allow
+            <strong>TCP</strong> on port <strong>27017</strong> from your local
+            machine's IP, your Node.js server's IP, or a secure range.
+            <strong>Never</strong> expose port 27017 to the public Internet
+            (<code>0.0.0.0/0</code>) without strong authentication.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>2. MongoDB Installation on Ubuntu EC2 <span class="emoji">💾</span></h2>
+
+    <p>
+      This section installs the official MongoDB Community Edition packages.
+    </p>
+
+    <h3>Import the MongoDB Public GPG Key</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">wget</span> <span class="flag">-qO</span> <span class="operator">-</span> <span class="path">https://www.mongodb.org/static/pgp/server-7.0.asc</span> <span class="operator">|</span> <span class="command">sudo gpg</span> <span class="flag">--dearmor</span> <span class="flag">-o</span> <span class="path">/usr/share/keyrings/mongodb-server-7.0.gpg</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code
+            ><span class="command">wget</span> <span class="flag">-qO</span>
+            <span class="operator">-</span> ...</code
+          >: Downloads the MongoDB GPG public key (used to verify package
+          authenticity) from the URL (<span class="flag">-q</span> for quiet,
+          <span class="flag">-O</span> <span class="operator">-</span> to output
+          to standard output).
+        </li>
+        <li>
+          <code><span class="operator">|</span></code
+          >: <strong>Pipe</strong> the output of
+          <code><span class="command">wget</span></code> to the next command.
+        </li>
+        <li>
+          <code
+            ><span class="command">sudo gpg</span>
+            <span class="flag">--dearmor</span> <span class="flag">-o</span>
+            <span class="path"
+              >/usr/share/keyrings/mongodb-server-7.0.gpg</span
+            ></code
+          >: De-armors the key (converts ASCII to binary GPG key format) and
+          saves it as a keyring file.
+        </li>
+      </ul>
+    </div>
+
+    <h3>Create the MongoDB Source List File</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">echo</span> <span class="string">"deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse"</span> <span class="operator">|</span> <span class="command">sudo tee</span> <span class="path">/etc/apt/sources.list.d/mongodb-org-7.0.list</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code
+            ><span class="command">echo</span>
+            <span class="string">"..."</span></code
+          >: Prints the repository line for MongoDB 7.0 (for Ubuntu 22.04,
+          codenamed "jammy") to standard output.
+        </li>
+        <li>
+          <code
+            ><span class="operator">|</span>
+            <span class="command">sudo tee</span>
+            <span class="path"
+              >/etc/apt/sources.list.d/mongodb-org-7.0.list</span
+            ></code
+          >: **Pipe** the output and write it to the new source list file,
+          allowing <code>sudo</code> to write to a protected directory.
+        </li>
+      </ul>
+    </div>
+
+    <h3>Install MongoDB Packages</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">sudo apt update</span>
+<span class="command">sudo apt install</span> <span class="flag">-y</span> <span class="command">mongodb-org</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code><span class="command">sudo apt update</span></code
+          >: Refreshes the local package index to include the newly added
+          MongoDB repository.
+        </li>
+        <li>
+          <code
+            ><span class="command">sudo apt install</span>
+            <span class="flag">-y</span>
+            <span class="command">mongodb-org</span></code
+          >: Installs the
+          <code><span class="command">mongodb-org</span></code> meta-package,
+          which includes the MongoDB server, shell (<code
+            ><span class="command">mongosh</span></code
+          >), and other tools. The <span class="flag">-y</span> confirms the
+          installation.
+        </li>
+      </ul>
+    </div>
+
+    <h3>Start and Enable MongoDB Service</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">sudo systemctl start mongod</span>
+<span class="command">sudo systemctl enable mongod</span>
+<span class="command">sudo systemctl status mongod</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code><span class="command">sudo systemctl start mongod</span></code
+          >: Starts the <code>mongod</code> background process (the MongoDB
+          server).
+        </li>
+        <li>
+          <code><span class="command">sudo systemctl enable mongod</span></code
+          >: Configures MongoDB to automatically start upon system boot.
+        </li>
+        <li>
+          <code><span class="command">sudo systemctl status mongod</span></code
+          >: Checks the server's status (should show
+          <strong>active (running)</strong>).
+        </li>
+      </ul>
+    </div>
+
+    <hr />
+
+    <h2>
+      3. Data Restoration (<span class="command">mongorestore</span>)
+      <span class="emoji">↩️</span>
+    </h2>
+
+    <p>
+      If you have a local MongoDB backup (usually a directory of BSON files),
+      you need to get it onto the EC2 instance (e.g., using
+      <span class="command">scp</span>) and then restore it.
+    </p>
+
+    <h3>Transfer Backup to EC2 (Local Machine Command)</h3>
+    <p>
+      Run this from your <strong>local machine</strong>, assuming your backup is
+      in a directory called <code><span class="path">dump/</span></code
+      >:
+    </p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">scp</span> <span class="flag">-i</span> <span class="path">/path/to/your-key.pem</span> <span class="flag">-r</span> <span class="path">dump/</span> <span class="variable">ubuntu@&lt;EC2-Public-IP&gt;</span>:<span class="path">/home/ubuntu/</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation (Local Command):</strong>
+      <ul>
+        <li>
+          <code><span class="command">scp</span></code
+          >: Secure Copy Protocol, used to securely copy files over SSH.
+        </li>
+        <li>
+          <code
+            ><span class="flag">-i</span>
+            <span class="path">/path/to/your-key.pem</span></code
+          >: Specifies your private key file for authentication.
+        </li>
+        <li>
+          <code
+            ><span class="flag">-r</span> <span class="path">dump/</span></code
+          >: Recursively copies the
+          <code><span class="path">dump/</span></code> directory (your backup).
+        </li>
+        <li>
+          <code
+            ><span class="variable">ubuntu@&lt;EC2-Public-IP&gt;</span>:<span
+              class="path"
+              >/home/ubuntu/</span
+            ></code
+          >: The destination: user (<code
+            ><span class="variable">ubuntu</span></code
+          >), host (EC2 IP), and path on the EC2.
+        </li>
+      </ul>
+    </div>
+
+    <h3>Restore Data on EC2 (EC2 Command)</h3>
+    <p>Run this on your <strong>EC2 Instance</strong>:</p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">mongorestore</span> <span class="flag">--drop</span> <span class="path">/home/ubuntu/dump/</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code><span class="command">mongorestore</span></code
+          >: The command-line utility for restoring a MongoDB dump.
+        </li>
+        <li>
+          <code><span class="flag">--drop</span></code
+          >: <strong>Crucial flag.</strong> It drops the collections from the
+          database **before** restoring the corresponding collections in the
+          dump file. This ensures a clean restore.
+        </li>
+        <li>
+          <code><span class="path">/home/ubuntu/dump/</span></code
+          >: The path to the BSON data directory containing your databases and
+          collections.
+        </li>
+      </ul>
+    </div>
+
+    <hr />
+
+    <h2>
+      4. Enable Authentication and Remote Access (Security)
+      <span class="emoji">🔒</span>
+    </h2>
+
+    <p>
+      For production, you **must** enable authentication and configure external
+      access.
+    </p>
+
+    <h3>A. Modify MongoDB Configuration File</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">sudo nano</span> <span class="path">/etc/mongod.conf</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code
+            ><span class="command">sudo nano</span>
+            <span class="path">/etc/mongod.conf</span></code
+          >: Opens the main MongoDB configuration file for editing using the
+          <span class="command">nano</span> text editor.
+        </li>
+      </ul>
+    </div>
+
+    <p>
+      In the file, find the <span class="property">net</span> and
+      <span class="property">security</span> sections and modify them as
+      follows:
+    </p>
+
+    <p>
+      <strong>Enable Remote Access (Binding IP):</strong> Change the
+      <span class="property">bindIp</span> setting to allow connections from all
+      network interfaces, not just <span class="property">localhost</span>.
+    </p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">YAML</span>
+<span class="comment"># /etc/mongod.conf</span>
+<span class="property">net</span>:
+  <span class="property">port</span>: <span class="string">27017</span>
+  <span class="property">bindIp</span>: <span class="string">0.0.0.0</span>  <span class="comment"># &lt;== Change this from 127.0.0.1 to 0.0.0.0</span></pre>
+    </div>
+    <p>
+      <strong>Enable Authentication:</strong> Uncomment the
+      <span class="property">security:</span> section and add
+      <span class="property">authorization: enabled</span>.
+    </p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">YAML</span>
+<span class="comment"># /etc/mongod.conf</span>
+<span class="property">security</span>:
+  <span class="property">authorization</span>: <span class="string">enabled</span> <span class="comment"># &lt;== Uncomment and set to enabled</span></pre>
+    </div>
+    <p>
+      Save and close the file (<strong>Ctrl+O</strong>, then
+      <strong>Enter</strong>, then <strong>Ctrl+X</strong> in
+      <span class="command">nano</span>).
+    </p>
+
+    <h3>B. Restart MongoDB Service</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">sudo systemctl restart mongod</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code><span class="command">sudo systemctl restart mongod</span></code
+          >: Restarts the MongoDB service to load the new configuration (<span
+            class="property"
+            >bindIp: 0.0.0.0</span
+          >
+          and <span class="property">authorization: enabled</span>).
+        </li>
+      </ul>
+    </div>
+
+    <h3>C. Create an Admin User</h3>
+    <p>
+      Authentication is now **enabled**, so you must create a user to log in.
+    </p>
+
+    <p>
+      <strong
+        >Access the Shell (without authentication, for the last time):</strong
+      >
+    </p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">mongosh</span></pre>
+    </div>
+
+    <p><strong>Switch to the admin database:</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="keyword">use</span> <span class="property">admin</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong> The <code>admin</code> database is where
+      administrative users are created and stored.
+    </div>
+
+    <p><strong>Create the Admin User:</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="property">db</span>.<span class="method">createUser</span>(
+  {
+    <span class="property">user</span>: <span class="string">"adminUser"</span>,
+    <span class="property">pwd</span>: <span class="command">passwordPrompt</span>(),
+    <span class="property">roles</span>: [
+      { <span class="property">role</span>: <span class="string">"userAdminAnyDatabase"</span>, <span class="property">db</span>: <span class="string">"admin"</span> },
+      <span class="string">"readWriteAnyDatabase"</span>
+    ]
+  }
+)</pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code
+            ><span class="property">db</span>.<span class="method"
+              >createUser</span
+            >(...)</code
+          >: Creates a new user in the current database (<code
+            ><span class="property">admin</span></code
+          >).
+        </li>
+        <li>
+          <code><span class="command">passwordPrompt</span>()</code>: Prompts
+          for a password securely, instead of having it visible in the command
+          history.
+        </li>
+        <li>
+          <code><span class="property">roles</span></code
+          >: Assigns roles.
+          <code><span class="string">userAdminAnyDatabase</span></code> allows
+          the user to create other users.
+          <code><span class="string">readWriteAnyDatabase</span></code> allows
+          CRUD operations on any database.
+        </li>
+      </ul>
+    </div>
+
+    <p><strong>Exit the Shell:</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="command">exit</span></pre>
+    </div>
+
+    <hr />
+
+    <h2>
+      5. Enable Replication Set (Standalone Instance)
+      <span class="emoji">⚙️</span>
+    </h2>
+
+    <p>
+      You requested a replica set setup, which is essential for production but
+      typically involves three or more EC2 instances. For a **single EC2
+      instance**, you can configure it as a **single-member replica set** to
+      enable features like transactions, which require a replica set.
+    </p>
+
+    <h3>A. Modify Configuration for Replica Set</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">sudo nano</span> <span class="path">/etc/mongod.conf</span></pre>
+    </div>
+    <p>
+      In the <span class="path">mongod.conf</span> file, find the
+      <span class="property">replication</span> section and add/uncomment the
+      <span class="property">replSetName</span>:
+    </p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">YAML</span>
+<span class="comment"># /etc/mongod.conf</span>
+
+<span class="comment"># ... other settings ...</span>
+
+<span class="comment"># Listen to all IPs and ensure port is 27017 (already done)</span>
+<span class="property">net</span>:
+  <span class="property">port</span>: <span class="string">27017</span>
+  <span class="property">bindIp</span>: <span class="string">0.0.0.0</span>
+
+<span class="comment"># Security (already done)</span>
+<span class="property">security</span>:
+  <span class="property">authorization</span>: <span class="string">enabled</span>
+
+<span class="comment"># Replication settings</span>
+<span class="property">replication</span>:
+  <span class="property">replSetName</span>: <span class="string">rs0</span>  <span class="comment"># &lt;== Add this line (replace rs0 with your name if desired)</span></pre>
+    </div>
+    <p>Save and close the file.</p>
+
+    <h3>B. Restart MongoDB Service (Again)</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">sudo systemctl restart mongod</span></pre>
+    </div>
+
+    <h3>C. Initialize the Replica Set</h3>
+    <p><strong>Connect to the Shell (with authentication):</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">mongosh</span> <span class="flag">-u</span> <span class="variable">adminUser</span> <span class="flag">-p</span> <span class="flag">--authenticationDatabase</span> <span class="variable">admin</span></pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code
+            ><span class="flag">-u</span>
+            <span class="variable">adminUser</span></code
+          >: Connects using the user you just created.
+        </li>
+        <li>
+          <code><span class="flag">-p</span></code
+          >: Prompts for the password.
+        </li>
+        <li>
+          <code
+            ><span class="flag">--authenticationDatabase</span>
+            <span class="variable">admin</span></code
+          >: Tells MongoDB to check the credentials against the
+          <code>admin</code> database.
+        </li>
+      </ul>
+    </div>
+
+    <p><strong>Initialize the Replica Set:</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="property">rs</span>.<span class="method">initiate</span>()</pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong>
+      <ul>
+        <li>
+          <code
+            ><span class="property">rs</span>.<span class="method"
+              >initiate</span
+            >()</code
+          >: Initializes the replica set with the configuration defined in
+          <span class="path">mongod.conf</span> (i.e.,
+          <span class="property">replSetName: rs0</span>). Since only one member
+          is running, it will automatically configure itself as the **PRIMARY**.
+        </li>
+      </ul>
+    </div>
+
+    <p><strong>Verify Status:</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="property">rs</span>.<span class="method">status</span>()</pre>
+    </div>
+    <div class="explanation-block">
+      <strong>Explanation:</strong> Shows the status of the replica set. Look
+      for <code><span class="string">"stateStr" : "PRIMARY"</span></code
+      >.
+    </div>
+
+    <p><strong>Exit the Shell:</strong></p>
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="command">exit</span></pre>
+    </div>
+
+    <hr />
+
+    <h2>
+      6. Connecting from Node.js and Operations <span class="emoji">💻</span>
+    </h2>
+
+    <p>
+      You are now ready to connect your Node.js application using the official
+      **MongoDB Driver** or a library like **Mongoose**.
+    </p>
+
+    <h3>Node.js Project Setup (Local Machine)</h3>
+    <ul>
+      <li>
+        Initialize your project:
+        <code
+          ><span class="command">npm init</span>
+          <span class="flag">-y</span></code
+        >
+      </li>
+      <li>
+        Install the Mongoose library:
+        <code
+          ><span class="command">npm install</span>
+          <span class="command">mongoose</span></code
+        >
+      </li>
+    </ul>
+
+    <h3>Connection Code (<span class="path">app.js</span>)</h3>
+    <p>
+      Create a file named <span class="path">app.js</span> with the connection
+      string format for a replica set. Replace
+      <span class="note">&lt;EC2-Public-IP&gt;</span> and credentials.
+    </p>
+
+    <div class="code-container">
+      <pre><span class="cli-prompt">JavaScript</span>
+<span class="comment">// app.js (on your local machine or Node.js server)</span>
+
+<span class="keyword">const</span> <span class="variable">mongoose</span> <span class="operator">=</span> <span class="command">require</span>(<span class="string">'mongoose'</span>);
+
+<span class="comment">// !!! IMPORTANT: Replace placeholders below !!!</span>
+<span class="keyword">const</span> <span class="variable">DB_USER</span> <span class="operator">=</span> <span class="string">'adminUser'</span>;
+<span class="keyword">const</span> <span class="variable">DB_PASS</span> <span class="operator">=</span> <span class="string">'YourStrongPassword'</span>; <span class="comment">// The password you set in step 4.C</span>
+<span class="keyword">const</span> <span class="variable">EC2_IP</span> <span class="operator">=</span> <span class="note">'&lt;EC2-Public-IP&gt;'</span>; <span class="comment">// e.g., 54.123.45.67</span>
+<span class="keyword">const</span> <span class="variable">REPLICA_SET_NAME</span> <span class="operator">=</span> <span class="string">'rs0'</span>;
+
+<span class="comment">// The connection string for a replica set (even a single-member one)</span>
+<span class="keyword">const</span> <span class="variable">uri</span> <span class="operator">=</span> <span class="string">`mongodb://<span class="variable">${DB_USER}</span>:<span class="variable">${DB_PASS}</span>@<span class="variable">${EC2_IP}</span>:27017/?authSource=admin&replicaSet=<span class="variable">${REPLICA_SET_NAME}</span>`</span>;
+
+<span class="keyword">async function</span> <span class="method">run</span>() {
+  <span class="keyword">try</span> {
+    <span class="comment">// 1. Connect to the Database</span>
+    <span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="method">connect</span>(<span class="variable">uri</span>);
+    <span class="command">console</span>.<span class="method">log</span>(<span class="string">"✅ Successfully connected to MongoDB on AWS EC2!"</span>);
+
+    <span class="comment">// 2. Define a Schema and Model</span>
+    <span class="keyword">const</span> <span class="variable">userSchema</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">mongoose</span>.<span class="property">Schema</span>({
+      <span class="property">name</span>: <span class="property">String</span>,
+      <span class="property">email</span>: { <span class="property">type</span>: <span class="property">String</span>, <span class="property">unique</span>: <span class="property">true</span> }
+    });
+    <span class="keyword">const</span> <span class="variable">User</span> <span class="operator">=</span> <span class="variable">mongoose</span>.<span class="method">model</span>(<span class="string">'User'</span>, <span class="variable">userSchema</span>);
+
+    <span class="comment">// 3. Operations: INSERT/CREATE</span>
+    <span class="keyword">const</span> <span class="variable">newUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">User</span>.<span class="method">create</span>({ <span class="property">name</span>: <span class="string">'Alice Smith'</span>, <span class="property">email</span>: <span class="string">'alice@example.com'</span> });
+    <span class="command">console</span>.<span class="method">log</span>(<span class="string">"➕ Inserted User:"</span>, <span class="variable">newUser</span>);
+
+    <span class="comment">// 4. Operations: READ/FIND</span>
+    <span class="keyword">const</span> <span class="variable">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">User</span>.<span class="method">findOne</span>({ <span class="property">name</span>: <span class="string">'Alice Smith'</span> });
+    <span class="command">console</span>.<span class="method">log</span>(<span class="string">"🔎 Found User:"</span>, <span class="variable">user</span>);
+
+    <span class="comment">// 5. Operations: UPDATE</span>
+    <span class="keyword">if</span> (<span class="variable">user</span>) {
+        <span class="variable">user</span>.<span class="property">name</span> <span class="operator">=</span> <span class="string">'Alice Johnson'</span>;
+        <span class="keyword">await</span> <span class="variable">user</span>.<span class="method">save</span>();
+        <span class="command">console</span>.<span class="method">log</span>(<span class="string">"🔄 Updated User:"</span>, <span class="variable">user</span>);
+    }
+    
+    <span class="comment">// 6. Operations: DELETE</span>
+    <span class="keyword">await</span> <span class="variable">User</span>.<span class="method">deleteOne</span>({ <span class="property">name</span>: <span class="string">'Alice Johnson'</span> });
+    <span class="command">console</span>.<span class="method">log</span>(<span class="string">"🗑️ Deleted User."</span>);
+
+
+  } <span class="keyword">catch</span> (<span class="variable">error</span>) {
+    <span class="command">console</span>.<span class="method">error</span>(<span class="string">"❌ MongoDB Connection or Operation Error:"</span>, <span class="variable">error</span>);
+  } <span class="keyword">finally</span> {
+    <span class="comment">// Close the connection</span>
+    <span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="property">connection</span>.<span class="method">close</span>();
+  }
+}
+
+<span class="method">run</span>();</pre>
+    </div>
+
+    <h3>Run the Node.js Script</h3>
+    <div class="code-container">
+      <pre><span class="cli-prompt">Bash</span>
+<span class="command">node app.js</span></pre>
+    </div>
+    <p>
+      <strong>Expected Output:</strong> A sequence of success messages
+      confirming connection, insertion, retrieval, update, and deletion,
+      demonstrating that your Node.js application has successfully performed
+      CRUD operations against your secured, replica-set-configured MongoDB on
+      AWS EC2.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Virtuals Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Global Reset and Colors */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark Background */
+        --text-color: #d4d4d4; /* VS Code Light Text */
+        --heading-color: #569cd6; /* Blue for Headings */
+        --accent-color: #b5cea8; /* Greenish-yellow for special terms */
+        --code-bg: #1f1f1f;
+        --code-comment: #6a9955; /* Green for comments */
+        --code-keyword: #569cd6; /* Blue for keywords */
+        --code-string: #ce9178; /* Orange for strings */
+        --code-variable: #9cdcfe; /* Light blue for variables/functions */
+        --code-number: #b5cea8; /* Green for numbers/boolean */
+        --code-punctuation: #d4d4d4;
+        --table-header-bg: #2d2d2d;
+        --table-border: #444444;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter body background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: var(--heading-color);
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: var(--accent-color);
+        border-bottom: none;
+      }
+      h4 {
+        font-size: 1.2em;
+        color: var(--accent-color);
+      }
+
+      /* List Styling */
+      ul {
+        list-style-type: '⚡';
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+        margin-top: 15px;
+        margin-bottom: 15px;
+      }
+
+      code {
+        color: var(--text-color);
+      }
+
+      /* Inline Code */
+      p > code,
+      li > code {
+        background-color: #333333;
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: var(--code-variable);
+        font-family: 'Consolas', 'Courier New', monospace;
+      }
+
+      /* Syntax Highlighting Classes (Manual) */
+      .kw {
+        color: var(--code-keyword);
+      } /* Keyword (const, function, return) */
+      .str {
+        color: var(--code-string);
+      } /* String */
+      .com {
+        color: var(--code-comment);
+      } /* Comment */
+      .var {
+        color: var(--code-variable);
+      } /* Variable/Function Name/Property */
+      .num {
+        color: var(--code-number);
+      } /* Number/Boolean */
+      .pun {
+        color: var(--code-punctuation);
+      } /* Punctuation (., :, ;, {}) */
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        text-align: left;
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        border: 1px solid var(--table-border);
+      }
+
+      th {
+        background-color: var(--table-header-bg);
+        color: var(--heading-color);
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #2a2a2a;
+      }
+
+      tr:hover {
+        background-color: #383838;
+      }
+
+      /* Specific text formatting */
+      .note {
+        color: #d7ba7d; /* Yellowish for notes */
+      }
+      .highlight {
+        color: #ff8c00; /* Orange for key actions/symbols */
+      }
+      .error {
+        color: #f44747; /* Red for errors */
+        font-weight: bold;
+      }
+      .output {
+        color: #72c578; /* Green for console output */
+      }
+      .output-block {
+        background-color: #1a1a1a;
+        padding: 10px;
+        border-left: 4px solid #72c578;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>What Are Virtuals in Mongoose?</h1>
+      <p>
+        <strong>Virtuals</strong> (or <strong>virtual properties</strong>) are
+        document properties that you can get and set but that don't get
+        persisted to MongoDB. They are essentially getter and setter functions
+        for fields that aren't stored directly in the database.
+      </p>
+
+      <p>They're most commonly used for:</p>
+      <ul>
+        <li>
+          Formatting and combining existing fields (e.g., creating a
+          <code>fullName</code> virtual from <code>firstName</code> and
+          <code>lastName</code>).
+        </li>
+        <li>
+          Temporarily storing data on a document that is needed for application
+          logic but not for storage.
+        </li>
+        <li>Acting as an alias for an existing field.</li>
+      </ul>
+
+      <h2>Built-in Virtual Properties</h2>
+      <p>
+        Mongoose provides a few built-in virtual properties, primarily used for
+        document referencing (population):
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Virtual Property</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>id</code></td>
+            <td>
+              A built-in virtual getter that returns the document's
+              <code>_id</code> field as a string. This is often used for
+              consistency when presenting data in a web application where the
+              string representation is preferred.
+            </td>
+          </tr>
+          <tr>
+            <td><code>populate</code></td>
+            <td>
+              While not a property you access directly, the logic behind
+              Mongoose's <code>populate()</code> method relies on virtual
+              references (sometimes called virtuals for population), which are
+              defined on a schema to tell Mongoose how to load related documents
+              from other collections.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Making a Property Virtual Using Alias</h3>
+      <p>
+        You can make a property appear as an <strong>alias</strong> (a virtual
+        property) for an existing, persisted field using the
+        <code>alias</code> option within the schema definition. This is the
+        simplest form of a virtual.
+      </p>
+      <p>
+        For example, to access the internal <code>_id</code> field using a more
+        standard <code>id</code> name:
+      </p>
+
+      <h4>JavaScript Example (Using <code>.virtual()</code> for Alias)</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">userSchema</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">mongoose</span><span class="pun">.</span><span class="var">Schema</span><span class="pun">({</span>
+  <span class="var">_id</span><span class="pun">:</span> <span class="var">mongoose</span><span class="pun">.</span><span class="var">Schema</span><span class="pun">.</span><span class="var">Types</span><span class="pun">.</span><span class="var">ObjectId</span><span class="pun">,</span> <span class="com">// The actual field</span>
+  <span class="var">name</span><span class="pun">:</span> <span class="var">String</span>
+<span class="pun">}, {</span>
+  <span class="com">// Option passed to the schema</span>
+  <span class="var">toJSON</span><span class="pun">:</span> <span class="pun">{</span> <span class="var">virtuals</span><span class="pun">:</span> <span class="kw">true</span> <span class="pun">}</span>
+<span class="pun">});</span><span class="com">// Define 'id' as an alias for '_id'</span>
+<span class="var">userSchema</span><span class="pun">.</span><span class="var">virtual</span><span class="pun">(</span><span class="str">'id'</span><span class="pun">).</span><span class="var">get</span><span class="pun">(</span><span class="kw">function</span><span class="pun">()</span> <span class="pun">{</span>
+  <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">_id</span><span class="pun">.</span><span class="var">toHexString</span><span class="pun">();</span>
+<span class="pun">});</span><span class="com">// Alternatively, if just using a simple alias for an existing path:</span><span class="com">// const userSchema = new mongoose.Schema({</span><span class="com">//   _id: { type: mongoose.Schema.Types.ObjectId, alias: 'id' },</span><span class="com">//   name: String</span><span class="com">// });</span>
+    </code></pre>
+
+      <p><strong>Export to Sheets</strong></p>
+
+      <h3>Defining a Virtual Property While Defining the Schema</h3>
+      <p>
+        You define a virtual property on the
+        <strong>Schema instance</strong> using the
+        <code class="var">.virtual()</code> method before compiling the model.
+      </p>
+      <p>
+        The <code class="var">.virtual()</code> method takes the virtual's name
+        as an argument and returns a <strong>VirtualType</strong> object, which
+        has <code class="var">.get()</code> and
+        <code class="var">.set()</code> methods.
+      </p>
+
+      <h4>JavaScript Example (Getter and Setter)</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">userSchema</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">mongoose</span><span class="pun">.</span><span class="var">Schema</span><span class="pun">({</span>
+  <span class="var">firstName</span><span class="pun">:</span> <span class="var">String</span><span class="pun">,</span>
+  <span class="var">lastName</span><span class="pun">:</span> <span class="var">String</span>
+<span class="pun">});</span><span class="com">// 1. Define the virtual property 'fullName'</span>
+<span class="var">userSchema</span><span class="pun">.</span><span class="var">virtual</span><span class="pun">(</span><span class="str">'fullName'</span><span class="pun">)</span>
+  <span class="com">// 2. Define the getter function (runs when you read the property)</span>
+  <span class="pun">.</span><span class="var">get</span><span class="pun">(</span><span class="kw">function</span><span class="pun">()</span> <span class="pun">{</span>
+    <span class="kw">return</span> <span class="str">`</span><span class="highlight">${</span><span class="kw">this</span><span class="pun">.</span><span class="var">firstName</span><span class="highlight">}</span> <span class="highlight">${</span><span class="kw">this</span><span class="pun">.</span><span class="var">lastName</span><span class="highlight">}</span><span class="str">`</span><span class="pun">;</span>
+  <span class="pun">})</span>
+  <span class="com">// 3. Define the setter function (runs when you assign a value to the property)</span>
+  <span class="pun">.</span><span class="var">set</span><span class="pun">(</span><span class="kw">function</span><span class="pun">(</span><span class="var">v</span><span class="pun">)</span> <span class="pun">{</span>
+    <span class="com">// 'v' is the value assigned to 'fullName' (e.g., "John Doe")</span>
+    <span class="kw">const</span> <span class="var">parts</span> <span class="pun">=</span> <span class="var">v</span><span class="pun">.</span><span class="var">split</span><span class="pun">(</span><span class="str">' '</span><span class="pun">);</span>
+    <span class="kw">this</span><span class="pun">.</span><span class="var">firstName</span> <span class="pun">=</span> <span class="var">parts</span><span class="pun">[</span><span class="num">0</span><span class="pun">];</span>
+    <span class="kw">this</span><span class="pun">.</span><span class="var">lastName</span> <span class="pun">=</span> <span class="var">parts</span><span class="pun">[</span><span class="num">1</span><span class="pun">];</span>
+  <span class="pun">});</span>
+    </code></pre>
+
+      <h4>Usage:</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">user</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">User</span><span class="pun">({</span> <span class="var">firstName</span><span class="pun">:</span> <span class="str">'Jane'</span><span class="pun">,</span> <span class="var">lastName</span><span class="pun">:</span> <span class="str">'Doe'</span> <span class="pun">});</span>
+
+<span class="com">// Get the virtual property (runs the .get() function)</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">user</span><span class="pun">.</span><span class="var">fullName</span><span class="pun">);</span> <span class="com">// Output: "Jane Doe"</span>
+
+<span class="com">// Set the virtual property (runs the .set() function)</span>
+<span class="var">user</span><span class="pun">.</span><span class="var">fullName</span> <span class="pun">=</span> <span class="str">'John Smith'</span><span class="pun">;</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">user</span><span class="pun">.</span><span class="var">firstName</span><span class="pun">);</span> <span class="com">// Output: "John"</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">user</span><span class="pun">.</span><span class="var">lastName</span><span class="pun">);</span>  <span class="com">// Output: "Smith"</span>
+    </code></pre>
+      <div class="output-block">
+        <span class="output">Output: "Jane Doe"</span><br />
+        <span class="output">Output: "John"</span><br />
+        <span class="output">Output: "Smith"</span>
+      </div>
+
+      <h2>Using Getter and Setter in Virtual Properties for Validation</h2>
+      <p>
+        While Mongoose has a dedicated validation layer for persisted fields,
+        you use the <strong>setter</strong> function of a virtual property to
+        perform
+        <span class="note">input validation or transformation</span> before the
+        values are assigned to the underlying persisted fields.
+      </p>
+      <p>
+        The getter is generally for computing a value, but the setter is where
+        you can check the input (v):
+      </p>
+
+      <h4>JavaScript Example (Validation in Setter)</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">productSchema</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">mongoose</span><span class="pun">.</span><span class="var">Schema</span><span class="pun">({</span>
+  <span class="var">price</span><span class="pun">:</span> <span class="var">Number</span>
+<span class="pun">});</span>
+
+<span class="var">productSchema</span><span class="pun">.</span><span class="var">virtual</span><span class="pun">(</span><span class="str">'formattedPrice'</span><span class="pun">)</span>
+  <span class="pun">.</span><span class="var">get</span><span class="pun">(</span><span class="kw">function</span><span class="pun">()</span> <span class="pun">{</span>
+    <span class="kw">return</span> <span class="str">`</span><span class="highlight">$</span><span class="highlight">${</span><span class="kw">this</span><span class="pun">.</span><span class="var">price</span><span class="pun">.</span><span class="var">toFixed</span><span class="pun">(</span><span class="num">2</span><span class="pun">)</span><span class="highlight">}</span><span class="str">`</span><span class="pun">;</span> <span class="com">// Computed value</span>
+  <span class="pun">})</span>
+  <span class="pun">.</span><span class="var">set</span><span class="pun">(</span><span class="kw">function</span><span class="pun">(</span><span class="var">v</span><span class="pun">)</span> <span class="pun">{</span>
+    <span class="com">// 💡 Validation and Transformation in the setter</span>
+    <span class="kw">const</span> <span class="var">numericValue</span> <span class="pun">=</span> <span class="var">parseFloat</span><span class="pun">(</span><span class="var">String</span><span class="pun">(</span><span class="var">v</span><span class="pun">).</span><span class="var">replace</span><span class="pun">(</span><span class="str">/[^0-9.]/g</span><span class="pun">,</span> <span class="str">''</span><span class="pun">));</span>
+
+    <span class="kw">if</span> <span class="pun">(</span><span class="var">isNaN</span><span class="pun">(</span><span class="var">numericValue</span><span class="pun">)</span> <span class="pun">||</span> <span class="var">numericValue</span> <span class="pun">&lt;</span> <span class="num">0</span><span class="pun">)</span> <span class="pun">{</span>
+      <span class="com">// Throwing an error here prevents the underlying fields from being set.</span>
+      <span class="kw">throw new</span> <span class="var">Error</span><span class="pun">(</span><span class="str">'Invalid price format or value assigned to formattedPrice.'</span><span class="pun">);</span>
+    <span class="pun">}</span>
+    
+    <span class="com">// Transform and assign to the underlying persisted field</span>
+    <span class="kw">this</span><span class="pun">.</span><span class="var">price</span> <span class="pun">=</span> <span class="var">numericValue</span><span class="pun">;</span> 
+  <span class="pun">});</span>
+    </code></pre>
+
+      <h4>Usage:</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">product</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Product</span><span class="pun">({</span> <span class="var">price</span><span class="pun">:</span> <span class="num">100</span> <span class="pun">});</span><span class="kw">try</span> <span class="pun">{</span>
+  <span class="com">// Successful set</span>
+  <span class="var">product</span><span class="pun">.</span><span class="var">formattedPrice</span> <span class="pun">=</span> <span class="str">'$199.99'</span><span class="pun">;</span> 
+  <span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">product</span><span class="pun">.</span><span class="var">price</span><span class="pun">);</span> <span class="com">// Output: 199.99</span>
+
+  <span class="com">// Throws error due to validation</span>
+  <span class="var">product</span><span class="pun">.</span><span class="var">formattedPrice</span> <span class="pun">=</span> <span class="str">'invalid value'</span><span class="pun">;</span> <span class="com">// 💥 Throws the Error</span>
+<span class="pun">}</span> <span class="kw">catch</span> <span class="pun">(</span><span class="var">error</span><span class="pun">)</span> <span class="pun">{</span>
+  <span class="var">console</span><span class="pun">.</span><span class="var">error</span><span class="pun">(</span><span class="var">error</span><span class="pun">.</span><span class="var">message</span><span class="pun">);</span> 
+  <span class="com">// Output: "Invalid price format or value assigned to formattedPrice."</span>
+<span class="pun">}</span>
+    </code></pre>
+      <div class="output-block">
+        <span class="output">Output: 199.99</span><br />
+        <span class="error"
+          >Output: "Invalid price format or value assigned to
+          formattedPrice."</span
+        >
+      </div>
+
+      <h2>Why <code>document.toJSON()</code> Not Showing Virtual Properties</h2>
+      <p>
+        By default, Mongoose <span class="error">excludes</span> virtual
+        properties when a Mongoose document is converted to a plain JavaScript
+        object using <code>document.toObject()</code> or
+        <code>document.toJSON()</code>. This is done to prevent non-persisted
+        data from being accidentally saved or sent to clients when not intended.
+      </p>
+      <p>
+        To include virtual properties in the output, you must explicitly enable
+        them in the <strong>schema options</strong>:
+      </p>
+
+      <h4>JavaScript Example (Enabling Virtuals in Output)</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">userSchema</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">mongoose</span><span class="pun">.</span><span class="var">Schema</span><span class="pun">({</span>
+  <span class="com">// ... fields ...</span>
+<span class="pun">}, {</span>
+  <span class="com">// This option tells Mongoose to include virtuals when calling .toJSON()</span>
+  <span class="var">toJSON</span><span class="pun">:</span> <span class="pun">{</span> <span class="var">virtuals</span><span class="pun">:</span> <span class="kw">true</span> <span class="pun">},</span> 
+  
+  <span class="com">// You might also want to do this for .toObject() if you use it extensively</span>
+  <span class="var">toObject</span><span class="pun">:</span> <span class="pun">{</span> <span class="var">virtuals</span><span class="pun">:</span> <span class="kw">true</span> <span class="pun">}</span> 
+<span class="pun">});</span>
+
+<span class="com">// After setting this option:</span>
+<span class="kw">const</span> <span class="var">user</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">User</span><span class="pun">({</span> <span class="var">firstName</span><span class="pun">:</span> <span class="str">'Alice'</span><span class="pun">,</span> <span class="var">lastName</span><span class="pun">:</span> <span class="str">'Wonderland'</span> <span class="pun">});</span>
+
+<span class="com">// Without { virtuals: true } in toJSON options, this would only show </span>
+<span class="com">// firstName, lastName, _id, and __v.</span>
+<span class="kw">const</span> <span class="var">json</span> <span class="pun">=</span> <span class="var">user</span><span class="pun">.</span><span class="var">toJSON</span><span class="pun">();</span> 
+
+<span class="com">/*</span>
+<span class="com">json: {</span>
+<span class="com">  _id: '...',</span>
+<span class="com">  firstName: 'Alice',</span>
+<span class="com">  lastName: 'Wonderland',</span>
+<span class="com">  __v: 0,</span>
+<span class="com">  fullName: 'Alice Wonderland' // 🎉 Now included!</span>
+<span class="com">}</span>
+<span class="com">*/</span>
+    </code></pre>
+      <p class="note">
+        <strong>Note:</strong> <code>res.send(document)</code> in Express.js
+        often calls <code>document.toJSON()</code> automatically, making the
+        <code>toJSON: { virtuals: true }</code> option essential for sending
+        virtuals to an API client.
+      </p>
+
+      <h2>Schema Deep Dive: Virtual Syntax Extraction</h2>
+
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">modelSchema</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Schema</span><span class="pun">({</span>
+    <span class="var">name</span><span class="pun">:</span> <span class="pun">{</span>
+        <span class="var">type</span><span class="pun">:</span> <span class="var">String</span><span class="pun">,</span>
+        <span class="var">required</span><span class="pun">:</span> <span class="pun">[</span><span class="kw">true</span><span class="pun">,</span> <span class="str">'Name is required'</span><span class="pun">],</span>
+        <span class="var">minLength</span><span class="pun">:</span> <span class="pun">[</span><span class="num">3</span><span class="pun">,</span> <span class="str">'Minimum length of name should be length of 3 char'</span><span class="pun">],</span>
+        <span class="var">alias</span><span class="pun">:</span> <span class="str">'nam'</span>
+    <span class="pun">},</span>
+    <span class="var">age</span><span class="pun">:</span> <span class="pun">{</span>
+        <span class="var">type</span><span class="pun">:</span> <span class="var">Number</span><span class="pun">,</span> <span class="var">min</span><span class="pun">:</span> <span class="num">18</span><span class="pun">,</span> <span class="var">required</span><span class="pun">:</span> <span class="pun">[</span><span class="kw">true</span><span class="pun">,</span> <span class="str">'Age is required'</span><span class="pun">],</span>
+        <span class="var">validate</span><span class="pun">:</span> <span class="pun">{</span>
+            <span class="var">validator</span><span class="pun">:</span> <span class="kw">function</span> <span class="pun">()</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">age</span> <span class="pun">></span> <span class="num">0</span>
+            <span class="pun">},</span>
+            <span class="var">message</span><span class="pun">:</span> <span class="str">'Age must be an positive value'</span>
+        <span class="pun">}</span>
+
+    <span class="pun">},</span>
+    <span class="var">email</span><span class="pun">:</span> <span class="pun">{</span>
+        <span class="var">type</span><span class="pun">:</span> <span class="var">String</span><span class="pun">,</span>
+        <span class="var">required</span><span class="pun">:</span> <span class="pun">[</span><span class="kw">true</span><span class="pun">,</span> <span class="str">'Please enter a valid email'</span><span class="pun">],</span>
+        <span class="var">match</span><span class="pun">:</span> <span class="str">/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/</span>
+    <span class="pun">},</span>
+    <span class="var">hobbies</span><span class="pun">:</span> <span class="pun">[</span><span class="var">String</span><span class="pun">],</span>
+    <span class="var">parentId</span><span class="pun">:</span> <span class="pun">{</span>
+        <span class="var">type</span><span class="pun">:</span> <span class="var">mongoose</span><span class="pun">.</span><span class="var">Types</span><span class="pun">.</span><span class="var">ObjectId</span><span class="pun">,</span>
+        <span class="var">required</span><span class="pun">:</span> <span class="kw">function</span> <span class="pun">()</span> <span class="pun">{</span>
+            <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">age</span> <span class="pun">&lt;</span> <span class="num">18</span>
+        <span class="pun">},</span>
+        <span class="var">default</span><span class="pun">:</span> <span class="kw">null</span><span class="pun">,</span>
+        <span class="var">ref</span><span class="pun">:</span> <span class="str">'Student'</span>
+    <span class="pun">}</span>
+<span class="pun">}, {</span>
+    <span class="var">strict</span><span class="pun">:</span> <span class="str">'throw'</span><span class="pun">,</span>
+    <span class="var">timestamps</span><span class="pun">:</span> <span class="kw">true</span><span class="pun">,</span>
+    <span class="var">virtuals</span><span class="pun">:</span> <span class="pun">{</span>
+        <span class="var">isAdult</span><span class="pun">:</span> <span class="pun">{</span>
+            <span class="var">get</span><span class="pun">:</span> <span class="kw">function</span> <span class="pun">()</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">age</span> <span class="pun">>=</span> <span class="num">18</span><span class="pun">;</span>
+            <span class="pun">}</span>
+        <span class="pun">},</span>
+        <span class="var">hobbiesString</span><span class="pun">:</span> <span class="pun">{</span>
+            <span class="var">get</span><span class="pun">()</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">hobbies</span><span class="pun">.</span><span class="var">join</span><span class="pun">(</span><span class="str">', '</span><span class="pun">)</span>
+            <span class="pun">},</span>
+            <span class="var">set</span><span class="pun">(</span><span class="var">value</span><span class="pun">)</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">hobbies</span> <span class="pun">=</span> <span class="pun">[...</span><span class="kw">this</span><span class="pun">.</span><span class="var">hobbies</span><span class="pun">, ...</span><span class="var">value</span><span class="pun">.</span><span class="var">split</span><span class="pun">(</span><span class="str">', '</span><span class="pun">)]</span>
+            <span class="pun">}</span>
+        <span class="pun">}</span>
+    <span class="pun">}</span>
+<span class="pun">});</span>
+    </code></pre>
+
+      <p>
+        The provided schema demonstrates two ways to define virtual properties:
+      </p>
+      <ol>
+        <li>
+          Using the <code>alias</code> option on a field (Simple Virtual/Alias).
+        </li>
+        <li>
+          Using the <code>virtuals</code> option in the Schema configuration
+          object (Getter/Setter Virtuals).
+        </li>
+      </ol>
+
+      <h3>1. Virtual Property using <code>alias</code></h3>
+      <p>
+        This syntax creates a simple alias for an existing, persistent field.
+        The alias itself acts as a virtual property.
+      </p>
+
+      <h4>Extracted Syntax (from the <code>name</code> field):</h4>
+      <pre><code class="javascript">
+<span class="var">name</span><span class="pun">:</span> <span class="pun">{</span>
+    <span class="com">// ... other properties</span>
+    <span class="var">alias</span><span class="pun">:</span> <span class="str">'nam'</span>
+<span class="pun">}</span>
+    </code></pre>
+
+      <h4>Explanation</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Part</th>
+            <th>Value</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Field</td>
+            <td><code>name</code></td>
+            <td>The actual, persistent field in the MongoDB document.</td>
+          </tr>
+          <tr>
+            <td>Option</td>
+            <td><code>alias: 'nam'</code></td>
+            <td>
+              Defines a virtual property named
+              <strong><code>nam</code></strong> that acts as an alias for the
+              <code>name</code> field.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p><strong>Effect:</strong></p>
+      <ul>
+        <li>
+          When you <span class="highlight">get</span> <code>document.nam</code>,
+          you are getting the value of <code>document.name</code>.
+        </li>
+        <li>
+          When you <span class="highlight">set</span>
+          <code>document.nam = 'new'</code>, you are setting the value of
+          <code>document.name</code> to <code>'new'</code>.
+        </li>
+        <li>The field stored in MongoDB is still <code>name</code>.</li>
+      </ul>
+
+      <h3>
+        2. Virtual Properties using the <code>virtuals</code> Schema Option
+      </h3>
+      <p>
+        This syntax is used for more complex virtual properties that require
+        custom getter and/or setter logic. It's defined within the second
+        argument (the options object) of the <code>Schema</code> constructor.
+      </p>
+
+      <h4>Extracted Syntax (from the Schema Options):</h4>
+      <pre><code class="javascript">
+<span class="pun">{</span>
+    <span class="com">// ... other options like strict, timestamps</span>
+    <span class="var">virtuals</span><span class="pun">:</span> <span class="pun">{</span>
+        <span class="var">isAdult</span><span class="pun">:</span> <span class="pun">{</span>
+            <span class="var">get</span><span class="pun">:</span> <span class="kw">function</span> <span class="pun">()</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">age</span> <span class="pun">>=</span> <span class="num">18</span><span class="pun">;</span>
+            <span class="pun">}</span>
+        <span class="pun">},</span>
+        <span class="var">hobbiesString</span><span class="pun">:</span> <span class="pun">{</span>
+            <span class="var">get</span><span class="pun">()</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">hobbies</span><span class="pun">.</span><span class="var">join</span><span class="pun">(</span><span class="str">', '</span><span class="pun">)</span>
+            <span class="pun">},</span>
+            <span class="var">set</span><span class="pun">(</span><span class="var">value</span><span class="pun">)</span> <span class="pun">{</span>
+                <span class="kw">return</span> <span class="kw">this</span><span class="pun">.</span><span class="var">hobbies</span> <span class="pun">=</span> <span class="pun">[...</span><span class="kw">this</span><span class="pun">.</span><span class="var">hobbies</span><span class="pun">, ...</span><span class="var">value</span><span class="pun">.</span><span class="var">split</span><span class="pun">(</span><span class="str">', '</span><span class="pun">)]</span>
+            <span class="pun">}</span>
+        <span class="pun">}</span>
+    <span class="pun">}</span>
+<span class="pun">}</span>
+    </code></pre>
+
+      <h4>Explanation</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Virtual Name</th>
+            <th>Function</th>
+            <th>Code Block</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>isAdult</code></td>
+            <td>Getter only</td>
+            <td><code>get: function () { return this.age >= 18; }</code></td>
+            <td>
+              Defines the virtual property <code>isAdult</code>. The getter
+              computes and returns a boolean value based on the persistent
+              <code>age</code> field. If you try to set this virtual, it will be
+              ignored as there is no setter.
+            </td>
+          </tr>
+          <tr>
+            <td rowspan="2"><code>hobbiesString</code></td>
+            <td>Getter</td>
+            <td><code>get() { return this.hobbies.join(', ') }</code></td>
+            <td>
+              The getter transforms the <code>hobbies</code> array into a single
+              comma-separated string for easy reading.
+            </td>
+          </tr>
+          <tr>
+            <td>Setter</td>
+            <td>
+              <code
+                >set(value) { return this.hobbies = [...this.hobbies,
+                ...value.split(', ')] }</code
+              >
+            </td>
+            <td>
+              The setter takes a string, splits it, and appends the new items to
+              the existing <code>hobbies</code> array. This allows the virtual
+              to both be read and assigned a value that affects the underlying
+              persistent data.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p><strong>Key Points:</strong></p>
+      <ul>
+        <li>
+          The <code>this</code> context inside the getter and setter refers to
+          the <strong>Mongoose document</strong> instance.
+        </li>
+        <li>
+          Virtuals are not persisted to the database; they are computed upon
+          access or used to indirectly set persistent fields.
+        </li>
+        <li>
+          To make these virtuals visible when converting the document to a plain
+          object (e.g., for an API response), the schema must be configured with
+          <code>toJSON: { virtuals: true }</code>. (This option is not present
+          in the provided schema, but it's a critical associated concept).
+        </li>
+      </ul>
+
+      <h2>How These Properties Will Later Be Available on Documents</h2>
+      <p>
+        The way virtual and aliased properties become available on Mongoose
+        documents depends entirely on how they are defined and whether the
+        document instance is being accessed or converted to JSON/plain object.
+      </p>
+
+      <h3>
+        1. Accessing Fields with the <code>alias</code> Option (<code
+          >name</code
+        >
+        and <code>nam</code>)
+      </h3>
+      <p>
+        The alias creates a simultaneous way to access the single, underlying
+        database field.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Type</th>
+            <th>How it's available</th>
+            <th>Example Usage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>name</code></td>
+            <td>Persistent</td>
+            <td>Available on the document instance like any other field.</td>
+            <td><code>doc.name = 'Bob'</code></td>
+          </tr>
+          <tr>
+            <td><code>nam</code></td>
+            <td>Virtual (Alias)</td>
+            <td>
+              Available on the document instance as an alternative way to
+              get/set the <code>name</code> field.
+            </td>
+            <td>
+              <code>doc.nam = 'Rob'</code> (This sets <code>doc.name</code> to
+              'Rob')
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>On the Document Instance:</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">doc</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Model</span><span class="pun">({</span> <span class="var">name</span><span class="pun">:</span> <span class="str">'Alice'</span><span class="pun">,</span> <span class="var">age</span><span class="pun">:</span> <span class="num">25</span> <span class="pun">});</span>
+
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc</span><span class="pun">.</span><span class="var">name</span><span class="pun">);</span> <span class="com">// 'Alice' (Accessing the persistent field)</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc</span><span class="pun">.</span><span class="var">nam</span><span class="pun">);</span>  <span class="com">// 'Alice' (Accessing via the alias)</span>
+
+<span class="var">doc</span><span class="pun">.</span><span class="var">nam</span> <span class="pun">=</span> <span class="str">'Betty'</span><span class="pun">;</span> <span class="com">// Setting the alias</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc</span><span class="pun">.</span><span class="var">name</span><span class="pun">);</span> <span class="com">// 'Betty' (The persistent field is updated)</span>
+    </code></pre>
+
+      <h3>2. Accessing Virtual Properties with Getters/Setters</h3>
+      <p>
+        These properties are non-persistent and only exist as functions that are
+        executed when you interact with the property name.
+      </p>
+
+      <h4>A. Getter-only Virtual (<code>isAdult</code>)</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Type</th>
+            <th>How it's available</th>
+            <th>Example Usage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>isAdult</code></td>
+            <td>Virtual (Getter)</td>
+            <td>
+              Available on the document instance. Accessing it executes the
+              getter function, which computes the value from the persistent
+              <code>age</code> field.
+            </td>
+            <td><code>doc.isAdult</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>On the Document Instance:</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">doc1</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Model</span><span class="pun">({</span> <span class="var">age</span><span class="pun">:</span> <span class="num">16</span> <span class="pun">});</span>
+<span class="kw">const</span> <span class="var">doc2</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Model</span><span class="pun">({</span> <span class="var">age</span><span class="pun">:</span> <span class="num">30</span> <span class="pun">});</span>
+
+<span class="com">// Accessing the virtual runs the 'get' function: (this.age >= 18)</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc1</span><span class="pun">.</span><span class="var">isAdult</span><span class="pun">);</span> <span class="com">// false</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc2</span><span class="pun">.</span><span class="var">isAdult</span><span class="pun">);</span> <span class="com">// true</span>
+    </code></pre>
+
+      <h4>B. Getter-and-Setter Virtual (<code>hobbiesString</code>)</h4>
+      <table>
+        <thead>
+          <tr>
+            <th>Property</th>
+            <th>Type</th>
+            <th>How it's available</th>
+            <th>Example Usage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>hobbiesString</code></td>
+            <td>Virtual (Getter/Setter)</td>
+            <td>
+              Available on the document instance. Accessing it runs the getter.
+              Assigning a value runs the setter, which modifies the persistent
+              <code>hobbies</code> array.
+            </td>
+            <td>
+              <code>doc.hobbiesString</code> (Getter) and
+              <code>doc.hobbiesString = 'value'</code> (Setter)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>On the Document Instance:</h4>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">doc</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Model</span><span class="pun">({</span> <span class="var">hobbies</span><span class="pun">:</span> <span class="pun">[</span><span class="str">'reading'</span><span class="pun">]</span> <span class="pun">});</span>
+
+<span class="com">// 1. Getting the virtual (runs the getter: this.hobbies.join(', '))</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc</span><span class="pun">.</span><span class="var">hobbiesString</span><span class="pun">);</span> <span class="com">// 'reading'</span>
+
+<span class="com">// 2. Setting the virtual (runs the setter)</span>
+<span class="var">doc</span><span class="pun">.</span><span class="var">hobbiesString</span> <span class="pun">=</span> <span class="str">'cooking, hiking'</span><span class="pun">;</span> 
+
+<span class="com">// 3. Check the underlying persistent array</span>
+<span class="var">console</span><span class="pun">.</span><span class="var">log</span><span class="pun">(</span><span class="var">doc</span><span class="pun">.</span><span class="var">hobbies</span><span class="pun">);</span> <span class="com">// ['reading', 'cooking', 'hiking']</span>
+    </code></pre>
+
+      <h3>
+        3. Availability in <code>toJSON()</code> or <code>toObject()</code>
+      </h3>
+      <p>
+        By default, virtuals are excluded when a Mongoose document is converted
+        to a plain JavaScript object (which happens automatically when sending a
+        response in Express, or when using <code>doc.toJSON()</code>).
+      </p>
+      <p>
+        To make the virtuals (<code>isAdult</code>, <code>hobbiesString</code>,
+        and the aliased <code>nam</code>) available in the final output object,
+        the schema options must include:
+      </p>
+
+      <pre><code class="javascript">
+<span class="com">// This is missing from your original schema but is required</span>
+<span class="com">// for virtuals to be included in the JSON output.</span>
+<span class="pun">{</span>
+  <span class="var">toJSON</span><span class="pun">:</span> <span class="pun">{</span> <span class="var">virtuals</span><span class="pun">:</span> <span class="kw">true</span> <span class="pun">},</span> 
+  <span class="var">toObject</span><span class="pun">:</span> <span class="pun">{</span> <span class="var">virtuals</span><span class="pun">:</span> <span class="kw">true</span> <span class="pun">}</span> 
+<span class="pun">}</span>
+    </code></pre>
+      <p>
+        If these options <span class="note">are set</span>, the output object
+        will look like this:
+      </p>
+      <pre><code class="javascript">
+<span class="kw">const</span> <span class="var">doc</span> <span class="pun">=</span> <span class="kw">new</span> <span class="var">Model</span><span class="pun">({</span> <span class="var">name</span><span class="pun">:</span> <span class="str">'Alice'</span><span class="pun">,</span> <span class="var">age</span><span class="pun">:</span> <span class="num">25</span><span class="pun">,</span> <span class="var">hobbies</span><span class="pun">:</span> <span class="pun">[</span><span class="str">'coding'</span><span class="pun">]</span> <span class="pun">});</span>
+<span class="kw">const</span> <span class="var">json</span> <span class="pun">=</span> <span class="var">doc</span><span class="pun">.</span><span class="var">toJSON</span><span class="pun">({</span> <span class="var">virtuals</span><span class="pun">:</span> <span class="kw">true</span> <span class="pun">});</span>
+
+<span class="com">/* json object will include: */</span>
+<span class="pun">{</span>
+  <span class="com">// ... persistent fields</span>
+  <span class="var">name</span><span class="pun">:</span> <span class="str">'Alice'</span><span class="pun">,</span> 
+  <span class="var">age</span><span class="pun">:</span> <span class="num">25</span><span class="pun">,</span>
+  <span class="var">hobbies</span><span class="pun">:</span> <span class="pun">[</span><span class="str">'coding'</span><span class="pun">],</span>
+  
+  <span class="com">// ... virtuals and alias</span>
+  <span class="var">nam</span><span class="pun">:</span> <span class="str">'Alice'</span><span class="pun">,</span>            <span class="com">// Alias virtual</span>
+  <span class="var">isAdult</span><span class="pun">:</span> <span class="kw">true</span><span class="pun">,</span>           <span class="com">// Getter virtual</span>
+  <span class="var">hobbiesString</span><span class="pun">:</span> <span class="str">'coding'</span><span class="pun">,</span> <span class="com">// Getter virtual</span>
+  
+  <span class="com">// ... Mongoose overhead</span>
+  <span class="var">_id</span><span class="pun">:</span> <span class="str">'...'</span><span class="pun">,</span>
+  <span class="var">__v</span><span class="pun">:</span> <span class="num">0</span><span class="pun">,</span>
+  <span class="var">createdAt</span><span class="pun">:</span> <span class="str">'...'</span><span class="pun">,</span>
+  <span class="var">updatedAt</span><span class="pun">:</span> <span class="str">'...'</span> 
+<span class="pun">}</span>
+    </code></pre>
+    </div>
+  </body>
+</html>

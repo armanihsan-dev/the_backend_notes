@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rate Limiting Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1>Rate Limiting</h1>
+    <p>
+      Rate limiting is a technique used in networking and application
+      development to **control the rate of incoming or outgoing requests** for a
+      service or resource, defining how many operations a client can perform
+      within a specific time period.
+    </p>
+
+    <hr />
+
+    <h2>⚙️ How Rate Limiting Works</h2>
+    <p>
+      Rate limiting works by enforcing a **policy** that defines the allowed
+      request rate. When a request arrives, the system identifies the client
+      (typically by **IP address** or **API key**), tracks their request count
+      in a store, and makes a decision:
+    </p>
+    <ul>
+      <li>
+        <strong>Check:</strong> The system checks the client's current request
+        count against the **maximum limit** defined for the current time window.
+      </li>
+      <li>
+        <strong>Allow:</strong> If the count is below the limit, the request is
+        **processed**, and the counter is incremented.
+      </li>
+      <li>
+        <strong>Deny/Throttle:</strong> If the count is at or above the limit,
+        the request is **blocked**, and the client receives an **HTTP
+        <span class="lit">429</span>
+        <span class="str">"Too Many Requests"</span>** status code, often
+        including a <code class="prop">Retry-After</code> header.
+      </li>
+      <li>
+        <strong>Reset:</strong> The counter is reset once the time window
+        expires.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>🛡️ Why Use Rate Limiting?</h2>
+    <p>The primary goals of implementing rate limiting are:</p>
+    <ul>
+      <li>
+        <strong>Prevent Abuse & Security:</strong> Mitigate **Denial-of-Service
+        (DoS)** and **Distributed Denial-of-Service (DDoS)** attacks,
+        brute-force attacks on login/registration endpoints, and spamming.
+      </li>
+      <li>
+        <strong>Resource Protection:</strong> Prevent specific users from
+        consuming **excessive server resources** (CPU, memory, database
+        connections), which ensures **fair usage** and maintains system
+        stability for all users.
+      </li>
+      <li>
+        <strong>Cost Control:</strong> For services that use third-party APIs or
+        cloud functions billed per use, limiting requests helps control
+        operational costs.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>💡 Common Use Cases</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Area</th>
+          <th>Example Endpoint</th>
+          <th>Limit Objective</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Security</strong></td>
+          <td>
+            <code class="mono">/login</code>,
+            <code class="mono">/register</code>,
+            <code class="mono">/forgot-password</code>
+          </td>
+          <td>
+            Limit attempts per IP address to prevent **brute-force attacks**.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>API Access</strong></td>
+          <td><code class="mono">/api/v1/data</code></td>
+          <td>
+            Limit requests per API key/user per hour/day to enforce
+            **subscription tiers** (e.g., Free vs. Premium).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Public Services</strong></td>
+          <td>
+            <code class="mono">/search</code>, <code class="mono">/feed</code>
+          </td>
+          <td>
+            Limit requests per IP address to ensure **service availability** and
+            prevent scraping.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Notifications</strong></td>
+          <td>
+            <code class="mono">/send-email</code>,
+            <code class="mono">/send-sms</code>
+          </td>
+          <td>
+            Limit the number of messages a user can send to prevent
+            **spamming**.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>⏱️ Rate Limiting Strategies</h2>
+    <p>
+      Different algorithms are used to implement the tracking and policy
+      enforcement:
+    </p>
+    <ul>
+      <li>
+        <strong>Fixed Window Counter:</strong>
+        <p>
+          The simplest method. A fixed-size time window (e.g.,
+          <span class="lit">60</span> seconds) is used. Requests are counted
+          until the window ends, then the counter is reset to zero.
+        </p>
+        <p>
+          <strong>Limitation:</strong> It can lead to a **"burst" problem**,
+          where a client makes the maximum allowed requests right before the
+          window resets and then immediately makes another maximum burst right
+          after, effectively doubling the rate in a short period around the
+          reset boundary.
+        </p>
+      </li>
+      <li>
+        <strong>Sliding Window Log:</strong>
+        <p>
+          The most accurate but resource-intensive. It stores a **timestamp
+          log** for every request made by a client. When a new request comes,
+          the system sums up all timestamps that fall within the current time
+          window (e.g., the last <span class="lit">60</span> seconds). If the
+          sum exceeds the limit, the request is denied.
+        </p>
+        <p>
+          <strong>Benefit:</strong> Prevents the burst problem since the window
+          effectively slides with the current time.
+        </p>
+      </li>
+      <li>
+        <strong>Token Bucket:</strong>
+        <p>
+          Requests consume **tokens** from a bucket. Tokens are added to the
+          bucket at a fixed rate (the refill rate). If a request arrives and the
+          bucket has tokens, it consumes one and proceeds. If the bucket is
+          empty, the request is blocked.
+        </p>
+        <p>
+          <strong>Benefit:</strong> Allows for occasional bursts (up to the
+          bucket size) while strictly limiting the long-term average rate.
+        </p>
+      </li>
+      <li>
+        <strong>Sliding Window Counter (Hybrid):</strong>
+        <p>
+          Combines the fixed window and the sliding window log for better
+          performance and accuracy. It uses the counts from the previous and
+          current fixed windows, weighted by how much of the previous window has
+          elapsed.
+        </p>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>🖥️ Express.js Server Example and Explanation</h2>
+    <p>
+      The following example uses the **Fixed Window Counter** strategy for the
+      <code class="mono">/register</code> endpoint.
+    </p>
+
+    <h3>Practical Example using Express.js</h3>
+    <pre><code><span class="kw">import</span> express <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> bcrypt <span class="kw">from</span> <span class="str">"bcrypt"</span>;
+
+<span class="kw">const</span> <span class="prop">app</span> = <span class="dir">express</span>();
+<span class="kw">const</span> <span class="prop">PORT</span> = <span class="lit">4000</span>;
+<span class="kw">const</span> <span class="prop">rateLimitStore</span> = {}
+
+
+<span class="prop">app</span>.<span class="dir">use</span>((<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+  <span class="prop">res</span>.<span class="dir">setHeader</span>(<span class="str">"Access-Control-Allow-Origin"</span>, <span class="str">"*"</span>);
+  <span class="dir">next</span>();
+});
+
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">"/"</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="prop">res</span>.<span class="dir">send</span>(<span class="str">"&lt;h1&gt;Hello World!&lt;/h1&gt;"</span>);
+});
+
+<span class="kw">function</span> <span class="dir">rateLimiter</span>({ <span class="prop">windowSize</span>, <span class="prop">numberOfRequest</span> }) {
+  <span class="kw">return</span> <span class="kw">function</span> (<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) {
+    <span class="kw">const</span> <span class="prop">currentTime</span> = <span class="dir">Date</span>.<span class="dir">now</span>()
+    <span class="kw">if</span> (!<span class="prop">rateLimitStore</span>[<span class="prop">req</span>.<span class="prop">ip</span>]) {
+      <span class="prop">rateLimitStore</span>[<span class="prop">req</span>.<span class="prop">ip</span>] = {
+        <span class="prop">startTime</span>: <span class="prop">currentTime</span>,
+        <span class="prop">count</span>: <span class="lit">1</span>
+      }
+      <span class="kw">return</span> <span class="dir">next</span>()
+    }
+    <span class="kw">if</span> (<span class="prop">currentTime</span> - <span class="prop">rateLimitStore</span>[<span class="prop">req</span>.<span class="prop">ip</span>].<span class="prop">startTime</span> &gt; <span class="prop">windowSize</span>) {
+      <span class="prop">rateLimitStore</span>[<span class="prop">req</span>.<span class="prop">ip</span>] = {
+        <span class="prop">startTime</span>: <span class="prop">currentTime</span>,
+        <span class="prop">count</span>: <span class="lit">1</span>
+      }
+    } <span class="kw">else</span> {
+      <span class="kw">if</span> (<span class="prop">rateLimitStore</span>[<span class="prop">req</span>.<span class="prop">ip</span>].<span class="prop">count</span> &gt; <span class="prop">numberOfRequest</span>) {
+        <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">429</span>).<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">"Too many requests. Please slow down."</span> });
+      }
+      <span class="prop">rateLimitStore</span>[<span class="prop">req</span>.<span class="prop">ip</span>].<span class="prop">count</span> += <span class="lit">1</span>
+    }
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="prop">rateLimitStore</span>);
+    <span class="dir">next</span>()
+  }
+}
+
+<span class="prop">app</span>.<span class="dir">get</span>(
+  <span class="str">"/register"</span>,
+  <span class="dir">rateLimiter</span>({ <span class="prop">windowSize</span>: <span class="lit">15000</span>, <span class="prop">numberOfRequest</span>: <span class="lit">7</span> }),
+  <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="prop">bcrypt</span>.<span class="dir">hashSync</span>(<span class="str">"123456"</span>, <span class="lit">14</span>);
+    <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">"Registered Successfully"</span> });
+  }
+);
+
+<span class="prop">app</span>.<span class="dir">listen</span>(<span class="prop">PORT</span>, <span class="str">"0.0.0.0"</span>, () => {
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`🚀 Visit http://localhost:${PORT}`</span>);
+});</code></pre>
+
+    <h3>Explanation of the Code</h3>
+
+    <h4>1. <code class="dir">rateLimiter</code> Function</h4>
+    <p>
+      This is a **higher-order function** that acts as middleware. It takes
+      configuration parameters (<code class="prop">windowSize</code> in
+      milliseconds and <code class="prop">numberOfRequest</code>) and returns
+      the actual Express middleware function.
+    </p>
+
+    <pre><code><span class="kw">function</span> <span class="dir">rateLimiter</span>({ <span class="prop">windowSize</span>, <span class="prop">numberOfRequest</span> }) {
+  <span class="cmt">// Returns the actual middleware (req, res, next)</span>
+  <span class="kw">return</span> <span class="kw">function</span> (<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) {
+    <span class="kw">const</span> <span class="prop">currentTime</span> = <span class="dir">Date</span>.<span class="dir">now</span>();
+    <span class="cmt">// ... logic ...</span>
+  }
+}</code></pre>
+
+    <h4>2. State Storage (<code class="prop">rateLimitStore</code>)</h4>
+    <p>
+      The global object <code class="prop">rateLimitStore</code> is used to
+      track the rate limit status for each client, indexed by their IP address
+      (<code class="prop">req.ip</code>).
+    </p>
+    <pre><code><span class="kw">const</span> <span class="prop">rateLimitStore</span> = {}
+<span class="cmt">// Example store structure:</span>
+<span class="cmt">// {</span>
+<span class="cmt">//   '::1': { // Client's IP address is the key (req.ip)</span>
+<span class="cmt">//     startTime: 1733496000000, // Timestamp when the current window started</span>
+<span class="cmt">//     count: 5                   // Number of requests made in the current window</span>
+<span class="cmt">//   }</span>
+<span class="cmt">// }</span></code></pre>
+
+    <h4>3. Middleware Logic</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Code Section</th>
+          <th>Explanation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>New Client</strong></td>
+          <td>
+            <code class="kw">if</code> (!<code class="prop">rateLimitStore</code
+            >[<code class="prop">req</code>.<code class="prop">ip</code>]) { ...
+            }
+          </td>
+          <td>
+            If the IP is not in the store, this is the **first request**.
+            Initialize the window with the current time and a count of
+            <span class="lit">1</span>. Allow the request (<code class="kw"
+              >return</code
+            >
+            <code class="dir">next</code>()).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Window Reset</strong></td>
+          <td>
+            <code class="kw">if</code> (<code class="prop">currentTime</code> -
+            <code class="prop">rateLimitStore</code>[<code class="prop"
+              >req</code
+            >.<code class="prop">ip</code>].<code class="prop">startTime</code>
+            &gt; <code class="prop">windowSize</code>) { ... }
+          </td>
+          <td>
+            If the difference is **greater than**
+            <code class="prop">windowSize</code> (<span class="lit">15,000</span
+            >ms or <span class="lit">15</span> seconds), the window has expired.
+            Reset the window by setting a new
+            <code class="prop">startTime</code> and a
+            <code class="prop">count</code> of <span class="lit">1</span>.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Limit Check</strong></td>
+          <td>
+            <code class="kw">if</code> (<code class="prop">rateLimitStore</code
+            >[<code class="prop">req</code>.<code class="prop">ip</code>].<code
+              class="prop"
+              >count</code
+            >
+            &gt; <code class="prop">numberOfRequest</code>) { ... }
+          </td>
+          <td>
+            If the window is active, check if the current request count has
+            **exceeded** the limit (<code class="prop">numberOfRequest</code>,
+            which is <span class="lit">7</span>). If it has, block the request
+            and send **HTTP <span class="lit">429</span>** response.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Increment</strong></td>
+          <td>
+            <code class="prop">rateLimitStore</code>[<code class="prop"
+              >req</code
+            >.<code class="prop">ip</code>].<code class="prop">count</code>
+            <span class="op">+=</span> <span class="lit">1</span>
+          </td>
+          <td>
+            If the request is allowed (the limit hasn't been reached), increment
+            the request count for the IP.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Proceed</strong></td>
+          <td><code class="dir">next</code>()</td>
+          <td>
+            Allows the request to continue to the target route handler (<code
+              class="mono"
+              >/register</code
+            >).
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>4. Implementation on Route</h4>
+    <p>
+      The middleware is applied to the
+      <code class="mono">/register</code> route:
+    </p>
+    <pre><code><span class="prop">app</span>.<span class="dir">get</span>(
+  <span class="str">"/register"</span>,
+  <span class="dir">rateLimiter</span>({ <span class="prop">windowSize</span>: <span class="lit">15000</span>, <span class="prop">numberOfRequest</span>: <span class="lit">7</span> }),
+  <span class="cmt">// ... route handler ...</span>
+);</code></pre>
+    <p>
+      This configuration means a client is allowed a maximum of **<span
+        class="lit"
+        >7</span
+      >
+      requests** every **<span class="lit">15</span> seconds** to the
+      <code class="mono">/register</code> endpoint.
+    </p>
+
+    <hr />
+
+    <h2>⚠️ Limitations of Rate Limiting</h2>
+    <p>While essential, rate limiting has limitations:</p>
+    <ul>
+      <li>
+        <strong>IP Spoofing/NAT:</strong> Rate limiting by **IP address** can be
+        ineffective in environments where many users share a single IP address
+        (e.g., users behind a **NAT** firewall in an office or a mobile carrier)
+        or where attackers can easily **spoof** IP addresses.
+      </li>
+      <li>
+        <strong>Distributed Attacks:</strong> Advanced **DDoS attacks** use a
+        large botnet of unique IP addresses, making it difficult for simple
+        IP-based rate limiting to block the attack without affecting legitimate
+        users.
+      </li>
+      <li>
+        <strong>State Management:</strong> In a distributed system with multiple
+        application servers, the <code class="prop">rateLimitStore</code> must
+        be shared and synchronized (e.g., using **Redis**). Using a simple
+        in-memory object (like in the example) only works for a **single server
+        instance**.
+      </li>
+      <li>
+        <strong>User Experience:</strong> An overly strict rate limit can
+        negatively impact legitimate user experience if they unintentionally hit
+        the limit (e.g., rapid page refreshes).
+      </li>
+    </ul>
+  </body>
+</html>

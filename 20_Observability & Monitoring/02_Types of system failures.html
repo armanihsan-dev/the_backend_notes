@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Types of System Failures | Complete Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-triangle-exclamation"></i> FAILURES
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Hard Failures</div>
+        <a href="#complete" class="nav-link">Complete Failures</a>
+        <a href="#partial" class="nav-link">Partial Failures</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Performance</div>
+        <a href="#performance" class="nav-link">Performance Failures</a>
+        <a href="#intermittent" class="nav-link">Intermittent Failures</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Degradation</div>
+        <a href="#degradation" class="nav-link">Degradation Failures</a>
+        <a href="#dependency" class="nav-link">Dependency Failures</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Silent & Change</div>
+        <a href="#change" class="nav-link">Change-Induced</a>
+        <a href="#silent" class="nav-link">Silent Failures</a>
+        <a href="#summary" class="nav-link">Big Picture</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">System Reliability</span>
+        <h1>TYPES OF SYSTEM FAILURES</h1>
+        <p>UNDERSTANDING FAILURE MODES IN PRODUCTION SYSTEMS</p>
+      </section>
+
+      <section id="complete">
+        <h2>1️⃣ COMPLETE FAILURES (HARD FAILURES)</h2>
+        
+        <p>
+          These are the "site is down" scenarios. The service is completely
+          unavailable - maybe the process crashed, the server died, or the
+          network is partitioned.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-server"></i> Example Scenario
+          </span>
+          <p>
+            A Java process runs out of memory and the OOM killer terminates it.
+            All requests immediately fail with connection refused errors.
+          </p>
+        </div>
+
+        <h3>Why They're Actually "Good"</h3>
+        <p>
+          They're impossible to ignore. Everyone knows something is wrong, and
+          investigation starts immediately. There's no ambiguity about the
+          system state.
+        </p>
+      </section>
+
+      <section id="partial">
+        <h2>2️⃣ PARTIAL FAILURES (GRAY-ZONE FAILURES)</h2>
+        
+        <p>
+          The system works for some requests but not others. This is common in
+          distributed systems where only specific components fail.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-network-wired"></i> Example Scenario
+          </span>
+          <p>
+            A microservice's <code>/users</code> endpoint works perfectly, but
+            <code>/orders</code> times out because the order database is having
+            issues. Users can log in but can't see their purchase history.
+          </p>
+        </div>
+
+        <h3>Detection Challenge</h3>
+        <p>
+          Average response times might still look acceptable because the working
+          endpoints dilute the metrics. You need endpoint-specific monitoring to
+          catch these failures.
+        </p>
+      </section>
+
+      <section id="performance">
+        <h2>3️⃣ PERFORMANCE FAILURES (SLOW BUT ALIVE)</h2>
+        
+        <p>
+          The system is technically functional but operating below acceptable
+          speed thresholds.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-gauge-high"></i> Example Scenario
+          </span>
+          <p>
+            An API that usually responds in 100ms now takes 5 seconds. It's
+            still returning correct data, so monitoring checks (is it up?) pass,
+            but user experience is terrible.
+          </p>
+        </div>
+
+        <h3>The Trust Erosion Factor</h3>
+        <p>
+          Users won't see error messages, but they'll start questioning
+          reliability. Slow performance often causes more user churn than brief
+          outages.
+        </p>
+
+        <pre><code class="language-text">Normal:  Request → [100ms] → Response ✓
+Degraded: Request → [5000ms] → Response ⚠️
+(Still "working" but unusable)</code></pre>
+      </section>
+
+      <section id="intermittent">
+        <h2>4️⃣ INTERMITTENT FAILURES (HEISENBUGS)</h2>
+        
+        <p>
+          Named after Heisenberg's uncertainty principle - these failures change
+          behavior when observed. They're maddeningly inconsistent.
+        </p>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-bug"></i> Example Scenario
+          </span>
+          <p>
+            A race condition that only occurs when two specific requests hit at
+            exactly the same microsecond. When you add logging to debug it, the
+            timing changes and the bug disappears.
+          </p>
+        </div>
+
+        <h3>Why They're Hard to Fix</h3>
+        <p>
+          Traditional debugging relies on reproduction. With Heisenbugs, the act
+          of trying to observe them changes the conditions that cause them.
+        </p>
+
+        <ul>
+          <li>Timing-dependent race conditions</li>
+          <li>Concurrency issues that vanish under debugging</li>
+          <li>Load-dependent failures that don't reproduce in test environments</li>
+        </ul>
+      </section>
+
+      <section id="degradation">
+        <h2>5️⃣ DEGRADATION FAILURES (SLOW DEATH)</h2>
+        
+        <p>
+          The system gradually deteriorates over time, like a slow leak.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-chart-line"></i> Example Scenario
+          </span>
+          <p>
+            A service that leaks memory slowly. After deployment, it runs fine
+            for 3 days, then response times start creeping up. By day 7, it's
+            unusable and crashes.
+          </p>
+        </div>
+
+        <h3>The Trap</h3>
+        <p>
+          Engineers might blame the last deployment (from day 3), but the real
+          issue is cumulative behavior. The code was "working" for days after
+          deployment.
+        </p>
+
+        <pre><code class="language-text">Day 1: Memory 20% | Response 100ms ✓
+Day 3: Memory 45% | Response 150ms ⚠️
+Day 5: Memory 70% | Response 500ms ⚠️
+Day 7: Memory 95% | Response 8000ms ❌ CRASH</code></pre>
+      </section>
+
+      <section id="dependency">
+        <h2>6️⃣ DEPENDENCY FAILURES (NOT YOUR FAULT, STILL YOUR PROBLEM)</h2>
+        
+        <p>
+          Your code is perfect, but something your system relies on is failing.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-link"></i> Example Scenario
+          </span>
+          <p>
+            Your payment service is flawless, but the third-party credit card
+            processor is having an outage. Your users can't complete purchases,
+            and they're tweeting angrily at you, not the processor.
+          </p>
+        </div>
+
+        <h3>Key Insight</h3>
+        <p>
+          In production, your SLOs (Service Level Objectives) don't care about
+          fault boundaries. If your system depends on it, its failure is your
+          failure.
+        </p>
+
+        <div class="comparison-grid">
+          <div>
+            <h4>Common Dependencies</h4>
+            <ul>
+              <li>Third-party APIs</li>
+              <li>Cloud provider services</li>
+              <li>Database systems</li>
+              <li>Message queues</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Mitigation Strategies</h4>
+            <ul>
+              <li>Circuit breakers</li>
+              <li>Fallback mechanisms</li>
+              <li>Graceful degradation</li>
+              <li>Timeout configurations</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section id="change">
+        <h2>7️⃣ CHANGE-INDUCED FAILURES (AFTER DEPLOYMENT)</h2>
+        
+        <p>
+          Failures that appear after a code or configuration change.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-code-branch"></i> Example Scenario
+          </span>
+          <p>
+            You deploy a new feature that's perfectly tested, but it changes
+            database query patterns. Under real production load, these new
+            queries cause deadlocks that never appeared in staging.
+          </p>
+        </div>
+
+        <h3>The Tricky Part</h3>
+        <p>
+          The code change might be correct but interacts with production
+          scale/traffic in unexpected ways. Rollback "fixes" it, but you haven't
+          really solved the underlying issue.
+        </p>
+
+        <pre><code class="language-text">Staging (100 users):  Query takes 50ms ✓
+Production (10K users): Query causes deadlock ❌
+
+The code is "correct" but doesn't scale</code></pre>
+      </section>
+
+      <section id="silent">
+        <h2>8️⃣ SILENT FAILURES (THE MOST DANGEROUS)</h2>
+        
+        <p>
+          Failures that don't manifest as errors but corrupt data or degrade
+          functionality invisibly.
+        </p>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-ghost"></i> Example Scenario
+          </span>
+          <p>
+            A background job that processes user uploads silently fails to
+            process 5% of images. No errors are thrown, logs look normal, but
+            users slowly notice their images aren't showing up.
+          </p>
+        </div>
+
+        <h3>The Real Danger</h3>
+        <p>
+          By the time you detect these, the damage (data corruption, user trust
+          loss) has already happened. Prevention through validation and
+          reconciliation is critical.
+        </p>
+
+        <ul>
+          <li><strong>Data corruption:</strong> Wrong values written silently</li>
+          <li><strong>Missing data:</strong> Records not processed without errors</li>
+          <li><strong>Logic errors:</strong> Wrong calculations that pass validation</li>
+          <li><strong>Security issues:</strong> Permissions not enforced correctly</li>
+        </ul>
+      </section>
+
+      <section id="summary">
+        <h2>THE BIG PICTURE: WHY THIS FRAMEWORK MATTERS</h2>
+        
+        <p>Understanding these categories helps you:</p>
+
+        <h3>1. Build Better Monitoring</h3>
+        <p>You need different signals for each type:</p>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Failure Type</th>
+              <th>Monitoring Strategy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Complete Failures</td>
+              <td>Uptime checks, health endpoints</td>
+            </tr>
+            <tr>
+              <td>Partial Failures</td>
+              <td>Endpoint-specific metrics</td>
+            </tr>
+            <tr>
+              <td>Performance Failures</td>
+              <td>Latency percentiles (p95, p99)</td>
+            </tr>
+            <tr>
+              <td>Silent Failures</td>
+              <td>Data validation checks, reconciliation</td>
+            </tr>
+            <tr>
+              <td>Degradation</td>
+              <td>Resource usage trends over time</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>2. Debug More Effectively</h3>
+        <p>The failure type guides your investigation approach:</p>
+        
+        <ul>
+          <li><strong>Intermittent?</strong> Look for concurrency/race conditions</li>
+          <li><strong>Degradation?</strong> Check resource usage trends</li>
+          <li><strong>Change-induced?</strong> Compare pre/post deployment metrics</li>
+          <li><strong>Dependency?</strong> Check external service status</li>
+        </ul>
+
+        <h3>3. Set Realistic Expectations</h3>
+        <p>
+          Production systems are never 100% healthy; they exist on a spectrum of
+          degraded states. Understanding failure modes helps you communicate
+          system health accurately.
+        </p>
+
+        <h3>4. Design Better Systems</h3>
+        <p>
+          Knowing failure modes helps you build redundancy, circuit breakers,
+          and graceful degradation into your architecture from the start.
+        </p>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+            margin-top: 3rem;
+          "
+        >
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">
+            💡 The Golden Rule
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Every production system will fail. The question is not "if" but
+            "when" and "how." Understanding failure types transforms you from
+            reactive firefighter to proactive system designer.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Types of System Failures Guide</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+    <!-- Active Section Highlighter -->
+    <script src="script.js"></script>
+  </body>
+</html>

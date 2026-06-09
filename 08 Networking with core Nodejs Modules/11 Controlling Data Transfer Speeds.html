@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controlling Data Transfer Speeds in Node.js</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --code-bg-color: #1e1e1e;
+            --code-text-color: #dcdcdc;
+            --keyword-color: #569cd6;
+            --string-color: #ce9178;
+            --function-color: #dcdcdc;
+            --comment-color: #6a9955;
+            --variable-color: #9cdcfe;
+            --number-color: #b5cea8;
+            --heading-color: #569cd6;
+            --list-bullet-color: #569cd6;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background-color: #242424;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1, h2, h3 {
+            color: var(--heading-color);
+            border-bottom: 2px solid #333;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        p {
+            margin: 15px 0;
+        }
+
+        .note-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .note-list li {
+            position: relative;
+            margin-bottom: 10px;
+            padding-left: 25px;
+        }
+
+        .note-list li:before {
+            content: "🔹";
+            color: var(--list-bullet-color);
+            font-size: 1.2em;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        .code-container {
+            background-color: var(--code-bg-color);
+            color: var(--code-text-color);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            white-space: pre;
+            line-height: 1.4;
+        }
+
+        .code-container .hljs-keyword { color: var(--keyword-color); }
+        .code-container .hljs-string { color: var(--string-color); }
+        .code-container .hljs-title.function_ { color: var(--function-color); }
+        .code-container .hljs-comment { color: var(--comment-color); }
+        .code-container .hljs-variable { color: var(--variable-color); }
+        .code-container .hljs-number { color: var(--number-color); }
+        .code-container .hljs-tag { color: #569cd6; }
+        .code-container .hljs-attr { color: #9cdcfe; }
+        .code-container .hljs-attribute { color: #b5cea8; }
+
+        .highlight-text {
+            color: #d4d4d4;
+            background-color: #333;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .highlight-bold {
+            font-weight: 700;
+            color: #dcdcdc;
+        }
+
+        .emoji-flash {
+            color: #f7d24d;
+            font-size: 1.2em;
+        }
+
+        .emoji-pin {
+            color: #e6b240;
+            font-size: 1.2em;
+        }
+
+        .emoji-check {
+            color: #4CAF50;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Controlling Data Transfer Speeds in a Node.js TCP Server</h1>
+    <p>
+        Controlling data transfer speeds in a Node.js TCP server using the <span class="highlight-text">net</span> module is a really useful concept when you want to implement rate limiting / throttling for file transfers, streaming, or testing network conditions (like simulating slow internet).
+    </p>
+
+    <p>Let’s go step by step.</p>
+
+    <h2>🔹 1. Basics — Normal TCP Transfer in Node.js</h2>
+    <p>
+        Normally, when you write data to a socket, Node.js and the OS handle buffering and send it as fast as possible:
+    </p>
+
+    <div class="code-container">
+        <span class="hljs-keyword">import</span> net <span class="hljs-keyword">from</span> <span class="hljs-string">"net"</span>;
+        <span class="hljs-keyword">import</span> { createReadStream } <span class="hljs-keyword">from</span> <span class="hljs-string">"fs"</span>;
+        <span class="hljs-keyword">const</span> server = net.createServer((socket) => {
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">"Client connected"</span>);
+
+          <span class="hljs-comment">// Sends file at max possible speed</span>
+          <span class="hljs-keyword">const</span> stream = createReadStream(<span class="hljs-string">"bigfile.mp4"</span>);
+          stream.pipe(socket);
+        });
+
+        server.listen(<span class="hljs-number">3000</span>, () => {
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">"Server listening on port 3000"</span>);
+        });
+    </div>
+
+    <p>
+        <span class="emoji-flash">⚡</span> Here, the data flows at the maximum possible speed (limited only by CPU, RAM, and network bandwidth). But sometimes, we want to deliberately slow it down.
+    </p>
+
+    <h2>🔹 2. Why Control Data Transfer Speeds?</h2>
+    <ul>
+        <li>To simulate poor network conditions (like slow 3G).</li>
+        <li>To prevent bandwidth hogging by clients.</li>
+        <li>To stream data smoothly (like video streaming).</li>
+        <li>To avoid overwhelming clients with too much data at once.</li>
+    </ul>
+
+    <h3>Techniques to Control Speed</h3>
+
+    <h3>✅ A) Using setTimeout or setInterval (manual chunks)</h3>
+    <p>
+        You can manually send chunks of data with delays:
+    </p>
+
+    <div class="code-container">
+        <span class="hljs-keyword">import</span> net <span class="hljs-keyword">from</span> <span class="hljs-string">"net"</span>;
+        <span class="hljs-keyword">import</span> { createReadStream } <span class="hljs-keyword">from</span> <span class="hljs-string">"fs"</span>;
+
+        <span class="hljs-keyword">const</span> CHUNK_SIZE = <span class="hljs-number">1024</span>; <span class="hljs-comment">// 1 KB per chunk</span>
+        <span class="hljs-keyword">const</span> INTERVAL = <span class="hljs-number">100</span>;    <span class="hljs-comment">// every 100 ms → 10 KB/s speed</span>
+
+        <span class="hljs-keyword">const</span> server = net.createServer((socket) => {
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">"Client connected"</span>);
+
+          <span class="hljs-keyword">const</span> stream = createReadStream(<span class="hljs-string">"bigfile.mp4"</span>, { highWaterMark: CHUNK_SIZE });
+
+          stream.on(<span class="hljs-string">"data"</span>, (chunk) => {
+            stream.pause();  <span class="hljs-comment">// stop reading from file</span>
+            socket.write(chunk, () => {
+              <span class="hljs-comment">// resume after delay</span>
+              <span class="hljs-variable">setTimeout</span>(() => {
+                stream.resume();
+              }, INTERVAL);
+            });
+          });
+
+          stream.on(<span class="hljs-string">"end"</span>, () => {
+            <span class="hljs-variable">console</span>.log(<span class="hljs-string">"File transfer completed"</span>);
+            socket.end();
+          });
+        });
+
+        server.listen(<span class="hljs-number">3000</span>, () => {
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">"Server running on port 3000"</span>);
+        });
+    </div>
+
+    <p>
+        <span class="emoji-pin">📌</span> Here:
+    </p>
+    <ul>
+        <li><span class="highlight-text">highWaterMark: CHUNK_SIZE</span> controls how much data we read at once.</li>
+        <li>We <span class="highlight-text">pause()</span> and <span class="highlight-text">resume()</span> the stream to inject delays.</li>
+        <li>Transfer speed ≈ <span class="highlight-text">CHUNK_SIZE / INTERVAL</span>.</li>
+        <li>E.g. 1024 bytes / 100 ms = 10 KB/s.</li>
+    </ul>
+
+    <h2>✅ C) Using External Libraries (<span class="highlight-text">stream-throttle</span>)</h2>
+    <p>
+        Instead of writing your own Throttle, you can use <span class="highlight-text">stream-throttle</span>:
+    </p>
+
+    <div class="code-container">
+        npm install stream-throttle
+    </div>
+
+    <div class="code-container">
+        <span class="hljs-keyword">import</span> net <span class="hljs-keyword">from</span> <span class="hljs-string">"net"</span>;
+        <span class="hljs-keyword">import</span> { createReadStream } <span class="hljs-keyword">from</span> <span class="hljs-string">"fs"</span>;
+        <span class="hljs-keyword">import</span> { Throttle } <span class="hljs-keyword">from</span> <span class="hljs-string">"stream-throttle"</span>;
+
+        <span class="hljs-keyword">const</span> server = net.createServer((socket) => {
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">"Client connected"</span>);
+
+          <span class="hljs-keyword">const</span> stream = createReadStream(<span class="hljs-string">"bigfile.mp4"</span>);
+          <span class="hljs-keyword">const</span> throttle = <span class="hljs-keyword">new</span> Throttle({ rate: <span class="hljs-number">1024</span> * <span class="hljs-number">100</span> }); <span class="hljs-comment">// 100 KB/s</span>
+
+          stream.pipe(throttle).pipe(socket);
+        });
+
+        server.listen(<span class="hljs-number">3000</span>, () => {
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">"Server running on port 3000"</span>);
+        });
+    </div>
+    <p>This is the simplest production-ready approach.</p>
+
+    <h2>🔹 4. Controlling Speed Dynamically (per client)</h2>
+    <p>
+        You could even assign different speeds to different clients:
+    </p>
+
+    <div class="code-container">
+        <span class="hljs-keyword">const</span> speeds = [<span class="hljs-number">10</span>, <span class="hljs-number">50</span>, <span class="hljs-number">100</span>]; <span class="hljs-comment">// KB/s</span>
+        <span class="hljs-keyword">let</span> clientId = <span class="hljs-number">0</span>;
+        <span class="hljs-keyword">const</span> server = net.createServer((socket) => {
+          <span class="hljs-keyword">const</span> speed = speeds[clientId % speeds.length];
+          clientId++;
+
+          <span class="hljs-variable">console</span>.log(<span class="hljs-string">`Client ${clientId} → ${speed} KB/s`</span>);
+
+          <span class="hljs-keyword">const</span> stream = createReadStream(<span class="hljs-string">"bigfile.mp4"</span>);
+          <span class="hljs-keyword">const</span> throttle = <span class="hljs-keyword">new</span> Throttle({ rate: speed * <span class="hljs-number">1024</span> });
+
+          stream.pipe(throttle).pipe(socket);
+        });
+    </div>
+
+    <h2>🔹 5. Real-World Applications</h2>
+    <ul>
+        <li>Video/Audio Streaming → control buffer size.</li>
+        <li>Download Managers → let users choose bandwidth.</li>
+        <li>Testing apps → simulate slow 3G / 4G speeds.</li>
+        <li>Server fairness → prevent one client from hogging bandwidth.</li>
+    </ul>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Backup & Restore Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Body and Main Container Styling (The 'Blakish' Note Theme) */
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #1e1e1e; /* Dark 'blakish' background, similar to VS Code dark themes */
+            color: #d4d4d4; /* Light grey text for readability */
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #252526; /* Slightly lighter inner background for the 'note' paper effect */
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Headings */
+        h1 {
+            color: #569cd6; /* A common VS Code blue for primary titles */
+            font-weight: 700;
+            border-bottom: 2px solid #3c3c3c;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+
+        h2 {
+            color: #c586c0; /* A soft purple for section headings (VS Code function/keyword color) */
+            font-weight: 700;
+            margin-top: 30px;
+            padding-top: 10px;
+        }
+
+        /* Paragraphs and Lists */
+        p, ul, ol, li {
+            margin-bottom: 15px;
+            color: #d4d4d4;
+        }
+
+        strong {
+            color: #9cdcfe; /* Light blue for emphasized words */
+            font-weight: 700;
+        }
+
+        /* Code Block Styling (VS Code Blakish Theme) */
+        pre {
+            background-color: #1f1f1f; /* VS Code Editor background */
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #3c3c3c;
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace; /* Monospace font for code */
+            color: #dcdcdc; /* Default text color in code */
+            white-space: pre-wrap; /* Ensure text wraps within the pre block */
+            display: block; /* Important for the colors to fill the line */
+        }
+
+        /* Syntax Highlighting Imitation (Monokai/Dark+) */
+        .bash-keyword { color: #569cd6; } /* Keywords like 'mongodump' */
+        .bash-option { color: #ce9178; } /* Options/Flags like '--db' */
+        .bash-variable { color: #4ec9b0; } /* Variables/Paths */
+        .bash-comment { color: #6a9955; } /* Comments */
+        .bash-string { color: #dcdcdc; } /* Generic string/text */
+        .bash-value { color: #b5cea8; } /* Numeric or specific values */
+        .bash-shell { color: #d4d4d4; } /* Shell commands like 'brew' */
+        .yaml-key { color: #9cdcfe; }
+        .yaml-value { color: #ce9178; }
+        .yaml-number { color: #b5cea8; }
+        .yaml-comment { color: #6a9955; }
+        
+        .explanation {
+            background-color: #2d2d30; /* Subtle background for explanations */
+            padding: 10px;
+            border-left: 3px solid #569cd6;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        .note-tag {
+            color: #4ec9b0;
+            font-weight: bold;
+        }
+        
+        /* Utility for cleaning up syntax in the pasted text */
+        .bash-block {
+            padding-left: 15px;
+            margin-bottom: 10px;
+        }
+
+        /* Custom pre-styling for text that looks like code but is not a command line block */
+        .inline-code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            background-color: #3e3e3e;
+            color: #4ec9b0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Complete Guide to MongoDB Backup and Restore</h1>
+        <a href="https://www.mongodb.com/docs/database-tools/">Offical mongoDB Docs Link</a>
+        <p>Let me teach you everything about <span class="inline-code">mongodump</span> and <span class="inline-code">mongorestore</span> with clear explanations and practical examples.</p>
+
+        <h2>1. What are mongodump and mongorestore?</h2>
+        
+        <p><strong><span class="inline-code">mongodump</span></strong></p>
+        <ul>
+            <li><span class="note-tag">Definition:</span> <span class="inline-code">mongodump</span> is a command-line utility that creates a **binary export (backup)** of the contents of a MongoDB database. It reads data from a MongoDB instance and writes **BSON (Binary JSON) files** to disk.</li>
+            <li><span class="note-tag">Key Features:</span>
+                <ul>
+                    <li>Creates complete database backups</li>
+                    <li>Preserves indexes, collections, and documents</li>
+                    <li>Can backup specific databases or collections</li>
+                    <li>Supports compression (gzip)</li>
+                    <li>Works with local and remote MongoDB servers</li>
+                </ul>
+            </li>
+        </ul>
+
+        <p><strong><span class="inline-code">mongorestore</span></strong></p>
+        <ul>
+            <li><span class="note-tag">Definition:</span> <span class="inline-code">mongorestore</span> is a command-line utility that **restores data** from backups created by <span class="inline-code">mongodump</span>. It reads BSON files and imports them into a MongoDB instance.</li>
+            <li><span class="note-tag">Key Features:</span>
+                <ul>
+                    <li>Restores complete or partial backups</li>
+                    <li>Can restore to different databases</li>
+                    <li>Supports selective collection restoration</li>
+                    <li>Works with compressed backups</li>
+                </ul>
+            </li>
+        </ul>
+
+        <hr>
+
+        <h2>2. Downloading and Installing MongoDB Database Tools</h2>
+        <p>MongoDB tools are separate from the MongoDB server installation.</p>
+        <p><strong>Step-by-Step Installation:</strong></p>
+
+        <h3>For Windows:</h3>
+        <ul>
+            <li>Visit: <a href="https://www.mongodb.com/try/download/database-tools" style="color:#4ec9b0;">https://www.mongodb.com/try/download/database-tools</a></li>
+            <li>Select your platform (Windows)</li>
+            <li>Download the <span class="inline-code">.zip</span> file</li>
+            <li>Extract to a location (e.g., <span class="inline-code">C:\mongodb-tools</span>)</li>
+            <li><span class="note-tag">Add to PATH:</span>
+                <ul>
+                    <li>Right-click "This PC" → Properties → Advanced System Settings</li>
+                    <li>Environment Variables → System Variables → Path → Edit</li>
+                    <li>Add: <span class="inline-code">C:\mongodb-tools\bin</span></li>
+                </ul>
+            </li>
+        </ul>
+        <p><span class="note-tag">Verify installation:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-block">
+<span class="bash-keyword">mongodump</span> <span class="bash-option">--version</span>
+<span class="bash-keyword">mongorestore</span> <span class="bash-option">--version</span>
+</span></code></pre>
+
+        <h3>For macOS:</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-comment"># Using Homebrew</span><span class="bash-block">
+<span class="bash-shell">brew</span> <span class="bash-keyword">tap</span> <span class="bash-string">mongodb/brew</span>
+<span class="bash-shell">brew</span> <span class="bash-keyword">install</span> <span class="bash-string">mongodb-database-tools</span>
+</span>
+<span class="bash-comment"># Verify</span><span class="bash-block">
+<span class="bash-keyword">mongodump</span> <span class="bash-option">--version</span>
+</span></code></pre>
+
+        <h3>For Linux (Ubuntu/Debian):</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-comment"># Download and install</span><span class="bash-block">
+<span class="bash-shell">wget</span> <span class="bash-string">https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.9.4.deb</span>
+<span class="bash-shell">sudo</span> <span class="bash-keyword">dpkg</span> <span class="bash-option">-i</span> <span class="bash-string">mongodb-database-tools-ubuntu2204-x86_64-100.9.4.deb</span>
+</span>
+<span class="bash-comment"># Verify</span><span class="bash-block">
+<span class="bash-keyword">mongodump</span> <span class="bash-option">--version</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>3. Creating Backups with mongodump</h2>
+        <p><strong>Basic Syntax:</strong></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--host</span>=<span class="bash-value">&lt;hostname&gt;</span> <span class="bash-option">--port</span>=<span class="bash-value">&lt;port&gt;</span> <span class="bash-option">--db</span>=<span class="bash-value">&lt;database&gt;</span> <span class="bash-option">--collection</span>=<span class="bash-value">&lt;collection&gt;</span> <span class="bash-option">--out</span>=<span class="bash-value">&lt;output-directory&gt;</span> <span class="bash-option">--username</span>=<span class="bash-value">&lt;user&gt;</span> <span class="bash-option">--password</span>=<span class="bash-value">&lt;password&gt;</span> <span class="bash-option">--authenticationDatabase</span>=<span class="bash-value">&lt;auth-db&gt;</span>
+</span></code></pre>
+        <p><strong>Practical Examples:</strong></p>
+
+        <h3>Example 1: Backup ALL Databases (Local Server)</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/mongodb_backup</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li>Connects to <span class="inline-code">localhost:27017</span> (default)</li>
+                <li>Backs up **all** databases</li>
+                <li>Saves to <span class="inline-code">/backup/mongodb_backup</span> directory</li>
+                <li>Creates subdirectories for each database</li>
+            </ul>
+        </div>
+        <p><span class="note-tag">Result Structure:</span></p>
+        <pre><code><span class="bash-variable">/backup/mongodb_backup/</span>
+├── <span class="bash-string">admin</span>/
+│   ├── <span class="bash-string">system.version.bson</span>
+│   └── <span class="bash-string">system.version.metadata.json</span>
+├── <span class="bash-string">myDatabase</span>/
+│   ├── <span class="bash-string">users.bson</span>
+│   ├── <span class="bash-string">users.metadata.json</span>
+│   ├── <span class="bash-string">products.bson</span>
+│   └── <span class="bash-string">products.metadata.json</span>
+└── <span class="bash-string">config</span>/
+</span></code></pre>
+
+        <h3>Example 2: Backup a Specific Database</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/mydb_backup</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--db=myDatabase</span>: Only backs up **"myDatabase"**</li>
+                <li>Creates folder structure: <span class="inline-code">/backup/mydb_backup/myDatabase/</span></li>
+            </ul>
+        </div>
+
+        <h3>Example 3: Backup a Specific Collection</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--collection</span>=<span class="bash-value">users</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/users_backup</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li>Backs up only the **"users" collection** from "myDatabase"</li>
+            </ul>
+        </div>
+
+        <h3>Example 4: Backup with Authentication</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--host</span>=<span class="bash-value">localhost</span> <span class="bash-option">--port</span>=<span class="bash-value">27017</span> <span class="bash-option">--username</span>=<span class="bash-value">admin</span> <span class="bash-option">--password</span>=<span class="bash-value">secretPass</span> <span class="bash-option">--authenticationDatabase</span>=<span class="bash-value">admin</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/secure_backup</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--username</span> and <span class="inline-code">--password</span>: Credentials</li>
+                <li><span class="inline-code">--authenticationDatabase=admin</span>: Where user credentials are stored</li>
+            </ul>
+        </div>
+
+        <h3>Example 5: Backup with Compression (gzip)</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive.gz</span> <span class="bash-option">--gzip</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--archive</span>: Creates a **single archive file** instead of directory structure</li>
+                <li><span class="inline-code">--gzip</span>: **Compresses** the backup (reduces size by 70-90%)</li>
+                <li><span class="note-tag">Output:</span> Single file <span class="inline-code">mydb.archive.gz</span></li>
+            </ul>
+        </div>
+
+        <p><span class="note-tag">Without <span class="inline-code">--archive</span> (directory with gzip):</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/mydb_gzip</span> <span class="bash-option">--gzip</span>
+<span class="bash-comment">Creates directory with .gz compressed BSON files.</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>4. Running MongoDB Server on Different Port</h2>
+        <p><strong>Why?</strong></p>
+        <ul>
+            <li>To restore backups to a test server without affecting production.</li>
+        </ul>
+
+        <h3>Method 1: Start New mongod Instance</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-comment"># Create data directory</span><span class="bash-block">
+<span class="bash-shell">mkdir</span> <span class="bash-option">-p</span> <span class="bash-variable">/data/testdb</span>
+</span>
+<span class="bash-comment"># Start MongoDB on port 27018</span><span class="bash-block">
+<span class="bash-keyword">mongod</span> <span class="bash-option">--port</span> <span class="bash-value">27018</span> <span class="bash-option">--dbpath</span>=<span class="bash-variable">/data/testdb</span> <span class="bash-option">--logpath</span>=<span class="bash-variable">/var/log/mongodb_test.log</span> <span class="bash-option">--fork</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--port 27018</span>: Custom port</li>
+                <li><span class="inline-code">--dbpath</span>: Separate data directory</li>
+                <li><span class="inline-code">--logpath</span>: Log file location</li>
+                <li><span class="inline-code">--fork</span>: Run as background process (Linux/Mac)</li>
+            </ul>
+        </div>
+
+        <p><span class="note-tag">For Windows (no <span class="inline-code">--fork</span>):</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongod</span> <span class="bash-option">--port</span> <span class="bash-value">27018</span> <span class="bash-option">--dbpath</span>=<span class="bash-variable">C:\data\testdb</span> <span class="bash-option">--logpath</span>=<span class="bash-variable">C:\logs\mongodb_test.log</span>
+<span class="bash-comment">Run this in a separate command prompt window.</span>
+</span></code></pre>
+
+        <h3>Method 2: Using Configuration File</h3>
+        <p><span class="note-tag">Create <span class="inline-code">mongod_test.conf</span>:</span></p>
+        <pre><code><span class="bash-shell">yaml</span><span class="yaml-key">storage</span>:<span class="bash-block">
+  <span class="yaml-key">dbPath</span>: <span class="yaml-value">/data/testdb</span>
+</span><span class="yaml-key">net</span>:<span class="bash-block">
+  <span class="yaml-key">port</span>: <span class="yaml-number">27018</span>
+  <span class="yaml-key">bindIp</span>: <span class="yaml-value">127.0.0.1</span>
+</span><span class="yaml-key">systemLog</span>:<span class="bash-block">
+  <span class="yaml-key">destination</span>: <span class="yaml-value">file</span>
+  <span class="yaml-key">path</span>: <span class="yaml-value">/var/log/mongodb_test.log</span>
+</span></code></pre>
+        <p><span class="note-tag">Start with config:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongod</span> <span class="bash-option">--config</span> <span class="bash-value">mongod_test.conf</span>
+</span></code></pre>
+
+        <p><span class="note-tag">Verify the Server is Running:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-comment"># Check if port is listening</span><span class="bash-block">
+<span class="bash-shell">netstat</span> <span class="bash-option">-an</span> | <span class="bash-shell">grep</span> <span class="bash-value">27018</span>
+</span>
+<span class="bash-comment"># Or connect using mongosh</span><span class="bash-block">
+<span class="bash-keyword">mongosh</span> <span class="bash-option">--port</span> <span class="bash-value">27018</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>5. Restoring Backups with mongorestore</h2>
+        <p><strong>Basic Syntax:</strong></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--host</span>=<span class="bash-value">&lt;hostname&gt;</span> <span class="bash-option">--port</span>=<span class="bash-value">&lt;port&gt;</span> <span class="bash-option">--db</span>=<span class="bash-value">&lt;target-database&gt;</span> <span class="bash-option">--drop</span> <span class="bash-variable">&lt;backup-directory&gt;</span>
+</span></code></pre>
+        <p><strong>Practical Examples:</strong></p>
+
+        <h3>Example 1: Restore ALL Databases</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--drop</span> <span class="bash-variable">/backup/mongodb_backup</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--drop</span>: **Drops existing collections** before restoring (prevents duplicates)</li>
+                <li>Restores all databases from backup directory</li>
+            </ul>
+        </div>
+
+        <h3>Example 2: Restore to Different Port Server</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--host</span>=<span class="bash-value">localhost</span> <span class="bash-option">--port</span>=<span class="bash-value">27018</span> <span class="bash-option">--drop</span> <span class="bash-variable">/backup/mongodb_backup</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li>Restores to MongoDB instance running on port <span class="inline-code">27018</span></li>
+                <li>Useful for testing backups</li>
+            </ul>
+        </div>
+
+        <h3>Example 3: Restore Single Database</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--drop</span> <span class="bash-variable">/backup/mongodb_backup/myDatabase</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li>Restores only **"myDatabase"**</li>
+                <li>Must specify the database folder path</li>
+            </ul>
+        </div>
+
+        <h3>Example 4: Restore Single Database to Different Name</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--host</span>=<span class="bash-value">localhost</span> <span class="bash-option">--port</span>=<span class="bash-value">27018</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase_test</span> <span class="bash-variable">/backup/mongodb_backup/myDatabase</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li>Restores **"myDatabase"** backup as **"myDatabase\_test"**</li>
+                <li>Original: <span class="inline-code">/backup/mongodb_backup/myDatabase</span></li>
+                <li>Target: <span class="inline-code">myDatabase_test</span> on port <span class="inline-code">27018</span> server</li>
+            </ul>
+        </div>
+
+        <h3>Example 5: Restore Single Collection</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--collection</span>=<span class="bash-value">users</span> <span class="bash-variable">/backup/mongodb_backup/myDatabase/users.bson</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li>Restores only **"users"** collection</li>
+                <li>Must specify the <span class="inline-code">.bson</span> file path</li>
+            </ul>
+        </div>
+
+        <h3>Example 6: Restore from Compressed Archive</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--gzip</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive.gz</span> <span class="bash-option">--drop</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--gzip</span>: Indicates backup is compressed</li>
+                <li><span class="inline-code">--archive</span>: Specifies archive file</li>
+                <li>Restores to default server (<span class="inline-code">localhost:27017</span>)</li>
+            </ul>
+        </div>
+
+        <h3>Example 7: Restore Compressed Archive to Different Database</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--host</span>=<span class="bash-value">localhost</span> <span class="bash-option">--port</span>=<span class="bash-value">27018</span> <span class="bash-option">--nsFrom</span>=<span class="bash-value">"myDatabase.*"</span> <span class="bash-option">--nsTo</span>=<span class="bash-value">"myDatabase_restored.*"</span> <span class="bash-option">--gzip</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive.gz</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--nsFrom</span>: Source namespace pattern</li>
+                <li><span class="inline-code">--nsTo</span>: Target namespace pattern</li>
+                <li>Renames database during restore</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <h2>6. Remote Server Backup (Deployed MongoDB)</h2>
+        <p><span class="note-tag">Scenario:</span> MongoDB is running on a remote server (cloud, VPS, etc.)</p>
+
+        <h3>Method 1: Direct Connection (If accessible)</h3>
+        <p><span class="note-tag">Example: Backup from Remote Server</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--host</span>=<span class="bash-value">remote.server.com</span> <span class="bash-option">--port</span>=<span class="bash-value">27017</span> <span class="bash-option">--username</span>=<span class="bash-value">dbAdmin</span> <span class="bash-option">--password</span>=<span class="bash-value">securePass123</span> <span class="bash-option">--authenticationDatabase</span>=<span class="bash-value">admin</span> <span class="bash-option">--db</span>=<span class="bash-value">productionDB</span> <span class="bash-option">--out</span>=<span class="bash-variable">/local/backup/remote_backup</span> <span class="bash-option">--gzip</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--host=remote.server.com</span>: Remote server address (IP or domain)</li>
+                <li>Backup is saved **locally** on your machine</li>
+                <li>Use strong credentials</li>
+            </ul>
+        </div>
+
+        <p><span class="note-tag">Example: With Connection String (MongoDB Atlas)</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--uri</span>=<span class="bash-value">"mongodb+srv://username:password@cluster0.mongodb.net/myDatabase"</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/atlas_backup</span> <span class="bash-option">--gzip</span>
+</span></code></pre>
+        <div class="explanation">
+            <span class="note-tag">Explanation:</span>
+            <ul>
+                <li><span class="inline-code">--uri</span>: Complete connection string (includes host, auth, SSL)</li>
+                <li>Works with MongoDB Atlas and other cloud providers</li>
+            </ul>
+        </div>
+
+        <h3>Method 2: SSH into Remote Server</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-comment"># Step 1: SSH into remote server</span><span class="bash-block">
+<span class="bash-shell">ssh</span> <span class="bash-value">user@remote.server.com</span>
+</span>
+<span class="bash-comment"># Step 2: Run mongodump on remote server</span><span class="bash-block">
+<span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">productionDB</span> <span class="bash-option">--out</span>=<span class="bash-variable">/tmp/remote_backup</span> <span class="bash-option">--gzip</span>
+</span>
+<span class="bash-comment"># Step 3: Download backup to local machine</span><span class="bash-block">
+<span class="bash-shell">exit</span> <span class="bash-comment"># Exit SSH</span>
+<span class="bash-shell">scp</span> <span class="bash-option">-r</span> <span class="bash-value">user@remote.server.com</span>:<span class="bash-variable">/tmp/remote_backup</span> <span class="bash-variable">/local/backup/</span>
+</span>
+<span class="bash-comment"># Step 4: Clean up remote backup (optional)</span><span class="bash-block">
+<span class="bash-shell">ssh</span> <span class="bash-value">user@remote.server.com</span> <span class="bash-string">"rm -rf /tmp/remote_backup"</span>
+</span></code></pre>
+
+        <h3>Method 3: Automated Remote Backup Script</h3>
+        <p><span class="note-tag">Create <span class="inline-code">remote_backup.sh</span>:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">#!/bin/bash</span><span class="bash-block">
+<span class="bash-variable">TIMESTAMP</span>=$(<span class="bash-shell">date</span> <span class="bash-option">+%Y%m%d_%H%M%S</span>)
+<span class="bash-variable">BACKUP_DIR</span>=<span class="bash-string">"/backup/mongodb_${TIMESTAMP}"</span>
+</span>
+<span class="bash-comment"># Remote MongoDB details</span><span class="bash-block">
+<span class="bash-variable">REMOTE_HOST</span>=<span class="bash-string">"remote.server.com"</span>
+<span class="bash-variable">REMOTE_PORT</span>=<span class="bash-string">"27017"</span>
+<span class="bash-variable">DB_NAME</span>=<span class="bash-string">"productionDB"</span>
+<span class="bash-variable">USERNAME</span>=<span class="bash-string">"dbAdmin"</span>
+<span class="bash-variable">PASSWORD</span>=<span class="bash-string">"securePass123"</span>
+</span>
+<span class="bash-comment"># Create backup</span><span class="bash-block">
+<span class="bash-keyword">mongodump</span> <span class="bash-string">\</span>
+  <span class="bash-option">--host</span>=$<span class="bash-variable">REMOTE_HOST</span> <span class="bash-string">\</span>
+  <span class="bash-option">--port</span>=$<span class="bash-variable">REMOTE_PORT</span> <span class="bash-string">\</span>
+  <span class="bash-option">--username</span>=$<span class="bash-variable">USERNAME</span> <span class="bash-string">\</span>
+  <span class="bash-option">--password</span>=$<span class="bash-variable">PASSWORD</span> <span class="bash-string">\</span>
+  <span class="bash-option">--authenticationDatabase</span>=<span class="bash-string">admin</span> <span class="bash-string">\</span>
+  <span class="bash-option">--db</span>=$<span class="bash-variable">DB_NAME</span> <span class="bash-string">\</span>
+  <span class="bash-option">--archive</span>=${<span class="bash-variable">BACKUP_DIR</span>}.gz <span class="bash-string">\</span>
+  <span class="bash-option">--gzip</span>
+</span>
+<span class="bash-comment"># Verify backup</span><span class="bash-block">
+<span class="bash-shell">if</span> <span class="bash-string">[</span> <span class="bash-value">$?</span> <span class="bash-option">-eq</span> <span class="bash-value">0</span> <span class="bash-string">]</span>; <span class="bash-shell">then</span>
+    <span class="bash-shell">echo</span> <span class="bash-string">"Backup successful: ${BACKUP_DIR}.gz"</span>
+<span class="bash-shell">else</span>
+    <span class="bash-shell">echo</span> <span class="bash-string">"Backup failed!"</span>
+    <span class="bash-shell">exit</span> <span class="bash-value">1</span>
+<span class="bash-shell">fi</span>
+</span>
+<span class="bash-comment"># Optional: Delete backups older than 7 days</span><span class="bash-block">
+<span class="bash-shell">find</span> <span class="bash-variable">/backup</span> <span class="bash-option">-name</span> <span class="bash-string">"mongodb_*.gz"</span> <span class="bash-option">-mtime</span> <span class="bash-option">+7</span> <span class="bash-option">-delete</span>
+</span></code></pre>
+        <p><span class="note-tag">Make executable and run:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-shell">chmod</span> <span class="bash-option">+x</span> <span class="bash-value">remote_backup.sh</span>
+<span class="bash-shell">./remote_backup.sh</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>7. Different Backup Formats</h2>
+        <p><strong>Format Comparison:</strong></p>
+        <table style="width:100%; border-collapse: collapse; text-align: left; margin-bottom: 20px; color: #d4d4d4;">
+            <thead>
+                <tr style="background-color: #3c3c3c; color: #d4d4d4;">
+                    <th style="padding: 10px; border: 1px solid #3c3c3c;">Format</th>
+                    <th style="padding: 10px; border: 1px solid #3c3c3c;">Extension</th>
+                    <th style="padding: 10px; border: 1px solid #3c3c3c;">Compression</th>
+                    <th style="padding: 10px; border: 1px solid #3c3c3c;">Use Case</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background-color: #2d2d30;">
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">BSON</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">.bson</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">None</td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">Standard format, fast</td>
+                </tr>
+                <tr style="background-color: #252526;">
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">BSON + gzip</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">.bson.gz</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">High</td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">Space-efficient, directory structure</td>
+                </tr>
+                <tr style="background-color: #2d2d30;">
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">Archive</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">.archive</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">None</td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">Single file, all databases</td>
+                </tr>
+                <tr style="background-color: #252526;">
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">Archive + gzip</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;"><span class="inline-code">.archive.gz</span></td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">High</td>
+                    <td style="padding: 10px; border: 1px solid #3c3c3c;">Best for storage/transfer</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p><strong>Practical Examples:</strong></p>
+
+        <h3>1. Standard BSON (No Compression)</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/bson_backup</span>
+</span></code></pre>
+        <p><span class="note-tag">Output:</span></p>
+        <pre><code><span class="bash-variable">/backup/bson_backup/myDatabase/</span>
+├── <span class="bash-string">users.bson</span><span class="bash-comment">            (10 MB)</span>
+├── <span class="bash-string">users.metadata.json</span>
+├── <span class="bash-string">products.bson</span><span class="bash-comment">         (25 MB)</span>
+└── <span class="bash-string">products.metadata.json</span>
+</span></code></pre>
+        <ul>
+            <li><span class="note-tag">Pros:</span> Fast backup/restore</li>
+            <li><span class="note-tag">Cons:</span> Large file sizes</li>
+        </ul>
+
+        <h3>2. BSON with gzip Compression</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--out</span>=<span class="bash-variable">/backup/gzip_backup</span> <span class="bash-option">--gzip</span>
+</span></code></pre>
+        <p><span class="note-tag">Output:</span></p>
+        <pre><code><span class="bash-variable">/backup/gzip_backup/myDatabase/</span>
+├── <span class="bash-string">users.bson.gz</span><span class="bash-comment">            (2 MB - 80% smaller)</span>
+├── <span class="bash-string">users.metadata.json.gz</span>
+├── <span class="bash-string">products.bson.gz</span><span class="bash-comment">         (5 MB - 80% smaller)</span>
+└── <span class="bash-string">products.metadata.json.gz</span>
+</span></code></pre>
+        <ul>
+            <li><span class="note-tag">Pros:</span> 70-90% size reduction</li>
+            <li><span class="note-tag">Cons:</span> Slightly slower</li>
+        </ul>
+        <p><span class="note-tag">Restore:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--gzip</span> <span class="bash-option">--drop</span> <span class="bash-variable">/backup/gzip_backup</span>
+</span></code></pre>
+
+        <h3>3. Archive Format (Single File)</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive</span>
+</span></code></pre>
+        <p><span class="note-tag">Output:</span></p>
+        <pre><code><span class="bash-variable">/backup/mydb.archive</span><span class="bash-comment">  (35 MB - single file)</span>
+</span></code></pre>
+        <ul>
+            <li><span class="note-tag">Pros:</span> Single file, easy to manage</li>
+            <li><span class="note-tag">Cons:</span> No compression</li>
+        </ul>
+        <p><span class="note-tag">Restore:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive</span> <span class="bash-option">--drop</span>
+</span></code></pre>
+
+        <h3>4. Compressed Archive (Best for Storage)</h3>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--db</span>=<span class="bash-value">myDatabase</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive.gz</span> <span class="bash-option">--gzip</span>
+</span></code></pre>
+        <p><span class="note-tag">Output:</span></p>
+        <pre><code><span class="bash-variable">/backup/mydb.archive.gz</span><span class="bash-comment">  (7 MB - single compressed file)</span>
+</span></code></pre>
+        <ul>
+            <li><span class="note-tag">Pros:</span> Maximum compression, single file</li>
+            <li><span class="note-tag">Cons:</span> None (recommended for production)</li>
+        </ul>
+        <p><span class="note-tag">Restore:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongorestore</span> <span class="bash-option">--gzip</span> <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/mydb.archive.gz</span> <span class="bash-option">--drop</span>
+</span></code></pre>
+
+        <h3>5. Archive to stdout (Stream to another process)</h3>
+        <p><span class="note-tag"># Backup and upload to cloud</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--archive</span> <span class="bash-option">--gzip</span> | <span class="bash-shell">aws</span> <span class="bash-shell">s3</span> <span class="bash-shell">cp</span> <span class="bash-option">-</span> <span class="bash-value">s3://my-bucket/backup.gz</span>
+</span></code></pre>
+        <p><span class="note-tag"># Backup and transfer to another server</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-keyword">mongodump</span> <span class="bash-option">--archive</span> <span class="bash-option">--gzip</span> | <span class="bash-shell">ssh</span> <span class="bash-value">user@remote</span> <span class="bash-string">"cat > /backup/db.gz"</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>8. Complete Real-World Workflow</h2>
+        <p><span class="note-tag">Scenario:</span> Backup production database, test on separate server, restore to production</p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-comment"># Step 1: Backup production database with compression</span><span class="bash-block">
+<span class="bash-keyword">mongodump</span> <span class="bash-string">\</span>
+  <span class="bash-option">--host</span>=<span class="bash-value">production.server.com</span> <span class="bash-string">\</span>
+  <span class="bash-option">--port</span>=<span class="bash-value">27017</span> <span class="bash-string">\</span>
+  <span class="bash-option">--username</span>=<span class="bash-value">admin</span> <span class="bash-string">\</span>
+  <span class="bash-option">--password</span>=<span class="bash-value">prodPass</span> <span class="bash-string">\</span>
+  <span class="bash-option">--authenticationDatabase</span>=<span class="bash-value">admin</span> <span class="bash-string">\</span>
+  <span class="bash-option">--db</span>=<span class="bash-value">productionDB</span> <span class="bash-string">\</span>
+  <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/prod_$(date +%Y%m%d).gz</span> <span class="bash-string">\</span>
+  <span class="bash-option">--gzip</span>
+</span>
+<span class="bash-comment"># Step 2: Start test MongoDB server on different port</span><span class="bash-block">
+<span class="bash-keyword">mongod</span> <span class="bash-option">--port</span> <span class="bash-value">27018</span> <span class="bash-option">--dbpath</span>=<span class="bash-variable">/data/testdb</span> <span class="bash-option">--fork</span> <span class="bash-option">--logpath</span>=<span class="bash-variable">/var/log/test.log</span>
+</span>
+<span class="bash-comment"># Step 3: Restore to test server</span><span class="bash-block">
+<span class="bash-keyword">mongorestore</span> <span class="bash-string">\</span>
+  <span class="bash-option">--host</span>=<span class="bash-value">localhost</span> <span class="bash-string">\</span>
+  <span class="bash-option">--port</span>=<span class="bash-value">27018</span> <span class="bash-string">\</span>
+  <span class="bash-option">--gzip</span> <span class="bash-string">\</span>
+  <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/prod_$(date +%Y%m%d).gz</span> <span class="bash-string">\</span>
+  <span class="bash-option">--drop</span>
+</span>
+<span class="bash-comment"># Step 4: Verify test database</span><span class="bash-block">
+<span class="bash-keyword">mongosh</span> <span class="bash-option">--port</span> <span class="bash-value">27018</span> <span class="bash-option">--eval</span> <span class="bash-string">"db.getMongo().getDBNames()"</span>
+</span>
+<span class="bash-comment"># Step 5: If tests pass, restore to production (if needed)</span><span class="bash-block">
+<span class="bash-keyword">mongorestore</span> <span class="bash-string">\</span>
+  <span class="bash-option">--host</span>=<span class="bash-value">production.server.com</span> <span class="bash-string">\</span>
+  <span class="bash-option">--port</span>=<span class="bash-value">27017</span> <span class="bash-string">\</span>
+  <span class="bash-option">--username</span>=<span class="bash-value">admin</span> <span class="bash-string">\</span>
+  <span class="bash-option">--password</span>=<span class="bash-value">prodPass</span> <span class="bash-string">\</span>
+  <span class="bash-option">--authenticationDatabase</span>=<span class="bash-value">admin</span> <span class="bash-string">\</span>
+  <span class="bash-option">--gzip</span> <span class="bash-string">\</span>
+  <span class="bash-option">--archive</span>=<span class="bash-variable">/backup/prod_$(date +%Y%m%d).gz</span> <span class="bash-string">\</span>
+  <span class="bash-option">--drop</span>
+</span>
+<span class="bash-comment"># Step 6: Shutdown test server</span><span class="bash-block">
+<span class="bash-keyword">mongod</span> <span class="bash-option">--port</span> <span class="bash-value">27018</span> <span class="bash-option">--shutdown</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>9. Important Options Reference</h2>
+
+        <p><span class="note-tag">mongodump Options:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-option">--host</span><span class="bash-comment">              # MongoDB server address</span>
+<span class="bash-option">--port</span><span class="bash-comment">              # Port number (default: 27017)</span>
+<span class="bash-option">--db</span><span class="bash-comment">                # Specific database to backup</span>
+<span class="bash-option">--collection</span><span class="bash-comment">        # Specific collection to backup</span>
+<span class="bash-option">--out</span><span class="bash-comment">                # Output directory path</span>
+<span class="bash-option">--archive</span><span class="bash-comment">           # Output to single archive file</span>
+<span class="bash-option">--gzip</span><span class="bash-comment">              # Compress output</span>
+<span class="bash-option">--username</span><span class="bash-comment">          # Authentication username</span>
+<span class="bash-option">--password</span><span class="bash-comment">          # Authentication password</span>
+<span class="bash-option">--authenticationDatabase</span><span class="bash-comment"> # Auth database (usually 'admin')</span>
+<span class="bash-option">--uri</span><span class="bash-comment">                # Complete connection string</span>
+<span class="bash-option">--query</span><span class="bash-comment">              # Backup documents matching query</span>
+<span class="bash-option">--excludeCollection</span><span class="bash-comment"> # Skip specific collections</span>
+</span></code></pre>
+
+        <p><span class="note-tag">mongorestore Options:</span></p>
+        <pre><code><span class="bash-shell">bash</span><span class="bash-option">--host</span><span class="bash-comment">              # Target MongoDB server</span>
+<span class="bash-option">--port</span><span class="bash-comment">              # Target port number</span>
+<span class="bash-option">--db</span><span class="bash-comment">                # Target database name</span>
+<span class="bash-option">--drop</span><span class="bash-comment">              # Drop collections before restoring</span>
+<span class="bash-option">--gzip</span><span class="bash-comment">              # Input is gzipped</span>
+<span class="bash-option">--archive</span><span class="bash-comment">           # Restore from archive file</span>
+<span class="bash-option">--nsFrom</span><span class="bash-comment">            # Source namespace (for renaming)</span>
+<span class="bash-option">--nsTo</span><span class="bash-comment">              # Target namespace (for renaming)</span>
+<span class="bash-option">--nsInclude</span><span class="bash-comment">         # Only restore matching namespaces</span>
+<span class="bash-option">--nsExclude</span><span class="bash-comment">         # Skip matching namespaces</span>
+</span></code></pre>
+
+        <hr>
+
+        <h2>10. Best Practices</h2>
+        <ul>
+            <li>Always use <span class="inline-code">--gzip</span> for production backups (saves 70-90% space)</li>
+            <li>Use <span class="inline-code">--archive</span> for simpler file management</li>
+            <li>Add **timestamps** to backup filenames</li>
+            <li>**Test restores** regularly on test servers</li>
+            <li>**Automate backups** with cron jobs or scheduled tasks</li>
+            <li>Store backups in **multiple locations** (local + cloud)</li>
+            <li>Use <span class="inline-code">--drop</span> **carefully** in production</li>
+            <li>**Encrypt sensitive backups** before storing</li>
+        </ul>
+
+        <p style="color: #4ec9b0; font-style: italic;">This comprehensive guide covers everything you need to master MongoDB backup and restore operations. Practice these commands in a test environment before using them in production!</p>
+    </div>
+</body>
+</html>

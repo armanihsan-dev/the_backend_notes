@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis List Notes | Dark Theme</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Basic Reset and Font */
+      :root {
+        --color-bg: #1e1e1e; /* VS Code Dark Background */
+        --color-text: #d4d4d4; /* Primary Text Color (Light Gray) */
+        --color-heading: #569cd6; /* Light Blue for Headings */
+        --color-accent: #c586c0; /* Purple for key elements/icons */
+        --color-border: #444444; /* Darker Border/Divider */
+
+        /* VS Code/Monokai Syntax Colors */
+        --color-comment: #6a9955; /* Green for comments */
+        --color-keyword: #569cd6; /* Blue for keywords (const, await) */
+        --color-string: #ce9178; /* Orange for strings */
+        --color-number: #b5cea8; /* Green-Yellow for numbers */
+        --color-function: #dcdcaa; /* Yellow for function/method names */
+        --color-class: #4ec9b0; /* Teal for class names */
+        --color-output: #cccccc; /* Light gray for output */
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        line-height: 1.6;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner panel */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-border);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        font-weight: 700;
+      }
+
+      h2 {
+        color: var(--color-accent);
+        margin-top: 30px;
+        margin-bottom: 15px;
+        padding-top: 10px;
+        border-top: 1px solid var(--color-border);
+        font-weight: 700;
+      }
+
+      h3 {
+        color: var(--color-heading);
+        margin-top: 20px;
+        margin-bottom: 10px;
+        font-weight: 400;
+      }
+
+      .icon {
+        font-size: 1.2em;
+        margin-right: 8px;
+      }
+
+      /* Text Formatting */
+      p {
+        margin-bottom: 15px;
+        font-weight: 300;
+      }
+
+      strong {
+        color: var(--color-accent); /* Make bold text pop */
+        font-weight: 700;
+      }
+
+      code {
+        background-color: #333;
+        color: var(--color-accent);
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+      }
+
+      .math-formula {
+        font-style: italic;
+        color: #4ec9b0; /* Teal for math variables */
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        background-color: #2d2d30; /* Slightly different background for table */
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      th {
+        background-color: #3e3e40;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+
+      td:nth-child(1) code {
+        background: transparent;
+        padding: 0;
+        color: var(--color-function); /* Command names in yellow */
+      }
+
+      /* Code Blocks (VS Code Theme) */
+      .code-block {
+        background-color: #1a1a1a; /* Darkest for code container */
+        padding: 15px;
+        border-radius: 6px;
+        margin: 15px 0;
+        position: relative;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.95em;
+        border: 1px solid #3d3d3d;
+      }
+
+      .language-label {
+        position: absolute;
+        top: 5px;
+        right: 10px;
+        font-size: 0.7em;
+        color: #888;
+        background-color: #1a1a1a;
+        padding: 2px 5px;
+        border-radius: 3px;
+      }
+
+      .code-block pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      /* Syntax Highlighting Classes */
+      .code-block .comment {
+        color: var(--color-comment);
+      }
+
+      .code-block .keyword {
+        color: var(--color-keyword);
+      }
+
+      .code-block .string {
+        color: var(--color-string);
+      }
+
+      .code-block .number {
+        color: var(--color-number);
+      }
+
+      .code-block .function-call,
+      .code-block .method-call {
+        color: var(--color-function);
+      }
+
+      .code-block .class-name {
+        color: var(--color-class);
+      }
+
+      .code-block .arrow-function {
+        color: #9cdcfe; /* Light blue for anonymous functions */
+      }
+
+      .code-block .minus {
+        color: #ff9d00; /* Orange for arithmetic operators */
+      }
+
+      /* Output Blocks */
+      .output-label {
+        font-style: italic;
+        color: var(--color-heading);
+        margin-bottom: 5px;
+      }
+
+      .output-block {
+        background-color: #2d2d30; /* Output background */
+        color: var(--color-output);
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        white-space: pre-wrap;
+        font-family: 'Consolas', 'Monaco', monospace;
+        border-left: 3px solid var(--color-accent);
+      }
+
+      .sub-heading {
+        color: var(--color-class);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Working with Redis Lists</h1>
+      </header>
+
+      <section class="intro">
+        <p>
+          Working with the **Redis List** data type is a fundamental task, as it
+          allows you to create **ordered collections of strings**. Unlike a set,
+          lists can contain duplicate elements and elements are inserted in the
+          order you specify. They are implemented as a **linked list**, which
+          makes operations like adding elements to the head or tail very fast
+          (**constant time, <span class="math-formula">$O(1)$</span>**).
+        </p>
+        <p>
+          Here is a breakdown of how to work with Redis Lists using both the
+          <code>redis-cli</code> and a Node.js client (using the popular
+          <code>ioredis</code> library).
+        </p>
+      </section>
+
+      <section class="key-commands">
+        <h2>
+          <span class="icon">📚</span> Redis List: Definition and Key Commands
+        </h2>
+        <p>
+          A Redis List is a sequence of elements that are inserted in the order
+          they are added. Think of it like a **log**, a **queue**, or a
+          **stack**.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Definition</th>
+              <th>Use Case</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>LPUSH key value [value ...]</code></td>
+              <td>Inserts a new element at the **head (left)** of the list.</td>
+              <td>Building a **Stack** or a **most recent items feed**.</td>
+            </tr>
+            <tr>
+              <td><code>RPUSH key value [value ...]</code></td>
+              <td>
+                Inserts a new element at the **tail (right)** of the list.
+              </td>
+              <td>Building a **Queue (First-In, First-Out)**.</td>
+            </tr>
+            <tr>
+              <td><code>LPOP key</code></td>
+              <td>
+                Removes and returns the element at the **head (left)** of the
+                list.
+              </td>
+              <td>Consuming items from a **Stack** or **Queue**.</td>
+            </tr>
+            <tr>
+              <td><code>RPOP key</code></td>
+              <td>
+                Removes and returns the element at the **tail (right)** of the
+                list.
+              </td>
+              <td>Consuming items from the end of a list.</td>
+            </tr>
+            <tr>
+              <td><code>LRANGE key start stop</code></td>
+              <td>Returns a range of elements from the list.</td>
+              <td>Viewing the contents of the list.</td>
+            </tr>
+            <tr>
+              <td><code>LLEN key</code></td>
+              <td>Returns the length of the list.</td>
+              <td>Checking the list's size.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="cli-section">
+        <h2>
+          <span class="icon">💻</span> Working with Redis Lists via
+          <code>redis-cli</code>
+        </h2>
+
+        <div class="subsection">
+          <h3>1. <span class="icon">📝</span> Basic Syntax and Insertion</h3>
+          <p>You'll typically start by pushing elements onto the list.</p>
+
+          <p class="sub-heading">Example: Creating a Queue of Tasks</p>
+
+          <p>
+            <strong>Insert (RPUSH - Right Push):</strong> Add elements to the
+            right side (tail).
+          </p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre><span class="comment"># Syntax: RPUSH list_name element1 [element2 ...]</span>
+RPUSH mytasks <span class="string">"Task A"</span>
+RPUSH mytasks <span class="string">"Task B"</span> <span class="string">"Task C"</span></pre>
+          </div>
+
+          <p>
+            <strong>View the List (LRANGE):</strong> Check the contents. The
+            index starts at <code>0</code>. Use <code>0 -1</code> to get all
+            elements.
+          </p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre><span class="comment"># Syntax: LRANGE list_name start_index end_index</span>
+LRANGE mytasks <span class="number">0</span> <span class="minus">-1</span></pre>
+          </div>
+          <p class="output-label">Output:</p>
+          <pre class="output-block">
+"Task A"
+"Task B"
+"Task C"</pre
+          >
+
+          <p>
+            <strong>Insert (LPUSH - Left Push):</strong> Add an element to the
+            left side (head).
+          </p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre><span class="comment"># This task gets the highest priority (head of the queue)</span>
+LPUSH mytasks <span class="string">"URGENT Task 0"</span></pre>
+          </div>
+
+          <p><strong>View the List (LRANGE):</strong></p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre>LRANGE mytasks <span class="number">0</span> <span class="minus">-1</span></pre>
+          </div>
+          <p class="output-label">Output:</p>
+          <pre class="output-block">
+"URGENT Task 0"
+"Task A"
+"Task B"
+"Task C"</pre
+          >
+        </div>
+
+        <div class="subsection">
+          <h3>2. <span class="icon">🗑️</span> Retrieval and Deletion</h3>
+          <p>
+            Use <code>LPOP</code> and <code>RPOP</code> to retrieve and
+            simultaneously remove elements.
+          </p>
+
+          <p><strong>Remove from Head (LPOP):</strong></p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre><span class="comment"># Syntax: LPOP list_name</span>
+LPOP mytasks</pre>
+          </div>
+          <p class="output-label">
+            Output: <code>"URGENT Task 0"</code> (The element is removed from
+            the list)
+          </p>
+
+          <p><strong>Remove from Tail (RPOP):</strong></p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre><span class="comment"># Syntax: RPOP list_name</span>
+RPOP mytasks</pre>
+          </div>
+          <p class="output-label">
+            Output: <code>"Task C"</code> (The element is removed from the list)
+          </p>
+
+          <p><strong>Check Length (LLEN):</strong></p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre><span class="comment"># Syntax: LLEN list_name</span>
+LLEN mytasks</pre>
+          </div>
+          <p class="output-label">
+            Output: <code>(integer) 2</code> (The remaining elements are "Task
+            A" and "Task B")
+          </p>
+        </div>
+      </section>
+
+      <section class="nodejs-section">
+        <h2>
+          <span class="icon">🟢</span> Working with Redis Lists in Node.js
+        </h2>
+        <p>
+          We'll use the popular promise-based <code>ioredis</code> client for
+          this example.
+        </p>
+
+        <div class="subsection">
+          <h3>1. <span class="icon">⚙️</span> Setup</h3>
+          <p>First, install the library and create a client instance:</p>
+          <div class="code-block bash">
+            <span class="language-label">Bash</span>
+            <pre>npm install ioredis</pre>
+          </div>
+
+          <p><strong>JavaScript:</strong></p>
+          <div class="code-block javascript">
+            <span class="language-label">JavaScript</span>
+            <pre><span class="comment">// file: redis_list_example.js</span>
+<span class="keyword">const</span> <span class="class-name">Redis</span> = <span class="function-call">require</span>(<span class="string">'ioredis'</span>);
+<span class="comment">// Connect to a local Redis instance (default host: 127.0.0.1, port: 6379)</span>
+<span class="keyword">const</span> redis = <span class="keyword">new</span> <span class="class-name">Redis</span>();
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function-name">runListExample</span>() {
+    <span class="keyword">const</span> listKey = <span class="string">'user_activity_log'</span>;
+
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">`\n--- Starting List Example: Key = ${</span>listKey<span class="string">} ---`</span>);
+    
+    <span class="comment">// 1. Clean up old list for a fresh start</span>
+    <span class="keyword">await</span> redis.<span class="method-call">del</span>(listKey);
+
+    <span class="comment">// 2. Add elements using RPUSH (to model a log where new entries go to the end)</span>
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">'Adding new activity to the log using RPUSH...'</span>);
+    <span class="comment">// RPUSH returns the new length of the list (4)</span>
+    <span class="keyword">const</span> newLength = <span class="keyword">await</span> redis.<span class="method-call">rpush</span>(listKey, 
+        <span class="string">'user:1 logged in'</span>, 
+        <span class="string">'user:2 viewed product page'</span>, 
+        <span class="string">'user:1 added item to cart'</span>,
+        <span class="string">'user:2 checked out'</span>
+    );
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">`List length after RPUSH: ${</span>newLength<span class="string">}`</span>);
+    
+    <span class="comment">// 3. View the entire log (LRANGE 0 -1)</span>
+    <span class="keyword">let</span> log = <span class="keyword">await</span> redis.<span class="method-call">lrange</span>(listKey, <span class="number">0</span>, <span class="minus">-1</span>);
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">'\nCurrent Log Contents (LRANGE 0 -1):'</span>);
+    log.<span class="method-call">forEach</span>((item, index) => {
+        <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">`  ${</span>index<span class="string">}: ${</span>item<span class="string">}`</span>);
+    });
+
+    <span class="comment">// 4. Implement a Stack: Add a high-priority message using LPUSH</span>
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">'\nAdding high-priority notification using LPUSH...'</span>);
+    <span class="keyword">await</span> redis.<span class="method-call">lpush</span>(listKey, <span class="string">'SYSTEM: High Priority Alert!'</span>);
+    
+    <span class="comment">// 5. Read the most recent item (head of the list) and process/remove it (LPOP)</span>
+    <span class="keyword">const</span> processedItem = <span class="keyword">await</span> redis.<span class="method-call">lpop</span>(listKey);
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">`\nProcessed (LPOP): ${</span>processedItem<span class="string">}`</span>);
+    
+    <span class="comment">// 6. View remaining log</span>
+    log = <span class="keyword">await</span> redis.<span class="method-call">lrange</span>(listKey, <span class="number">0</span>, <span class="minus">-1</span>);
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">'\nRemaining Log Contents:'</span>);
+    log.<span class="method-call">forEach</span>((item, index) => {
+        <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">`  ${</span>index<span class="string">}: ${</span>item<span class="string">}`</span>);
+    });
+    <span class="function-call">console</span>.<span class="method-call">log</span>(<span class="string">`Final list length (LLEN): ${</span><span class="keyword">await</span> redis.<span class="method-call">llen</span>(listKey)<span class="string">}`</span>);
+
+    redis.<span class="method-call">quit</span>();
+}
+
+<span class="function-call">runListExample</span>().<span class="method-call">catch</span>(<span class="arrow-function">err</span> => {
+    <span class="function-call">console</span>.<span class="method-call">error</span>(<span class="string">'An error occurred:'</span>, err);
+    redis.<span class="method-call">quit</span>();
+});</pre>
+          </div>
+        </div>
+
+        <div class="subsection">
+          <h3>2. <span class="icon">📊</span> Expected Output</h3>
+          <pre class="output-block">
+--- Starting List Example: Key = user_activity_log ---
+Adding new activity to the log using RPUSH...
+List length after RPUSH: 4
+
+Current Log Contents (LRANGE 0 -1):
+  0: user:1 logged in
+  1: user:2 viewed product page
+  2: user:1 added item to cart
+  3: user:2 checked out
+
+Adding high-priority notification using LPUSH...
+
+Processed (LPOP): SYSTEM: High Priority Alert!
+
+Remaining Log Contents:
+  0: user:1 logged in
+  1: user:2 viewed product page
+  2: user:1 added item to cart
+  3: user:2 checked out
+Final list length (LLEN): 4</pre
+          >
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

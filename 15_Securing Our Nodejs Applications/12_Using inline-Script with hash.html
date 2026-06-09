@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSP Hashing Notes - Black Theme</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1><span class="kw">🔒</span> Implementing Inline Scripts with a Hash</h1>
+    <p>
+      A script hash works by telling the browser: "Only execute inline scripts
+      whose content, when hashed with the specified algorithm (e.g.,
+      <span class="prop">SHA-256</span>), matches this hash value."
+    </p>
+
+    ---
+
+    <h2>1. <span class="kw">⚙️</span> How inline-scirpt with Hashing Works</h2>
+    <p>
+      The core idea is to create an <span class="str">allow-list</span> for your
+      inline scripts by their <span class="prop">content</span>, not by their
+      source.
+    </p>
+    <ul>
+      <li>
+        <strong>Generate Hash:</strong> You take the
+        <span class="prop">exact textual content</span> of the inline JavaScript
+        code (everything between the <code>&lt;script&gt;</code> tags, including
+        spaces and newlines).
+      </li>
+      <li>
+        <strong>Calculate SHA-256 Hash:</strong> This content is put through a
+        cryptographic hashing function, usually
+        <span class="prop">SHA-256</span>, which produces a unique, fixed-length
+        output (the hash).
+      </li>
+      <li>
+        <strong>Base64 Encode:</strong> This output is then
+        <span class="prop">Base64 encoded</span> because the
+        <span class="prop">CSP header</span> only accepts
+        <span class="prop">Base64 strings</span>.
+      </li>
+      <li>
+        <strong>CSP Header Inclusion:</strong> You place this hash value into
+        the <code>Content-Security-Policy</code> header using the format:
+        <code class="str">script-src 'sha256-THE_HASH_VALUE'</code>.
+      </li>
+      <li>
+        <strong>Browser Validation:</strong> When the browser encounters an
+        inline script, it calculates the hash of that script's content and
+        compares it against the list of hashes provided in the CSP header. If
+        they match, the script executes; otherwise, it's blocked.
+      </li>
+    </ul>
+
+    ---
+
+    <h2>2. <span class="kw">📝</span> Syntax Definition</h2>
+    <p>The CSP header format for allowing a specific inline script is:</p>
+    <pre><code><span class="kw">Content-Security-Policy</span>: <span class="prop">script-src</span> <span class="str">'sha256-Base64EncodedHashValue'</span>;</code></pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Content-Security-Policy:</code></td>
+          <td>The <span class="prop">HTTP response header name</span>.</td>
+        </tr>
+        <tr>
+          <td><code>script-src</code></td>
+          <td>
+            The <span class="prop">directive</span> that specifies
+            <span class="prop">valid sources for JavaScript</span>
+          </td>
+        </tr>
+        <tr>
+          <td><code>'sha256-'</code></td>
+          <td>
+            <span class="prop">Identifies the hash algorithm used</span> (<span
+              class="prop"
+              >SHA-256</span
+            >).
+          </td>
+        </tr>
+        <tr>
+          <td><code>Base64EncodedHashValue</code></td>
+          <td>
+            The <span class="prop">Base64 encoded result</span> of hashing the
+            <span class="prop">exact script content</span>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    ---
+
+    <h2>3. <span class="kw">🖥️</span> Express.js Example (Manual Header)</h2>
+    <h3 id="calculate-hash">A. Calculate the Hash</h3>
+    <p>
+      We will use Node.js's built-in <span class="prop">crypto module</span> to
+      generate the hash for this specific script:
+    </p>
+    <pre><code><span class="kw">import</span> {<span class="dir">crypto</span>} <span class="kw">from</span> <span class="str">'crypto'</span>;
+
+<span class="kw">const</span> <span class="prop">scriptHash</span> = <span class="dir">crypto</span>
+  .<span class="dir">createHash</span>(<span class="str">'sha256'</span>) <span class="cmt">// Use the SHA-256 algorithm</span>
+  .<span class="dir">update</span>(<span class="prop">inlineScriptContent</span>.<span class="dir">trim</span>()) <span class="cmt">// Hash the exact script content</span>
+  .<span class="dir">digest</span>(<span class="str">'base64'</span>); <span class="cmt">// Get the output in Base64 encoding</span>
+
+<span class="cmt">// The final CSP hash value you need to include in the header</span>
+<span class="kw">const</span> <span class="prop">cspHashValue</span> = <span class="str">`sha256-${</span><span class="prop">scriptHash</span><span class="str">}`</span>;</code></pre>
+
+    <h3 id="express-implementation">B. Express Implementation</h3>
+    <p>
+      In your Express application, you'll set the
+      <span class="prop">Content-Security-Policy header</span> on the response
+      using <span class="prop">res.set()</span>.
+    </p>
+    <pre><code><span class="kw">const</span> <span class="prop">cspHeader</span> = <span class="str">`default-src 'self'; script-src 'self' ${</span><span class="prop">cspHashValue</span><span class="str">};`</span>;
+ <span class="dir">res</span>.<span class="dir">set</span>(<span class="str">'Content-Security-Policy'</span>, <span class="prop">cspHeader</span>);</code></pre>
+
+    <h3 id="complete-example">COmplete expressJs Example :</h3>
+    <pre><code><span class="kw">import</span> <span class="dir">express</span> <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> <span class="dir">mongoose</span> <span class="kw">from</span> <span class="str">"mongoose"</span>;
+<span class="kw">import</span> { <span class="dir">createHash</span> } <span class="kw">from</span> <span class="str">'crypto'</span>
+<span class="kw">const</span> <span class="prop">app</span> = <span class="dir">express</span>();
+
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="dir">express</span>.<span class="dir">json</span>());
+<span class="kw">const</span> <span class="prop">hash</span> = <span class="dir">createHash</span>(<span class="str">'sha256'</span>).<span class="dir">update</span>(<span class="str">"console.log('hii');"</span>).<span class="dir">digest</span>(<span class="str">'base64'</span>)
+<span class="cmt">// console.log(hash);</span>
+
+<span class="kw">await</span> <span class="dir">mongoose</span>.<span class="dir">connect</span>(
+  <span class="str">"mongodb://admin:admin@localhost/socialApp?authSource=admin"</span>
+);
+
+<span class="kw">const</span> <span class="prop">postSchema</span> = <span class="kw">new</span> <span class="dir">mongoose</span>.<span class="type">Schema</span>({
+  <span class="prop">content</span>: <span class="type">String</span>,
+  <span class="prop">createdAt</span>: { <span class="kw">type</span>: <span class="type">Date</span>, <span class="prop">default</span>: <span class="dir">Date</span>.<span class="dir">now</span> },
+});
+
+<span class="kw">const</span> <span class="prop">Post</span> = <span class="dir">mongoose</span>.<span class="dir">model</span>(<span class="str">"Post"</span>, <span class="prop">postSchema</span>);
+<span class="prop">app</span>.<span class="dir">use</span>((<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+  <span class="kw">if</span> (<span class="prop">req</span>.<span class="prop">headers</span>.<span class="prop">accept</span>?.<span class="dir">includes</span>(<span class="str">'text/html'</span>)) {
+    <span class="prop">res</span>.<span class="dir">setHeader</span>(
+      <span class="str">'Content-Security-Policy'</span>,
+      <span class="str">"default-src 'self';\
+        script-src 'self' 'sha256-XoJ+cbCtLeNB+xth5+ftfe9QPNTYUPgsb+Tn9/+5R1o=' ;\
+        style-src 'self';\
+        connect-src 'self';\
+        report-uri /csp-report;\
+        "</span>
+    )
+  }
+  <span class="dir">next</span>()
+})
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="dir">express</span>.<span class="dir">static</span>(<span class="str">"./public"</span>));
+
+
+<span class="cmt">// Routes</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">"/posts"</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="kw">const</span> <span class="prop">posts</span> = <span class="kw">await</span> <span class="prop">Post</span>.<span class="dir">find</span>().<span class="dir">sort</span>({ <span class="prop">createdAt</span>: <span class="lit">-1</span> });
+  <span class="prop">res</span>.<span class="dir">setHeader</span>(<span class="str">"Set-Cookie"</span>, <span class="str">"loginSecret=hdxhw7yrx.k;"</span>);
+  <span class="prop">res</span>.<span class="dir">json</span>(<span class="prop">posts</span>);
+});
+
+<span class="cmt">// Route to receive violation reports</span>
+<span class="prop">app</span>.<span class="dir">post</span>(<span class="str">"/csp-report"</span>, <span class="dir">express</span>.<span class="dir">json</span>({ <span class="kw">type</span>: <span class="str">"application/csp-report"</span> }), (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"📢 CSP VIOLATION REPORT RECEIVED:"</span>);
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="dir">JSON</span>.<span class="dir">stringify</span>(<span class="prop">req</span>.<span class="prop">body</span>, <span class="kw">null</span>, <span class="lit">2</span>));
+  <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">204</span>).<span class="dir">end</span>(); <span class="cmt">// No response needed</span>
+});
+
+<span class="prop">app</span>.<span class="dir">post</span>(<span class="str">"/posts"</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="kw">const</span> <span class="prop">post</span> = <span class="kw">new</span> <span class="prop">Post</span>({ <span class="prop">content</span>: <span class="prop">req</span>.<span class="prop">body</span>.<span class="prop">content</span> });
+  <span class="kw">await</span> <span class="prop">post</span>.<span class="dir">save</span>();
+  <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">201</span>).<span class="dir">json</span>(<span class="prop">post</span>);
+});
+
+<span class="cmt">// Start server</span>
+<span class="prop">app</span>.<span class="dir">listen</span>(<span class="lit">4000</span>, () => <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"Server running on http://localhost:4000"</span>));</code></pre>
+  </body>
+</html>

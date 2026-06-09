@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis SCAN vs. KEYS Comparison</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styling and Blackish Theme */
+      :root {
+        --color-bg-main: #1e1e1e; /* Darkest background */
+        --color-bg-card: #252526; /* Slightly lighter card/section background */
+        --color-text-main: #d4d4d4; /* Light text for readability */
+        --color-text-heading: #569cd6; /* VS Code blue for main headings */
+        --color-accent-key: #ce9178; /* Light brown/orange for key parts */
+        --color-divider: #333333;
+        --color-code-bg: #1f1f1f; /* VS Code dark theme code background */
+        --color-table-header: #333333;
+        --color-key-good: #6a9955; /* Green for "The Good" */
+        --color-key-bad: #f44747; /* Red for "The Bad" */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg-main);
+        color: var(--color-text-main);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: auto;
+        background-color: var(--color-bg-card);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      }
+
+      h1 {
+        color: #d7ba7d; /* Yellowish accent for main title */
+        border-bottom: 3px solid var(--color-divider);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+      }
+
+      h2 {
+        color: var(--color-text-heading);
+        border-bottom: 2px solid var(--color-divider);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h3 {
+        color: var(--color-accent-key);
+        margin-top: 20px;
+      }
+
+      strong {
+        color: var(--color-accent-key);
+      }
+
+      .section-header {
+        font-size: 1.5em;
+        font-weight: 700;
+        margin-top: 25px;
+        padding-left: 10px;
+        border-left: 4px solid var(--color-text-heading);
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: var(--color-bg-main);
+        border-radius: 4px;
+        overflow: hidden;
+        font-size: 0.95em;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--color-divider);
+        padding: 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background-color: var(--color-table-header);
+        color: var(--color-text-heading);
+        font-weight: 700;
+      }
+
+      /* Highlight Boxes */
+      .effect-box {
+        padding: 15px;
+        border-radius: 4px;
+        margin: 15px 0;
+        line-height: 1.5;
+      }
+
+      .effect-bad {
+        background-color: rgba(244, 71, 71, 0.15); /* Light red background */
+        border-left: 5px solid var(--color-key-bad);
+      }
+
+      .effect-good {
+        background-color: rgba(106, 153, 85, 0.15); /* Light green background */
+        border-left: 5px solid var(--color-key-good);
+      }
+
+      .summary-note {
+        background-color: #333333;
+        padding: 20px;
+        border-radius: 4px;
+        margin-top: 30px;
+        font-weight: 700;
+        border: 1px solid var(--color-text-heading);
+      }
+
+      /* List Styling */
+      ul {
+        padding-left: 25px;
+        margin-top: 10px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      .code-inline {
+        background-color: #303030;
+        color: #dcdcaa; /* Light yellow for commands */
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Monaco', monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>
+        Redis Key Iteration: <span class="code-inline">SCAN</span> vs.
+        <span class="code-inline">KEYS</span>
+      </h1>
+
+      <p>
+        The **<span class="code-inline">SCAN</span>** and **<span
+          class="code-inline"
+          >KEYS</span
+        >** commands in Redis serve the same goal—listing keys—but they use
+        fundamentally different execution models, which results in drastically
+        different impacts on your Redis server and Node.js client application.
+      </p>
+
+      <p>Here's a breakdown of the differences and their effects:</p>
+
+      <hr />
+
+      <h2 class="section-header">🔑 Execution and Performance Difference</h2>
+      <p>
+        The primary distinction lies in how the Redis server processes each
+        command.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th><span class="code-inline">KEYS pattern</span></th>
+            <th>
+              <span class="code-inline"
+                >SCAN cursor [MATCH pattern] [COUNT count]</span
+              >
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Execution Model</td>
+            <td><strong>Synchronous & Blocking</strong></td>
+            <td><strong>Asynchronous & Incremental</strong></td>
+          </tr>
+          <tr>
+            <td>Time Complexity</td>
+            <td>$O(N)$, where $N$ is the total number of keys.</td>
+            <td>Amortized $O(1)$ per call. Total $O(N)$ for full iteration.</td>
+          </tr>
+          <tr>
+            <td>Server Impact</td>
+            <td>
+              **High/Severe.** Blocks the Redis server for the entire duration
+              of the operation.
+            </td>
+            <td>
+              **Low.** Performs a small, quick step, returning control
+              immediately.
+            </td>
+          </tr>
+          <tr>
+            <td>Guarantees</td>
+            <td>
+              Returns all keys matching the pattern at the moment of execution.
+            </td>
+            <td>
+              Returns elements incrementally; provides **best-effort
+              guarantees** (keys might be missed or returned multiple times if
+              the dataset is modified during iteration).
+            </td>
+          </tr>
+          <tr>
+            <td>Output</td>
+            <td>A single, large list of all matching keys.</td>
+            <td>A **cursor** (for the next call) and a small batch of keys.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2 class="section-header">💥 Effect on the Redis Server</h2>
+      <p>
+        The choice between <span class="code-inline">KEYS</span> and
+        <span class="code-inline">SCAN</span> directly impacts the health and
+        availability of your Redis instance, especially in production
+        environments.
+      </p>
+
+      <h3>
+        1. <span style="color: var(--color-key-bad)">KEYS</span> Command Effect
+        (The Bad)
+      </h3>
+      <div class="effect-box effect-bad">
+        <p>
+          When you run <span class="code-inline">KEYS *</span> or a similar
+          broad pattern:
+        </p>
+        <ul>
+          <li>
+            **Server Blockage (Single Threaded):** Redis is single-threaded.
+            <span class="code-inline">KEYS</span> is a **blocking operation**
+            that must iterate over every single key in the database to compile
+            the result. During this process, **no other commands** (reads,
+            writes, or even simple checks) can be processed by Redis.
+          </li>
+          <li>
+            **High Latency:** For a large dataset (e.g., millions of keys),
+            <span class="code-inline">KEYS</span> can block the server for
+            seconds or even minutes. This causes **massive latency spikes** for
+            all other clients and can trigger monitoring alerts for
+            unavailability.
+          </li>
+          <li>
+            **Production Danger:** Using
+            <span class="code-inline">KEYS</span> in production is widely
+            considered a **dangerous practice** and should be avoided entirely.
+          </li>
+        </ul>
+      </div>
+
+      <h3>
+        2. <span style="color: var(--color-key-good)">SCAN</span> Command Effect
+        (The Good)
+      </h3>
+      <div class="effect-box effect-good">
+        <p>When you run <span class="code-inline">SCAN 0 MATCH *</span>:</p>
+        <ul>
+          <li>
+            **Non-Blocking:** <span class="code-inline">SCAN</span> performs an
+            **atomic, bounded amount of work** (based on the
+            <span class="code-inline">COUNT</span> hint) on each call. It
+            quickly finds a small batch of keys and returns the new cursor.
+          </li>
+          <li>
+            **Consistent Performance:** Because the work per call is limited, it
+            maintains **low latency** and doesn't monopolize the server's CPU.
+            The rest of your application's commands continue to be served
+            quickly.
+          </li>
+          <li>
+            **Scalability:** It allows you to iterate over extremely large
+            databases without fear of taking the server down.
+          </li>
+        </ul>
+      </div>
+
+      <hr />
+
+      <h2 class="section-header">💻 Effect on the Node.js Server (Client)</h2>
+      <p>
+        The effects also extend to the client application, which in this case is
+        your Node.js server.
+      </p>
+
+      <h3>
+        1. <span style="color: var(--color-key-bad)">KEYS</span> Command Effect
+      </h3>
+      <div class="effect-box effect-bad">
+        <ul>
+          <li>
+            **Memory Pressure:** When
+            <span class="code-inline">KEYS</span> returns a huge list of
+            millions of keys, your Node.js process must **allocate memory to
+            hold this massive array**. This can lead to **high memory
+            consumption** and trigger the garbage collector more frequently,
+            causing performance hiccups.
+          </li>
+          <li>
+            **I/O Blocking (If not pipelined):** While Node.js itself is
+            single-threaded and non-blocking, the initial Redis connection might
+            be saturated waiting for the single, large response, which can tie
+            up that connection resource.
+          </li>
+        </ul>
+      </div>
+
+      <h3>
+        2. <span style="color: var(--color-key-good)">SCAN</span> Command Effect
+      </h3>
+      <div class="effect-box effect-good">
+        <ul>
+          <li>
+            **Asynchronous-Friendly:** <span class="code-inline">SCAN</span> is
+            perfectly suited for Node.js's non-blocking, asynchronous nature.
+            The Node.js client initiates a
+            <span class="code-inline">SCAN</span> call, **<span
+              class="code-inline"
+              >awaits</span
+            >
+            the small response**, and then immediately processes it before
+            scheduling the next <span class="code-inline">SCAN</span> call,
+            allowing the Node.js event loop to handle other requests in between.
+          </li>
+          <li>
+            **Controlled Memory Usage:** Because you only receive a small batch
+            of keys at a time, the client application's memory usage is kept
+            stable and manageable, preventing large, sudden garbage collection
+            pauses.
+          </li>
+        </ul>
+      </div>
+
+      <hr />
+
+      <h2 class="section-header">❓ When to Use Which Command</h2>
+      <p>
+        The decision of when to use <span class="code-inline">KEYS</span> versus
+        <span class="code-inline">SCAN</span> is crucial for maintaining the
+        performance and stability of your Redis server. It primarily depends on
+        the **size of your database** and the **environment** you are operating
+        in.
+      </p>
+
+      <div class="summary-note">
+        <p>
+          In summary: **Always use
+          <span style="color: var(--color-key-good)">SCAN</span> for iterating
+          over keys.**
+          <span style="color: var(--color-key-bad)">KEYS</span> should only be
+          used in development or testing environments on small, non-critical
+          datasets.
+        </p>
+      </div>
+
+      <h3>
+        🚫 When NOT to Use
+        <span style="color: var(--color-key-bad)">KEYS</span> (The General Rule)
+      </h3>
+      <p>
+        Never use <span class="code-inline">KEYS</span> in a production
+        environment with a large dataset (thousands of keys or more).
+      </p>
+      <ul>
+        <li>
+          **Use <span class="code-inline">KEYS</span> only when:**
+          <ul>
+            <li>
+              **Development/Testing:** You are working locally, in a staging
+              environment, or on a small, dedicated test instance.
+            </li>
+            <li>
+              **Small Dataset:** Your database is guaranteed to have a very
+              small, manageable number of keys (e.g., fewer than a few hundred),
+              and the execution time will be negligible.
+            </li>
+            <li>
+              **One-Time Scripts:** You are running a rare, administrative
+              command (like an overnight cleanup script) on a temporary,
+              non-critical database copy.
+            </li>
+          </ul>
+        </li>
+        <li>
+          **Why?** Because <span class="code-inline">KEYS</span> is a **blocking
+          operation** with $O(N)$ time complexity, it stops all other Redis
+          operations until it completes. In a production environment, this will
+          cause massive latency spikes and potentially downtime for your
+          application.
+        </li>
+      </ul>
+
+      <h3>
+        ✅ When to Use
+        <span style="color: var(--color-key-good)">SCAN</span> (The Best
+        Practice)
+      </h3>
+      <p>
+        Always use <span class="code-inline">SCAN</span> when iterating over
+        keys in a production environment or on any large dataset.
+      </p>
+      <ul>
+        <li>
+          **Use <span class="code-inline">SCAN</span> when:**
+          <ul>
+            <li>
+              **Production Environment:** You need to retrieve keys on a live
+              system where low latency is critical.
+            </li>
+            <li>
+              **Large Datasets:** Your database contains millions of keys or is
+              expected to grow significantly.
+            </li>
+            <li>
+              **Background Jobs:** You are implementing background tasks (like
+              data migration, cleanup, or analytics) that must iterate through
+              the entire keyspace without impacting foreground application
+              performance.
+            </li>
+            <li>
+              **Incremental Processing:** You need to process the keys in
+              batches (chunks), which is the natural way
+              <span class="code-inline">SCAN</span> works and is very friendly
+              to non-blocking client servers like Node.js.
+            </li>
+          </ul>
+        </li>
+        <li>
+          **How to Use SCAN:** <span class="code-inline">SCAN</span> is used in
+          a loop until the cursor returns to <span class="code-inline">0</span>.
+          This breaks a large operation into many tiny, quick $O(1)$ operations:
+          <ol>
+            <li>Start with <span class="code-inline">SCAN 0</span>.</li>
+            <li>Receive a **cursor** and a **batch of keys**.</li>
+            <li>
+              Use the new cursor to make the next
+              <span class="code-inline">SCAN</span> call.
+            </li>
+            <li>
+              Repeat until the cursor is <span class="code-inline">0</span>.
+            </li>
+          </ol>
+        </li>
+      </ul>
+
+      <div class="summary-note">
+        In summary, for virtually all real-world scenarios, **<span
+          class="code-inline"
+          >SCAN</span
+        >** is the required tool for keyspace iteration. **<span
+          class="code-inline"
+          >KEYS</span
+        >** is reserved for casual, non-critical debugging.
+      </div>
+    </div>
+  </body>
+</html>

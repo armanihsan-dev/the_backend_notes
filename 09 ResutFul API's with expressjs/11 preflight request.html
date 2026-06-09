@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preflight Request Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #1e1e1e;
+        --text-color: #d4d4d4;
+        --header-color: #ffffff;
+        --link-color: #569cd6;
+        --code-bg: #1e1e1e;
+        --code-border: #333;
+        --code-text: #ce9178;
+        --code-keyword: #569cd6;
+        --code-comment: #6a9955;
+        --code-string: #ce9178;
+        --code-number: #b5cea8;
+        --code-var: #9cdcfe;
+        --code-prop: #d4d4d4;
+        --code-func: #dcdcaa;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      h1,
+      h2 {
+        color: var(--header-color);
+        border-bottom: 2px solid var(--code-border);
+        padding-bottom: 0.5rem;
+      }
+
+      a {
+        color: var(--link-color);
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      ul {
+        list-style-type: disc;
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      pre {
+        background-color: var(--code-bg);
+        border: 1px solid var(--code-border);
+        padding: 1rem;
+        border-radius: 4px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: var(--code-text);
+      }
+
+      /* VS Code like syntax highlighting */
+      .code-bash .code-prompt {
+        color: var(--text-color);
+      }
+      .code-bash .code-command {
+        color: var(--code-keyword);
+      }
+      .code-js .code-keyword {
+        color: var(--code-keyword);
+      }
+      .code-js .code-string {
+        color: var(--code-string);
+      }
+      .code-js .code-comment {
+        color: var(--code-comment);
+      }
+      .code-js .code-func {
+        color: var(--code-func);
+      }
+      .code-js .code-prop {
+        color: var(--code-prop);
+      }
+      .code-js .code-var {
+        color: var(--code-var);
+      }
+      .code-js .code-number {
+        color: var(--code-number);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>PreFlight Request</h1>
+      <p>
+        A preflight request is a type of <strong>OPTIONS</strong> request that a
+        browser automatically sends before the actual request (like
+        <strong>GET</strong>, <strong>POST</strong>, <strong>PUT</strong>, etc.)
+        to a server. This happens when the actual request is "not-so-simple."
+        The preflight request is a security measure to ensure the server
+        understands and accepts the actual request's parameters before the
+        browser sends it, which helps prevent unintended side effects on the
+        server.
+      </p>
+      <p>
+        When your browser makes a request to a server (for example, sending data
+        with POST), it doesn’t always just send it right away.
+      </p>
+
+      <p><strong>Why?</strong></p>
+
+      <p>
+        Because the browser wants to make sure the server is okay with it first.
+        So it asks politely first — like saying:
+      </p>
+
+      <ul>
+        <li>
+          👉 <strong>Browser:</strong> “Hey server, I’m about to send you this
+          kind of request (method, headers, body). Is that okay?”
+        </li>
+        <li>👉 <strong>Server:</strong> “Yes, that’s fine. Go ahead.”</li>
+      </ul>
+
+      <p>
+        This first check is called the <strong>preflight request</strong> (it
+        uses the HTTP <code>OPTIONS</code> method).
+      </p>
+
+      <p><strong>Why it matters (security part):</strong></p>
+
+      <p>
+        Without this step, a malicious website could trick your browser into
+        sending dangerous requests to another server without you knowing.
+        Preflight makes sure the server explicitly says:
+      </p>
+
+      <ul>
+        <li>“I accept requests from your website (origin).”</li>
+        <li>“I allow this HTTP method (like PUT, DELETE, etc.).”</li>
+        <li>“I’m okay with these custom headers.”</li>
+      </ul>
+
+      <p>Only if the server agrees, the real request is sent.</p>
+
+      <p>
+        ✅ <strong>In short:</strong><br />
+        The preflight request is like asking permission first, so the browser
+        doesn’t accidentally do something the server never allowed.
+      </p>
+      <h2>Why Preflight Requests Exist</h2>
+      <p>
+        Preflight requests are a core part of the
+        <strong>Cross-Origin Resource Sharing (CORS)</strong> mechanism. CORS is
+        a browser security feature that prevents a webpage from making requests
+        to a different domain than the one that served the page. When a browser
+        wants to make a cross-origin request, it checks with the server first. A
+        "simple" request can be sent without a preflight, but "not-so-simple"
+        requests must be prefaced by one.
+      </p>
+      <p>
+        <strong>Simple requests</strong> are those that meet specific criteria:
+      </p>
+      <ul>
+        <li>
+          Methods: <strong>GET</strong>, <strong>HEAD</strong>, or
+          <strong>POST</strong>.
+        </li>
+        <li>
+          Headers: Only CORS-safelisted request-headers (e.g.,
+          <code>Accept</code>, <code>Content-Type</code>,
+          <code>Content-Language</code>). The only
+          <code>Content-Type</code> allowed is
+          <code>application/x-www-form-urlencoded</code>,
+          <code>multipart/form-data</code>, or <code>text/plain</code>.
+        </li>
+      </ul>
+      <p>
+        If a request doesn't meet all these criteria, it's considered
+        "not-so-simple". Examples include:
+      </p>
+      <ul>
+        <li>
+          Using methods like <strong>PUT</strong>, <strong>DELETE</strong>, or
+          <strong>PATCH</strong>.
+        </li>
+        <li>Including custom headers (e.g., <code>X-Custom-Header</code>).</li>
+        <li>
+          Using a <code>Content-Type</code> of <code>application/json</code>.
+        </li>
+      </ul>
+      <p>
+        In these cases, the browser sends the preflight
+        <strong>OPTIONS</strong> request first. This request includes headers
+        like <code>Access-Control-Request-Method</code> and
+        <code>Access-Control-Request-Headers</code> to inform the server of the
+        actual request's method and headers.
+      </p>
+
+      <h2>How to Handle Preflight Requests in Express.js</h2>
+      <p>
+        You need to configure your Express.js server to correctly respond to
+        these <strong>OPTIONS</strong> requests. A correct response tells the
+        browser it's safe to proceed with the actual request.
+      </p>
+      <p>
+        The simplest way to handle CORS, including preflight requests, is by
+        using the <strong><code>cors</code></strong> middleware.
+      </p>
+      <p>
+        <strong>1. Install the <code>cors</code> middleware:</strong>
+      </p>
+      <p>Bash</p>
+      <pre><code class="code-bash"><span class="code-prompt">npm install cors</span></code></pre>
+
+      <p><strong>2. Use the middleware in your Express app:</strong></p>
+      <p>JavaScript</p>
+      <pre><code class="code-js"><span class="code-keyword">const</span> express = <span class="code-func">require</span>(<span class="code-string">'express'</span>);
+<span class="code-keyword">const</span> cors = <span class="code-func">require</span>(<span class="code-string">'cors'</span>);
+<span class="code-keyword">const</span> app = express();
+
+<span class="code-comment">// Use the cors middleware</span>
+app.use(cors());
+
+<span class="code-comment">// Now, your routes will automatically handle preflight requests.</span>
+<span class="code-comment">// For example, this PUT route will work correctly from a different origin.</span>
+app.put(<span class="code-string">'/api/data'</span>, (<span class="code-prop">req</span>, <span class="code-prop">res</span>) => {
+  res.send(<span class="code-string">'Data updated!'</span>);
+});
+
+app.listen(<span class="code-number">3000</span>, () => {
+  <span class="code-prop">console</span>.log(<span class="code-string">'Server is running on port 3000'</span>);
+});</code></pre>
+
+      <p>
+        The <code>cors</code> middleware is smart enough to detect an
+        <strong>OPTIONS</strong> request and respond with the necessary
+        <strong>CORS headers</strong>, such as:
+      </p>
+      <ul>
+        <li>
+          <code>Access-Control-Allow-Origin</code>: Specifies which origins are
+          allowed to access the resource.
+        </li>
+        <li>
+          <code>Access-Control-Allow-Methods</code>: Lists the HTTP methods
+          allowed for the resource.
+        </li>
+        <li>
+          <code>Access-Control-Allow-Headers</code>: Lists the headers allowed
+          in the actual request.
+        </li>
+        <li>
+          <code>Access-Control-Max-Age</code>: Caches the preflight response for
+          a specified number of seconds to avoid repeated preflights.
+        </li>
+      </ul>
+
+      <p>
+        <strong
+          >3. Manually Handling Preflight Requests (if not using the
+          <code>cors</code> middleware):</strong
+        >
+      </p>
+      <p>
+        If you choose not to use the middleware, you must handle the
+        <strong>OPTIONS</strong> requests yourself. You can create a dedicated
+        route handler for the <strong>OPTIONS</strong> method on each route that
+        might receive a preflight.
+      </p>
+      <p>JavaScript</p>
+      <pre><code class="code-js"><span class="code-keyword">const</span> express = <span class="code-func">require</span>(<span class="code-string">'express'</span>);
+<span class="code-keyword">const</span> app = express();
+
+<span class="code-comment">// A function to set the CORS headers</span>
+<span class="code-keyword">const</span> setCORSHeaders = (<span class="code-prop">res</span>) => {
+  <span class="code-prop">res</span>.setHeader(<span class="code-string">'Access-Control-Allow-Origin'</span>, <span class="code-string">'*'</span>); <span class="code-comment">// Or a specific origin</span>
+  <span class="code-prop">res</span>.setHeader(<span class="code-string">'Access-Control-Allow-Methods'</span>, <span class="code-string">'GET, POST, PUT, DELETE, OPTIONS'</span>);
+  <span class="code-prop">res</span>.setHeader(<span class="code-string">'Access-Control-Allow-Headers'</span>, <span class="code-string">'Content-Type, X-Custom-Header'</span>);
+};
+
+<span class="code-comment">// A route that needs to handle a preflight request</span>
+app.options(<span class="code-string">'/api/data'</span>, (<span class="code-prop">req</span>, <span class="code-prop">res</span>) => {
+  <span class="code-comment">// Set CORS headers for the preflight response</span>
+  setCORSHeaders(<span class="code-prop">res</span>);
+  <span class="code-comment">// End the response</span>
+  <span class="code-prop">res</span>.status(<span class="code-number">204</span>).end(); <span class="code-comment">// 204 No Content is a common status for preflight success</span>
+});
+
+<span class="code-comment">// The actual PUT route</span>
+app.put(<span class="code-string">'/api/data'</span>, (<span class="code-prop">req</span>, <span class="code-prop">res</span>) => {
+  <span class="code-comment">// Set CORS headers for the actual response too</span>
+  setCORSHeaders(<span class="code-prop">res</span>);
+  <span class="code-prop">res</span>.send(<span class="code-string">'Data updated!'</span>);
+});
+
+app.listen(<span class="code-number">3000</span>, () => {
+  <span class="code-prop">console</span>.log(<span class="code-string">'Server is running on port 3000'</span>);
+});</code></pre>
+
+      <p>
+        While this manual method provides more control, it's cumbersome and can
+        lead to errors. The <code>cors</code> middleware is the standard and
+        recommended practice for handling preflight and other CORS-related
+        issues in Express.js.
+      </p>
+
+      <img
+        src="./images/preflight request.png"
+        width="100%"
+        height="600px"
+        alt=""
+      />
+    </div>
+  </body>
+</html>

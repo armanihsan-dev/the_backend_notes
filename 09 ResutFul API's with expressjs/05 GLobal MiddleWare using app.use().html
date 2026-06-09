@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Express.js Global Middleware Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #e0e0e0;
+        --heading-color: #00aaff;
+        --code-bg: #1e1e1e;
+        --code-text: #d4d4d4;
+        --keyword-color: #569cd6;
+        --string-color: #ce9178;
+        --comment-color: #6a9955;
+        --variable-color: #9cdcfe;
+        --function-color: #dcdcaa;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--heading-color);
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      p {
+        margin-bottom: 1rem;
+      }
+
+      ul {
+        list-style: none;
+        padding-left: 1.5rem;
+      }
+
+      li::before {
+        content: '•';
+        color: var(--heading-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      .code-container {
+        background-color: var(--code-bg);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        overflow-x: auto;
+        font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco',
+          monospace;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        position: relative;
+      }
+
+      .code-container::before {
+        content: 'JavaScript';
+        position: absolute;
+        top: 0.5rem;
+        right: 1.5rem;
+        color: #888;
+        font-size: 0.7rem;
+      }
+
+      code {
+        color: var(--code-text);
+      }
+      .hljs-keyword,
+      .hljs-tag {
+        color: var(--keyword-color);
+      }
+      .hljs-string {
+        color: var(--string-color);
+      }
+      .hljs-comment {
+        color: var(--comment-color);
+      }
+      .hljs-variable,
+      .hljs-title.function_ {
+        color: var(--variable-color);
+      }
+      .hljs-function {
+        color: var(--function-color);
+      }
+      .hljs-number {
+        color: #b5cea8;
+      }
+      .hljs-punctuation {
+        color: #d4d4d4;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Express.js Global Middleware</h1>
+
+    <p>
+      In Express.js, global middleware is a function that runs for every single
+      incoming request to your application, regardless of the HTTP method (GET,
+      POST, etc.) or the route. It's often used for tasks that apply to the
+      entire application, such as logging, authentication, or parsing request
+      bodies. 🌐
+    </p>
+
+    <h2>How and When Global Middleware Executes</h2>
+    <p>
+      Global middleware is executed in the order it's defined in your
+      application's main file (typically <code>app.js</code> or
+      <code>index.js</code>), and it runs before any route-specific handlers.
+    </p>
+    <ul>
+      <li>
+        <strong>Request arrives:</strong> A client sends a request to your
+        Express server.
+      </li>
+      <li>
+        <strong>Global Middleware runs:</strong> Express processes the request
+        through all the global middleware functions, in the order they were
+        defined.
+      </li>
+      <li>
+        <strong><code>Next()</code> is called:</strong> Each middleware function
+        must call <code>next()</code> to pass control to the next middleware
+        function in the stack. If a middleware function doesn't call
+        <code>next()</code>, the request-response cycle is stalled and no
+        further handlers will be executed.
+      </li>
+      <li>
+        <strong>Route Handler executes:</strong> Once all global middleware
+        functions have called <code>next()</code>, the appropriate route handler
+        (e.g., <code>app.get('/', ...)</code> or
+        <code>app.post('/users', ...)</code>) is executed.
+      </li>
+      <li>
+        <strong>Response is sent:</strong> The route handler sends a response
+        back to the client.
+      </li>
+    </ul>
+
+    <h2>How to Create Global Middleware</h2>
+    <p>
+      You create global middleware by using <code>app.use()</code> and passing
+      your middleware function as an argument. The function has three
+      parameters: <code>req</code> (request object), <code>res</code> (response
+      object), and <code>next</code> (a function to call the next middleware).
+    </p>
+
+    <h3>Syntax</h3>
+    <div class="code-container">
+      <pre><code><span class="hljs-title function_">app.use</span>(<span class="hljs-keyword">function</span>(<span class="hljs-params">req, res, next</span>) {
+  <span class="hljs-comment">// Your middleware logic here</span>
+  <span class="hljs-comment">// ...</span>
+  <span class="hljs-title function_">next</span>(); <span class="hljs-comment">// Pass control to the next middleware or route handler</span>
+});</code></pre>
+    </div>
+    <p>Here's a breakdown of the parameters:</p>
+    <ul>
+      <li>
+        <strong><code>req</code>:</strong> The request object, containing
+        information about the HTTP request.
+      </li>
+      <li>
+        <strong><code>res</code>:</strong> The response object, used to send a
+        response back to the client.
+      </li>
+      <li>
+        <strong><code>next</code>:</strong> A callback function that, when
+        called, tells Express to move on to the next function in the middleware
+        chain.
+      </li>
+    </ul>
+
+    <h2>Practical Examples</h2>
+    <p>Let's look at some common use cases for global middleware.</p>
+
+    <h3>1. Logging Middleware 📝</h3>
+    <p>
+      A simple but effective example is a logger that logs every incoming
+      request to the console.
+    </p>
+    <div class="code-container">
+      <pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> app = <span class="hljs-title function_">express</span>();
+<span class="hljs-keyword">const</span> PORT = <span class="hljs-number">3000</span>;
+
+<span class="hljs-comment">// Global logging middleware</span>
+<span class="hljs-title function_">app.use</span>(<span class="hljs-function">(<span class="hljs-params">req, res, next</span>) =></span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Request received at: <span class="hljs-subst">${<span class="hljs-keyword">new</span> <span class="hljs-title class_">Date</span>().<span class="hljs-title function_">toISOString</span>()}</span> for <span class="hljs-subst">${req.<span class="hljs-property">originalUrl</span>}</span>`</span>);
+  <span class="hljs-title function_">next</span>(); <span class="hljs-comment">// Don't forget to call next()!</span>
+});
+
+<span class="hljs-comment">// A simple route handler</span>
+<span class="hljs-title function_">app.get</span>(<span class="hljs-string">'/'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =></span> {
+  <span class="hljs-title function_">res.send</span>(<span class="hljs-string">'Welcome to the homepage!'</span>);
+});
+
+<span class="hljs-title function_">app.listen</span>(PORT, <span class="hljs-function">() =></span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Server is running on http://localhost:<span class="hljs-subst">${PORT}</span>`</span>);
+});</code></pre>
+    </div>
+    <p>
+      In this example, every time you visit <code>http://localhost:3000</code>,
+      the logging middleware will execute first, printing a timestamped message
+      to your console, and then the route handler will send the "Welcome"
+      message.
+    </p>
+
+    <h3>2. Body Parser Middleware</h3>
+    <p>
+      This is one of the most common types of global middleware. Body parsers
+      are used to extract data from the body of incoming requests (e.g., from
+      form submissions or JSON payloads). The <code>express.json()</code> and
+      <code>express.urlencoded()</code> functions are built-in Express
+      middleware for this purpose.
+    </p>
+    <div class="code-container">
+      <pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> app = <span class="hljs-title function_">express</span>();
+<span class="hljs-keyword">const</span> PORT = <span class="hljs-number">3000</span>;
+
+<span class="hljs-comment">// Global middleware to parse JSON request bodies</span>
+<span class="hljs-title function_">app.use</span>(express.<span class="hljs-title function_">json</span>());
+
+<span class="hljs-comment">// Global middleware to parse URL-encoded request bodies</span>
+<span class="hljs-title function_">app.use</span>(express.<span class="hljs-title function_">urlencoded</span>({ <span class="hljs-attr">extended</span>: <span class="hljs-literal">true</span> }));
+
+<span class="hljs-comment">// A route handler that needs access to the request body</span>
+<span class="hljs-title function_">app.post</span>(<span class="hljs-string">'/submit-data'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =></span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Received data:'</span>, req.<span class="hljs-property">body</span>);
+  <span class="hljs-title function_">res.send</span>(<span class="hljs-string">'Data received successfully!'</span>);
+});
+
+<span class="hljs-title function_">app.listen</span>(PORT, <span class="hljs-function">() =></span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Server is running on http://localhost:<span class="hljs-subst">${PORT}</span>`</span>);
+});</code></pre>
+    </div>
+    <p>
+      In this case, <code>express.json()</code> will run for every request. If a
+      POST request with a JSON body is sent to <code>/submit-data</code>, this
+      middleware will parse the body and populate <code>req.body</code> so the
+      route handler can access it.
+    </p>
+
+    <h3>3. Authentication Middleware 🔑</h3>
+    <p>
+      You can use global middleware to check if a user is authenticated on every
+      request, ensuring that only logged-in users can access certain parts of
+      your application.
+    </p>
+    <div class="code-container">
+      <pre><code><span class="hljs-keyword">const</span> express = <span class="hljs-built_in">require</span>(<span class="hljs-string">'express'</span>);
+<span class="hljs-keyword">const</span> app = <span class="hljs-title function_">express</span>();
+<span class="hljs-keyword">const</span> PORT = <span class="hljs-number">3000</span>;
+
+<span class="hljs-keyword">const</span> isAuthenticated = <span class="hljs-function">(<span class="hljs-params">req, res, next</span>) =></span> {
+  <span class="hljs-comment">// Imagine a simple check for a 'token' in the request header</span>
+  <span class="hljs-keyword">const</span> token = req.<span class="hljs-property">headers</span>.<span class="hljs-property">authorization</span>;
+  <span class="hljs-keyword">if</span> (token) {
+    <span class="hljs-comment">// A real app would validate this token</span>
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'User is authenticated!'</span>);
+    <span class="hljs-title function_">next</span>();
+  } <span class="hljs-keyword">else</span> {
+    <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Access denied!'</span>);
+    res.<span class="hljs-title function_">status</span>(<span class="hljs-number">401</span>).<span class="hljs-title function_">send</span>(<span class="hljs-string">'Unauthorized'</span>);
+  }
+};
+
+<span class="hljs-comment">// Apply the authentication middleware globally</span>
+<span class="hljs-title function_">app.use</span>(isAuthenticated);
+
+<span class="hljs-comment">// This route will only be accessible if isAuthenticated calls next()</span>
+<span class="hljs-title function_">app.get</span>(<span class="hljs-string">'/dashboard'</span>, <span class="hljs-function">(<span class="hljs-params">req, res</span>) =></span> {
+  res.<span class="hljs-title function_">send</span>(<span class="hljs-string">'Welcome to the protected dashboard!'</span>);
+});
+
+<span class="hljs-comment">// The app.listen() call would go here</span>
+<span class="hljs-title function_">app.listen</span>(PORT, <span class="hljs-function">() =></span> {
+  <span class="hljs-variable language_">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Server is running on http://localhost:<span class="hljs-subst">${PORT}</span>`</span>);
+});</code></pre>
+    </div>
+    <p>
+      Here, the <code>isAuthenticated</code> middleware runs for every request.
+      If a request is made to <code>/dashboard</code> without a valid
+      <code>authorization</code> header, the middleware will send a 401
+      Unauthorized response and will not call <code>next()</code>, preventing
+      the route handler from ever executing.
+    </p>
+  </body>
+</html>

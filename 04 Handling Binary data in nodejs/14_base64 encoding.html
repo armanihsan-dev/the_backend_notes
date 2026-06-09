@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All About Base64</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #ffe0f0; /* Light pink background */
+            color: #4a0031; /* Darker pink text */
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3, h4 {
+            color: #d81b60; /* A vibrant pink for headings */
+            border-bottom: 2px solid #f48fb1; /* Lighter pink underline */
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            font-size: 1.8em;
+        }
+
+        h3 {
+            font-size: 1.4em;
+        }
+
+        p {
+            margin-bottom: 1em;
+            text-align: justify;
+        }
+
+        ul {
+            list-style-type: disc;
+            margin-left: 25px;
+            margin-bottom: 1em;
+        }
+
+        ul ul {
+            list-style-type: circle;
+            margin-left: 20px;
+        }
+
+        strong {
+            color: #ad1457; /* A strong, deep pink for emphasis */
+        }
+
+        em {
+            color: #880e4f; /* A slightly softer pink for emphasis */
+        }
+
+        .note {
+            background-color: #fce4ec; /* Very light pink for notes/important info */
+            border-left: 5px solid #e91e63; /* Accent pink border */
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .example-code {
+            background-color: #f8bbd0; /* Medium light pink for code examples */
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            overflow-x: auto; /* For long code lines */
+            white-space: pre-wrap; /* Preserve whitespace and wrap */
+            margin: 10px 0;
+        }
+
+        .math {
+            font-family: serif; /* For better math rendering */
+            font-style: italic;
+            color: #c2185b;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Teach me All about Base64</h1>
+
+    <p>Base64 is a fascinating and widely used encoding scheme, and understanding it is key to grasping how a lot of data is handled on the internet and beyond. Let's break it down:</p>
+
+    <h2>What is Base64?</h2>
+    <p>At its core, Base64 is a <strong>binary-to-text encoding scheme</strong>. This means it takes any kind of binary data (which is just a sequence of 0s and 1s, like an image file, an executable program, or even just plain text) and converts it into a string of plain, printable ASCII characters.</p>
+    <p>The "64" in Base64 refers to the fact that it uses a set of 64 distinct characters to represent the data. The most common Base64 character set includes:</p>
+    <ul>
+        <li>Uppercase letters: A-Z (26 characters)</li>
+        <li>Lowercase letters: a-z (26 characters)</li>
+        <li>Numbers: 0-9 (10 characters)</li>
+        <li>Special characters: `+` and `/` (2 characters)</li>
+    </ul>
+    <p>That makes a total of <span class="math">26+26+10+2=64</span> characters.</p>
+    <p>Additionally, there's a 65th character: the <strong>equals sign (`=`)</strong>, which is used for padding.</p>
+
+    <h2>Why is Base64 Necessary?</h2>
+    <p>The primary reason for using Base64 is to <strong>safely transmit binary data over systems that are designed to handle only text</strong>. Think about it:</p>
+    <ul>
+        <li><strong>Email:</strong> Early email systems (and even some modern ones) were designed to handle only 7-bit ASCII characters. If you tried to send an image or a document (which are binary data) directly, it could get corrupted during transmission due to these systems misinterpreting certain byte sequences as control characters or changing line endings. Base64 encodes the binary data into a "safe" textual representation that these systems can handle without issues.</li>
+        <li><strong>URLs and HTML/CSS:</strong> You might want to embed an image directly within an HTML file (using data URIs) or pass binary data in a URL parameter. URLs have limitations on the characters they can contain (e.g., spaces, `&`, `=`, etc., have special meanings). Base64 ensures that the data is represented using only URL-safe characters.</li>
+        <li><strong>Storing Binary Data in Text-Based Formats:</strong> If you need to store small binary blobs (like icons or small configuration files) within text-based formats like JSON, XML, or even simple configuration files, Base64 allows you to represent that binary data as text.</li>
+    </ul>
+    <div class="note">
+        <p><strong>Important Note: Base64 is NOT encryption!</strong> It's merely an encoding. Anyone can easily decode Base64 data back to its original form. It doesn't provide any security or confidentiality.</p>
+    </div>
+
+    <h2>How Does Base64 Encoding Work?</h2>
+    <p>The process involves converting groups of binary data into Base64 characters. Here's a simplified breakdown:</p>
+    <ul>
+        <li><strong>Binary Representation:</strong> All data, whether text or an image, is ultimately represented as binary (a sequence of 0s and 1s). In most modern systems, data is processed in 8-bit bytes.</li>
+        <li><strong>Group into 3 Bytes (24 bits):</strong> Base64 works by taking chunks of <strong>3 bytes</strong> (which is <span class="math">3&times;8=24</span> bits) from the original binary data.</li>
+        <li><strong>Divide into 4 Six-Bit Chunks:</strong> These 24 bits are then divided into four 6-bit chunks.</li>
+        <li><strong>Map to Base64 Characters:</strong> Each 6-bit chunk can represent a value from 0 to 63 (since <span class="math">2^6=64</span>). These decimal values are then mapped to the corresponding character in the Base64 character set.</li>
+    </ul>
+
+    <h3>Example: Encoding "Man"</h3>
+    <p>Let's illustrate with a simple example: encoding the string "Man".</p>
+    <ul>
+        <li><strong>Step 1: ASCII to Binary</strong>
+            <ul>
+                <li>'M' in ASCII is 77, which is `01001101` in binary.</li>
+                <li>'a' in ASCII is 97, which is `01100001` in binary.</li>
+                <li>'n' in ASCII is 110, which is `01101110` in binary.</li>
+            </ul>
+        </li>
+        <li><strong>Step 2: Combine and Group into 6-bit Chunks</strong>
+            <ul>
+                <li>Combine the binary: `010011010110000101101110` (24 bits)</li>
+                <li>Divide into 6-bit chunks: `010011` `010110` `000101` `101110`</li>
+            </ul>
+        </li>
+        <li><strong>Step 3: Convert 6-bit Chunks to Decimal</strong>
+            <ul>
+                <li>`010011` = 19</li>
+                <li>`010110` = 22</li>
+                <li>`000101` = 5</li>
+                <li>`101110` = 46</li>
+            </ul>
+        </li>
+        <li><strong>Step 4: Map to Base64 Characters</strong>
+            <p>Using the standard Base64 table:</p>
+            <ul>
+                <li>19 maps to 'T'</li>
+                <li>22 maps to 'W'</li>
+                <li>5 maps to 'F'</li>
+                <li>46 maps to 'u'</li>
+            </ul>
+        </li>
+    </ul>
+    <p>So, "Man" encoded in Base64 is <strong>"TWFu"</strong>.</p>
+
+    <h2>Padding with `=`</h2>
+    <p>What happens if the original binary data isn't a multiple of 3 bytes?</p>
+    <ul>
+        <li>If there are only <strong>2 bytes</strong> left (16 bits), they are treated as two 6-bit chunks and a partial third. To make up the required 24 bits for four 6-bit chunks, four zero bits are added at the end. The two actual 6-bit chunks are converted, and the last two resulting Base64 characters will be followed by a single `=` padding character.</li>
+        <li>If there is only <strong>1 byte</strong> left (8 bits), it's treated as one 6-bit chunk and a partial second. Eight zero bits are added at the end. The one actual 6-bit chunk is converted, and the last two resulting Base64 characters will be followed by two `==` padding characters.</li>
+    </ul>
+    <p>This padding ensures that the decoded data can be reconstructed correctly.</p>
+
+    <h3>Example: Encoding "Ma"</h3>
+    <ul>
+        <li>'M': `01001101`</li>
+        <li>'a': `01100001`</li>
+    </ul>
+    <ul>
+        <li>Combined: `0100110101100001` (16 bits)</li>
+        <li>Add 4 zero bits for padding: `01001101011000010000` (20 bits)</li>
+        <li>Divide into 6-bit chunks: `010011` `010110` `000100` (only 3 complete 6-bit chunks)</li>
+    </ul>
+    <ul>
+        <li>Convert to decimal:
+            <ul>
+                <li>`010011` = 19 ('T')</li>
+                <li>`010110` = 22 ('W')</li>
+                <li>`000100` = 4 ('E')</li>
+            </ul>
+        </li>
+    </ul>
+    <p>Since we had 2 bytes of original data, we add one `=` for padding.</p>
+    <p>Result: <strong>"TWE="</strong></p>
+
+    <h2>How Does Base64 Decoding Work?</h2>
+    <p>Decoding is simply the reverse process:</p>
+    <ul>
+        <li><strong>Remove Padding:</strong> Any `=` padding characters are removed.</li>
+        <li><strong>Map Characters to 6-bit Values:</strong> Each Base64 character is looked up in the Base64 table to get its corresponding 6-bit value.</li>
+        <li><strong>Combine 6-bit Chunks:</strong> The 6-bit values are concatenated together.</li>
+        <li><strong>Group into 8-bit Bytes:</strong> These combined bits are then grouped into 8-bit bytes.</li>
+        <li><strong>Convert to Original Data:</strong> These bytes are converted back to their original data form (e.g., ASCII characters, image data). Any excess bits due to padding are ignored.</li>
+    </ul>
+
+    <h2>Key Characteristics and Considerations:</h2>
+    <ul>
+        <li><strong>Data Expansion:</strong> Base64 encoding always increases the size of the data by approximately 33-37%. This is because 3 bytes (24 bits) are encoded into 4 characters, but each character itself still occupies 1 byte (8 bits) when transmitted. So, 3 bytes become 4 bytes. This is an important consideration for bandwidth and storage.</li>
+        <li><strong>Not for Compression:</strong> Base64 is an encoding, not a compression algorithm. It makes data larger, not smaller.</li>
+        <li><strong>Security:</strong> As mentioned, Base64 offers no security. Do not use it to protect sensitive information.</li>
+        <li><strong>Common Implementations:</strong> Most programming languages and operating systems have built-in utilities or libraries for Base64 encoding and decoding (e.g., Python's `base64` module, JavaScript's `btoa()` and `atob()` functions, `base64` command-line utility in Linux).</li>
+        <li><strong>Variants:</strong> While the standard Base64 character set is `A-Z, a-z, 0-9, +, /`, there are "URL-safe" variants that replace `+` and `/` with characters like `-` and `_` to avoid conflicts in URLs.</li>
+    </ul>
+
+    <h2>Where is Base64 Used?</h2>
+    <p>You'll encounter Base64 in many places:</p>
+    <ul>
+        <li><strong>Email Attachments (MIME):</strong> A core part of how non-textual attachments (images, documents, etc.) are sent via email.</li>
+        <li><strong>Data URIs:</strong> Embedding small images, fonts, or other files directly into HTML, CSS, or JavaScript code.</li>
+        <li><strong>Web Services/APIs:</strong> Transmitting binary data (like images for avatars) in JSON or XML payloads.</li>
+        <li><strong>Cookies:</strong> Storing small amounts of binary data in browser cookies (which are text-based).</li>
+        <li><strong>Authentication (Basic Auth):</strong> In HTTP Basic Authentication, usernames and passwords are Base64 encoded (again, for safe transmission, not security).</li>
+        <li><strong>Digital Certificates:</strong> Often, digital certificates are stored or transmitted in Base64-encoded PEM format.</li>
+        <li><strong>Kubernetes Secrets:</strong> Kubernetes stores sensitive information (like API keys) as Base64-encoded values.</li>
+    </ul>
+    <p>Understanding Base64 is fundamental for anyone working with data transmission, web development, or system administration, as it's a ubiquitous tool for ensuring data integrity across diverse systems.</p>
+
+    <hr>
+
+    <h2>Is there some rules of Base64?</h2>
+    <p>Yes, absolutely! While Base64 isn't a complex algorithm, it operates under a clear set of rules that define how data is encoded and decoded. These rules ensure interoperability and correct data reconstruction.</p>
+    <p>Here are the primary rules of Base64:</p>
+
+    <h3>The Alphabet (Character Set):</h3>
+    <ul>
+        <li>Base64 uses a standard set of 64 printable ASCII characters for encoding.</li>
+        <li>The most common standard (RFC 4648, Section 4: Base64 Encoding) uses:
+            <ul>
+                <li>Uppercase letters: `A` to `Z` (values 0-25)</li>
+                <li>Lowercase letters: `a` to `z` (values 26-51)</li>
+                <li>Digits: `0` to `9` (values 52-61)</li>
+                <li>Two special characters: `+` (value 62) and `/` (value 63)</li>
+            </ul>
+        </li>
+        <li><strong>Rule:</strong> Only these 64 characters (plus the padding character) are valid in a standard Base64 encoded string. Any other character encountered during decoding is typically considered an error or ignored, depending on the implementation.</li>
+    </ul>
+
+    <h3>The Padding Character (`=`):</h3>
+    <ul>
+        <li>The equals sign (`=`) is used for padding at the end of the encoded string.</li>
+        <li><strong>Rule:</strong> Padding is used when the original binary data's length is not a multiple of 3 bytes.
+            <ul>
+                <li>If the original data has a length of <span class="math">3n+1</span> bytes, two `=` characters are appended. (e.g., 1 byte of input leads to 2 `=` signs).</li>
+                <li>If the original data has a length of <span class="math">3n+2</span> bytes, one `=` character is appended. (e.g., 2 bytes of input leads to 1 `=` sign).</li>
+                <li>If the original data has a length that is a multiple of 3 bytes (<span class="math">3n</span> bytes), no padding is used.</li>
+            </ul>
+        </li>
+        <li><strong>Rule:</strong> Padding characters <em>only</em> appear at the end of the Base64 string. You will never see an `=` in the middle of a valid Base64 string.</li>
+        <li><strong>Rule:</strong> The number of `=` signs can only be 0, 1, or 2.</li>
+    </ul>
+
+    <h3>The 3-to-4 Conversion Rule:</h3>
+    <ul>
+        <li><strong>Rule:</strong> Base64 encodes 3 bytes (24 bits) of input binary data into 4 characters (each representing 6 bits).</li>
+        <li>This is the fundamental ratio. Since each Base64 character represents 6 bits, 4 characters represent <span class="math">4&times;6=24</span> bits. This aligns perfectly with 3 bytes of input data (<span class="math">3&times;8=24</span> bits).</li>
+        <li>This rule dictates the expansion ratio (approximately 33-37% larger).</li>
+    </ul>
+
+    <h3>Bit Grouping Rule:</h3>
+    <ul>
+        <li><strong>Rule:</strong> Input binary data is conceptually treated as a continuous stream of bits. These bits are then grouped into 6-bit chunks.</li>
+        <li>Each 6-bit chunk is then translated into its corresponding Base64 character based on its decimal value (0-63).</li>
+    </ul>
+
+    <h3>Handling of Partial Input (Padding Logic Explained):</h3>
+    <p>When the input data is not a multiple of 3 bytes, the final 1 or 2 bytes are handled as follows:</p>
+    <ul>
+        <li><strong>1 Byte Remaining:</strong> The single remaining 8-bit byte is taken, and four zero bits are appended to it to form a 12-bit sequence. This 12-bit sequence is then divided into two 6-bit chunks, which are encoded into two Base64 characters. Two `=` padding characters are then appended.
+            <div class="example-code">Example: `[8 bits]` -&gt; `[6 bits][6 bits]` `==`</div>
+        </li>
+        <li><strong>2 Bytes Remaining:</strong> The two remaining 8-bit bytes (16 bits) are taken, and eight zero bits are appended to them to form a 24-bit sequence. This 24-bit sequence is then divided into three 6-bit chunks, which are encoded into three Base64 characters. One `=` padding character is then appended.
+            <div class="example-code">Example: `[8 bits][8 bits]` -&gt; `[6 bits][6 bits][6 bits]` `=`</div>
+        </li>
+    </ul>
+
+    <h3>Line Length (Optional but Common):</h3>
+    <ul>
+        <li>While not strictly a part of the core encoding, many Base64 implementations (especially in email MIME parts) wrap the output into lines of a certain maximum length (e.g., 76 characters, as per RFC 2045). This is done for readability and compatibility with older systems that might have line length limitations.</li>
+        <li><strong>Rule (Soft):</strong> If line wrapping is applied, it must only consist of carriage return (`\r`) and/or newline (`\n`) characters, and these must be ignored during decoding.</li>
+    </ul>
+
+    <h3>Ignoring Whitespace (during decoding):</h3>
+    <ul>
+        <li><strong>Rule:</strong> During decoding, most Base64 implementations are designed to ignore any whitespace characters (spaces, tabs, newlines, carriage returns) found within the encoded string. This makes the encoding more robust against accidental formatting changes.</li>
+    </ul>
+    <p>These rules collectively define the "language" of Base64, allowing any Base64 encoder to produce output that any Base64 decoder can reliably understand and convert back to the original binary data.</p>
+
+    <hr>
+
+    <h2>What does it means : Rule: Base64 encodes 3 bytes (24 bits) of input binary data into 4 characters (each representing 6 bits).</h2>
+    <p>That rule is the absolute core of how Base64 works, and it's what drives its expansion in size. Let's break it down in detail:</p>
+
+    <h3>1. "3 bytes of input binary data"</h3>
+    <ul>
+        <li><strong>Bytes:</strong> A byte is a unit of digital information that most computers use. It consists of 8 bits.</li>
+        <li><strong>Binary Data:</strong> This refers to any data in its raw, fundamental form, composed entirely of 0s and 1s. This could be:
+            <ul>
+                <li>The ASCII representation of text (e.g., the letter 'A' is `01000001`).</li>
+                <li>Pixels of an image.</li>
+                <li>Sound waves in an audio file.</li>
+                <li>Instructions in a computer program.</li>
+            </ul>
+        </li>
+        <li><strong>3 Bytes:</strong> So, we're taking a chunk of the original data that's <span class="math">3&times;8=24</span> bits long.
+            <div class="example-code">Imagine you have these bits: `[byte1: 01001101] [byte2: 01100001] [byte3: 01101110]` (This is "Man" in ASCII).<br>Concatenated, that's `010011010110000101101110`. That's 24 bits.</div>
+        </li>
+    </ul>
+
+    <h3>2. "into 4 characters"</h3>
+    <ul>
+        <li><strong>Characters:</strong> These are the specific characters from the Base64 alphabet (A-Z, a-z, 0-9, +, /).</li>
+        <li><strong>4 Characters:</strong> For every 3 bytes of original data, you will always get exactly 4 Base64 characters as output (ignoring padding for a moment, which handles cases where you don't have a full 3 bytes).</li>
+    </ul>
+
+    <h3>3. "(each representing 6 bits)"</h3>
+    <ul>
+        <li><strong>Why 6 bits?</strong>
+            <ul>
+                <li>A single Base64 character can represent 64 different possibilities (A-Z, a-z, 0-9, +, /).</li>
+                <li>Mathematically, <span class="math">2^6=64</span>. This means you need exactly 6 bits to uniquely identify one of these 64 characters.</li>
+            </ul>
+        </li>
+        <li><strong>The Conversion:</strong>
+            <ul>
+                <li>Since you have 24 bits from the 3 input bytes (`010011010110000101101110`).</li>
+                <li>Base64 divides these 24 bits into four equal chunks of 6 bits each:
+                    <div class="example-code">Chunk 1: `010011`<br>Chunk 2: `010110`<br>Chunk 3: `000101`<br>Chunk 4: `101110`</div>
+                </li>
+                <li>Each of these 6-bit chunks is then converted into its decimal value (0-63).
+                    <div class="example-code">`010011` = 19<br>`010110` = 22<br>`000101` = 5<br>`101110` = 46</div>
+                </li>
+                <li>Finally, these decimal values are mapped to the Base64 character set:
+                    <ul>
+                        <li>19 = 'T'</li>
+                        <li>22 = 'W'</li>
+                        <li>5 = 'F'</li>
+                        <li>46 = 'u'</li>
+                    </ul>
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p>So, "Man" becomes <strong>"TWFu"</strong>.</p>
+
+    <h3>The Takeaway (and why it causes expansion):</h3>
+    <ul>
+        <li>You start with 3 bytes (24 bits) of actual data.</li>
+        <li>You end up with 4 Base64 characters. Each of these characters, when stored or transmitted, still takes up 1 byte (8 bits) in its ASCII representation.</li>
+        <li>So, 3 original bytes (24 bits) become 4 encoded bytes (32 bits).</li>
+        <li>This is why Base64 <strong>always increases the size</strong> of the data. You're effectively taking 24 bits of useful information and representing it using 32 bits worth of space (4 characters * 8 bits/character). This is a <span class="math">33%</span> increase in size (<span class="math">((32−24)/24=8/24=1/3)</span>. If you also count the occasional padding, it can be up to <span class="math">37%</span>.</li>
+    </ul>
+    <p>This 3:4 ratio (3 input bytes to 4 output characters) is the fundamental encoding block that Base64 operates on.</p>
+
+    <hr>
+
+    <h2>How much bits are required for Base64 minimum to convert text?</h2>
+    <p>To understand the minimum bits required for Base64, it's helpful to clarify what "minimum" refers to:</p>
+
+    <ul>
+        <li><strong>Minimum bits represented by a single Base64 character:</strong> Each Base64 character (A-Z, a-z, 0-9, +, /) represents <strong>6 bits</strong> of data. This is because there are 64 unique characters in the Base64 alphabet, and <span class="math">2^6=64</span>. So, 6 bits are the minimum number of bits needed to distinguish between 64 different values.</li>
+        <li><strong>Minimum bits of input text to produce any Base64 output:</strong> Even if you input a single character (which is 8 bits in ASCII/UTF-8), Base64 still processes it in a way that results in at least 4 Base64 characters (if you consider the padding).
+            <ul>
+                <li><strong>1 byte (8 bits) of input:</strong> This will be converted into 2 Base64 characters plus 2 padding characters (`=`). So, 8 bits of input results in an output that *would normally* represent 12 bits of data (2 characters * 6 bits/character), with the last 4 bits being conceptual zeros.
+                    <div class="example-code">Example: "M" (8 bits) -&gt; "TQ==" (4 characters, representing 24 bits in total, but only 8 are "real").</div>
+                </li>
+                <li><strong>2 bytes (16 bits) of input:</strong> This will be converted into 3 Base64 characters plus 1 padding character (`=`). So, 16 bits of input results in an output that *would normally* represent 18 bits of data (3 characters * 6 bits/character), with the last 2 bits being conceptual zeros.
+                    <div class="example-code">Example: "Ma" (16 bits) -&gt; "TWE=" (4 characters, representing 24 bits in total, but only 16 are "real").</div>
+                </li>
+                <li><strong>3 bytes (24 bits) of input:</strong> This is the ideal block size for Base64. It converts perfectly into 4 Base64 characters with no padding. So, 24 bits of input perfectly map to 24 bits represented by the output characters.
+                    <div class="example-code">Example: "Man" (24 bits) -&gt; "TWFu" (4 characters, representing 24 bits).</div>
+                </li>
+            </ul>
+        </li>
+    </ul>
+    <p><strong>In summary:</strong></p>
+    <ul>
+        <li><strong>Each Base64 character inherently represents 6 bits.</strong> This is the smallest unit of <em>meaningful</em> binary data that a single Base64 character can convey.</li>
+        <li>However, due to the 3-byte to 4-character block processing and the padding rules, the <strong>smallest amount of input text (binary data) that will be processed by Base64 is typically 1 byte (8 bits)</strong>, which will then result in an encoded string with padding. The actual "useful" bits encoded by the Base64 characters in this scenario would be 6 bits for the first character and 2 bits for the second (out of 6), with the remaining 4 bits from the second character being padded zeros.</li>
+    </ul>
+
+    <hr>
+
+    <h2>Let's convert word 'a'</h2>
+    <p>Okay, let's convert the word 'a' (lowercase 'a') to Base64.</p>
+
+    <h3>1. Get the ASCII value and Binary Representation of 'a':</h3>
+    <ul>
+        <li>The ASCII decimal value for lowercase 'a' is 97.</li>
+        <li>In binary, 97 is `01100001`. (This is 8 bits, or 1 byte).</li>
+    </ul>
+
+    <h3>2. Prepare for 6-bit grouping (and padding):</h3>
+    <p>Base64 works in blocks of 3 bytes (24 bits). Since we only have 1 byte (8 bits), we need to apply padding.</p>
+    <ul>
+        <li>Our 8 bits: `01100001`</li>
+        <li>To form the first 6-bit chunk, we take the first 6 bits: `011000`</li>
+        <li>The remaining 2 bits are `01`.</li>
+        <li>According to the rules for 1 remaining byte, we append <strong>four zero bits</strong> to the remaining `01` to make the second 6-bit chunk: `010000`</li>
+    </ul>
+    <p>So, we conceptually have: `011000` and `010000`</p>
+
+    <h3>3. Convert each 6-bit chunk to its decimal value:</h3>
+    <ul>
+        <li>`011000` (binary) = 32 (decimal)</li>
+        <li>`010000` (binary) = 16 (decimal)</li>
+    </ul>
+
+    <h3>4. Map decimal values to Base64 characters:</h3>
+    <p>Referencing the Base64 character set:</p>
+    <ul>
+        <li>32 maps to 'g'</li>
+        <li>16 maps to 'Q'</li>
+    </ul>
+
+    <h3>5. Apply Padding:</h3>
+    <p>Since we started with 1 byte of input, Base64 requires two padding characters (`==`) at the end.</p>
+    <p>Therefore, the word 'a' converted to Base64 is <strong>`gQ==`</strong></p>
+
+    <hr>
+
+    <h2>Why there are 64 numbers?</h2>
+    <p>The choice of <strong>64</strong> numbers (or values) in Base64 is directly tied to the number of <strong>bits</strong> used to represent each encoded character. Here's why 64 is the magic number:</p>
+
+    <ul>
+        <li><strong>Binary Foundation:</strong> Computers fundamentally operate on binary (0s and 1s). The smallest addressable unit of data is typically a bit.</li>
+        <li><strong>Powers of Two:</strong> When you're dealing with bits, the number of unique combinations you can represent is always a power of two (<span class="math">2^n</span>, where 'n' is the number of bits).</li>
+        <li><strong>The Goal: Printable ASCII Characters:</strong>
+            <ul>
+                <li>Base64's primary purpose is to convert arbitrary binary data into a format that can be safely transmitted over systems that primarily handle <strong>text</strong> (specifically, printable ASCII characters).</li>
+                <li>Printable ASCII characters are generally considered to be those with ASCII values from 32 (space) to 126 (tilde `~`). This range excludes control characters, which can cause issues during transmission.</li>
+            </ul>
+        </li>
+        <li><strong>Selecting the Optimal Bit Grouping:</strong>
+            <ul>
+                <li><strong>If you used 7 bits per character:</strong> You could represent <span class="math">2^7=128</span> values. While this fits the ASCII range, it would mean that for every 8 bits of original data, you'd effectively use 7 bits of the encoded character, which doesn't align neatly. More importantly, it wouldn't be as efficient in terms of data expansion when mapping to standard 8-bit bytes.</li>
+                <li><strong>If you used 8 bits per character:</strong> This would be a 1:1 mapping (1 byte in, 1 byte out), but then you'd be using <em>all</em> 256 possible byte values. Many of these values correspond to non-printable ASCII characters or control characters, which defeats the purpose of Base64 (to make it text-safe).</li>
+                <li><strong>If you used 5 bits per character:</strong> You'd get <span class="math">2^5=32</span> values. This isn't enough to cover a sufficiently large, convenient set of printable ASCII characters (A-Z, a-z, 0-9, etc.).</li>
+            </ul>
+        </li>
+        <li><strong>The Sweet Spot: 6 Bits:</strong>
+            <ul>
+                <li>Using <strong>6 bits</strong> allows you to represent <span class="math">2^6=64</span> unique values.</li>
+                <li>This number (64) is perfectly suited for selecting a contiguous block of <strong>64 safe, printable ASCII characters</strong>. The standard Base64 alphabet (A-Z, a-z, 0-9, +, /) fits this perfectly. These characters are universally recognized and don't cause issues in text-based systems.</li>
+            </ul>
+        </li>
+        <li><strong>Efficiency with 8-bit Bytes:</strong>
+            <ul>
+                <li>This is the crucial part for efficiency and simplicity. Standard binary data is usually processed in 8-bit bytes.</li>
+                <li>If you take 3 bytes of input data, that's <span class="math">3&times;8=24</span> bits.</li>
+                <li>If you then divide these 24 bits into chunks of <strong>6 bits each</strong>, you get exactly <span class="math">24/6=4</span> chunks.</li>
+                <li>Each of these 4 chunks can then be directly mapped to one of the 64 Base64 characters.</li>
+            </ul>
+            <p>This creates a clean 3-byte-to-4-character (or 24-bit-to-24-bit-represented-by-4-characters) conversion block, which is simple to implement and manage.</p>
+        </li>
+    </ul>
+    <p>In essence, 64 is the largest power of two (<span class="math">2^n</span>) that allows for a selection of entirely safe, printable ASCII characters, while also providing a simple and efficient way to chunk 8-bit input data into a compatible output format.</p>
+
+    <hr>
+
+    <h2>Why you take the base 2 and power 6?</h2>
+    <p>It looks like there might be a slight typo in your question. You wrote "26" at the end, but I believe you're asking why we use "base 2 and power 6" (i.e., <span class="math">2^6</span>) when discussing Base64, and why it's related to the number 64.</p>
+
+    <p>Let's clarify:</p>
+    <p>The formula is <span class="math">2^n</span>, where:</p>
+    <ul>
+        <li><strong>2</strong> is the <strong>base</strong> because computers fundamentally operate using <strong>binary</strong>, which has two states: 0 and 1. Each bit can be either a 0 or a 1.</li>
+        <li><strong>n</strong> is the <strong>number of bits</strong> we are considering.</li>
+    </ul>
+    <p>So, when we say "power 6" (or <span class="math">n=6</span>), we are asking: "How many unique combinations or values can we represent with 6 binary digits (bits)?"</p>
+    <p>The answer to <span class="math">2^6</span> is <span class="math">2&times;2&times;2&times;2&times;2&times;2=64</span>.</p>
+
+    <h3>Why 6 bits (and thus 64 values) for Base64?</h3>
+    <p>As explained previously, 6 bits is the "sweet spot" because:</p>
+    <ul>
+        <li>It allows for exactly 64 unique values.</li>
+        <li>These 64 values can be mapped directly to a set of 64 printable ASCII characters. This is crucial for Base64's purpose of making binary data "text-safe" for transmission over systems that might otherwise corrupt non-printable characters.</li>
+        <li>It aligns perfectly with 8-bit bytes:
+            <ul>
+                <li>3 bytes = 24 bits.</li>
+                <li>24 bits divided into 6-bit chunks = 4 chunks.</li>
+                <li>Each of these 4 chunks can then be represented by one of the 64 Base64 characters.</li>
+            </ul>
+        </li>
+    </ul>
+    <p>So, the "base 2" comes from the binary nature of computers, and the "power 6" is chosen because <span class="math">2^6</span> gives us 64 unique values, which is the exact number of characters in the Base64 alphabet, allowing for an efficient and safe encoding scheme.</p>
+
+</body>
+</html>

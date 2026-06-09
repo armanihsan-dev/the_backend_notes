@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Inspector Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2, h3 {
+            color: #0056b3;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 5px;
+            margin-top: 25px;
+        }
+        h1 {
+            text-align: center;
+            color: #003366;
+            border-bottom: 3px solid #003366;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        code {
+            font-family: 'Fira Code', monospace;
+            background-color: #e6e6e6;
+            padding: 2px 5px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+        pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            margin-top: 15px;
+            margin-bottom: 15px;
+        }
+        .highlight {
+            background-color: #e0f7fa;
+            padding: 10px;
+            border-left: 5px solid #00bcd4;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .formula {
+            background-color: #e8f5e9;
+            padding: 15px;
+            border-left: 5px solid #4caf50;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+            font-size: 1.1em;
+            text-align: center;
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        .definition {
+            font-style: italic;
+            color: #555;
+            margin-left: 20px;
+        }
+        .point {
+            margin-bottom: 10px;
+        }
+        .point strong {
+            color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Memory Inspector: Understanding Bytes and Endianness</h1>
+
+        <div class="highlight">
+            <p><strong>Context:</strong> Viewing a 4-byte <code>ArrayBuffer</code> in Chrome Memory Inspector.</p>
+        </div>
+
+        <h2>Initial Scenario (Big Endian)</h2>
+
+        <h3>🧠 What’s happening?</h3>
+        <ul>
+            <li>You’re viewing a 4-byte <code>ArrayBuffer</code> in the Chrome Memory Inspector.</li>
+            <li>You selected byte offset 2.</li>
+        </ul>
+        <img src="./bigendian.png"  width="100%" height="200px" alt="big endian">
+        <h3>🧾 Bytes in Memory (in hex):</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Offset</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0</td>
+                        <td>0x00</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>0x01</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>0x04</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>0x00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>You're in <strong>Big Endian</strong> mode.</p>
+        <p><strong>📍 Current Selection:</strong> Byte 2 (value: <code>0x04</code>)</p>
+
+        <h3>🔹 Integer 8-bit: dec → 4</h3>
+        <p>Shows the value at byte offset 2 interpreted as a single 8-bit integer:</p>
+        <p><code>Byte 2 = 0x04 = 4</code> ✅</p>
+
+        <h3>🔹 Integer 16-bit: dec → 1024</h3>
+        <p>Shows the value starting at byte 2 and reading 2 bytes: byte 2 and byte 3.</p>
+        <ul>
+            <li>Byte 2 = <code>0x04</code></li>
+            <li>Byte 3 = <code>0x00</code></li>
+        </ul>
+        <p>In Big Endian, this means:</p>
+        <div class="formula">
+            Value = 0x04 &times; 256 + 0x00 = 1024 + 0 = 1024
+        </div>
+        <p>✅ That’s why the inspector shows Integer 16-bit = 1024.</p>
+
+        <h3>💡 So what does 1024 mean here?</h3>
+        <p>It’s just the raw 2-byte value starting from byte 2, interpreted as a 16-bit integer in Big Endian order.</p>
+        <p>In other words:</p>
+        <pre><code class="language-csharp">0x0400 (hex) = 1024 (decimal)</code></pre>
+        <p>This doesn't necessarily represent a variable or operation — it’s just what those 2 bytes represent numerically.</p>
+
+        <h3>🧪 Summary (Initial Scenario - Big Endian):</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Term</th>
+                        <th>Meaning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Integer 8-bit</td>
+                        <td>Byte 2 = 0x04 = 4</td>
+                    </tr>
+                    <tr>
+                        <td>Integer 16-bit</td>
+                        <td>Bytes 2–3 = 0x04 0x00 &rarr; 0x0400 &rarr; 1024 in decimal</td>
+                    </tr>
+                    <tr>
+                        <td>Big Endian</td>
+                        <td>Most significant byte first &rarr; 0x04 is high byte, 0x00 is low byte</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <hr>
+
+        <h2>Understanding the '256' in Big Endian Formula</h2>
+
+        <h3>🧠 Why do we multiply by 256?</h3>
+        <p>We're interpreting 2 bytes (16 bits) as a single unsigned integer in Big Endian order:</p>
+        <ul>
+            <li>Byte at offset 2 = <code>0x04</code> (this is the most significant byte - MSB)</li>
+            <li>Byte at offset 3 = <code>0x00</code> (this is the least significant byte - LSB)</li>
+        </ul>
+        <p>In Big Endian, the formula to compute the 16-bit value is:</p>
+        <div class="formula">
+            Value = MSB &times; 256 + LSB
+        </div>
+
+        <h3>Why 256?</h3>
+        <div class="point">
+            <strong>🧮 Because:</strong> Each byte = 8 bits.
+        </div>
+        <div class="point">
+            → So when you shift one byte to the left by 8 bits, it's the same as multiplying by:
+            <div class="formula">
+                2<sup>8</sup> = 256
+            </div>
+        </div>
+        <div class="point">
+            So: The byte <code>0x04</code> (MSB) goes to the high 8 bits:
+            <pre><code class="language-csharp">→ 0x04 &lt;&lt; 8 = 0x0400 = 1024</code></pre>
+            The byte <code>0x00</code> (LSB) stays in the low 8 bits.
+        </div>
+        <div class="point">
+            So:
+            <div class="formula">
+                0x04 &times; 256 + 0x00 = 1024 + 0 = 1024
+            </div>
+        </div>
+
+        <h3>✅ Summary (256 Explanation):</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Byte</th>
+                        <th>Hex</th>
+                        <th>Decimal</th>
+                        <th>Role</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2</td>
+                        <td>0x04</td>
+                        <td>4</td>
+                        <td>Most significant byte (&times; 256)</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>0x00</td>
+                        <td>0</td>
+                        <td>Least significant byte (+ 1&times;)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="formula">
+            Final value = 4 &times; 256 + 0 = 1024
+        </div>
+        <p>This is how multi-byte values are built from individual bytes in memory.</p>
+
+        <hr>
+
+        <h2>Deep Dive: Why the Big Endian Formula Contains 256</h2>
+
+        <h3>Why does the Big Endian formula use 256?</h3>
+        <div class="point">
+            <strong>📦 1. Each byte is 8 bits</strong>
+            <p>A byte can represent values from 0 to 255:</p>
+            <div class="formula">
+                2<sup>8</sup> = 256 possible values
+            </div>
+            <p>When you combine 2 bytes into a 16-bit integer, you need to assign one byte to the high-order bits and the other to the low-order bits.</p>
+        </div>
+        <div class="point">
+            <strong>📚 2. Big Endian stores the Most Significant Byte (MSB) first</strong>
+            <p>Let’s say you have two bytes:</p>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Byte</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Byte 0</td>
+                            <td>A (MSB)</td>
+                        </tr>
+                        <tr>
+                            <td>Byte 1</td>
+                            <td>B (LSB)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p>In Big Endian, you compute the value like this:</p>
+            <div class="formula">
+                Value = A &times; 2<sup>8</sup> + B
+            </div>
+            <p><strong>Why 2<sup>8</sup>?</strong> Because you’re shifting A into the higher byte position of a 16-bit number.</p>
+        </div>
+
+        <h3>Visual Example:</h3>
+        <p>Let’s say:</p>
+        <ul>
+            <li>Byte 0 = <code>0x04</code> (MSB)</li>
+            <li>Byte 1 = <code>0x00</code> (LSB)</li>
+        </ul>
+        <p>Then:</p>
+        <pre><code class="language-vbnet">Binary:
+0x04 = 00000100
+0x00 = 00000000
+
+Combined in 16 bits:
+00000100 00000000 → This is 0x0400</code></pre>
+        <p>That’s 4 * 256 = 1024 in decimal.</p>
+        <p>So:</p>
+        <div class="highlight">
+            Why 256? Because it’s the weight of the high byte in a 16-bit system.
+        </div>
+
+        <h3>🧮 General Formula (Big Endian):</h3>
+        <p>For n bytes, the value is:</p>
+        <div class="formula">
+            Value = b<sub>0</sub> &times; 2<sup>8(n-1)</sup> + b<sub>1</sub> &times; 2<sup>8(n-2)</sup> + &dots; + b<sub>n-1</sub> &times; 2<sup>0</sup>
+        </div>
+        <p>For 2 bytes:</p>
+        <div class="formula">
+            Value = MSB &times; 2<sup>8</sup> + LSB &times; 2<sup>0</sup> = MSB &times; 256 + LSB
+        </div>
+
+        <h3>✅ Final Summary (Why 256):</h3>
+        <p>256 is used because the first byte (MSB) in Big Endian represents the higher-order bits — essentially multiplied by 2<sup>8</sup> = 256.</p>
+        <p>It’s how binary positional values work:</p>
+        <ul>
+            <li>Byte 0 = 256's place</li>
+            <li>Byte 1 = 1's place</li>
+        </ul>
+
+        <hr>
+
+        <h2>Understanding 2<sup>8</sup>: Where do 2 and 8 come from?</h2>
+
+        <p>Let’s now break down why exactly we use <code>2<sup>8</sup></code> in computing with bytes and binary.</p>
+
+        <h3>🔹 Step 1: Why Base 2?</h3>
+        <p>We use base 2 (binary) in computers because:</p>
+        <ul>
+            <li>Computers use bits, which are either 0 or 1.</li>
+            <li>So every value is stored in powers of 2.</li>
+        </ul>
+        <p>Examples:</p>
+        <pre><code class="language-python-repl">2^0 = 1
+2^1 = 2
+2^2 = 4
+...
+2^7 = 128</code></pre>
+
+        <h3>🔹 Step 2: Why the exponent is 8?</h3>
+        <p>Because 1 byte = 8 bits.</p>
+        <p>So a byte can represent any number from:</p>
+        <div class="formula">
+            00000000<sub>2</sub> = 0 to 11111111<sub>2</sub> = 255
+        </div>
+        <p>That’s 256 possible values:</p>
+        <div class="formula">
+            2<sup>8</sup> = 256
+        </div>
+
+        <h3>🔹 Step 3: Why multiply by 2<sup>8</sup> in 16-bit numbers?</h3>
+        <p>Let’s say you store a 16-bit number using two 8-bit bytes:</p>
+        <pre><code class="language-nginx">Byte1 (MSB) | Byte2 (LSB)</code></pre>
+        <p>If:</p>
+        <ul>
+            <li>Byte1 = <code>0x04</code></li>
+            <li>Byte2 = <code>0x00</code></li>
+        </ul>
+        <p>You want to reconstruct the 16-bit value:</p>
+        <ul>
+            <li>The first byte goes in the high position.</li>
+            <li>The second byte goes in the low position.</li>
+        </ul>
+        <p>So:</p>
+        <div class="formula">
+            Value = Byte1 &times; 2<sup>8</sup> + Byte2
+        </div>
+        <p>Because you're "shifting" Byte1 8 bits to the left → this is how binary place value works.</p>
+        <p>It’s like how in decimal:</p>
+        <pre><code class="language-ini">53 = 5&times;10^1 + 3&times;10^0</code></pre>
+        <p>In binary:</p>
+        <pre><code class="language-ini">0x0400 = 0x04 &times; 2^8 + 0x00</code></pre>
+        <p>So 2<sup>8</sup> is the weight of a full byte (shifted up one byte).</p>
+
+        <h3>✅ Final Summary (Why 2<sup>8</sup>):</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Meaning</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>2</td>
+                        <td>Base of binary (0s and 1s)</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td>Number of bits in a byte</td>
+                    </tr>
+                    <tr>
+                        <td>2<sup>8</sup></td>
+                        <td>256 &rarr; The number of values one byte can represent, or its positional weight</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>So: We use 2<sup>8</sup> because we are moving one byte (8 bits) to the left — same as multiplying by 256.</p>
+
+        <hr>
+
+        <h2>Endianness Formulas: Big Endian vs. Little Endian</h2>
+
+        <p>Let’s write both formulas clearly and explain them side-by-side.</p>
+
+        <h3>✅ Big Endian</h3>
+        <p>In Big Endian, the most significant byte (MSB) comes first (at the lower memory address).</p>
+        <p><strong>Formula:</strong></p>
+        <div class="formula">
+            Value = Byte<sub>1</sub> &times; 2<sup>8</sup> + Byte<sub>2</sub>
+        </div>
+        <p><strong>Example:</strong></p>
+        <p>If memory has:</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Offset</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0</td>
+                        <td>0x04</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>0x01</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>Then:</p>
+        <div class="formula">
+            Value = 0x04 &times; 2<sup>8</sup> + 0x01 = 1024 + 1 = 1025
+        </div>
+
+        <h3>✅ Little Endian</h3>
+        <p>In Little Endian, the least significant byte (LSB) comes first (at the lower memory address).</p>
+        <p><strong>Formula:</strong></p>
+        <div class="formula">
+            Value = Byte<sub>1</sub> + Byte<sub>2</sub> &times; 2<sup>8</sup>
+        </div>
+        <p><strong>Example:</strong></p>
+        <p>Same bytes, but stored in reverse:</p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Offset</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0</td>
+                        <td>0x01</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>0x04</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p>Then:</p>
+        <div class="formula">
+            Value = 0x01 + 0x04 &times; 2<sup>8</sup> = 1 + 1024 = 1025
+        </div>
+
+        <h3>📌 Key Differences:</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Endian</th>
+                        <th>Memory Order (Byte0, Byte1)</th>
+                        <th>Formula</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Big Endian</td>
+                        <td>MSB, LSB</td>
+                        <td>Byte0 &times; 256 + Byte1</td>
+                    </tr>
+                    <tr>
+                        <td>Little Endian</td>
+                        <td>LSB, MSB</td>
+                        <td>Byte0 + Byte1 &times; 256</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>🧠 Why does Little Endian reverse it?</h3>
+        <p>Because in Little Endian, the low byte is stored at the lowest address — it's a CPU-level design choice. Intel CPUs use Little Endian; some network protocols use Big Endian.</p>
+
+        <hr>
+
+        <h2>Scenario: Little Endian Interpretation in Memory Inspector</h2>
+
+        <h3>🖼️ What You’re Looking At:</h3>
+        <p>You're using Chrome DevTools' Memory Inspector to view an <code>ArrayBuffer(4)</code> in <strong>Little Endian</strong> mode.</p>
+        <img src="./littleendian.png"  width="100%" height="200px" alt="little endian">
+
+        <h3>🧾 Bytes in Memory:</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Offset</th>
+                        <th>Value (hex)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>0</td>
+                        <td>0x00</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>0x01</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>0x09</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>0x00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h3>✅ What’s Selected?</h3>
+        <p>You have byte 1 (<code>0x01</code>) selected.</p>
+
+        <h3>🔍 What DevTools Shows on the Right:</h3>
+        <h4>▶ Integer 8-bit (dec) = 1</h4>
+        <p>You're selecting byte 1, which contains <code>0x01</code>.</p>
+        <p><code>8-bit integer = 0x01 = 1</code> ✅</p>
+
+        <h4>▶ Integer 16-bit (dec) = 2305</h4>
+        <p>Since you're in <strong>Little Endian</strong>, the Memory Inspector takes:</p>
+        <ul>
+            <li>Byte 1 = <code>0x01</code> (LSB — least significant byte)</li>
+            <li>Byte 2 = <code>0x09</code> (MSB — most significant byte)</li>
+        </ul>
+        <p>And uses this formula:</p>
+        <div class="formula">
+            Value = Byte<sub>1</sub> + Byte<sub>2</sub> &times; 2<sup>8</sup>
+        </div>
+        <p>Substitute the values:</p>
+        <div class="formula">
+            Value = 0x01 + 0x09 &times; 256 = 1 + 2304 = 2305
+        </div>
+        <p>✅ That's why it shows 2305 as the Integer 16-bit value.</p>
+
+        <h3>🧠 Summary (Little Endian Scenario):</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Explanation</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Endian</td>
+                        <td>Little Endian &rarr; LSB first, MSB second</td>
+                    </tr>
+                    <tr>
+                        <td>Selected Byte</td>
+                        <td>Byte 1 = 0x01 (shows as 8-bit integer: 1)</td>
+                    </tr>
+                    <tr>
+                        <td>Next Byte</td>
+                        <td>Byte 2 = 0x09</td>
+                    </tr>
+                    <tr>
+                        <td>16-bit value</td>
+                        <td>0x0901 in memory &rarr; interpreted as 2305 decimal</td>
+                    </tr>
+                    <tr>
+                        <td>Formula Used</td>
+                        <td>1 + 9 &times; 256 = 2305</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

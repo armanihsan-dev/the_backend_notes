@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node.js Internal Buffer Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #ffe6f2; /* Light pink background */
+            color: #000; /* Black font */
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #fff0f5; /* Lighter pink container */
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3 {
+            color: #d83c74; /* A vibrant pink for headings */
+            border-bottom: 2px solid #d83c74;
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        p, ul, ol {
+            line-height: 1.6;
+        }
+
+        ul, ol {
+            padding-left: 20px;
+        }
+
+        code {
+            background-color: #fce4ec; /* Lightest pink for code blocks */
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Poppins', monospace;
+        }
+
+        pre {
+            background-color: #fce4ec;
+            padding: 1rem;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        .note {
+            background-color: #ffe6f2;
+            border-left: 5px solid #d83c74;
+            padding: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .note p {
+            margin: 0;
+        }
+
+        .key-concept {
+            font-weight: bold;
+            color: #a30e46; /* A darker pink for emphasis */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Node.js Internal Buffer</h1>
+        <p>
+            An internal buffer is a temporary memory storage area used to hold data. It is a crucial part of Node.js's <strong>non-blocking I/O model</strong>, enabling the system to handle data asynchronously without waiting for a full file or network response. This prevents applications from becoming unresponsive.
+        </p>
+
+        <hr>
+
+        <h2>What is a `readStream` internal buffer?</h2>
+        <p>
+            A `readStream` internal buffer is a specific type of buffer used by <strong>readable streams</strong>. When you read data from a source, Node.js reads it in chunks and stores these chunks in the stream's internal buffer. Your application then consumes this data as it becomes available.
+        </p>
+
+        <hr>
+
+        <h2>What is meant by loading data on an internal buffer?</h2>
+        <p>
+            This refers to Node.js receiving a data chunk from a source and placing it into the stream's buffer. The stream continues to load data until it hits a `highWaterMark`, at which point it pauses. It waits for your application to "drain" some data before resuming.
+        </p>
+
+        <hr>
+
+        <h2>When is the size of a readable stream's internal buffer decided?</h2>
+        <p>
+            The size is decided when the stream is created, using the <strong><code>highWaterMark</code></strong> option. This value, in bytes, determines the maximum buffer capacity. The default `highWaterMark` for file streams is <strong>16KB (16384 bytes)</strong>.
+        </p>
+
+        <hr>
+
+        <h2>Important Events, Properties, and Methods</h2>
+        
+        <h3>Events</h3>
+        <ul>
+            <li><strong><code>'data'</code></strong>: Emitted when a chunk of data is available to be read from the buffer.</li>
+            <li><strong><code>'readable'</code></strong>: Emitted when new data has been loaded into the buffer.</li>
+            <li><strong><code>'end'</code></strong>: Emitted when there is no more data to provide, and the buffer is empty.</li>
+        </ul>
+        
+        <h3>Properties</h3>
+        <ul>
+            <li><strong><code>readableHighWaterMark</code></strong>: A read-only property showing the `highWaterMark` value.</li>
+        </ul>
+
+        <h3>Methods</h3>
+        <ul>
+            <li><strong><code>read()</code></strong>: Removes and returns a data chunk from the buffer.</li>
+            <li><strong><code>pipe()</code></strong>: A powerful method that connects a readable stream to a writable stream, automatically managing data flow and backpressure.</li>
+            <li><strong><code>pause()</code></strong>: Stops the stream from emitting `'data'` events and loading data.</li>
+            <li><strong><code>resume()</code></strong>: Resumes a paused stream.</li>
+        </ul>
+
+        <hr>
+
+        <h2>Working with the Internal Buffer Practically</h2>
+        <p>
+            In practice, you work with the internal buffer implicitly through <strong>streams</strong>. Node.js streams handle the buffering for you, but understanding concepts like <strong>backpressure</strong> is key. The `highWaterMark` property is central to this mechanism.
+        </p>
+        
+        <h3>Using Streams to Handle Buffers</h3>
+        <p>
+            The most common way is to create a readable stream and consume its data.
+        </p>
+        <pre><code>const fs = require('fs');
+
+const readableStream = fs.createReadStream('large-file.txt', {
+  highWaterMark: 16
+});
+
+const allChunks = [];
+
+readableStream.on('data', (chunk) => {
+  const chunkString = chunk.toString();
+  console.log(`Received chunk of ${chunk.length} bytes: "${chunkString}"`);
+  allChunks.push(chunkString);
+});
+
+readableStream.on('end', () => {
+  console.log('\nFinished reading the file!');
+  console.log(`Total data read: ${allChunks.join('')}`);
+});
+</code></pre>
+        <p class="note">
+            This approach is memory-efficient because it only processes small chunks of data at a time, instead of loading the entire file into memory.
+        </p>
+
+        <h3>Backpressure and the <code>pipe()</code> Method</h3>
+        <p>
+            <strong>Backpressure</strong> is the mechanism that prevents a fast readable stream from overwhelming a slower writable stream. The `highWaterMark` is central to this. When the buffer fills up, the stream pauses until data is consumed.
+        </p>
+        <p>
+            The most practical way to handle this is with the <strong>`pipe()` method</strong>, which automatically manages data flow and backpressure for you.
+        </p>
+        <pre><code>const fs = require('fs');
+
+const inputFilePath = 'large-file.txt';
+const outputFilePath = 'copy-of-large-file.txt';
+
+const readStream = fs.createReadStream(inputFilePath);
+const writeStream = fs.createWriteStream(outputFilePath);
+
+// The pipe() method handles everything automatically.
+readStream.pipe(writeStream);
+
+readStream.on('end', () => {
+  console.log('File successfully copied!');
+});
+
+readStream.on('error', (err) => {
+  console.error('An error occurred:', err);
+});
+</code></pre>
+        <p class="note">
+            Using `pipe()` ensures a smooth and memory-efficient data transfer without manual event handling.
+        </p>
+    </div>
+</body>
+</html>

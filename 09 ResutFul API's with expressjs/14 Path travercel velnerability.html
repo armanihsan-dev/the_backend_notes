@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Path Traversal Vulnerability</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --background-color: #1a1a1a;
+        --text-color: #f0f0f0;
+        --heading-color: #55aaff;
+        --code-bg: #2d2d2d;
+        --code-text: #cccccc;
+        --code-string: #6a8759;
+        --code-keyword: #cc7832;
+        --code-comment: #808080;
+        --code-constant: #6792ff;
+      }
+
+      body {
+        background-color: var(--background-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      h1,
+      h2 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--heading-color);
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      h1 {
+        font-size: 2.5rem;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+      }
+
+      p {
+        margin: 1rem 0;
+      }
+
+      pre {
+        background-color: var(--code-bg);
+        color: var(--code-text);
+        padding: 1.5rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+        font-size: 0.95rem;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        position: relative;
+      }
+
+      pre::before {
+        content: 'JavaScript';
+        position: absolute;
+        top: 0.5rem;
+        right: 1.5rem;
+        font-size: 0.8rem;
+        color: #808080;
+      }
+
+      .code-block .keyword {
+        color: var(--code-keyword);
+      }
+
+      .code-block .const {
+        color: var(--code-constant);
+      }
+
+      .code-block .string {
+        color: var(--code-string);
+      }
+
+      .code-block .comment {
+        color: var(--code-comment);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>All about path traversal vulnerability in Node.js.</h1>
+      <p>
+        Path traversal, also known as directory traversal, is a security
+        vulnerability that allows an attacker to access files and directories
+        stored outside the web root folder. It occurs when user-supplied input
+        is not properly sanitized or validated before being used to construct a
+        file path. An attacker can use special characters like
+        <code>../</code> to navigate up the directory tree and access sensitive
+        files, such as configuration files, source code, or password files.
+      </p>
+
+      <h2>How It Works</h2>
+      <p>
+        A path traversal attack exploits the trust a server places in user
+        input. For example, a vulnerable Node.js endpoint might serve static
+        files based on a query parameter.
+      </p>
+
+      <h3>Vulnerable Code Example:</h3>
+      <pre class="code-block">
+<span class="keyword">const</span> express = <span class="const">require</span>('express');
+<span class="keyword">const</span> app = <span class="const">express</span>();
+<span class="keyword">const</span> path = <span class="const">require</span>('path');
+
+app.get('/download', (<span class="keyword">req</span>, <span class="keyword">res</span>) => {
+    <span class="keyword">const</span> fileName = req.query.file;
+    <span class="keyword">const</span> filePath = path.join(__dirname, <span class="string">'uploads'</span>, fileName);
+    res.sendFile(filePath);
+});
+
+app.listen(<span class="const">3000</span>);</pre>
+      <p>
+        In this example, an attacker could make a request like
+        <code>http://localhost:3000/download?file=../../../../etc/passwd</code>.
+        The <code>path.join()</code> method resolves this to a path like
+        <code>/path/to/your/app/uploads/../../../../etc/passwd</code>. The
+        operating system then resolves the <code>../</code> sequences, allowing
+        the server to send the <code>/etc/passwd</code> file, which contains a
+        list of system users.
+      </p>
+
+      <h2>Prevention and Mitigation</h2>
+      <p>
+        To prevent path traversal vulnerabilities in Node.js, you should never
+        trust user input when constructing file paths. Here are the most
+        effective mitigation strategies:
+      </p>
+      <ul>
+        <li>
+          <p>
+            <strong>Input Validation and Sanitization:</strong> This is the
+            primary defense. Validate the user input against a whitelist of
+            allowed file names or types. You can also strip out or reject any
+            input containing directory traversal sequences like
+            <code>../</code> or <code>..\\</code>.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Using <code>path.basename()</code>:</strong> This method
+            returns the last portion of a path, effectively stripping any
+            directory information. It's a simple but effective way to prevent
+            traversal.
+          </p>
+        </li>
+      </ul>
+
+      <h3>Secure Code Example:</h3>
+      <pre class="code-block">
+<span class="keyword">const</span> express = <span class="const">require</span>('express');
+<span class="keyword">const</span> app = <span class="const">express</span>();
+<span class="keyword">const</span> path = <span class="const">require</span>('path');
+
+app.get('/download', (<span class="keyword">req</span>, <span class="keyword">res</span>) => {
+    <span class="keyword">const</span> fileName = path.basename(req.query.file);
+    <span class="keyword">const</span> filePath = path.join(__dirname, <span class="string">'uploads'</span>, fileName);
+    res.sendFile(filePath);
+});
+
+app.listen(<span class="const">3000</span>);</pre>
+      <p>
+        In this corrected code, if an attacker provides
+        <code>../../../../etc/passwd</code>, <code>path.basename()</code> will
+        only extract <code>passwd</code>. The resulting file path will be
+        <code>/path/to/your/app/uploads/passwd</code>, which is likely a
+        non-existent and harmless file within the intended directory.
+      </p>
+
+      <ul>
+        <li>
+          <p>
+            <strong>Chroot Jails:</strong> While more complex, you can restrict
+            the process's access to a specific directory using a chroot jail.
+            This creates a virtual root directory for the process, preventing it
+            from accessing files outside that directory, even if a path
+            traversal attack is successful. However, implementing chroot jails
+            correctly can be challenging and is not a substitute for proper
+            input validation.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Principle of Least Privilege:</strong> Run your Node.js
+            application with a user account that has the minimum necessary file
+            permissions. This limits the damage an attacker can do if they
+            successfully access files on the system. For instance, the user
+            account shouldn't be able to read system-wide configuration files or
+            the application's source code.
+          </p>
+        </li>
+      </ul>
+
+      <h1>
+        Node.js Path Methods: path.join(), path.normalize(), path.resolve()
+        Explained & Path Traversal Vulnerability Mitigation
+      </h1>
+      <p>
+        Node.js's built-in <code>path</code> module provides powerful methods
+        for working with file and directory paths. Understanding
+        <code>path.join()</code>, <code>path.normalize()</code>, and
+        <code>path.resolve()</code> is crucial for building robust and secure
+        applications. While they all manipulate paths, they serve different
+        purposes.
+      </p>
+
+      <h2>path.join()</h2>
+      <p>
+        The <code>path.join()</code> method combines multiple path segments into
+        a single, clean path string. It automatically uses the correct
+        platform-specific path separator (<code>/</code> on macOS/Linux,
+        <code>\</code> on Windows) and handles redundant separators and special
+        characters like <code>.</code> and <code>..</code>.
+      </p>
+      <p><strong>Syntax:</strong> <code>path.join([...paths])</code></p>
+      <p>
+        <strong>Definition:</strong> Joins all given path segments together and
+        normalizes the resulting path. It's a fundamental tool for creating
+        cross-platform file paths from multiple components.
+      </p>
+      <h3>Example:</h3>
+      <pre class="code-block">
+<span class="keyword">const</span> path = <span class="const">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> filePath = path.join(<span class="string">'/users'</span>, <span class="string">'john'</span>, <span class="string">'documents'</span>, <span class="string">'..'</span>, <span class="string">'notes.txt'</span>);
+<span class="const">console</span>.log(filePath);
+<span class="comment">// On macOS/Linux: '/users/john/notes.txt'</span>
+<span class="comment">// On Windows: '\\users\\john\\notes.txt'</span></pre>
+
+      <h2>path.normalize()</h2>
+      <p>
+        The <code>path.normalize()</code> method cleans up a single path string
+        by resolving <code>.</code> (current directory) and
+        <code>..</code> (parent directory) segments and replacing multiple or
+        mixed separators with a single, platform-specific separator.
+      </p>
+      <p><strong>Syntax:</strong> <code>path.normalize(p)</code></p>
+      <p>
+        <strong>Definition:</strong> Normalizes a path string, resolving
+        <code>.</code> and <code>..</code> segments and ensuring correct
+        separators. Unlike <code>path.join()</code>, it operates on a single
+        path string.
+      </p>
+      <h3>Example:</h3>
+      <pre class="code-block">
+<span class="keyword">const</span> path = <span class="const">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> normalizedPath = path.normalize(<span class="string">'/foo/bar//baz/../asdf/./'</span>);
+<span class="const">console</span>.log(normalizedPath);
+<span class="comment">// On macOS/Linux: '/foo/bar/asdf/'</span>
+<span class="comment">// On Windows: '\\foo\\bar\\asdf\\'</span></pre>
+      <p>Note that <code>path.normalize()</code> preserves a trailing slash.</p>
+
+      <h2>path.resolve()</h2>
+      <p>
+        The <code>path.resolve()</code> method resolves a sequence of path
+        segments into an absolute path. It works from right to left, prepending
+        segments until it forms an absolute path. If no absolute path is formed
+        after processing all segments, it uses the current working directory as
+        the base.
+      </p>
+      <p><strong>Syntax:</strong> <code>path.resolve([...paths])</code></p>
+      <p>
+        <strong>Definition:</strong> Resolves a path or sequence of paths into
+        an absolute path. It's different from <code>path.join()</code> because
+        it will discard any previous path segments once it encounters an
+        absolute path (<code>/</code> or <code>C:</code>).
+      </p>
+      <h3>Example:</h3>
+      <pre class="code-block">
+<span class="keyword">const</span> path = <span class="const">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> resolvedPath1 = path.resolve(<span class="string">'users'</span>, <span class="string">'john'</span>, <span class="string">'notes.txt'</span>);
+<span class="const">console</span>.log(resolvedPath1);
+<span class="comment">// Example output: '/Users/myproject/users/john/notes.txt'</span>
+
+<span class="keyword">const</span> resolvedPath2 = path.resolve(<span class="string">'/users/john'</span>, <span class="string">'..'</span>, <span class="string">'notes.txt'</span>);
+<span class="const">console</span>.log(resolvedPath2);
+<span class="comment">// Example output: '/users/notes.txt'</span></pre>
+
+      <h2>Using path.join() to Prevent Path Traversal</h2>
+      <p>
+        Path traversal vulnerabilities arise when a user can provide input (like
+        <code>../../</code>) that allows them to access files outside of an
+        intended directory. While <code>path.join()</code> itself does not
+        prevent this, combining it with other security measures can effectively
+        mitigate the risk.
+      </p>
+      <p>
+        The core idea is to combine a trusted base directory with the
+        user-provided input and then validate that the resulting path is still
+        within the trusted directory.
+      </p>
+      <p>
+        Here's how you can use <code>path.join()</code> as part of a secure
+        approach:
+      </p>
+      <ul>
+        <li>
+          <p>
+            <strong>Define a trusted base path:</strong> This is the directory
+            where files are allowed to be accessed from. Never rely on user
+            input for this part of the path.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong
+              >Use <code>path.join()</code> to combine the base path and user
+              input:</strong
+            >
+            <code>path.join()</code> will handle the <code>../</code> characters
+            and other irregularities, creating a sanitized and normalized path.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Validate the resulting path:</strong> The most critical step
+            is to check if the new path still starts with the trusted base path.
+            If it doesn't, it means a path traversal attempt was made. This
+            check is often performed by comparing a canonicalized path.
+          </p>
+        </li>
+      </ul>
+
+      <h3>Example of a Secure Implementation:</h3>
+      <pre class="code-block">
+<span class="keyword">const</span> express = <span class="const">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> path = <span class="const">require</span>(<span class="string">'path'</span>);
+<span class="keyword">const</span> app = <span class="const">express</span>();
+<span class="keyword">const</span> fs = <span class="const">require</span>(<span class="string">'fs'</span>);
+
+app.get(<span class="string">'/download'</span>, (<span class="keyword">req</span>, <span class="keyword">res</span>) => {
+    <span class="keyword">const</span> fileName = req.query.file;
+
+    <span class="comment">// 1. Define the trusted base directory.</span>
+    <span class="keyword">const</span> uploadsDir = path.join(__dirname, <span class="string">'uploads'</span>);
+
+    <span class="comment">// 2. Use path.join() to create the full path.</span>
+    <span class="keyword">const</span> filePath = path.join(uploadsDir, fileName);
+    
+    <span class="comment">// 3. The critical validation step.</span>
+    <span class="comment">// Ensure the final, resolved path still begins with the trusted base directory.</span>
+    <span class="keyword">if</span> (!filePath.startsWith(uploadsDir)) {
+        <span class="keyword">return</span> res.status(<span class="const">403</span>).send(<span class="string">'Unauthorized access!'</span>);
+    }
+
+    <span class="comment">// Now it's safe to send the file.</span>
+    res.sendFile(filePath, (err) => {
+        <span class="keyword">if</span> (err) {
+            <span class="const">console</span>.error(err);
+            res.status(<span class="const">404</span>).send(<span class="string">'File not found.'</span>);
+        }
+    });
+});
+
+app.listen(<span class="const">3000</span>, () => {
+    <span class="const">console</span>.log(<span class="string">'Server listening on port 3000!'</span>);
+});</pre>
+      <p>
+        This approach, which involves whitelisting a base directory and then
+        validating the final path, is the most robust defense against path
+        traversal attacks. Simply using <code>path.join()</code> isn't enough on
+        its own, as it will still process <code>..</code> segments, but by using
+        the method to create the path and then validating the output against
+        your trusted directory, you can effectively prevent an attacker from
+        escaping the intended folder.
+      </p>
+      <img src="./images/malicious.png" width="100%" height="600px" alt="" />
+    </div>
+  </body>
+</html>

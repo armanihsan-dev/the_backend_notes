@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scalable Rate Limiting with Redis</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blackish Theme */
+      :root {
+        --color-bg: #05050b; /* Dark background, similar to VS Code */
+        --color-surface: #1b1b1f; /* Slightly lighter for containers/code blocks */
+        --color-text: #cccccc; /* Light gray text */
+        --color-primary: #569cd6; /* VS Code blue for keywords/titles */
+        --color-secondary: #dcdcaa; /* VS Code yellow for strings/definitions */
+        --color-accent: #c586c0; /* VS Code magenta for functions/directives */
+        --color-heading: #9cdcfe; /* Lighter blue for main headings */
+        --color-violation: #f08080; /* Light coral for warnings/violations */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-surface);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.6em;
+      }
+
+      h3 {
+        font-size: 1.3em;
+        color: var(--color-primary);
+      }
+
+      /* Paragraphs and Emphasis */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--color-secondary);
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ul {
+        list-style: disc;
+        margin-left: 20px;
+        padding: 0;
+      }
+
+      /* Code Sections (VS Code Blackish Theme) */
+      pre {
+        background-color: var(--color-surface);
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        border: 1px solid #333;
+        margin: 20px 0;
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: var(--color-text);
+        background-color: var(--color-surface);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+
+      pre code {
+        padding: 0;
+        background-color: transparent;
+      }
+
+      /* VS Code Syntax Highlighting Simulation */
+      .kw {
+        color: var(--color-primary);
+      } /* Keyword (const, import, if, etc.) */
+      .str {
+        color: var(--color-secondary);
+      } /* String literal */
+      .dir {
+        color: var(--color-accent);
+      } /* Directive/function name */
+      .prop {
+        color: #4ec9b0;
+      } /* Property/variable name */
+      .op {
+        color: #f08080;
+      } /* Violation/Error */
+      .cmt {
+        color: #6a9955;
+      } /* Comment */
+      .mono {
+        color: #4ec9b0;
+      } /* Monospace for URLs/URIs */
+      .type {
+        color: #808080;
+      } /* Types/Comments */
+      .lit {
+        color: #b5cea8;
+      } /* Numbers/Boolean literals */
+
+      /* Tables for Key Components */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2c2c2c;
+      }
+      th,
+      td {
+        border: 1px solid #444;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #383838;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+      td code {
+        background-color: #383838;
+      }
+
+      /* Report JSON Styling (Not used in this data, but kept for completeness) */
+      .json-block {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+      }
+      .json-key {
+        color: var(--color-primary);
+      }
+      .json-val {
+        color: var(--color-secondary);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Scalable Rate Limiting with Redis</h1>
+    <p>
+      Using the <code class="prop">express-rate-limit</code> package with
+      **Redis** as a store is the standard, scalable way to implement rate
+      limiting in a Node.js API.
+    </p>
+    <p>
+      Here is a deep dive, covering the definitions, syntax, a complete
+      practical example, and how it all works together.
+    </p>
+
+    <hr />
+
+    <h2>🔒 Implementing Scalable Rate Limiting</h2>
+    <p>
+      To implement rate limiting using
+      <code class="prop">express-rate-limit</code> with Redis, we need three
+      core components:
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Definition</th>
+          <th>Role in Rate Limiting</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="prop">express-rate-limit</code></td>
+          <td>An Express.js middleware package.</td>
+          <td>
+            Defines the **policy** (window, limit) and enforces the rate
+            limiting logic.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">ioredis</code></td>
+          <td>A fast, robust client for Redis.</td>
+          <td>
+            The primary **caching/storage layer** that holds the request counts
+            for every IP address across all application servers.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">rate-limit-redis</code></td>
+          <td>
+            A store adapter for <code class="prop">express-rate-limit</code>.
+          </td>
+          <td>
+            Connects the middleware to the Redis client so it can persist counts
+            outside of the application's memory.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>1. Project Setup and Installation</h3>
+    <p>
+      Before starting, ensure you have a running **Redis server** accessible to
+      your application.
+    </p>
+
+    <pre><code class="bash"><span class="cmt"># Install the core packages</span>
+<span class="dir">npm</span> <span class="kw">install</span> express express-rate-limit ioredis rate-limit-redis</code></pre>
+
+    <h3>2. Complete Practical Example</h3>
+    <p>
+      This example sets a limit of **<span class="lit">5</span> requests per IP
+      address every <span class="lit">1</span> minute** for the
+      <code class="mono">/api/login</code> route.
+    </p>
+
+    <pre><code><span class="cmt">// server.js</span>
+<span class="kw">import</span> express <span class="kw">from</span> <span class="str">'express'</span>;
+<span class="kw">import</span> rateLimit <span class="kw">from</span> <span class="str">'express-rate-limit'</span>;
+<span class="kw">import</span> Redis <span class="kw">from</span> <span class="str">'ioredis'</span>;
+<span class="kw">import</span> RedisStore <span class="kw">from</span> <span class="str">'rate-limit-redis'</span>;
+
+<span class="cmt">// --- 1. REDIS CONFIGURATION ---</span>
+<span class="cmt">// Connect to Redis (assuming it's running on localhost:6379)</span>
+<span class="kw">const</span> <span class="prop">redisClient</span> = <span class="kw">new</span> <span class="type">Redis</span>({
+  <span class="prop">port</span>: <span class="lit">6379</span>,
+  <span class="prop">host</span>: <span class="str">'127.0.0.1'</span>,
+});
+
+<span class="cmt">// Handle connection errors</span>
+<span class="prop">redisClient</span>.<span class="dir">on</span>(<span class="str">'error'</span>, (<span class="prop">err</span>) => {
+  <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Redis Error:'</span>, <span class="prop">err</span>);
+});
+
+<span class="cmt">// --- 2. RATE LIMITER CONFIGURATION ---</span>
+<span class="kw">const</span> <span class="prop">limiter</span> = <span class="dir">rateLimit</span>({
+  <span class="cmt">// The store (Redis) is used to track and store request counts</span>
+  <span class="prop">store</span>: <span class="kw">new</span> <span class="type">RedisStore</span>({
+    <span class="cmt">// @ts-expect-error - TODO: Known issue with store typings</span>
+    <span class="prop">sendCommand</span>: (...<span class="prop">args</span>) => <span class="prop">redisClient</span>.<span class="dir">call</span>(...<span class="prop">args</span>),
+  }),
+  
+  <span class="cmt">// 1 minute window (in milliseconds)</span>
+  <span class="prop">windowMs</span>: <span class="lit">60</span> * <span class="lit">1000</span>, 
+  
+  <span class="cmt">// Limit each IP to 5 requests per `windowMs`</span>
+  <span class="prop">max</span>: <span class="lit">5</span>, 
+
+  <span class="cmt">// Send an HTTP 429 status code on rate limit exceeded</span>
+  <span class="prop">standardHeaders</span>: <span class="kw">true</span>, <span class="cmt">// Return rate limit info in the `RateLimit-*` headers</span>
+  <span class="prop">legacyHeaders</span>: <span class="kw">false</span>,  <span class="cmt">// Disable the deprecated `X-RateLimit-*` headers</span>
+  
+  <span class="cmt">// Custom message when rate limited</span>
+  <span class="prop">message</span>: {
+    <span class="prop">status</span>: <span class="lit">429</span>,
+    <span class="prop">message</span>: <span class="str">"Too many requests from this IP, please try again after a minute."</span>,
+  },
+});
+
+
+<span class="cmt">// --- 3. EXPRESS SERVER SETUP ---</span>
+<span class="kw">const</span> <span class="prop">app</span> = <span class="dir">express</span>();
+<span class="kw">const</span> <span class="prop">PORT</span> = <span class="lit">4000</span>;
+
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="dir">express</span>.<span class="dir">json</span>());
+
+<span class="cmt">// Apply the rate limiter middleware only to the API routes</span>
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="str">"/api/"</span>, <span class="prop">limiter</span>);
+
+<span class="cmt">// Public route - No limit applied</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">'/'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="prop">res</span>.<span class="dir">send</span>(<span class="str">'&lt;h1&gt;Welcome to the API!&lt;/h1&gt;'</span>);
+});
+
+<span class="cmt">// Protected route - Rate Limit applied (max 5 requests/min)</span>
+<span class="prop">app</span>.<span class="dir">post</span>(<span class="str">'/api/login'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="cmt">// Authentication logic here (e.g., check username/password)</span>
+  <span class="prop">res</span>.<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">'Login successful.'</span> });
+});
+
+<span class="cmt">// Start server</span>
+<span class="prop">app</span>.<span class="dir">listen</span>(<span class="prop">PORT</span>, <span class="str">'0.0.0.0'</span>, () => {
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`🚀 API Server running on http://localhost:${PORT}`</span>);
+});</code></pre>
+
+    <hr />
+
+    <h2>🧠 How the Implementation Works</h2>
+    <p>
+      The <code class="prop">express-rate-limit</code> package uses the **Fixed
+      Window Counter** algorithm by default, which is managed entirely by Redis
+      in this setup.
+    </p>
+
+    <h3>A. Initialization</h3>
+    <ul>
+      <li>
+        <strong>Redis Client:</strong> <code class="kw">const</code>
+        <code class="prop">redisClient</code> = <code class="kw">new</code>
+        <code class="type">Redis</code>(...) establishes a persistent connection
+        to the Redis server.
+      </li>
+      <li>
+        <strong>Redis Store Adapter:</strong> <code class="kw">new</code>
+        <code class="type">RedisStore</code>({
+        <code class="prop">sendCommand</code>: ... }) creates an adapter that
+        translates the requests from the
+        <code class="dir">rateLimit</code> middleware into native Redis
+        commands.
+      </li>
+    </ul>
+
+    <h3>B. Request Flow and Redis Interaction</h3>
+    <p>
+      When a client sends a request to a rate-limited endpoint (e.g.,
+      <code class="kw">POST</code> <code class="mono">/api/login</code>):
+    </p>
+    <ol>
+      <li>
+        <strong>Key Generation:</strong> The
+        <code class="dir">rateLimit</code> middleware determines the unique key
+        to track. By default, this is the client's **IP address** (e.g.,
+        <code class="str">127.0.0.1</code>).
+      </li>
+      <li>
+        <strong>Redis Command:</strong> The
+        <code class="type">RedisStore</code> executes a combined Redis command
+        to **atomically check and update the count**.
+        <ul>
+          <li>
+            It uses the **<code class="prop">INCR</code>** command to increment
+            the counter for the IP key.
+          </li>
+          <li>
+            It uses the **<code class="prop">EXPIRE</code>** command to set a
+            **Time-To-Live (TTL)** on the key, which corresponds to the
+            <code class="prop">windowMs</code> (<span class="lit">1</span>
+            minute). This ensures the key is automatically deleted when the time
+            window expires, resetting the limit.
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>Policy Decision:</strong>
+        <ul>
+          <li>
+            If the incremented count is $\le <span class="lit">5</span>$ (the
+            <code class="prop">max</code> limit): The request is allowed, and
+            the middleware calls <code class="dir">next</code>().
+          </li>
+          <li>
+            If the incremented count is $ > <span class="lit">5</span>$: The
+            request is blocked, and the middleware immediately sends the custom
+            <span class="lit">429</span>
+            <code class="str">Too Many Requests</code> response.
+          </li>
+        </ul>
+      </li>
+    </ol>
+
+    <h3>C. Scalability</h3>
+    <p>
+      By using **Redis**, the request count for a single IP is stored in a
+      **centralized, shared store**.
+    </p>
+    <ul>
+      <li>
+        If you have **multiple Express servers** (e.g., running behind a load
+        balancer), they all check the **same Redis store** before processing the
+        request.
+      </li>
+      <li>
+        This prevents a client from being able to bypass the limit by simply
+        hitting a different server instance, which is a key weakness of the
+        in-memory store.
+      </li>
+    </ul>
+    <a href="https://express-rate-limit.mintlify.app/overview"
+      >Learn more about express-rate limit</a
+    >
+    <br />
+    <a href="https://www.npmjs.com/package/rate-limit-redis"
+      >Learn more about redis-rate-limit</a
+    >
+  </body>
+</html>

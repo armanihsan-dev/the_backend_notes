@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js TCP Client Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #1e1e1e;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc;
+        font-weight: 700;
+      }
+      p {
+        margin-bottom: 1.5rem;
+      }
+      .code-block {
+        background-color: #2b2b2b;
+        border-left: 4px solid #03dac6;
+        padding: 1rem;
+        margin-top: 1rem;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        border-radius: 4px;
+      }
+      pre {
+        margin: 0;
+        font-family: 'Courier New', Courier, monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      code {
+        font-family: 'Courier New', Courier, monospace;
+        background-color: #333333;
+        padding: 2px 5px;
+        border-radius: 3px;
+        color: #fff;
+      }
+      ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+      li {
+        margin-bottom: 1rem;
+      }
+      .list-item-title {
+        color: #03dac6;
+        font-weight: 700;
+      }
+      .javascript-label {
+        display: inline-block;
+        background-color: #f7df1e;
+        color: #000;
+        font-size: 0.8rem;
+        padding: 3px 6px;
+        border-radius: 3px;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>TCP Client</h1>
+      <p>
+        A **TCP client** is a program that initiates a connection to a TCP
+        server. Unlike a server that listens for connections, the client
+        actively seeks out and establishes a connection with a specific server
+        on a designated IP address and port.
+      </p>
+
+      <hr />
+
+      <h2>Building a TCP Client in Node.js</h2>
+      <p>
+        Node.js's built-in <code>net</code> module is used to create a TCP
+        client. The core method for this is <code>net.createConnection()</code>.
+      </p>
+
+      <ul>
+        <li>
+          <div class="list-item-title">1. Client Creation and Connection</div>
+          <p>
+            The <code>net.createConnection()</code> method takes an object with
+            <code>port</code> and <code>host</code> properties (or a simpler set
+            of arguments) to specify where to connect. This method returns a
+            <code>socket</code> object, which represents the active connection
+            to the server.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>const net = require('net');
+const client = net.createConnection({ port: 3000, host: 'localhost' }, () => {
+    // This code runs once the connection is successfully established
+    console.log('Connected to server!');
+    
+    // Send an initial message to the server
+    client.write('Hello, server!');
+});</code></pre>
+          </div>
+          <p>
+            The <code>client</code> variable is a <code>socket</code> object,
+            similar to the one on the server side, allowing for both reading and
+            writing.
+          </p>
+        </li>
+        <li>
+          <div class="list-item-title">2. Handling Communication</div>
+          <p>
+            The <code>socket</code> object for the client is also an
+            <code>EventEmitter</code>. You use the same <code>on()</code> method
+            to listen for events from the server.
+          </p>
+          <p>
+            **Receiving Data:** Use the <code>'data'</code> event to handle
+            incoming messages from the server. The data is received as a
+            <code>Buffer</code>.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>client.on('data', (data) => {
+  console.log(`Received from server: ${data.toString()}`);
+});</code></pre>
+          </div>
+          <p>
+            **Sending Data:** Use the <code>client.write()</code> method to send
+            messages to the server.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>// This could be inside a function or a loop
+client.write('Another message from the client.');</code></pre>
+          </div>
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Handling Disconnections and Errors</h2>
+      <p>
+        Proper error handling is crucial for reliable network applications. You
+        need to account for both graceful disconnections and unexpected network
+        failures.
+      </p>
+
+      <ul>
+        <li>
+          <div class="list-item-title">1. If the Server Disconnects</div>
+          <p>
+            When the server gracefully closes its connection, the client's
+            socket will emit an <code>'end'</code> event. This is the proper way
+            to handle a server-initiated disconnection.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>client.on('end', () => {
+    console.log('Server disconnected.');
+    // You can perform cleanup or attempt to reconnect here
+});</code></pre>
+          </div>
+        </li>
+        <li>
+          <div class="list-item-title">2. If the Client Disconnects</div>
+          <p>
+            The client can close its own connection using
+            <code>client.end()</code>. This will also trigger the
+            <code>'end'</code> event on the server's side.
+          </p>
+        </li>
+        <li>
+          <div class="list-item-title">3. Handling Errors in Both Cases</div>
+          <p>
+            The most critical event for error handling is <code>'error'</code>.
+            This event is emitted if a network error occurs, such as:
+          </p>
+          <ul>
+            <li>The server is not running when the client tries to connect.</li>
+            <li>The connection is forcibly closed due to a network issue.</li>
+            <li>An attempt to write data fails.</li>
+          </ul>
+          <p>
+            You should always have an <code>'error'</code> listener on your
+            socket to prevent your program from crashing.
+          </p>
+          <span class="javascript-label">JavaScript</span>
+          <div class="code-block">
+            <pre><code>client.on('error', (err) => {
+    console.error(`Client error: ${err.message}`);
+    // Example: If the server is offline, the error message will be "connect ECONNREFUSED 127.0.0.1:3000"
+    client.destroy(); // Always destroy the socket after an error to ensure a clean state
+});</code></pre>
+          </div>
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Full Client Example</h2>
+      <p>
+        Here is a complete, well-structured TCP client example that connects to
+        the server and handles common events.
+      </p>
+      <span class="javascript-label">JavaScript</span>
+      <div class="code-block">
+        <pre><code>const net = require('net');
+const client = net.createConnection({ port: 3000, host: 'localhost' }, () => {
+    console.log('Client: Connected to server!');
+    client.write('Hello from the client!');
+});
+
+// Event listener for data from the server
+client.on('data', (data) => {
+    console.log(`Client: Received from server: ${data.toString()}`);
+});
+
+// Event listener for graceful server disconnection
+client.on('end', () => {
+    console.log('Client: Server disconnected.');
+});
+
+// Event listener for any network errors
+client.on('error', (err) => {
+    console.error(`Client: Error occurred: ${err.message}`);
+});
+
+// Event listener for the socket being fully closed
+client.on('close', () => {
+    console.log('Client: Connection closed.');
+});
+
+// You can use a timer to simulate sending more messages
+setInterval(() => {
+    client.write('Pinging the server...');
+}, 5000);</code></pre>
+      </div>
+      <p>
+        To run this client, save the code as a file (e.g.,
+        <code>client.js</code>), ensure your server is running, and then execute
+        <code>node client.js</code> in your terminal.
+      </p>
+      <img src="./images/TCP Client.svg" width="100%" height="600px" alt="" />
+
+      <br />
+      <br />
+      <h2>Server with multiple clients</h2>
+      <img
+        src="./images/tcp_multipleClients.svg"
+        width="100%"
+        height="600px"
+        alt=""
+      />
+    </div>
+  </body>
+</html>

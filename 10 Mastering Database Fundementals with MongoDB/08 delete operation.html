@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Delete Operations (Node.js)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for the Blakish Theme */
+      :root {
+        /* Blakish Theme Colors - Similar to VS Code Dark+ */
+        --bg-dark: #1e1e1e; /* Main background */
+        --bg-card: #252526; /* Card/section background */
+        --text-light: #d4d4d4; /* Primary text color */
+        --text-heading: #569cd6; /* Blue color for headings/keywords */
+        --text-code-comment: #6a9955; /* Green for comments */
+        --text-code-keyword: #c586c0; /* Purple for keywords (const, async, function) */
+        --text-code-string: #ce9178; /* Orange for strings */
+        --text-code-variable: #9cdcfe; /* Light blue for variables */
+        --text-code-number: #b5cea8; /* Greenish for numbers/true/false */
+        --border-color: #3e3e42;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--bg-card);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: var(--text-heading);
+        border-bottom: 3px solid #569cd6;
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        color: var(--text-heading);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 5px;
+        margin-top: 25px;
+        font-size: 24px;
+      }
+
+      h3 {
+        color: var(--text-light);
+        margin-top: 15px;
+        font-size: 18px;
+      }
+
+      p,
+      li {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      strong {
+        color: #dcdcaa; /* Yellowish for emphasized code terms */
+      }
+
+      /* VS Code Dark Theme for Code Blocks */
+      .code-container {
+        background-color: #1e1e1e; /* Deeper black for code block */
+        border-radius: 6px;
+        padding: 15px;
+        overflow-x: auto;
+        border: 1px solid var(--border-color);
+        margin-top: 15px;
+        margin-bottom: 20px;
+      }
+
+      .code-container pre {
+        margin: 0;
+        white-space: pre-wrap; /* Allows line breaks for better readability */
+        font-family: 'Consolas', 'Monaco', monospace; /* Monospaced font for code */
+        font-size: 14px;
+      }
+
+      /* Syntax Highlighting (Emulating VS Code) */
+      .code-comment {
+        color: var(--text-code-comment);
+      }
+      .code-keyword {
+        color: var(--text-code-keyword);
+      } /* const, async, function, await, new */
+      .code-variable {
+        color: var(--text-code-variable);
+      } /* client, collection, filter, result, name, notes */
+      .code-string {
+        color: var(--text-code-string);
+      } /* "mongodb://...", "Laptop X" */
+      .code-number {
+        color: var(--text-code-number);
+      } /* 1200, 5, 10 */
+      .code-method {
+        color: #dcdcaa;
+      } /* require, deleteOne, drop */
+      .code-dot-notation {
+        color: #9cdcfe;
+      } /* .db, .collection */
+      .code-operator {
+        color: #f8f8f2;
+      } /* =, :, +, { } */
+
+      /* Inline Code and Update Operator styling */
+      .inline-code {
+        font-family: 'Consolas', monospace;
+        background-color: #333333;
+        color: var(--text-code-variable);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-weight: bold;
+      }
+
+      /* Table Styles */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        color: var(--text-light);
+        background-color: var(--bg-dark);
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--border-color);
+        color: var(--text-heading);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Delete Operations in Node.js</h1>
+      <p>
+        The primary methods are: <span class="inline-code">deleteOne()</span>,
+        <span class="inline-code">deleteMany()</span>, the
+        <span class="inline-code">$unset</span> update operator, and the methods
+        for dropping a collection (<span class="inline-code">drop()</span>) and
+        a database (<span class="inline-code">dropDatabase()</span>).
+      </p>
+
+      <h2 id="prerequisites">1. Prerequisites (Setup)</h2>
+      <p>
+        Ensure you have the MongoDB Node.js driver installed and a connection
+        established. We'll reuse a similar setup structure for consistency.
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-comment">// index.js (Setup)</span>
+<span class="code-keyword">const</span> { <span class="code-variable">MongoClient</span> } = <span class="code-method">require</span>(<span class="code-string">'mongodb'</span>);
+
+<span class="code-keyword">const</span> <span class="code-variable">uri</span> = <span class="code-string">"mongodb://localhost:27017"</span>;
+<span class="code-keyword">const</span> <span class="code-variable">client</span> = <span class="code-keyword">new</span> <span class="code-variable">MongoClient</span>(<span class="code-variable">uri</span>);
+
+<span class="code-comment">// Helper function to reset and insert test data</span>
+<span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-method">setupTestData</span>(<span class="code-variable">collection</span>) {
+    <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">deleteMany</span>({});
+    <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">insertMany</span>([
+        { <span class="code-variable">name</span>: <span class="code-string">"Laptop X"</span>, <span class="code-variable">quantity</span>: <span class="code-number">5</span>, <span class="code-variable">price</span>: <span class="code-number">1200</span>, <span class="code-variable">tags</span>: [<span class="code-string">"electronics"</span>, <span class="code-string">"best-seller"</span>], <span class="code-variable">notes</span>: <span class="code-string">"New model"</span> },
+        { <span class="code-variable">name</span>: <span class="code-string">"Laptop Y"</span>, <span class="code-variable">quantity</span>: <span class="code-number">15</span>, <span class="code-variable">price</span>: <span class="code-number">900</span>, <span class="code-variable">tags</span>: [<span class="code-string">"electronics"</span>], <span class="code-variable">notes</span>: <span class="code-string">"Old model"</span> },
+        { <span class="code-variable">name</span>: <span class="code-string">"Mouse A"</span>, <span class="code-variable">quantity</span>: <span class="code-number">30</span>, <span class="code-variable">price</span>: <span class="code-number">25</span>, <span class="code-variable">tags</span>: [<span class="code-string">"peripherals"</span>], <span class="code-variable">notes</span>: <span class="code-string">"Standard mouse"</span> },
+        { <span class="code-variable">name</span>: <span class="code-string">"Keyboard Z"</span>, <span class="code-variable">quantity</span>: <span class="code-number">10</span>, <span class="code-variable">price</span>: <span class="code-number">75</span>, <span class="code-variable">tags</span>: [<span class="code-string">"peripherals"</span>], <span class="code-variable">notes</span>: <span class="code-string">"Mechanical"</span> }
+    ]);
+    <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">"Test data inserted."</span>);
+}
+
+<span class="code-comment">// Function to run and display results of any delete operation</span>
+<span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-method">runDeleteOperation</span>(<span class="code-variable">dbName</span>, <span class="code-variable">collectionName</span>, <span class="code-variable">operation</span>) {
+    <span class="code-keyword">try</span> {
+        <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">connect</span>();
+        <span class="code-keyword">const</span> <span class="code-variable">database</span> = <span class="code-variable">client</span>.<span class="code-method">db</span>(<span class="code-variable">dbName</span>);
+        <span class="code-keyword">const</span> <span class="code-variable">collection</span> = <span class="code-variable">database</span>.<span class="code-method">collection</span>(<span class="code-variable">collectionName</span>);
+        
+        <span class="code-comment">// Ensure the database and collection exist before setting up data</span>
+        <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">createIndex</span>({ <span class="code-variable">name</span>: <span class="code-number">1</span> }).<span class="code-method">catch</span>(() => {}); <span class="code-comment">// Simple index to ensure collection exists</span>
+        
+        <span class="code-keyword">await</span> <span class="code-method">setupTestData</span>(<span class="code-variable">collection</span>);
+
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`\n--- Running ${</span><span class="code-variable">operation</span>.<span class="code-variable">name</span><span class="code-string">} ---`</span>);
+        <span class="code-keyword">await</span> <span class="code-variable">operation</span>.<span class="code-variable">func</span>(<span class="code-variable">database</span>, <span class="code-variable">collection</span>);
+        
+        <span class="code-keyword">if</span> (<span class="code-variable">operation</span>.<span class="code-variable">type</span> <span class="code-operator">===</span> <span class="code-string">'document'</span> <span class="code-operator">||</span> <span class="code-variable">operation</span>.<span class="code-variable">type</span> <span class="code-operator">===</span> <span class="code-string">'field'</span>) {
+            <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">"--- Collection after delete operation ---"</span>);
+            <span class="code-keyword">const</span> <span class="code-variable">results</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">find</span>({}).<span class="code-method">toArray</span>();
+            <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-variable">results</span>);
+        }
+
+    } <span class="code-keyword">finally</span> {
+        <span class="code-comment">// We only close the client if we're not dropping the entire database</span>
+        <span class="code-keyword">if</span> (<span class="code-variable">operation</span>.<span class="code-variable">type</span> <span class="code-operator">!==</span> <span class="code-string">'database'</span>) {
+            <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">close</span>();
+        }
+    }
+}</pre>
+      </div>
+
+      <h2 id="unset">
+        2. Deleting a Field from a Document:
+        <span class="inline-code">$unset</span> Operator
+      </h2>
+      <p>
+        This is an **update operation** that removes a specific field from a
+        document.
+      </p>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">$unset</span> operator is an update
+        operator used with <span class="inline-code">updateOne()</span> or
+        <span class="inline-code">updateMany()</span> to completely remove a
+        specified field from a document (or multiple documents).
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">updateOne</span>(<span class="code-variable">filter</span>, { <span class="code-variable">$unset</span>: { <span class="code-variable">fieldName</span>: <span class="code-string">""</span> } })
+<span class="code-comment">// or</span>
+<span class="code-variable">collection</span>.<span class="code-method">updateMany</span>(<span class="code-variable">filter</span>, { <span class="code-variable">$unset</span>: { <span class="code-variable">fieldName</span>: <span class="code-string">""</span> } })</pre>
+      </div>
+      <p>
+        The value assigned to the field in the
+        <span class="inline-code">$unset</span> object (e.g.,
+        <span class="inline-code">""</span>) is ignored, but an empty string is
+        the conventional placeholder.
+      </p>
+
+      <h3>Practical Example (Removing a single field)</h3>
+      <p>
+        This example removes the **<span class="inline-code">notes</span>**
+        field from the document named "Laptop X".
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">deleteFieldExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"Unset Field (updateOne)"</span>,
+    <span class="code-variable">type</span>: <span class="code-string">"field"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">database</span>, <span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">name</span>: <span class="code-string">"Laptop X"</span> };
+        <span class="code-keyword">const</span> <span class="code-variable">updateDoc</span> = {
+            <span class="code-variable">$unset</span>: {
+                <span class="code-variable">notes</span>: <span class="code-string">""</span> <span class="code-comment">// The value is irrelevant, but must be present</span>
+            }
+        };
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">updateOne</span>(<span class="code-variable">filter</span>, <span class="code-variable">updateDoc</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Matched ${</span><span class="code-variable">result</span>.<span class="code-variable">matchedCount</span><span class="code-string">} document(s) and removed the 'notes' field from ${</span><span class="code-variable">result</span>.<span class="code-variable">modifiedCount</span><span class="code-string">} document(s).`</span>);
+    }
+};
+
+<span class="code-comment">// To run: runDeleteOperation("inventoryDB", "products", deleteFieldExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="delete-one">
+        3. Deleting a Single Document:
+        <span class="inline-code">deleteOne()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">deleteOne()</span> method removes the
+        **first** document that matches the specified filter from the
+        collection.
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">deleteOne</span>(<span class="code-variable">filter</span>, <span class="code-variable">options</span>)</pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">filter</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>A query document that selects the document to delete.</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">options</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>Optional. Allows specifying things like write concern.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Example (Deleting one document by name)</h3>
+      <p>This example finds and deletes the first product named "Mouse A".</p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">deleteOneExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"deleteOne"</span>,
+    <span class="code-variable">type</span>: <span class="code-string">"document"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">database</span>, <span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">name</span>: <span class="code-string">"Mouse A"</span> };
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">deleteOne</span>(<span class="code-variable">filter</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Successfully deleted ${</span><span class="code-variable">result</span>.<span class="code-variable">deletedCount</span><span class="code-string">} document(s).`</span>);
+    }
+};
+
+<span class="code-comment">// To run: runDeleteOperation("inventoryDB", "products", deleteOneExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="delete-many">
+        4. Deleting Multiple Documents:
+        <span class="inline-code">deleteMany()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">deleteMany()</span> method removes **all**
+        documents from a collection that match the specified filter.
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">deleteMany</span>(<span class="code-variable">filter</span>, <span class="code-variable">options</span>)</pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">filter</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              A query document that selects the documents to delete. Use an
+              empty object (<span class="inline-code">{}</span>) to delete
+              **ALL** documents in the collection.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">options</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>Optional. Allows specifying things like write concern.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Example (Deleting multiple documents by tag)</h3>
+      <p>
+        This example deletes all documents where the product's price is less
+        than <span class="inline-code">$100</span>.
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">deleteManyExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"deleteMany"</span>,
+    <span class="code-variable">type</span>: <span class="code-string">"document"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">database</span>, <span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">price</span>: { <span class="code-variable">$lt</span>: <span class="code-number">100</span> } }; <span class="code-comment">// Price less than 100</span>
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">deleteMany</span>(<span class="code-variable">filter</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Successfully deleted ${</span><span class="code-variable">result</span>.<span class="code-variable">deletedCount</span><span class="code-string">} document(s) with price less than $100.`</span>);
+    }
+};
+
+<span class="code-comment">// To run: runDeleteOperation("inventoryDB", "products", deleteManyExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="drop-collection">
+        5. Deleting an Entire Collection:
+        <span class="inline-code">drop()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">drop()</span> method removes an entire
+        collection from the database, including all its indexes.
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">drop</span>(<span class="code-variable">options</span>)</pre>
+      </div>
+
+      <h3>Practical Example (Dropping the `products` collection)</h3>
+      <p>
+        This operation completely removes the **<span class="inline-code"
+          >products</span
+        >** collection.
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">dropCollectionExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"Drop Collection (products)"</span>,
+    <span class="code-variable">type</span>: <span class="code-string">"collection"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">database</span>, <span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">collectionName</span> = <span class="code-variable">collection</span>.<span class="code-variable">collectionName</span>;
+        <span class="code-keyword">const</span> <span class="code-variable">success</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">drop</span>();
+        
+        <span class="code-keyword">if</span> (<span class="code-variable">success</span>) {
+            <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Collection '${</span><span class="code-variable">collectionName</span><span class="code-string">' successfully dropped.`</span>);
+        } <span class="code-keyword">else</span> {
+            <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Failed to drop collection '${</span><span class="code-variable">collectionName</span><span class="code-string">}'.`</span>);
+        }
+        
+        <span class="code-comment">// Verify the collection is gone</span>
+        <span class="code-keyword">const</span> <span class="code-variable">collections</span> = <span class="code-keyword">await</span> <span class="code-variable">database</span>.<span class="code-method">listCollections</span>({ <span class="code-variable">name</span>: <span class="code-variable">collectionName</span> }).<span class="code-method">toArray</span>();
+        <span class="code-keyword">if</span> (<span class="code-variable">collections</span>.<span class="code-variable">length</span> <span class="code-operator">===</span> <span class="code-number">0</span>) {
+             <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Verification successful: '${</span><span class="code-variable">collectionName</span><span class="code-string">' is no longer in the database.`</span>);
+        }
+    }
+};
+
+<span class="code-comment">// To run: runDeleteOperation("inventoryDB", "products", dropCollectionExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="drop-database">
+        6. Deleting an Entire Database:
+        <span class="inline-code">dropDatabase()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">dropDatabase()</span> method removes the
+        current database, deleting all its collections and data permanently.
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">database</span>.<span class="code-method">dropDatabase</span>(<span class="code-variable">options</span>)</pre>
+      </div>
+
+      <h3>Practical Example (Dropping the entire `inventoryDB`)</h3>
+      <p>
+        This operation removes the entire database used for testing. **Be
+        careful with this method in production!**
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">dropDatabaseExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"Drop Database (inventoryDB)"</span>,
+    <span class="code-variable">type</span>: <span class="code-string">"database"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">database</span>, <span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">dbName</span> = <span class="code-variable">database</span>.<span class="code-variable">databaseName</span>;
+        <span class="code-comment">// The dropDatabase method is called on the Database object</span>
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">database</span>.<span class="code-method">dropDatabase</span>();
+        
+        <span class="code-keyword">if</span> (<span class="code-variable">result</span>) {
+            <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Database '${</span><span class="code-variable">dbName</span><span class="code-string">' successfully dropped. The MongoDB connection client is still open.`</span>);
+            <span class="code-comment">// Note: In the 'runDeleteOperation' logic, we avoid closing the client </span>
+            <span class="code-comment">// after dropping the database to prevent the script from hanging.</span>
+        } <span class="code-keyword">else</span> {
+            <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Failed to drop database '${</span><span class="code-variable">dbName</span><span class="code-string">}'.`</span>);
+        }
+    }
+};
+
+<span class="code-comment">// To run: runDeleteOperation("inventoryDB", "products", dropDatabaseExample).catch(console.dir);</span></pre>
+      </div>
+    </div>
+  </body>
+</html>

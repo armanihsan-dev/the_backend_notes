@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Installation Notes | Ubuntu 24.04</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base styles for a blackish VS Code theme */
+      :root {
+        --bg-dark: #1e1e1e; /* VS Code dark background */
+        --bg-light: #252526; /* VS Code slightly lighter areas */
+        --text-main: #d4d4d4; /* VS Code default text color */
+        --text-secondary: #858585; /* VS Code comments/secondary text */
+        --code-bg: #2d2d2d; /* VS Code editor background */
+        --code-text: #c586c0; /* VS Code command color (like purple) */
+        --code-variable: #9cdcfe; /* VS Code variable/parameter color (light blue) */
+        --heading-color: #569cd6; /* VS Code function/keyword color (blue) */
+        --important-text: #f8c555; /* VS Code warning/important info (yellow/orange) */
+        --success-color: #4ec9b0; /* VS Code success/green color */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-main);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: var(--bg-light);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--code-bg);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      /* Styling for code blocks (VS Code Dark Theme) */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        white-space: pre-wrap; /* Ensure wrapping for long lines */
+        word-wrap: break-word;
+      }
+
+      code {
+        font-family: 'Consolas', 'Monaco', monospace;
+        color: var(--code-variable); /* Default code color */
+      }
+
+      pre code {
+        display: block;
+        color: var(--text-main);
+      }
+
+      /* Specific styling for commands within pre blocks */
+      .command {
+        color: var(--code-text);
+        font-weight: bold;
+      }
+
+      .comment {
+        color: var(--text-secondary); /* Explanation text color */
+        font-style: italic;
+      }
+
+      .important {
+        color: var(--important-text);
+        font-weight: bold;
+      }
+
+      .success {
+        color: var(--success-color);
+        font-weight: bold;
+      }
+
+      /* Step list styling */
+      .step-list {
+        list-style: none;
+        padding-left: 0;
+      }
+
+      .step-list li {
+        margin-bottom: 20px;
+        border-left: 4px solid var(--heading-color);
+        padding-left: 15px;
+      }
+
+      .step-list strong {
+        color: var(--important-text);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Installing MongoDB Server on Ubuntu 24.04</h1>
+      <p>
+        MongoDB does not officially support Ubuntu 24.04 yet. However, we can
+        install it by using the
+        <span class="important">Ubuntu 22.04 (Jammy) repository.</span>
+      </p>
+
+      <ol class="step-list">
+        <li>
+          <h3>Step 1: Import the MongoDB Public Key</h3>
+          <p>
+            MongoDB packages are signed with a GPG key for security. Import it
+            using:
+          </p>
+          <pre><code><span class="command">curl -fsSL https://pgp.mongodb.com/server-7.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              <code><span class="code-variable">curl -fsSL</span></code>
+              downloads the MongoDB GPG key.
+            </li>
+            <li class="comment">
+              <code><span class="code-variable">gpg --dearmor</span></code>
+              converts it into a format that can be used by APT.
+            </li>
+            <li class="comment">
+              <code
+                ><span class="code-variable"
+                  >-o /usr/share/keyrings/mongodb-server-7.0.gpg</span
+                ></code
+              >
+              saves the key in the appropriate location.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 2: Add the MongoDB Repository (Using Ubuntu 22.04 Repo)</h3>
+          <p>
+            Since Ubuntu 24.04 is not officially supported, we use the
+            <span class="important">Ubuntu 22.04 (Jammy) repository:</span>
+          </p>
+          <pre><code><span class="command">echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              <code><span class="code-variable">echo "deb ..."</span></code>
+              adds the repository for MongoDB.
+            </li>
+            <li class="comment">
+              <code
+                ><span class="code-variable"
+                  >signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg</span
+                ></code
+              >
+              ensures APT uses the correct key.
+            </li>
+            <li class="comment">
+              <code><span class="code-variable">jammy</span></code> is used
+              instead of <span class="important">noble</span> (24.04), since
+              MongoDB does not yet support <span class="important">noble</span>.
+            </li>
+            <li class="comment">
+              <code><span class="code-variable">tee</span></code> writes the
+              repository information to the correct file.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 3: Update the Package Database</h3>
+          <pre><code><span class="command">sudo apt update</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <p class="comment">
+            This refreshes the package list so the system recognizes the newly
+            added MongoDB repository.
+          </p>
+        </li>
+
+        <li>
+          <h3>Step 4: Install MongoDB Server</h3>
+          <pre><code><span class="command">sudo apt install -y mongodb-org-server</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              <code><span class="code-variable">mongodb-org-server</span></code>
+              installs only the
+              <span class="important">MongoDB server</span> (mongod), without
+              additional tools like <span class="code-variable">mongosh</span>.
+            </li>
+            <li class="comment">
+              <code><span class="code-variable">-y</span></code> automatically
+              confirms the installation to avoid manual intervention.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 5: Start and Enable MongoDB Service</h3>
+          <pre><code><span class="command">sudo systemctl start mongod</span>
+<span class="command">sudo systemctl enable mongod</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              <code
+                ><span class="code-variable">systemctl start mongod</span></code
+              >
+              starts the MongoDB service.
+            </li>
+            <li class="comment">
+              <code
+                ><span class="code-variable"
+                  >systemctl enable mongod</span
+                ></code
+              >
+              ensures MongoDB starts automatically at boot.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 6: Verify MongoDB is Running</h3>
+          <pre><code><span class="command">sudo systemctl status mongod</span></code></pre>
+          <p>Expected Output:</p>
+          <pre><code><span class="comment">● mongod.service - MongoDB Database Server
+   Loaded: loaded (/lib/systemd/system/mongod.service; enabled; vendor preset: enabled)
+   Active: <span class="success">active (running)</span> since ...</span></code></pre>
+          <p>
+            If MongoDB is running correctly, you should see
+            <span class="success">"active (running)"</span> in green.
+          </p>
+        </li>
+      </ol>
+
+      <h2>Troubleshooting: MongoDB Fails to Start</h2>
+      <p>
+        If MongoDB fails to start with an error related to the socket file, run
+        the following command:
+      </p>
+      <pre><code><span class="command">sudo rm -f /tmp/mongodb-27017.sock</span>
+<span class="command">sudo systemctl restart mongod</span></code></pre>
+      <p class="comment">Explanation:</p>
+      <p class="comment">
+        This removes the stale socket file that may have been left after an
+        improper shutdown.
+      </p>
+      <p class="comment">Restarting MongoDB should now work correctly.</p>
+
+      <h2>Optional: Enable Remote Access</h2>
+      <p>
+        By default, MongoDB listens
+        <span class="important">only on localhost</span>. To allow remote
+        access:
+      </p>
+      <ol>
+        <li>
+          Open the MongoDB configuration file:
+          <pre><code><span class="command">sudo nano /etc/mongod.conf</span></code></pre>
+        </li>
+        <li>
+          Find the
+          <code><span class="code-variable">bindIp</span></code> setting and
+          change it to:
+          <pre><code><span class="code-variable">bindIp: 0.0.0.0</span></code></pre>
+        </li>
+        <li>
+          Restart MongoDB:
+          <pre><code><span class="command">sudo systemctl restart mongod</span></code></pre>
+        </li>
+      </ol>
+      <p>
+        <span class="important">Warning:</span> Allowing remote access may
+        expose your database. Use firewall rules or authentication for security.
+      </p>
+
+      <hr />
+
+      <h1>Installing MongoDB Tools on Ubuntu 24.04</h1>
+      <p>
+        MongoDB Tools include utilities like
+        <span class="code-variable">mongodump</span>,
+        <span class="code-variable">mongorestore</span>,
+        <span class="code-variable">mongoexport</span>, and
+        <span class="code-variable">mongoimport</span>. Since MongoDB does not
+        officially support Ubuntu 24.04 yet, we will use the
+        <span class="important">Ubuntu 22.04 (Jammy) repository</span> to
+        install the tools.
+      </p>
+
+      <ol class="step-list">
+        <li>
+          <h3>Step 1: Import the MongoDB Public Key</h3>
+          <p>Before adding the MongoDB repository, import the public key:</p>
+          <pre><code><span class="command">curl -fsSL https://pgp.mongodb.com/server-7.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <p class="comment">
+            This command downloads and saves the MongoDB GPG key to verify the
+            package signature.
+          </p>
+        </li>
+
+        <li>
+          <h3>Step 2: Add the MongoDB Repository</h3>
+          <p>
+            Since Ubuntu 24.04 is not officially supported, we will use the
+            Ubuntu 22.04 (Jammy) repository:
+          </p>
+          <pre><code><span class="command">echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              Adds the official MongoDB repository to the system package
+              manager.
+            </li>
+            <li class="comment">
+              Uses <span class="code-variable">jammy</span> (Ubuntu 22.04) since
+              <span class="code-variable">noble</span> (Ubuntu 24.04) is not yet
+              supported.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 3: Update the Package Database</h3>
+          <pre><code><span class="command">sudo apt update</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <p class="comment">
+            Updates the system’s package list to recognize the newly added
+            MongoDB repository.
+          </p>
+        </li>
+
+        <li>
+          <h3>Step 4: Install MongoDB Tools</h3>
+          <pre><code><span class="command">sudo apt install -y mongodb-database-tools</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <p class="comment">
+            Installs the MongoDB database tools package, which includes:
+          </p>
+          <ul>
+            <li class="comment">
+              <span class="code-variable">mongodump</span>: Backup MongoDB
+              databases.
+            </li>
+            <li class="comment">
+              <span class="code-variable">mongorestore</span>: Restore MongoDB
+              backups.
+            </li>
+            <li class="comment">
+              <span class="code-variable">mongoexport</span>: Export MongoDB
+              data to JSON/CSV.
+            </li>
+            <li class="comment">
+              <span class="code-variable">mongoimport</span>: Import data into
+              MongoDB.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 5: Verify Installation</h3>
+          <p>
+            After installation, verify that the tools are installed correctly:
+          </p>
+          <pre><code><span class="command">mongodump --version</span>
+<span class="command">mongorestore --version</span>
+<span class="command">mongoexport --version</span>
+<span class="command">mongoimport --version</span></code></pre>
+          <p>
+            If the commands return their respective version numbers, the
+            installation was successful.
+          </p>
+        </li>
+      </ol>
+
+      <hr />
+
+      <h1>Installing MongoDB Shell (mongosh) on Ubuntu 24.04</h1>
+      <p>
+        MongoDB Shell (<span class="code-variable">mongosh</span>) is the modern
+        command-line tool for interacting with MongoDB databases. Since MongoDB
+        does not officially support Ubuntu 24.04 yet, we will use the
+        <span class="important">Ubuntu 22.04 (Jammy) repository</span> to
+        install <span class="code-variable">mongosh</span>.
+      </p>
+
+      <ol class="step-list">
+        <li>
+          <h3>Step 1: Import the MongoDB Public Key</h3>
+          <p>Before adding the MongoDB repository, import the public key:</p>
+          <pre><code><span class="command">curl -fsSL https://pgp.mongodb.com/server-7.0.asc | sudo gpg --dearmor -o /usr/share/keyrings/mongodb-server-7.0.gpg</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <p class="comment">
+            This downloads and saves the MongoDB GPG key to verify the package
+            signature.
+          </p>
+        </li>
+
+        <li>
+          <h3>Step 2: Add the MongoDB Repository</h3>
+          <p>
+            Since Ubuntu 24.04 is not officially supported, we will use the
+            Ubuntu 22.04 (Jammy) repository:
+          </p>
+          <pre><code><span class="command">echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              Adds the official MongoDB repository to the system package
+              manager.
+            </li>
+            <li class="comment">
+              Uses <span class="code-variable">jammy</span> (Ubuntu 22.04) since
+              <span class="code-variable">noble</span> (Ubuntu 24.04) is not yet
+              supported.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 3: Update the Package Database</h3>
+          <pre><code><span class="command">sudo apt update</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <p class="comment">
+            Refreshes the package list so the system recognizes the newly added
+            MongoDB repository.
+          </p>
+        </li>
+
+        <li>
+          <h3>Step 4: Install MongoDB Shell (mongosh)</h3>
+          <pre><code><span class="command">sudo apt install -y mongodb-mongosh</span></code></pre>
+          <p class="comment">Explanation:</p>
+          <ul>
+            <li class="comment">
+              Installs <span class="code-variable">mongosh</span>, the
+              interactive shell for MongoDB.
+            </li>
+            <li class="comment">
+              <code><span class="code-variable">-y</span></code> automatically
+              confirms the installation.
+            </li>
+          </ul>
+        </li>
+
+        <li>
+          <h3>Step 5: Verify Installation</h3>
+          <p>
+            After installation, check the version to confirm that
+            <span class="code-variable">mongosh</span> is installed correctly:
+          </p>
+          <pre><code><span class="command">mongosh --version</span></code></pre>
+          <p>
+            If the command returns the version number, the installation was
+            successful.
+          </p>
+        </li>
+
+        <li>
+          <h3>Step 6: Connect to MongoDB</h3>
+          <p>
+            Once installed, you can connect to your MongoDB server by running:
+          </p>
+          <pre><code><span class="command">mongosh</span></code></pre>
+          <p>If your MongoDB server is running on a different host, use:</p>
+          <pre><code><span class="command">mongosh "mongodb://your-mongodb-server-ip:27017"</span></code></pre>
+        </li>
+      </ol>
+
+      <h2>Conclusion</h2>
+      <p>
+        You have successfully installed MongoDB Shell (<span
+          class="code-variable"
+          >mongosh</span
+        >) on Ubuntu 24.04 using the Ubuntu 22.04 repository. 🚀 Now you can use
+        it to interact with your MongoDB databases efficiently
+      </p>
+    </div>
+  </body>
+</html>

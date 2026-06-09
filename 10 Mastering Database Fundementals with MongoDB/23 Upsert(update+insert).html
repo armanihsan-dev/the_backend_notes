@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Upsert Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* General Blackish Theme */
+        body {
+            background-color: #121212; /* Dark background */
+            color: #D4D4D4; /* Light text for contrast */
+            font-family: 'Nunito', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: #1E1E1E; /* VSCode Editor Background */
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #569CD6; /* VSCode Blue for main title */
+            border-bottom: 2px solid #333333;
+            padding-bottom: 5px;
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            color: #C586C0; /* VSCode Purple for sections */
+            margin-top: 25px;
+            padding-top: 10px;
+        }
+
+        h3 {
+            color: #9CDCFE; /* VSCode Light Blue for sub-sections */
+            margin-top: 15px;
+        }
+
+        p, ul, li {
+            font-size: 16px;
+        }
+
+        strong {
+            color: #FFC66D; /* VSCode Yellow/Orange for emphasis */
+        }
+
+        /* Code Block Styling (VSCode Blackish Theme) */
+        .code-section {
+            background-color: #1E1E1E;
+            border: 1px solid #3C3C3C;
+            border-left: 5px solid #007ACC;
+            padding: 15px;
+            margin: 20px 0;
+            overflow-x: auto;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .code-section pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .code-section .keyword {
+            color: #569CD6; /* Blue */
+        }
+        .code-section .operator {
+            color: #9CDCFE; /* Light Blue */
+        }
+
+        .code-section .comment {
+            color: #6A9955; /* Green */
+        }
+
+        .code-section .string {
+            color: #CE9178; /* Orange */
+        }
+
+        .code-section .number {
+            color: #B5CEA8; /* Light Green */
+        }
+
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: #2D2D2D;
+            font-size: 15px;
+        }
+
+        th, td {
+            border: 1px solid #444444;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3C3C3C;
+            color: #FFC66D;
+            font-weight: 600;
+        }
+        
+        /* Highlighted logic */
+        .logic {
+            color: #4EC9B0;
+            font-weight: 600;
+        }
+        .insert {
+            color: #B5CEA8;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MongoDB Upsert</h1>
+
+        <p><strong>Upsert</strong> in MongoDB is an option that tells an update operation to <strong>insert a new document</strong> if no documents match the query criteria. It's a combination of "update" and "insert."</p>
+        <p>When you perform an update operation in MongoDB using the Node.js driver, you typically pass three arguments: the query, the update document, and the options. Setting the <code>upsert: true</code> option is what enables this behavior.</p>
+
+        <hr>
+
+        <h2>1. How the Upsert Logic Works 🤔</h2>
+        <p>When you execute an update operation with <code>upsert: true</code>, MongoDB follows a simple conditional logic:</p>
+        <ul>
+            <li><strong>Find a Match?</strong> MongoDB first executes the query you provided to see if any documents meet the criteria.</li>
+            <li><span class="logic"><strong>Yes (Match Found) → UPDATE:</strong></span> The update operation is performed on the matching document(s) as normal.</li>
+            <li><span class="logic"><strong>No (No Match) → INSERT:</strong></span> A new document is created and inserted into the collection. This new document is a combination of the query criteria and the update document.</li>
+        </ul>
+
+        <hr>
+
+        <h2>2. Node.js Implementation with updateOne()</h2>
+        <p>The most common way to use upsert is with the <code>updateOne()</code> method.</p>
+
+        <h3>A. The Syntax</h3>
+        <p class="code-section">
+<pre>
+<span class="comment">// 1. Query: Specifies the document to search for.</span>
+<span class="keyword">const</span> query = { <span class="string">_id</span>: <span class="number">100</span> }; 
+
+<span class="comment">// 2. Update: Specifies the changes to make, typically using update operators like $set or $inc.</span>
+<span class="keyword">const</span> updateDocument = {
+  <span class="operator">$set</span>: { <span class="string">name</span>: <span class="string">"New Product"</span>, <span class="string">price</span>: <span class="number">50.00</span> },
+  <span class="operator">$inc</span>: { <span class="string">version</span>: <span class="number">1</span> } <span class="comment">// Used for updates, ignored on insert.</span>
+};
+
+<span class="comment">// 3. Options: The crucial part is setting 'upsert' to true.</span>
+<span class="keyword">const</span> options = { <span class="string">upsert</span>: <span class="keyword">true</span> }; 
+
+<span class="keyword">try</span> {
+  <span class="keyword">const</span> result = <span class="keyword">await</span> collection.<span class="keyword">updateOne</span>(query, updateDocument, options);
+  
+  <span class="comment">// The 'result' object tells you exactly what happened.</span>
+  <span class="keyword">if</span> (result.<span class="string">upsertedCount</span> > <span class="number">0</span>) {
+    console.<span class="keyword">log</span>(<span class="string">`Document inserted with _id: ${result.upsertedId.id}`</span>);
+  } <span class="keyword">else if</span> (result.<span class="string">modifiedCount</span> > <span class="number">0</span>) {
+    console.<span class="keyword">log</span>(<span class="string">`${result.modifiedCount} document(s) updated.`</span>);
+  } <span class="keyword">else</span> {
+    console.<span class="keyword">log</span>(<span class="string">"No change (document was found but content was the same)."</span>);
+  }
+
+} <span class="keyword">catch</span> (error) {
+  console.<span class="keyword">error</span>(<span class="string">"Upsert failed:"</span>, error);
+}
+</pre>
+        </p>
+
+        <h3>B. Scenario 1: Document Exists (Update) 🔄</h3>
+        <p>Assume the collection contains:</p>
+        <p class="code-section">
+<pre>
+{ <span class="string">"_id"</span>: <span class="number">100</span>, <span class="string">"name"</span>: <span class="string">"Old Product"</span>, <span class="string">"price"</span>: <span class="number">40.00</span> } 
+</pre>
+        </p>
+        <p>Using the code above:</p>
+        <ul>
+            <li><strong>Query Match:</strong> The document is found.</li>
+            <li><strong>Result:</strong> The document is <span class="logic">updated</span> according to the <code>$set</code> and <code>$inc</code> operators.</li>
+        </ul>
+        <p>The document becomes:</p>
+        <p class="code-section">
+<pre>
+{ <span class="string">"_id"</span>: <span class="number">100</span>, <span class="string">"name"</span>: <span class="string">"New Product"</span>, <span class="string">"price"</span>: <span class="number">50.00</span>, <span class="string">"version"</span>: <span class="number">1</span> }
+</pre>
+        </p>
+
+        <h3>C. Scenario 2: Document Does Not Exist (Insert) ➕</h3>
+        <p>Assume the collection does not contain a document with <code>_id: 100</code>.</p>
+        <ul>
+            <li><strong>Query Match:</strong> No document is found.</li>
+            <li><strong>Result:</strong> A new document is <span class="insert">inserted</span>. The inserted document is constructed using the fields in the query and the fields in the update document.</li>
+        </ul>
+        <p>The newly inserted document becomes:</p>
+        <p class="code-section">
+<pre>
+{ 
+  <span class="string">"_id"</span>: <span class="number">100</span>,             <span class="comment">// from the query</span>
+  <span class="string">"name"</span>: <span class="string">"New Product"</span>,  <span class="comment">// from the $set in the update</span>
+  <span class="string">"price"</span>: <span class="number">50.00</span>          <span class="comment">// from the $set in the update</span>
+  <span class="comment">// The $inc operator is ignored for the initial insert.</span>
+}
+</pre>
+        </p>
+
+        <hr>
+
+        <h2>3. Important Considerations for Upsert</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Consideration</th>
+                    <th>Explanation</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>$setOnInsert Operator</strong></td>
+                    <td>This is highly useful for upsert. It specifies fields that should <strong>only be set if an insert occurs</strong>, and are ignored during an update.</td>
+                </tr>
+                <tr>
+                    <td><strong>Insert Document Structure</strong></td>
+                    <td>The final document created by an upsert operation is a mix of the <strong>query fields</strong> and the <strong>update fields</strong>. If you use a field in the query (like <code>_id</code>), you don't need to specify it in the <code>$set</code> for the insert.</td>
+                </tr>
+                <tr>
+                    <td><strong>Atomicity</strong></td>
+                    <td>An upsert operation is <strong>atomic</strong>. This means the search for a document and the subsequent update or insert happens as a single operation, preventing race conditions where two clients might try to insert the same document simultaneously.</td>
+                </tr>
+                <tr>
+                    <td><strong>updateMany() and Upsert</strong></td>
+                    <td>While you can set <code>upsert: true</code> on <code>updateMany()</code>, this is rarely done. It will only ever create a <strong>single new document</strong> if zero matches are found. If one or more matches are found, it performs the update on all matches.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Example with $setOnInsert</h3>
+        <p>You want to update a document's content, but if it's new, you also want to track the initial creation date.</p>
+
+        <p class="code-section">
+<pre>
+<span class="keyword">const</span> query = { <span class="string">email</span>: <span class="string">"user@example.com"</span> };
+<span class="keyword">const</span> updateDocument = {
+  <span class="operator">$set</span>: { <span class="string">lastActive</span>: <span class="keyword">new</span> Date() },
+  <span class="operator">$setOnInsert</span>: { <span class="string">createdAt</span>: <span class="keyword">new</span> Date(), <span class="string">role</span>: <span class="string">"basic"</span> } <span class="comment">// Only runs on INSERT</span>
+};
+<span class="keyword">await</span> collection.<span class="keyword">updateOne</span>(query, updateDocument, { <span class="string">upsert</span>: <span class="keyword">true</span> }); 
+</pre>
+        </p>
+
+        <p><strong>If inserted:</strong></p>
+        <p class="code-section">
+<pre>
+{ 
+  <span class="string">"email"</span>: <span class="string">"user@example.com"</span>, 
+  <span class="string">"lastActive"</span>: <span class="string">ISODate("...")</span>, 
+  <span class="string">"createdAt"</span>: <span class="string">ISODate("...")</span>, 
+  <span class="string">"role"</span>: <span class="string">"basic"</span> 
+}
+</pre>
+        </p>
+
+        <p><strong>If updated (existing document):</strong></p>
+        <p class="code-section">
+<pre>
+{ 
+  <span class="string">"email"</span>: <span class="string">"user@example.com"</span>, 
+  <span class="string">"lastActive"</span>: <span class="string">ISODate("...")</span>, 
+  <span class="comment">// 'createdAt' and 'role' are untouched</span>
+  <span class="string">"role"</span>: <span class="string">"basic"</span> 
+}
+</pre>
+        </p>
+    </div>
+</body>
+</html>

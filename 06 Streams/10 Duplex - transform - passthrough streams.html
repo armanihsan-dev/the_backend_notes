@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js Streams: Duplex, Transform, and Passthrough</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: 'Poppins', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+      }
+      .container {
+        max-width: 900px;
+        margin: auto;
+        padding: 30px;
+        background: #2a2a2a;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        border-radius: 10px;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #ffffff;
+        border-bottom: 2px solid #555;
+        padding-bottom: 10px;
+        margin-top: 20px;
+      }
+      h1 {
+        font-size: 2.5em;
+      }
+      h2 {
+        font-size: 2em;
+      }
+      h3 {
+        font-size: 1.5em;
+      }
+      p {
+        margin-bottom: 15px;
+      }
+      ul {
+        padding-left: 25px;
+      }
+      li {
+        margin-bottom: 8px;
+      }
+      .code-block {
+        background-color: #282c34;
+        padding: 1.5em;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        margin: 1.5em 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      /* Code syntax highlighting styles */
+      .hljs-comment,
+      .hljs-quote {
+        color: #5c6370;
+        font-style: italic;
+      }
+      .hljs-keyword,
+      .hljs-selector-tag,
+      .hljs-subst {
+        color: #c678dd;
+      }
+      .hljs-literal,
+      .hljs-symbol,
+      .hljs-bullet {
+        color: #56b6c2;
+      }
+      .hljs-string,
+      .hljs-regexp,
+      .hljs-title,
+      .hljs-section,
+      .hljs-type,
+      .hljs-built_in,
+      .hljs-attr,
+      .hljs-attribute,
+      .hljs-class .hljs-title {
+        color: #98c379;
+      }
+      .hljs-number,
+      .hljs-meta-keyword {
+        color: #d19a66;
+      }
+      .hljs-name,
+      .hljs-variable,
+      .hljs-template-variable,
+      .hljs-selector-attr,
+      .hljs-selector-pseudo,
+      .hljs-regexp,
+      .hljs-deletion {
+        color: #e06c75;
+      }
+      .hljs-title,
+      .hljs-function,
+      .hljs-name,
+      .hljs-section {
+        color: #61afef;
+      }
+      .hljs-selector-id,
+      .hljs-selector-class,
+      .hljs-formula {
+        color: #e5c07b;
+      }
+      .code-title {
+        color: #d4d4d4;
+        font-weight: 600;
+        margin-bottom: 5px;
+        margin-left: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Node.js Streams</h1>
+
+      <div class="section">
+        <h2>A Duplex stream</h2>
+        <p>
+          A Duplex stream in Node.js is a stream that is both **Readable** and
+          **Writable**. This means it can both be a source of data and a
+          destination for data, simultaneously. It's often used for network
+          connections, where you can read data from a socket and write data to
+          the same socket.
+        </p>
+
+        <h3>How it Works</h3>
+        <p>
+          A Duplex stream inherits from both the Readable and Writable classes.
+          It has two separate internal buffers: one for reading and one for
+          writing. Data written to the stream goes into the writable buffer, and
+          data read from the stream comes from the readable buffer. The two
+          sides of the stream operate independently of each other.
+        </p>
+
+        <h3>Basic Example</h3>
+        <p>
+          A common example of a Duplex stream is a TCP socket. You can create a
+          simple Duplex stream using the net module in Node.js. In this example,
+          a server listens for a connection, and when a client connects, the
+          server echoes back whatever the client sends, but in uppercase.
+        </p>
+        <img src="duplex.png" width="100%" height="500px" alt="" />
+        <h4 class="code-title">Server-side server.js</h4>
+        <div class="code-block">
+          <pre><code class="language-javascript"><span class="hljs-keyword">const</span> <span class="hljs-variable">net</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'net'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-variable">server</span> = <span class="hljs-variable">net</span>.<span class="hljs-title function_">createServer</span>((<span class="hljs-params">socket</span>) => {
+  <span class="hljs-comment">// 'socket' is a Duplex stream</span>
+  <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Client connected.'</span>);
+  <span class="hljs-comment">// The 'data' event is for the readable side</span>
+  <span class="hljs-variable">socket</span>.<span class="hljs-title function_">on</span>(<span class="hljs-string">'data'</span>, (<span class="hljs-params">chunk</span>) => {
+    <span class="hljs-keyword">const</span> <span class="hljs-variable">data</span> = <span class="hljs-variable">chunk</span>.<span class="hljs-title function_">toString</span>();
+    <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Received from client: <span class="hljs-subst">${data}</span>`</span>);
+    <span class="hljs-comment">// The 'write' method is for the writable side</span>
+    <span class="hljs-variable">socket</span>.<span class="hljs-title function_">write</span>(<span class="hljs-variable">data</span>.<span class="hljs-title function_">toUpperCase</span>());
+  });
+  <span class="hljs-variable">socket</span>.<span class="hljs-title function_">on</span>(<span class="hljs-string">'end'</span>, () => {
+    <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Client disconnected.'</span>);
+  });
+});
+<span class="hljs-variable">server</span>.<span class="hljs-title function_">listen</span>(<span class="hljs-number">3000</span>, () => {
+  <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Server listening on port 3000'</span>);
+});</code></pre>
+        </div>
+
+        <h4 class="code-title">Client-side client.js</h4>
+        <div class="code-block">
+          <pre><code class="language-javascript"><span class="hljs-keyword">const</span> <span class="hljs-variable">net</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'net'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-variable">client</span> = <span class="hljs-variable">net</span>.<span class="hljs-title function_">createConnection</span>({ <span class="hljs-attr">port</span>: <span class="hljs-number">3000</span> }, () => {
+  <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Connected to server.'</span>);
+  <span class="hljs-comment">// The 'write' method writes to the Duplex stream</span>
+  <span class="hljs-variable">client</span>.<span class="hljs-title function_">write</span>(<span class="hljs-string">'hello world\n'</span>);
+  <span class="hljs-variable">client</span>.<span class="hljs-title function_">write</span>(<span class="hljs-string">'node.js streams\n'</span>);
+});
+<span class="hljs-comment">// The 'data' event reads from the Duplex stream</span>
+<span class="hljs-variable">client</span>.<span class="hljs-title function_">on</span>(<span class="hljs-string">'data'</span>, (<span class="hljs-params">data</span>) => {
+  <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">`Received from server: <span class="hljs-subst">${data.toString()}</span>`</span>);
+});
+<span class="hljs-variable">client</span>.<span class="hljs-title function_">on</span>(<span class="hljs-string">'end'</span>, () => {
+  <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Disconnected from server.'</span>);
+});</code></pre>
+        </div>
+
+        <p>To run this example:</p>
+        <ul>
+          <li>Open two terminal windows.</li>
+          <li>
+            In the first terminal, run the server: <code>node server.js</code>
+          </li>
+          <li>
+            In the second terminal, run the client: <code>node client.js</code>
+          </li>
+        </ul>
+        <p>
+          The client's output will show the uppercase text it receives from the
+          server.
+        </p>
+
+        <h3>Key Takeaways</h3>
+        <ul>
+          <li>
+            A Duplex stream combines the functionality of a Readable stream and
+            a Writable stream.
+          </li>
+          <li>
+            It has two independent operational sides: one for reading data and
+            one for writing data.
+          </li>
+          <li>
+            A classic use case is for network sockets, where data can be both
+            sent and received through the same connection.
+          </li>
+          <li>
+            Duplex streams are distinct from Transform streams, which are a type
+            of Duplex stream that modifies or transforms data as it's being read
+            and written.
+          </li>
+        </ul>
+      </div>
+
+      <hr />
+
+      <div class="section">
+        <h2>A Transform stream</h2>
+        <p>
+          A Transform stream is a special type of Duplex stream in Node.js that
+          can read and write data, but with the key difference that it modifies
+          or transforms the data as it passes through. Think of a Transform
+          stream as a filter or a processor. Data flows in on the writable side,
+          is processed or changed, and then the transformed data flows out on
+          the readable side. A good example is a compression stream (like
+          zlib.createGzip()), which takes in uncompressed data and outputs
+          compressed data.
+        </p>
+
+        <h3>How It Works</h3>
+        <p>
+          A Transform stream inherits from the Duplex stream class, meaning it
+          has a readable and a writable side. The core logic of a Transform
+          stream is encapsulated in its <code>_transform()</code> method. When
+          you implement a custom Transform stream, you provide the
+          <code>_transform()</code> method, which is called for each chunk of
+          data written to the stream.
+        </p>
+        <p><code>_transform(chunk, encoding, callback)</code></p>
+        <ul>
+          <li><code>chunk</code>: The data chunk to be transformed.</li>
+          <li>
+            <code>encoding</code>: The encoding of the data chunk (e.g.,
+            'utf8').
+          </li>
+          <li>
+            <code>callback</code>: A function that must be called after the
+            transformation is complete. It takes an optional error as the first
+            argument and the transformed data as the second.
+          </li>
+        </ul>
+        <img src="transform.png" alt="" width="100%" height="500px" />
+
+        <h3>Basic Example</h3>
+        <p>
+          Here's a simple example of a custom Transform stream that converts all
+          incoming text to uppercase.
+        </p>
+        <div class="code-block">
+          <pre><code class="language-javascript"><span class="hljs-keyword">const</span> { <span class="hljs-variable">Transform</span> } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'stream'</span>);
+<span class="hljs-comment">// Create a custom Transform stream that converts text to uppercase</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">toUpperCaseTransform</span> = <span class="hljs-keyword">new</span> <span class="hljs-variable">Transform</span>({
+  <span class="hljs-title function_">transform</span>(<span class="hljs-params">chunk, encoding, callback</span>) {
+    <span class="hljs-comment">// Convert the chunk to a string, then to uppercase, then to a buffer</span>
+    <span class="hljs-keyword">const</span> <span class="hljs-variable">transformedChunk</span> = <span class="hljs-variable">chunk</span>.<span class="hljs-title function_">toString</span>().<span class="hljs-title function_">toUpperCase</span>();
+    <span class="hljs-comment">// The 'push' method adds data to the readable buffer</span>
+    <span class="hljs-keyword">this</span>.<span class="hljs-title function_">push</span>(<span class="hljs-variable">transformedChunk</span>);
+    <span class="hljs-comment">// The callback signals that the transformation is complete</span>
+    <span class="hljs-title function_">callback</span>();
+  }
+});
+<span class="hljs-comment">// A readable stream to provide the data</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">readable</span> = <span class="hljs-variable">process</span>.<span class="hljs-property">stdin</span>; <span class="hljs-comment">// Reads from the command line</span>
+<span class="hljs-comment">// A writable stream to output the data</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">writable</span> = <span class="hljs-variable">process</span>.<span class="hljs-property">stdout</span>; <span class="hljs-comment">// Writes to the command line</span>
+<span class="hljs-comment">// Chain the streams together</span>
+<span class="hljs-variable">readable</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">toUpperCaseTransform</span>).<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">writable</span>);</code></pre>
+        </div>
+        <p>
+          When you run this code and type text into your console, the
+          toUpperCaseTransform stream will intercept it, convert it to
+          uppercase, and then print it back to the console.
+        </p>
+        <p>To run this example:</p>
+        <ul>
+          <li>Save the code as `uppercase.js`.</li>
+          <li>Run <code>node uppercase.js</code> in your terminal.</li>
+          <li>
+            Type some text and press Enter. You will see the uppercase version
+            of your text.
+          </li>
+        </ul>
+
+        <h3>Key Takeaways</h3>
+        <ul>
+          <li>
+            A Transform stream is a type of Duplex stream that modifies data in
+            transit.
+          </li>
+          <li>
+            It's ideal for tasks like compression, encryption, or data
+            formatting.
+          </li>
+          <li>
+            The core logic resides in the `_transform()` method, which processes
+            data chunks.
+          </li>
+          <li>
+            Transform streams are highly useful for creating modular, reusable
+            components in a data processing pipeline using the `pipe()` method.
+          </li>
+        </ul>
+      </div>
+
+      <hr />
+
+      <div class="section">
+        <h2>A Passthrough stream</h2>
+        <p>
+          A Passthrough stream in Node.js is a special type of Transform stream
+          that doesn't perform any transformation. It simply passes the data it
+          receives from its writable side directly to its readable side.
+        </p>
+
+        <h3>How It Works</h3>
+        <p>
+          A Passthrough stream is useful for scenarios where you need to create
+          a stream pipeline but don't want to modify the data. It's often used
+          as a placeholder or a central point for managing other streams. Since
+          it inherits from Transform, it has a <code>_transform()</code> method,
+          but its default implementation simply calls
+          <code>this.push(chunk)</code> and then the callback, effectively
+          passing the data through untouched. A key benefit of a Passthrough
+          stream is its ability to act as a proxy or tee. You can pipe data from
+          a source stream to a Passthrough stream and then pipe that Passthrough
+          stream's output to multiple destinations. This allows you to
+          distribute the data flow without having to read from the source stream
+          multiple times.
+        </p>
+
+        <img src="passthroufh.png" width="100%" height="500px" alt="" />
+        <h3>Basic Example</h3>
+        <p>
+          Here's an example that shows how a Passthrough stream can be used to
+          pipe data from a single readable stream to two separate writable
+          streams.
+        </p>
+        <div class="code-block">
+          <pre><code class="language-javascript"><span class="hljs-keyword">const</span> { <span class="hljs-variable">PassThrough</span> } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'stream'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-variable">fs</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>);
+<span class="hljs-comment">// Create a readable stream from a file</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">readableStream</span> = <span class="hljs-variable">fs</span>.<span class="hljs-title function_">createReadStream</span>(<span class="hljs-string">'input.txt'</span>);
+<span class="hljs-comment">// Create a Passthrough stream</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">passthroughStream</span> = <span class="hljs-keyword">new</span> <span class="hljs-variable">PassThrough</span>();
+<span class="hljs-comment">// Create two writable streams for different files</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">writableStream1</span> = <span class="hljs-variable">fs</span>.<span class="hljs-title function_">createWriteStream</span>(<span class="hljs-string">'output1.txt'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-variable">writableStream2</span> = <span class="hljs-variable">fs</span>.<span class="hljs-title function_">createWriteStream</span>(<span class="hljs-string">'output2.txt'</span>);
+<span class="hljs-comment">// Pipe the readable stream to the Passthrough stream</span>
+<span class="hljs-variable">readableStream</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">passthroughStream</span>);
+<span class="hljs-comment">// Pipe the Passthrough stream to both writable streams</span>
+<span class="hljs-variable">passthroughStream</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">writableStream1</span>);
+<span class="hljs-variable">passthroughStream</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">writableStream2</span>);
+<span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Data is being written to both output1.txt and output2.txt'</span>);</code></pre>
+        </div>
+        <p>
+          In this example, the data from input.txt is read once, and then the
+          Passthrough stream ensures that a copy of the data is sent to both
+          output1.txt and output2.txt.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

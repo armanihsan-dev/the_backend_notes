@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node.js Piping Notes</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        pre {
+            background-color: #282c34;
+            color: #abb2bf;
+            padding: 1.2em;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            margin: 1.5em 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .hljs-comment, .hljs-quote { color: #5c6370; font-style: italic; }
+        .hljs-keyword, .hljs-selector-tag, .hljs-subst { color: #c678dd; }
+        .hljs-literal, .hljs-symbol, .hljs-bullet { color: #56b6c2; }
+        .hljs-string, .hljs-regexp, .hljs-title, .hljs-section, .hljs-type, .hljs-built_in, .hljs-attr, .hljs-attribute, .hljs-class .hljs-title { color: #98c379; }
+        .hljs-number, .hljs-meta-keyword { color: #d19a66; }
+        .hljs-name, .hljs-variable, .hljs-template-variable, .hljs-selector-attr, .hljs-selector-pseudo, .hljs-regexp, .hljs-deletion { color: #e06c75; }
+        .hljs-title, .hljs-function, .hljs-name, .hljs-section { color: #61afef; }
+        .hljs-selector-id, .hljs-selector-class, .hljs-formula { color: #e5c07b; }
+        ul {
+            padding-left: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .note-section {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+        .note-section:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Piping in Node.js</h1>
+
+        <div class="note-section">
+            <h2>What is Piping?</h2>
+            <p><strong>Piping</strong> is a method of connecting the output of one <strong>stream</strong> to the input of another, creating a seamless data flow. This is essential for handling large data sets without loading everything into memory at once.</p>
+            <p>It's like a physical pipe: data goes in one end and comes out the other, ready for the next component.</p>
+        </div>
+
+        <div class="note-section">
+            <h2>Definition and Syntax</h2>
+            <p>The core method is <code>pipe()</code>, which is part of Node.js streams.</p>
+            <h3>Basic Syntax:</h3>
+            <pre><code class="language-javascript"><span class="hljs-name">readable</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-name">writable</span>);</code></pre>
+            <ul>
+                <li><strong><code>readable</code></strong>: A readable stream (the source of data).</li>
+                <li><strong><code>writable</code></strong>: A writable stream (the destination for data).</li>
+            </ul>
+        </div>
+
+        <div class="note-section">
+            <h2>Manual vs. Piping</h2>
+            <p>Piping automates the process of handling data events and writing chunks, simplifying code significantly.</p>
+            <h3>Manual Approach:</h3>
+            <pre><code class="language-javascript"><span class="hljs-keyword">readStream</span>.<span class="hljs-title function_">on</span>(<span class="hljs-string">'data'</span>, <span class="hljs-function">(<span class="hljs-params">chunk</span>) =></span> {
+  <span class="hljs-keyword">writeStream</span>.<span class="hljs-title function_">write</span>(<span class="hljs-keyword">chunk</span>);
+});
+<span class="hljs-keyword">readStream</span>.<span class="hljs-title function_">on</span>(<span class="hljs-string">'end'</span>, <span class="hljs-function">() =></span> {
+  <span class="hljs-keyword">writeStream</span>.<span class="hljs-title function_">end</span>();
+});</code></pre>
+            <h3>Piping Approach:</h3>
+            <pre><code class="language-javascript"><span class="hljs-keyword">readStream</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-keyword">writeStream</span>);</code></pre>
+        </div>
+
+        <div class="note-section">
+            <h2>How It Works Internally</h2>
+            <p>When you call <code>readable.pipe(writable)</code>, the <code>pipe()</code> method:</p>
+            <ul>
+                <li>Registers a listener for the <code>"data"</code> event to forward chunks.</li>
+                <li>Listens for the <code>"end"</code> event to call <code>writable.end()</code>.</li>
+                <li><strong>Handles backpressure</strong>: If the writable stream's buffer is full, it automatically pauses the readable stream and resumes it when the buffer drains.</li>
+            </ul>
+        </div>
+
+        <div class="note-section">
+            <h2>Advantages of Piping</h2>
+            <ul>
+                <li><strong>Memory Efficiency</strong>: Processes data in small chunks, avoiding large memory loads.</li>
+                <li><strong>Simplicity and Readability</strong>: The code is clean and clearly shows the data flow.</li>
+                <li><strong>Performance</strong>: Starts processing data as it arrives, without waiting for the entire source.</li>
+                <li><strong>Automatic Backpressure Handling</strong>: Prevents a faster stream from overwhelming a slower one.</li>
+                <li><strong>Composability</strong>: Allows for chaining multiple streams together.</li>
+            </ul>
+        </div>
+        
+        <div class="note-section">
+            <h2>Chaining Pipes</h2>
+            <p>Pipes can be chained together to perform multiple transformations on data.</p>
+            <pre><code class="language-javascript"><span class="hljs-name">source</span>.<span class="hljs-title function_">pipe</span>(<span class="hljs-name">transform1</span>).<span class="hljs-title function_">pipe</span>(<span class="hljs-name">transform2</span>).<span class="hljs-title function_">pipe</span>(<span class="hljs-name">destination</span>);</code></pre>
+            <p>Example using a <strong>Transform Stream</strong> (<code>zlib.createGzip()</code>):</p>
+            <pre><code class="language-javascript"><span class="hljs-keyword">const</span> <span class="hljs-keyword">fs</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-keyword">zlib</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'zlib'</span>);
+
+<span class="hljs-keyword">const</span> <span class="hljs-variable">readableStream</span> = <span class="hljs-keyword">fs</span>.<span class="hljs-title function_">createReadStream</span>(<span class="hljs-string">'input.txt'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-variable">gzip</span> = <span class="hljs-keyword">zlib</span>.<span class="hljs-title function_">createGzip</span>(); <span class="hljs-comment">// A transform stream</span>
+<span class="hljs-keyword">const</span> <span class="hljs-variable">writableStream</span> = <span class="hljs-keyword">fs</span>.<span class="hljs-title function_">createWriteStream</span>(<span class="hljs-string">'input.txt.gz'</span>);
+
+<span class="hljs-variable">readableStream</span>
+  .<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">gzip</span>)
+  .<span class="hljs-title function_">pipe</span>(<span class="hljs-variable">writableStream</span>);</code></pre>
+        </div>
+        
+        <div class="note-section">
+            <h2><code>stream.pipeline()</code> (Recommended)</h2>
+            <p><code>stream.pipeline()</code> is a safer, more robust way to chain streams, especially for error handling and resource management.</p>
+            <h3>Syntax:</h3>
+            <pre><code class="language-javascript"><span class="hljs-keyword">const</span> { <span class="hljs-variable">pipeline</span> } = <span class="hljs-built_in">require</span>(<span class="hljs-string">'stream'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-keyword">fs</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'fs'</span>);
+<span class="hljs-keyword">const</span> <span class="hljs-keyword">zlib</span> = <span class="hljs-built_in">require</span>(<span class="hljs-string">'zlib'</span>);
+
+<span class="hljs-title function_">pipeline</span>(
+  <span class="hljs-keyword">fs</span>.<span class="hljs-title function_">createReadStream</span>(<span class="hljs-string">'input.txt'</span>),
+  <span class="hljs-keyword">zlib</span>.<span class="hljs-title function_">createGzip</span>(),
+  <span class="hljs-keyword">fs</span>.<span class="hljs-title function_">createWriteStream</span>(<span class="hljs-string">'input.txt.gz'</span>),
+  <span class="hljs-function">(<span class="hljs-params">err</span>) =></span> {
+    <span class="hljs-keyword">if</span> (<span class="hljs-variable">err</span>) {
+      <span class="hljs-variable">console</span>.<span class="hljs-title function_">error</span>(<span class="hljs-string">'Pipeline failed.'</span>, <span class="hljs-variable">err</span>);
+    } <span class="hljs-keyword">else</span> {
+      <span class="hljs-variable">console</span>.<span class="hljs-title function_">log</span>(<span class="hljs-string">'Pipeline succeeded.'</span>);
+    }
+  }
+);</code></pre>
+            <h3>Advantages of <code>pipeline()</code>:</h3>
+            <ul>
+                <li><strong>Robust Error Handling</strong>: If any stream fails, all others are automatically destroyed.</li>
+                <li><strong>Proper Resource Cleanup</strong>: Ensures all streams are closed, preventing memory and resource leaks.</li>
+                <li><strong>Simplified Code</strong>: Centralizes the entire stream chain and error logic into one function.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

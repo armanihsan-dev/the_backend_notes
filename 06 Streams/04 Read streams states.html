@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js Readable Streams</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: 'Poppins', sans-serif;
+        background-color: #ffe6f0;
+        color: #4a4a4a;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+      .container {
+        max-width: 900px;
+        margin: 20px auto;
+        background-color: #fff;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        border: 2px solid #ff69b4;
+      }
+      h1,
+      h2 {
+        color: #d81b60;
+        border-bottom: 2px solid #f8bbd0;
+        padding-bottom: 10px;
+      }
+      h1 {
+        text-align: center;
+        font-weight: 700;
+      }
+      h2 {
+        margin-top: 30px;
+        font-weight: 600;
+      }
+      p {
+        margin-bottom: 15px;
+      }
+      ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      ul li {
+        background-color: #fce4ec;
+        border-left: 5px solid #ff69b4;
+        margin-bottom: 10px;
+        padding: 15px;
+        border-radius: 8px;
+        transition: transform 0.2s ease-in-out;
+      }
+      ul li:hover {
+        transform: translateX(5px);
+      }
+      code {
+        background-color: #f3e5f5;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-family: 'Courier New', Courier, monospace;
+        color: #880e4f;
+      }
+      pre {
+        background-color: #f8bbd0;
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+      }
+      pre code {
+        background: none;
+        color: #4a4a4a;
+      }
+      strong {
+        color: #ad1457;
+      }
+      .note {
+        background-color: #fff8e1;
+        border-left: 5px solid #ffab91;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🏴󠁧󠁢󠁥󠁮󠁧󠁿 Node.js Readable Streams States</h1>
+      <p>
+        Readable streams in Node.js don't have a single "state" but a
+        combination of internal states managed by properties, methods, and
+        events.
+      </p>
+
+      <h2>Readable Stream States: Definition</h2>
+      <p>A readable stream can operate in one of three main modes:</p>
+      <ul>
+        <li>
+          <strong>Flowing:</strong> Data is read automatically and pushed to the
+          consumer via the <code>'data'</code> event. This is the default mode.
+        </li>
+        <li>
+          <strong>Paused:</strong> Reading is temporarily stopped. You must
+          explicitly call <code>stream.read()</code> to get data chunks.
+        </li>
+        <li>
+          <strong>Closed/Destroyed:</strong> The stream is no longer functional.
+          The underlying resources have been released, and no more data can be
+          read.
+        </li>
+      </ul>
+
+      <h2>Properties and Methods to Work with States</h2>
+      <p>These tools help you interact with a readable stream's state:</p>
+      <ul>
+        <li>
+          <code>.readable</code>: A boolean; <code>true</code> if the stream is
+          ready to be read.
+        </li>
+        <li>
+          <code>.readableHighWaterMark</code>: An integer for the maximum buffer
+          size before the stream pauses.
+        </li>
+        <li>
+          <code>.readableEnded</code>: A boolean; <code>true</code> after the
+          <code>'end'</code> event.
+        </li>
+        <li>
+          <code>.closed</code>: A boolean; <code>true</code> after the
+          <code>'close'</code> event.
+        </li>
+        <li>
+          <code>.isPaused()</code>: A method that returns <code>true</code> if
+          the stream is in a paused state.
+        </li>
+        <li><code>.pause()</code>: Switches the stream to paused mode.</li>
+        <li><code>.resume()</code>: Switches the stream to flowing mode.</li>
+        <li>
+          <code>.read()</code>: Pulls a data chunk from the buffer in paused
+          mode.
+        </li>
+        <li>
+          <code>.pipe(destination)</code>: Connects to a writable stream and
+          manages states to prevent backpressure.
+        </li>
+      </ul>
+
+      <h2>Important Events for Readable Stream States</h2>
+      <p>Events are the primary way streams communicate state changes:</p>
+      <ul>
+        <li><code>'data'</code>: Emitted with a data chunk in flowing mode.</li>
+        <li>
+          <code>'readable'</code>: Emitted when a chunk is available in the
+          buffer, used in paused mode.
+        </li>
+        <li><code>'end'</code>: Emitted when all data has been read.</li>
+        <li>
+          <code>'close'</code>: Emitted after the stream and its resources have
+          been closed.
+        </li>
+        <li><code>'error'</code>: Emitted if a reading error occurs.</li>
+      </ul>
+
+      <h2>Example: Reading from a File Stream</h2>
+      <pre><code class="language-javascript">
+const fs = require('fs');
+
+// Create a readable stream from a file
+const readableStream = fs.createReadStream('example.txt');
+
+readableStream.on('data', (chunk) => {
+  console.log(`Received a chunk of data. Size: ${chunk.length} bytes`);
+});
+
+readableStream.on('readable', () => {
+    console.log('Stream is readable. Calling .read() to get a chunk.');
+    let chunk;
+    while (null !== (chunk = readableStream.read())) {
+      console.log(`Read ${chunk.length} bytes from buffer.`);
+    }
+});
+
+readableStream.on('end', () => {
+  console.log('All data has been read. The stream has ended.');
+});
+
+readableStream.on('close', () => {
+  console.log('The readable stream has been closed.');
+});
+
+readableStream.on('error', (err) => {
+  console.error('An error occurred:', err.message);
+});
+
+console.log(`Is the stream currently readable? ${readableStream.readable}`);
+
+setTimeout(() => {
+  console.log('Pausing the stream...');
+  readableStream.pause();
+}, 100);
+
+setTimeout(() => {
+  console.log('Resuming the stream...');
+  readableStream.resume();
+}, 500);
+    </code></pre>
+
+      <div class="note">
+        <p>
+          <strong>Note on Stream States:</strong> The internal properties like
+          <code>readableFlowing</code> and <code>readableEnded</code> are for a
+          more detailed, internal view. The public properties and events are
+          what you'll typically use to interact with and monitor a stream's
+          state in your code.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

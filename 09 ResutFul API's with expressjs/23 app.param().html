@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Express.js Param Middleware</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 800px;
+        margin: auto;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc;
+      }
+
+      p {
+        margin-bottom: 1rem;
+      }
+
+      .code-container {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 1.5rem;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin: 2rem 0;
+        font-family: 'Fira Code', 'Cascadia Mono', monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+
+      .comment {
+        color: #57a64a;
+      }
+      .keyword {
+        color: #c586c0;
+      }
+      .variable {
+        color: #9cdcfe;
+      }
+      .string {
+        color: #ce9178;
+      }
+      .number {
+        color: #b5cea8;
+      }
+      .function {
+        color: #dcdcaa;
+      }
+      .property {
+        color: #4ec9b0;
+      }
+      .operator {
+        color: #d4d4d4;
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      li {
+        margin-bottom: 0.5rem;
+        padding-left: 1.5rem;
+        position: relative;
+      }
+
+      li::before {
+        content: '👉';
+        position: absolute;
+        left: 0;
+        color: #bb86fc;
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-color: #444;
+        margin: 2rem 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Express.js `app.param()` or `router.param()` Function</h1>
+    <p>
+      The <code>app.param()</code> or <code>router.param()</code> function in
+      Express.js lets you create reusable logic for validating or pre-loading
+      data for a route parameter. Instead of writing the same code in multiple
+      route handlers, you can define it once for a specific parameter name.
+    </p>
+
+    <h2>Syntax and Explanation</h2>
+    <p>
+      The syntax is
+      <code
+        >app.param(<span class="string">'name'</span>,
+        <span class="function">callback</span>)</code
+      >.
+    </p>
+    <ul>
+      <li>
+        <p>
+          <strong><code>name</code>:</strong> This is a
+          <span class="string">'string'</span> representing the parameter you
+          want to handle. For example, if your route is <code>/users/:id</code>,
+          the name would be <span class="string">'id'</span>.
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong><code>callback</code>:</strong> This is a middleware function
+          with the signature <code>(req, res, next, value, name)</code>.
+        </p>
+        <ul>
+          <li>
+            <p>
+              <strong><code>req</code>:</strong> The request object.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong><code>res</code>:</strong> The response object.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong><code>next</code>:</strong> A function to call to pass
+              control to the next middleware or route handler.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong><code>value</code>:</strong> The actual value of the
+              parameter from the URL. For <code>/users/123</code>, this would be
+              <span class="string">'123'</span>.
+            </p>
+          </li>
+          <li>
+            <p>
+              <strong><code>name</code>:</strong> The name of the parameter
+              itself (e.g., <span class="string">'id'</span>).
+            </p>
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <p>
+      When a route with a matching parameter is hit, Express executes the
+      <code>param()</code> callback before any of the route's other middleware
+      or handler functions. This makes it a great place to perform tasks like:
+    </p>
+    <ul>
+      <li>
+        <p>
+          <strong>Data Validation:</strong> Checking if the parameter value is a
+          valid format (e.g., an integer).
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong>Database Lookup:</strong> Fetching a user from the database
+          based on their ID.
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong>Error Handling:</strong> Sending a 404 Not Found response if
+          the data doesn't exist.
+        </p>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Practical Example with All HTTP Methods</h2>
+    <p>
+      Let's imagine you're building a simple API for managing blog posts. All
+      your routes will need to work with a <code>:postId</code> parameter.
+      Instead of fetching the post from the database in every <code>GET</code>,
+      <code>PUT</code>, and <code>DELETE</code> handler, you can use
+      <code>router.param()</code>.
+    </p>
+    <p>Here's a full example using <code>express.Router()</code>:</p>
+
+    <div class="code-container">
+      <pre><span class="keyword">const</span> <span class="variable">express</span> = <span class="function">require</span>(<span class="string">'express'</span>);
+<span class="keyword">const</span> <span class="variable">router</span> = <span class="variable">express</span>.<span class="function">Router</span>();
+
+<span class="comment">// A simple in-memory database of posts</span>
+<span class="keyword">const</span> <span class="variable">posts</span> = {
+    <span class="string">'1'</span>: { <span class="property">title</span>: <span class="string">'First Post'</span>, <span class="property">content</span>: <span class="string">'This is the first post.'</span> },
+    <span class="string">'2'</span>: { <span class="property">title</span>: <span class="string">'Second Post'</span>, <span class="property">content</span>: <span class="string">'This is the second post.'</span> }
+};
+
+<span class="comment">// Use router.param to handle the ':postId' parameter</span>
+<span class="variable">router</span>.<span class="function">param</span>(<span class="string">'postId'</span>, (<span class="variable">req</span>, <span class="variable">res</span>, <span class="variable">next</span>, <span class="variable">postId</span>) => {
+    <span class="variable">console</span>.<span class="function">log</span>(<span class="string">`Param middleware is running for postId: ${<span class="variable">postId</span>}`</span>);
+    <span class="keyword">const</span> <span class="variable">post</span> = <span class="variable">posts</span>[<span class="variable">postId</span>];
+
+    <span class="comment">// If the post is not found, send a 404 response and stop the request.</span>
+    <span class="keyword">if</span> (!<span class="variable">post</span>) {
+        <span class="keyword">return</span> <span class="variable">res</span>.<span class="function">status</span>(<span class="number">404</span>).<span class="function">json</span>({ <span class="property">error</span>: <span class="string">'Post not found'</span> });
+    }
+
+    <span class="comment">// Attach the found post to the request object for later use.</span>
+    <span class="variable">req</span>.<span class="property">post</span> = <span class="variable">post</span>;
+    <span class="comment">// Call next() to pass control to the next middleware or route handler.</span>
+    <span class="function">next</span>();
+});
+
+<span class="comment">// GET Method</span>
+<span class="variable">router</span>.<span class="function">get</span>(<span class="string">'/:postId'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'GET route handler is running.'</span>);
+    <span class="comment">// The post is already available on req.post, thanks to router.param().</span>
+    <span class="variable">res</span>.<span class="function">json</span>(<span class="variable">req</span>.<span class="property">post</span>);
+});
+
+<span class="comment">// PUT Method (for updating a post)</span>
+<span class="variable">router</span>.<span class="function">put</span>(<span class="string">'/:postId'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'PUT route handler is running.'</span>);
+    <span class="comment">// In a real app, you would update the post in the database.</span>
+    <span class="comment">// Here, we just acknowledge the update.</span>
+    <span class="comment">// The found post is available at req.post.</span>
+    <span class="comment">// The new data would be in req.body.</span>
+    <span class="variable">res</span>.<span class="function">json</span>({ <span class="property">message</span>: <span class="string">'Post updated successfully'</span>, <span class="property">updatedPost</span>: { ...<span class="variable">req</span>.<span class="property">post</span>, ...<span class="variable">req</span>.<span class="property">body</span> } });
+});
+
+<span class="comment">// DELETE Method</span>
+<span class="variable">router</span>.<span class="function">delete</span>(<span class="string">'/:postId'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'DELETE route handler is running.'</span>);
+    <span class="comment">// In a real app, you would delete the post from the database.</span>
+    <span class="comment">// The found post is available at req.post.</span>
+    <span class="keyword">delete</span> <span class="variable">posts</span>[<span class="variable">req</span>.<span class="property">params</span>.<span class="property">postId</span>];
+    <span class="variable">res</span>.<span class="function">json</span>({ <span class="property">message</span>: <span class="string">'Post deleted successfully'</span> });
+});
+
+<span class="comment">// A simple POST route to create a new post (no param handling needed here)</span>
+<span class="variable">router</span>.<span class="function">post</span>(<span class="string">'/'</span>, (<span class="variable">req</span>, <span class="variable">res</span>) => {
+    <span class="keyword">const</span> <span class="variable">newId</span> = (<span class="function">Object</span>.<span class="function">keys</span>(<span class="variable">posts</span>).<span class="property">length</span> + <span class="number">1</span>).<span class="function">toString</span>();
+    <span class="variable">posts</span>[<span class="variable">newId</span>] = <span class="variable">req</span>.<span class="property">body</span>;
+    <span class="variable">res</span>.<span class="function">status</span>(<span class="number">201</span>).<span class="function">json</span>({ <span class="property">message</span>: <span class="string">'Post created'</span>, <span class="property">post</span>: <span class="variable">posts</span>[<span class="variable">newId</span>] });
+});
+
+<span class="keyword">const</span> <span class="variable">app</span> = <span class="function">express</span>();
+<span class="variable">app</span>.<span class="function">use</span>(<span class="variable">express</span>.<span class="function">json</span>()); <span class="comment">// Middleware to parse JSON bodies</span>
+<span class="variable">app</span>.<span class="function">use</span>(<span class="string">'/posts'</span>, <span class="variable">router</span>);
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="number">3000</span>, () => {
+    <span class="variable">console</span>.<span class="function">log</span>(<span class="string">'Server is running on port 3000'</span>);
+});</pre>
+    </div>
+
+    <p>
+      To run this example, save the code as a file (e.g.,
+      <code>server.js</code>), install Express (<code>npm install express</code
+      >), and then run it (<code>node server.js</code>). You can then test it
+      with a tool like Postman or <code>curl</code>.
+    </p>
+
+    <h3>Testing the Endpoints:</h3>
+    <ul>
+      <li>
+        <p>
+          <strong><code>GET /posts/1</code>:</strong> The
+          <code>router.param</code> function runs first, finds the post with ID
+          1, and attaches it to <code>req.post</code>. The GET handler then
+          sends this post as the response.
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong><code>GET /posts/3</code>:</strong> The
+          <code>router.param</code> function runs, but since there's no post
+          with ID 3, it sends a 404 Not Found response immediately, and the GET
+          handler is never executed.
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong><code>PUT /posts/2</code>:</strong> The
+          <code>router.param</code> runs, finds the post with ID 2, and the PUT
+          handler then receives the <code>req</code> object with the
+          <code>req.post</code> property already populated.
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong><code>DELETE /posts/1</code>:</strong> The
+          <code>router.param</code> runs, finds the post with ID 1, and the
+          DELETE handler then receives the <code>req</code> object with the
+          <code>req.post</code> property already populated.
+        </p>
+      </li>
+    </ul>
+    <p>
+      Using <code>router.param()</code> significantly reduces code duplication
+      and makes your routes cleaner and more maintainable, especially when
+      dealing with multiple operations on the same resource. 🚀
+    </p>
+
+    <hr />
+
+    <h2>When does `app.param()` run?</h2>
+    <p>
+      <code>app.param()</code> middleware runs <strong>before</strong> the
+      actual route handler.
+    </p>
+    <p>
+      When a request is made, Express.js first checks if the URL contains a
+      parameter that has a corresponding <code>app.param()</code> middleware. If
+      it does, Express executes that middleware. The
+      <code>app.param()</code> middleware has the opportunity to perform actions
+      like fetching data from a database or validating the parameter. The
+      <code>next()</code> function must be called inside the
+      <code>app.param()</code> middleware to pass control to the next middleware
+      or, ultimately, the final route handler. If <code>next()</code> isn't
+      called, the request-response cycle stops, which is useful for sending an
+      error response, for example. The final route handler will only execute if
+      the <code>app.param()</code> middleware completes successfully by calling
+      <code>next()</code>.
+    </p>
+  </body>
+</html>

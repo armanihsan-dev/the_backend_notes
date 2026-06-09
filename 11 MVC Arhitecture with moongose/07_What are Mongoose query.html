@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Query Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Typography Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VS Code dark background */
+        color: #d4d4d4; /* Light grey text */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: auto;
+        background-color: #252526; /* Slightly lighter inner panel */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2 {
+        color: #569cd6; /* VS Code blue for headings */
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      p,
+      ul {
+        font-size: 1.05em;
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ce9178; /* Mongoose/MongoDB concepts highlight */
+        font-weight: 700;
+      }
+
+      /* Code Block Styling (VS Code Black Theme) */
+      .code-section {
+        background-color: #1e1e1e; /* Editor background */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin-top: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #333;
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        color: #d4d4d4; /* Default code color */
+      }
+
+      /* Syntax Highlighting Imitation */
+      .kw {
+        color: #569cd6;
+      } /* Keyword: const, await, new, return, function */
+      .fn {
+        color: #dcdcaa;
+      } /* Function/Method: find, exec, log, getQuery */
+      .prop {
+        color: #9cdcfe;
+      } /* Property/Variable: users, query, name, age */
+      .str {
+        color: #ce9178;
+      } /* String/Text: "name age", "John" */
+      .op {
+        color: #c586c0;
+      } /* Operator/Symbol: =, ., instanceof, $gte */
+      .num {
+        color: #b5cea8;
+      } /* Number/Literal: 18, 1, 10, 0 */
+      .cmt {
+        color: #6a9955;
+      } /* Comment */
+
+      .inline-code {
+        background-color: #333;
+        color: #dcdcaa;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+
+      /* List Styling */
+      ul {
+        list-style-type: none;
+        padding-left: 0;
+      }
+
+      ul li {
+        margin-bottom: 8px;
+        padding-left: 25px;
+        position: relative;
+      }
+
+      ul li::before {
+        content: '•';
+        color: #4ec9b0; /* Teal/Cyan for bullets */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Mongoose Query and Query Chaining</h1>
+
+      <h2>What is a Mongoose Query?</h2>
+      <p>
+        A **Mongoose query** is an object that represents an operation on a
+        MongoDB collection. It is <span class="inline-code">thenable</span> but
+        not a <span class="inline-code">Promise</span>; however, it behaves like
+        a **Promise**.
+      </p>
+
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">users</span>
+          <span class="op">=</span> <span class="prop">User</span>.<span
+            class="fn"
+            >find</span
+          >({ <span class="prop">age</span>: { <span class="op">$gte</span>:
+          <span class="num">18</span> } });<br />
+          <span class="fn">console</span>.<span class="fn">log</span>(<span
+            class="prop"
+            >users</span
+          >
+          <span class="op">instanceof</span> <span class="prop">Promise</span>);
+          <span class="cmt">// false</span><br />
+          <span class="kw">await</span> <span class="prop">users</span>;
+          <span class="cmt">// Works because it's thenable</span>
+        </code>
+      </div>
+
+      <hr />
+
+      <h2>Chaining Queries in Mongoose</h2>
+      <p>
+        Mongoose allows **query chaining**, enabling you to refine the query
+        step by step before execution. Since queries return **query objects**,
+        you can keep adding methods before execution.
+      </p>
+
+      <h3>Example of Chaining Queries:</h3>
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">users</span>
+          <span class="op">=</span> <span class="kw">await</span>
+          <span class="prop">User</span>.<span class="fn">find</span>({
+          <span class="prop">age</span>: { <span class="op">$gte</span>:
+          <span class="num">18</span> } })<br />
+          &nbsp;&nbsp;.<span class="fn">sort</span>({
+          <span class="prop">name</span>: <span class="num">1</span> })<br />
+          &nbsp;&nbsp;.<span class="fn">limit</span>(<span class="num">10</span
+          >)<br />
+          &nbsp;&nbsp;.<span class="fn">select</span>(<span class="str"
+            >"name age"</span
+          >);
+        </code>
+      </div>
+
+      <h3>Explanation:</h3>
+      <ul>
+        <li>
+          <span class="inline-code">.find({ age: { $gte: 18 } })</span> - Finds
+          all users aged 18 or above.
+        </li>
+        <li>
+          <span class="inline-code">.sort({ name: 1 })</span> - Sorts results by
+          name in **ascending order**.
+        </li>
+        <li>
+          <span class="inline-code">.limit(10)</span> - Limits the results to 10
+          users.
+        </li>
+        <li>
+          <span class="inline-code">.select("name age")</span> - Fetches only
+          the **name** and **age** fields.
+        </li>
+        <li>
+          <span class="inline-code">await</span> - Waits for the result because
+          the query is thenable.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>
+        Using <span class="inline-code">.exec()</span> for Full Promise Behavior
+      </h2>
+      <p>
+        To convert a Mongoose query into a **real Promise**, use
+        <span class="inline-code">.exec()</span>:
+      </p>
+
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">users</span>
+          <span class="op">=</span> <span class="kw">await</span>
+          <span class="prop">User</span>.<span class="fn">find</span>({
+          <span class="prop">age</span>: { <span class="op">$gte</span>:
+          <span class="num">18</span> } }).<span class="fn">exec</span>();<br />
+          <span class="fn">console</span>.<span class="fn">log</span>(<span
+            class="prop"
+            >users</span
+          >
+          <span class="op">instanceof</span> <span class="prop">Promise</span>);
+          <span class="cmt">// true</span>
+        </code>
+      </div>
+      <p>
+        This ensures the query behaves exactly like a native JavaScript
+        **Promise**.
+      </p>
+
+      <hr />
+
+      <h2>
+        Using <span class="inline-code">.getQuery()</span> to Inspect the Query
+      </h2>
+      <p>
+        Mongoose provides the
+        <span class="inline-code">.getQuery()</span> method to inspect the query
+        conditions before execution.
+      </p>
+
+      <h3>Example:</h3>
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">query</span>
+          <span class="op">=</span> <span class="prop">User</span>.<span
+            class="fn"
+            >find</span
+          >({ <span class="prop">age</span>: { <span class="op">$gte</span>:
+          <span class="num">18</span> } });<br />
+          <span class="fn">console</span>.<span class="fn">log</span>(<span
+            class="prop"
+            >query</span
+          >.<span class="fn">getQuery</span>());
+          <span class="cmt">// { age: { $gte: 18 } }</span>
+        </code>
+      </div>
+      <p>This is useful for **debugging** queries before execution.</p>
+
+      <hr />
+
+      <h2>
+        Using <span class="inline-code">.where()</span> for SQL-Style Querying
+      </h2>
+      <p>
+        The <span class="inline-code">.where()</span> method allows constructing
+        queries in a more **expressive way**.
+      </p>
+
+      <h3>Example:</h3>
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">users</span>
+          <span class="op">=</span> <span class="kw">await</span>
+          <span class="prop">User</span>.<span class="fn">where</span>(<span
+            class="str"
+            >"age"</span
+          >)<br />
+          &nbsp;&nbsp;.<span class="fn">gte</span>(<span class="num">18</span
+          >)<br />
+          &nbsp;&nbsp;.<span class="fn">lte</span>(<span class="num">30</span
+          >)<br />
+          &nbsp;&nbsp;.<span class="fn">where</span>(<span class="str"
+            >"name"</span
+          >)<br />
+          &nbsp;&nbsp;.<span class="fn">equals</span>(<span class="str"
+            >"John"</span
+          >)<br />
+          &nbsp;&nbsp;.<span class="fn">select</span>(<span class="str"
+            >"name age"</span
+          >);
+        </code>
+      </div>
+
+      <h3>Explanation:</h3>
+      <ul>
+        <li>
+          <span class="inline-code">.where("age").gte(18).lte(30)</span> - Finds
+          users whose age is between 18 and 30.
+        </li>
+        <li>
+          <span class="inline-code">.where("name").equals("John")</span> -
+          Filters users whose name is "John".
+        </li>
+        <li>
+          <span class="inline-code">.select("name age")</span> - Retrieves only
+          the **name** and **age** fields.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Negative Selections (Excluding Fields)</h2>
+      <p>
+        Mongoose allows **negative selections** to exclude fields from the
+        result by prefixing the field with <span class="inline-code">-</span>.
+      </p>
+
+      <h3>Example:</h3>
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">users</span>
+          <span class="op">=</span> <span class="kw">await</span>
+          <span class="prop">User</span>.<span class="fn">find</span>().<span
+            class="fn"
+            >select</span
+          >(<span class="str">"-password -email"</span>);
+        </code>
+      </div>
+
+      <h3>Explanation:</h3>
+      <ul>
+        <li>
+          <span class="inline-code">-password</span> excludes the **password**
+          field.
+        </li>
+        <li>
+          <span class="inline-code">-email</span> excludes the **email** field.
+        </li>
+      </ul>
+
+      <p>Another example:</p>
+      <div class="code-section">
+        <code>
+          <span class="kw">const</span> <span class="prop">users</span>
+          <span class="op">=</span> <span class="kw">await</span>
+          <span class="prop">User</span>.<span class="fn">find</span>({}, {
+          <span class="prop">password</span>: <span class="num">0</span>,
+          <span class="prop">email</span>: <span class="num">0</span> });
+        </code>
+      </div>
+      <p>This achieves the same result using an **object notation**.</p>
+    </div>
+  </body>
+</html>

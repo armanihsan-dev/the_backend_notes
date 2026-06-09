@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multer & File Uploads | Complete Guide</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg-primary: #09090b; /* Zinc 950 */
+        --bg-secondary: #18181b; /* Zinc 900 */
+        --bg-tertiary: #27272a; /* Zinc 800 */
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #818cf8; /* Indigo 400 */
+        --accent-dim: rgba(129, 140, 248, 0.1);
+        --warning: #fbbf24;
+        --warning-dim: rgba(251, 191, 36, 0.1);
+        --border: #27272a;
+        --code-bg: #1e1e20;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* Sidebar Navigation */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* Main Content */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-box.warning {
+        border-left-color: var(--warning);
+        background: var(--warning-dim);
+      }
+
+      .note-box.warning .note-title {
+        color: var(--warning);
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Mobile Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-solid fa-file-arrow-up"></i> MULTER DOCS
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Core Concepts</div>
+        <a href="#intro" class="nav-link">What is Multer?</a>
+        <a href="#multipart-theory" class="nav-link">Multipart vs JSON</a>
+        <a href="#raw-http" class="nav-link">Raw HTTP View</a>
+        <a href="#express-limit" class="nav-link">Why Express Fails</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Implementation</div>
+        <a href="#multer-methods" class="nav-link">Multer Methods</a>
+        <a href="#storage-engines" class="nav-link">Storage Engines</a>
+        <a href="#configuration" class="nav-link">Configuration & Storage</a>
+        <a href="#callbacks" class="nav-link">Understanding Callbacks</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Full Stack</div>
+        <a href="#frontend-react" class="nav-link">Frontend (React)</a>
+        <a href="#backend-express" class="nav-link">Backend Routes</a>
+        <a href="#req-object" class="nav-link">The Request Object</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="intro">
+        <span class="badge">Node.js Middleware</span>
+        <h1>Multer & File Uploads</h1>
+        <p>
+          Multer is a <strong>Node.js middleware</strong> primarily used for
+          handling <strong>multipart/form-data</strong>, which is the encoding
+          type used for uploading files via an HTML form. It is built on top of
+          the busboy library and simplifies the complex process of handling file
+          uploads in web applications, especially when used with the Express.js
+          framework. Without a package like Multer, a developer would have to
+          write significant boilerplate code to parse the incoming file data.
+        </p>
+      </section>
+
+      <!-- SECTION 1: THE PROBLEM -->
+      <section id="multipart-theory">
+        <h2>1. Why multipart/form-data exists</h2>
+        <p>
+          JSON is perfect for text. But files are
+          <strong>binary streams</strong>. Sending a massive video file inside a
+          JSON object is inefficient and complex.
+        </p>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-layer-group"></i> The Protocol</span
+          >
+          The browser says: "I will split the request into
+          <strong>parts</strong>. I'll separate them with a boundary, and send
+          each part separately."
+        </div>
+      </section>
+
+      <section id="raw-http">
+        <h3>What really goes over the wire?</h3>
+        <p>When you submit a form with a file, the raw HTTP looks like this:</p>
+
+        <pre><code class="language-http">POST /upload HTTP/1.1
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryX
+
+------WebKitFormBoundaryX
+Content-Disposition: form-data; name="name"
+
+Arman
+------WebKitFormBoundaryX
+Content-Disposition: form-data; name="avatar"; filename="me.png"
+Content-Type: image/png
+
+(raw binary bytes of the image appear here...)
+------WebKitFormBoundaryX--</code></pre>
+
+        <ul>
+          <li><strong>Boundary:</strong> A unique string separating parts.</li>
+          <li>
+            <strong>Parts:</strong> Each field (text or file) gets its own
+            section with headers.
+          </li>
+          <li>
+            <strong>Payload:</strong> Files are sent as raw bytes, not Base64.
+          </li>
+        </ul>
+      </section>
+
+      <section id="express-limit">
+        <h3>Why app.use(express.json()) fails</h3>
+        <p>
+          Standard Express middleware expects JSON string formats. When it
+          encounters a binary multipart stream, it:
+        </p>
+        <ol>
+          <li>Reads the body once.</li>
+          <li>Fails to parse binary data.</li>
+          <li>Returns an empty object.</li>
+        </ol>
+        <p>
+          <strong>Result:</strong> <code>req.body</code> is empty. This is why
+          we need Multer.
+        </p>
+      </section>
+
+      <!-- SECTION 2: MULTER IMPLEMENTATION -->
+      <section id="multer-methods">
+        <h2>2. Multer Methods</h2>
+        <p>
+          Multer reads the stream, detects boundaries, saves files to
+          disk/memory, and populates <code>req.body</code> for you.
+        </p>
+
+        <ul>
+          <li>
+            <code> For files</code>: streams bytes to disk or memory.
+            <code>For text</code>: fields: puts them in req.body
+          </li>
+
+          <li>
+            <code>upload.single('field')</code>: One file. Available in
+            <code>req.file</code>.
+          </li>
+          <li>
+            <code>upload.array('field', max)</code>: Multiple files, same field
+            name. In <code>req.files</code>.
+          </li>
+          <li>
+            <code>upload.fields([...])</code>: Multiple files, different field
+            names (e.g., avatar + gallery).
+          </li>
+          <li><code>upload.none()</code>: Text only (no files).</li>
+        </ul>
+
+        <div class="note-box warning">
+          <span class="note-title"
+            ><i class="fa-solid fa-triangle-exclamation"></i> Warning</span
+          >
+          Avoid <code>upload.any()</code>. It accepts all files and can be a
+          security risk if malicious users upload files to unexpected fields.
+        </div>
+      </section>
+
+      <section id="storage-engines">
+        <h2>4. Storage Engines Comparison</h2>
+        <p>
+          It is crucial to distinguish between the two primary ways Multer
+          handles data: saving it to the hard drive (<strong
+            >Disk Storage</strong
+          >) versus keeping it in the server's RAM (<strong
+            >Memory Storage</strong
+          >).
+        </p>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-hard-drive"></i> Disk Storage
+            (multer.diskStorage)</span
+          >
+          <p>
+            This engine gives you full control over storing files to the disk.
+            It is the most common method for handling large files or persistent
+            storage.
+          </p>
+          <ul>
+            <li>
+              <strong>Behavior:</strong> Files are streamed directly to the
+              destination folder you specify.
+            </li>
+            <li>
+              <strong>Modification to <code>req.file</code>:</strong>
+              <ul>
+                <li>
+                  Adds a <code>path</code> property (the full path to the
+                  uploaded file).
+                </li>
+                <li>
+                  Adds a <code>destination</code> property (the folder where the
+                  file is saved).
+                </li>
+                <li>
+                  Adds a <code>filename</code> property (the name of the file
+                  inside the destination).
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Pros:</strong> Low memory usage (files aren't held in
+              RAM); good for large files.
+            </li>
+            <li>
+              <strong>Cons:</strong> Slower I/O (disk writing); you must manage
+              file cleanup/deletion manually.
+            </li>
+          </ul>
+
+          <pre><code class="language-javascript">const storage = multer.diskStorage({
+  destination: (req, file, cb) => { 
+    cb(null, '/tmp/my-uploads'); 
+  },
+  filename: (req, file, cb) => { 
+    cb(null, file.fieldname + '-' + Date.now()); 
+  }
+});</code></pre>
+        </div>
+
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-memory"></i> Memory Storage
+            (multer.memoryStorage)</span
+          >
+          <p>
+            The memory storage engine stores the files in memory as
+            <strong>Buffer</strong> objects.
+          </p>
+          <ul>
+            <li>
+              <strong>Behavior:</strong> The file is never written to the hard
+              drive by Multer. It stays in the server's RAM.
+            </li>
+            <li>
+              <strong>Modification to <code>req.file</code>:</strong>
+              <ul>
+                <li>
+                  Adds a <code>buffer</code> property containing the entire raw
+                  binary data of the file.
+                </li>
+                <li>
+                  <strong>Does NOT</strong> include <code>path</code>,
+                  <code>destination</code>, or <code>filename</code> (since the
+                  file doesn't exist on disk).
+                </li>
+              </ul>
+            </li>
+            <li>
+              <strong>Pros:</strong> Extremely fast access; perfect for
+              immediate processing (e.g., resizing an image with Sharp or
+              uploading to Cloudinary/AWS S3 without saving locally first).
+            </li>
+            <li>
+              <strong>Cons:</strong>
+              <strong>Dangerous for large files.</strong> If multiple users
+              upload large files simultaneously, your server will run out of RAM
+              and crash (Heap out of memory).
+            </li>
+          </ul>
+
+          <pre><code class="language-javascript">const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });</code></pre>
+        </div>
+      </section>
+
+      <section id="req-comparison">
+        <h2>5. Summary of req.file Properties</h2>
+        <p>
+          Depending on the engine you choose, the <code>req.file</code> object
+          will look different. Use this table for your notes:
+        </p>
+
+        <style>
+          .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+          }
+          .comparison-table th,
+          .comparison-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+          }
+          .comparison-table th {
+            background-color: var(--bg-tertiary);
+            color: var(--accent);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+          }
+          .comparison-table td {
+            color: var(--text-secondary);
+          }
+          .check-icon {
+            color: #10b981;
+          }
+          .cross-icon {
+            color: #ef4444;
+          }
+        </style>
+
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Description</th>
+              <th>Disk Storage</th>
+              <th>Memory Storage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>fieldname</code></td>
+              <td>Field name specified in form</td>
+              <td class="check-icon">✔</td>
+              <td class="check-icon">✔</td>
+            </tr>
+            <tr>
+              <td><code>originalname</code></td>
+              <td>Name of the file on user's computer</td>
+              <td class="check-icon">✔</td>
+              <td class="check-icon">✔</td>
+            </tr>
+            <tr>
+              <td><code>mimetype</code></td>
+              <td>Mime type of the file</td>
+              <td class="check-icon">✔</td>
+              <td class="check-icon">✔</td>
+            </tr>
+            <tr>
+              <td><code>size</code></td>
+              <td>Size of the file in bytes</td>
+              <td class="check-icon">✔</td>
+              <td class="check-icon">✔</td>
+            </tr>
+            <tr>
+              <td><code>buffer</code></td>
+              <td>A Buffer of the entire file</td>
+              <td class="cross-icon">✘</td>
+              <td class="check-icon">✔</td>
+            </tr>
+            <tr>
+              <td><code>destination</code></td>
+              <td>Folder where file is saved</td>
+              <td class="check-icon">✔</td>
+              <td class="cross-icon">✘</td>
+            </tr>
+            <tr>
+              <td><code>filename</code></td>
+              <td>Name of file in destination</td>
+              <td class="check-icon">✔</td>
+              <td class="cross-icon">✘</td>
+            </tr>
+            <tr>
+              <td><code>path</code></td>
+              <td>Full path to uploaded file</td>
+              <td class="check-icon">✔</td>
+              <td class="cross-icon">✘</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Implementation Tip: When to use which?</h3>
+        <ul>
+          <li>
+            <strong>Use diskStorage</strong> if you are building a simple app
+            where you want to serve the files directly from your own server's
+            uploads folder.
+          </li>
+          <li>
+            <strong>Use memoryStorage</strong> if you are using a 3rd party
+            service (Cloudinary, S3, Firebase). You take the
+            <code>req.file.buffer</code>, send it to the cloud, and the file
+            never touches your server's hard drive.
+          </li>
+        </ul>
+      </section>
+      <section id="configuration">
+        <h3>Configuration & Storage Engine</h3>
+        <p>
+          Using <code>diskStorage</code> gives you full control over filenames
+          and destinations.
+        </p>
+
+        <pre><code class="language-javascript">import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// Fix for __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// 1. Define Storage
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadPath = path.join(__dirname, '../storage/uploads');
+        // Ensure folder exists
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath, { recursive: true });
+        }
+        cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = path.extname(file.originalname);
+        cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
+    },
+});
+
+// 2. Export Upload Middleware
+export const upload = multer({
+    storage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});</code></pre>
+      </section>
+
+      <section id="callbacks">
+        <h3>Understanding Callbacks (cb)</h3>
+        <div class="note-box">
+          <span class="note-title"
+            ><i class="fa-solid fa-bell-concierge"></i> The "Chef" Analogy</span
+          >
+          <p>
+            Node.js is non-blocking. Instead of stopping the program to wait for
+            a file task, it continues working.
+          </p>
+          <p><strong>The Callback (cb) is like a restaurant buzzer:</strong></p>
+          <ol>
+            <li>You order food (Function starts).</li>
+            <li>Waiter gives you a buzzer (The callback).</li>
+            <li>You sit down (Non-blocking).</li>
+            <li>Food is ready -> Buzzer goes off (Callback executes).</li>
+          </ol>
+          <br />
+          <strong>In Multer:</strong>
+          <code>cb(null, './uploads')</code> means:
+          <ul>
+            <li>
+              First arg <code>null</code>: "No error, everything is fine."
+            </li>
+            <li>Second arg: "Here is the result (the folder path)."</li>
+          </ul>
+          <code>Example:</code>
+          <pre>
+            <code class="language-javascript">
+function downloadFile(fileName, cb) {
+    // Simulate a file download with a timeout
+    console.log(`downloading file ${fileName}`);
+
+    setTimeout(() => {
+        console.log("Download complete!");
+        // 2. We trigger the callback function
+        // We pass 'null' for the error, and the "data" as the second argument
+        cb(null, `Contents of ${fileName}`);
+    }, 3000);
+}
+
+downloadFile('fancy.jgp', (err, data) => {
+    if (err) {
+        console.error("Error downloading file:", err);
+    }
+    else {
+        console.log("File data:", data);
+    }
+})
+
+            </code>
+          </pre>
+        </div>
+      </section>
+
+      <!-- SECTION 3: FULL STACK -->
+      <section id="frontend-react">
+        <h2>3. Full Stack Implementation</h2>
+
+        <h3>Frontend: React + FormData</h3>
+        <p>
+          We cannot send a simple JSON object. We must use
+          <code>FormData()</code> to handle binary content.
+        </p>
+
+        <pre><code class="language-javascript">const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // 1. Create FormData object
+    const multipartData = new FormData();
+    multipartData.append('name', formData.name);
+    multipartData.append('mobile', formData.mobile);
+    
+    // IMPORTANT: 'document' must match backend field name
+    multipartData.append('document', file); 
+
+    try {
+      const res = await fetch('http://localhost:3000/account/multipart', {
+        method: 'POST',
+        // Note: Do NOT set Content-Type header manually. 
+        // The browser sets it with the correct boundary automatically.
+        body: multipartData,
+      });
+      
+      const data = await res.json();
+      console.log(data);
+    } catch (err) {
+      console.error(err);
+    }
+};</code></pre>
+      </section>
+
+      <section id="backend-express">
+        <h3>Backend: Express Routes</h3>
+
+        <h4>server.js</h4>
+        <pre><code class="language-javascript">import express from 'express';
+import cors from 'cors';
+import accountRoutes from './Routes/accountRoutes.js';
+
+const app = express();
+
+app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(express.json()); // Still needed for other JSON routes
+app.use('/account', accountRoutes);
+
+app.listen(3000, () => console.log('Server running on port 3000'));</code></pre>
+
+        <h4>accountRoutes.js</h4>
+        <pre><code class="language-javascript">import express from 'express';
+import { upload } from '../config/multerConfig.js';
+
+const router = express.Router();
+
+// 'document' matches the formData.append name from React
+router.post('/multipart', upload.single('document'), (req, res) => {
+    try {
+        // Text fields are in req.body
+        const { name, mobile } = req.body;
+        
+        // File details are in req.file
+        console.log('File uploaded:', req.file);
+        
+        res.status(200).json({ 
+            message: "Upload successful", 
+            filePath: req.file.path 
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+export default router;</code></pre>
+      </section>
+
+      <section id="req-object">
+        <h3>The Result: The Request Object</h3>
+        <p>
+          After Multer processes the request, the <code>req</code> object is
+          transformed:
+        </p>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
+          <div>
+            <h4>req.body</h4>
+            <p>Contains text fields.</p>
+            <pre><code class="language-javascript">{
+  name: "Arman",
+  mobile: "03XXXXXXXXX"
+}</code></pre>
+          </div>
+          <div>
+            <h4>req.file</h4>
+            <p>Contains file metadata.</p>
+            <pre><code class="language-javascript">{
+  fieldname: 'document',
+  originalname: 'resume.pdf',
+  mimetype: 'application/pdf',
+  destination: './uploads',
+  filename: 'document-16789.pdf',
+  path: 'uploads/document-16789.pdf',
+  size: 524288
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <footer
+        style="
+          margin-top: 4rem;
+          border-top: 1px solid var(--border);
+          padding-top: 2rem;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        "
+      >
+        <p>Node.js & Express Documentation</p>
+        <p>Generated for <strong>Multer Integration Guide</strong></p>
+        <p>Build with 💝 By Arman Ihsan khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a"
+            style="margin-right: 15px"
+          >
+            <i
+              class="fa-brands fa-linkedin"
+              style="font-size: 30px; color: #6366f1"
+            ></i>
+          </a>
+          <a href="https://github.com/armanihsan-dev">
+            <i
+              class="fa-brands fa-github"
+              style="font-size: 30px; color: #ebeef0"
+            ></i>
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Script -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-http.min.js"></script>
+  </body>
+</html>

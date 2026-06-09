@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS IAM Policies: Detailed Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Consolas:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <p>
+      <span style="font-size: 1.5em; color: var(--color-primary)">🛡️</span>
+    </p>
+    <h1>What Are IAM Policies?</h1>
+    <p>
+      <strong>IAM Policies</strong> are documents that formally define
+      permissions and specify which actions are allowed or denied on which AWS
+      resources, under what conditions, and for which principals (users, groups,
+      or roles).
+    </p>
+    <p>
+      They are the primary means of granting permissions in AWS. When a
+      principal attempts to access an AWS resource (e.g., trying to stop an EC2
+      instance or read from an S3 bucket), AWS evaluates the relevant policies
+      to decide whether the action is permitted or denied.
+    </p>
+
+    <h1>Why Do We Need Policies in S3?</h1>
+
+    <p>Because S3 has no idea who should access your data by default.</p>
+
+    <p><strong>By default:</strong></p>
+    <ul>
+      <li>❌ No one can read</li>
+      <li>❌ No one can upload</li>
+      <li>❌ No one can delete</li>
+    </ul>
+
+    <p>
+      <strong>Policy</strong> is the only way to tell AWS:
+      <em>who is allowed to do what</em>.
+    </p>
+
+    <hr />
+
+    <h2>The Core Problem Policies Solve</h2>
+
+    <p>Imagine S3 without policies:</p>
+    <ul>
+      <li>Any app could read your files</li>
+      <li>Any user could delete buckets</li>
+      <li>AWS services couldn’t talk to each other</li>
+      <li>No security boundary</li>
+    </ul>
+
+    <p>💥 <strong>Total chaos</strong></p>
+
+    <p>
+      Policies create <strong>rules</strong> and <strong>boundaries</strong>.
+    </p>
+
+    <hr />
+
+    <h2>What a Policy Actually Controls</h2>
+
+    <p>A policy answers 4 questions:</p>
+
+    <ul>
+      <li><strong>WHO</strong> → Principal</li>
+      <li><strong>WHAT</strong> → Action</li>
+      <li><strong>WHERE</strong> → Resource</li>
+      <li><strong>WHEN</strong> → Condition</li>
+    </ul>
+
+    <p>Every S3 access request is checked against these rules.</p>
+
+    <hr />
+
+    <h2>Real-World Reasons We Use Policies in S3</h2>
+
+    <p>Let’s go practical.</p>
+
+    <h3>1️⃣ Protect Your Data (Most Important)</h3>
+
+    <p>S3 often stores:</p>
+    <ul>
+      <li>User photos</li>
+      <li>Documents</li>
+      <li>Videos</li>
+      <li>Backups</li>
+    </ul>
+
+    <p><strong>Without policy:</strong></p>
+    <p>❌ Anyone with credentials could access everything.</p>
+
+    <p><strong>With policy:</strong></p>
+
+    <pre>
+"Action": "s3:GetObject",
+"Resource": "arn:aws:s3:::private-bucket/*"
+  </pre
+    >
+
+    <p>Only allowed identities can read files.</p>
+
+    <hr />
+
+    <h3>2️⃣ Give Your Node.js App Limited Access</h3>
+
+    <p>Your backend <strong>should NOT</strong> have full S3 access.</p>
+
+    <p><strong>❌ Bad:</strong></p>
+    <pre>
+"s3:*"
+  </pre
+    >
+
+    <p><strong>✅ Good:</strong></p>
+    <pre> 
+"s3:PutObject",
+"s3:GetObject"
+  </pre
+    >
+
+    <p><strong>👉 Policy ensures:</strong></p>
+    <ul>
+      <li>Backend can upload</li>
+      <li>Backend cannot delete entire bucket</li>
+    </ul>
+
+    <p><span style="font-size: 1.5em; color: var(--color-accent)">📝</span></p>
+    <h1>IAM Policy JSON Structure</h1>
+    <p>
+      IAM policies are written in
+      <strong>JavaScript Object Notation (JSON)</strong>. The basic structure
+      consists of a top-level element for the version and a list of one or more
+      "statements."
+    </p>
+
+    <pre class="json-block"><code><span class="json-bracket">{</span>
+  <span class="json-key">"Version"</span><span class="json-comma">:</span> <span class="json-val-str">"2012-10-17"</span><span class="json-comma">,</span>
+  <span class="json-key">"Statement"</span><span class="json-comma">:</span> <span class="json-bracket">[</span>
+    <span class="json-bracket">{</span>
+      <span class="json-key">"Sid"</span><span class="json-comma">:</span> <span class="json-val-str">"AllowListAndReadS3"</span><span class="json-comma">,</span>
+      <span class="json-key">"Effect"</span><span class="json-comma">:</span> <span class="json-val-str">"Allow"</span><span class="json-comma">,</span>
+      <span class="json-key">"Action"</span><span class="json-comma">:</span> <span class="json-bracket">[</span>
+        <span class="json-val-str">"s3:ListAllMyBuckets"</span><span class="json-comma">,</span>
+        <span class="json-val-str">"s3:GetObject"</span>
+      <span class="json-bracket">]</span><span class="json-comma">,</span>
+      <span class="json-key">"Resource"</span><span class="json-comma">:</span> <span class="json-bracket">[</span>
+        <span class="json-val-str">"arn:aws:s3:::my-example-bucket"</span><span class="json-comma">,</span>
+        <span class="json-val-str">"arn:aws:s3:::my-example-bucket/*"</span>
+      <span class="json-bracket">]</span>
+    <span class="json-bracket">}</span><span class="json-comma">,</span>
+    <span class="json-bracket">{</span>
+      <span class="json-key">"Sid"</span><span class="json-comma">:</span> <span class="json-val-str">"DenyDeleteBucket"</span><span class="json-comma">,</span>
+      <span class="json-key">"Effect"</span><span class="json-comma">:</span> <span class="json-val-str">"Deny"</span><span class="json-comma">,</span>
+      <span class="json-key">"Action"</span><span class="json-comma">:</span> <span class="json-val-str">"s3:DeleteBucket"</span><span class="json-comma">,</span>
+      <span class="json-key">"Resource"</span><span class="json-comma">:</span> <span class="json-val-str">"arn:aws:s3:::*"</span>
+    <span class="json-bracket">}</span>
+  <span class="json-bracket">]</span>
+<span class="json-bracket">}</span></code></pre>
+
+    <p><span style="font-size: 1.5em; color: var(--color-primary)">🧐</span></p>
+    <h1>Explanation of Each Field</h1>
+
+    <h2>Top-Level Fields</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Required?</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong><code>Version</code></strong>
+          </td>
+          <td>Yes</td>
+          <td>
+            Specifies the version of the policy language. The current version is
+            <code>2012-10-17</code>. Using the latest version is highly
+            recommended.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Statement</code></strong>
+          </td>
+          <td>Yes</td>
+          <td>
+            Contains the main array of policy statements. Each statement defines
+            a specific set of permissions.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Id</code></strong>
+          </td>
+          <td>No</td>
+          <td>
+            An optional identifier for the policy itself (not the statement).
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Statement Fields (Inside the <code>Statement</code> Array)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Required?</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong><code>Sid</code></strong>
+          </td>
+          <td>No</td>
+          <td>
+            <strong>Statement ID</strong>. A friendly, optional name for the
+            statement. AWS recommends including an <code>Sid</code> for clarity
+            and easier reference.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Effect</code></strong>
+          </td>
+          <td>Yes</td>
+          <td>
+            Specifies whether the statement results in an <code>Allow</code> or
+            an explicit <code>Deny</code> of access.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Principal</code></strong>
+          </td>
+          <td>Conditional</td>
+          <td>
+            Required in <strong>Resource Policies</strong> (like S3 Bucket
+            Policies) to specify <strong>who</strong> is allowed or denied
+            access. <strong>Not</strong> used in identity-based policies.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Action</code></strong>
+          </td>
+          <td>Yes</td>
+          <td>
+            Specifies the specific AWS API actions that will be allowed or
+            denied. For example: <code>ec2:RunInstances</code>,
+            <code>s3:GetObject</code>, <code>s3:*</code> (all S3 actions).
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Resource</code></strong>
+          </td>
+          <td>Yes</td>
+          <td>
+            Specifies the AWS resources that the <code>Action</code> applies to.
+            Resources are specified using their Amazon Resource Name (ARN). A
+            wildcard (<code>*</code>) can be used to denote all resources.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>Condition</code></strong>
+          </td>
+          <td>No</td>
+          <td>
+            Specifies any conditions that must be met for the policy statement
+            to take effect. For example, access only from a specific IP address,
+            or only during a certain time of day.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>NotAction</code></strong>
+          </td>
+          <td>No</td>
+          <td>
+            An advanced element that specifies a list of actions
+            <strong>except</strong> the ones listed.
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <strong><code>NotResource</code></strong>
+          </td>
+          <td>No</td>
+          <td>
+            An advanced element that specifies a list of resources
+            <strong>except</strong> the ones listed.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><span style="font-size: 1.5em; color: #4ec9b0">📄</span></p>
+    <h1>Types of IAM Policies</h1>
+    <p>
+      IAM policies are generally categorized based on how they are attached and
+      what they do.
+    </p>
+
+    <h3>1. Identity-Based Policies</h3>
+    <ul>
+      <li>
+        <strong>Attachment:</strong> Attached directly to an IAM
+        <strong>User</strong>, <strong>Group</strong>, or <strong>Role</strong>.
+      </li>
+      <li>
+        <strong>Purpose:</strong> Control what actions the
+        <strong>identity</strong> can perform and what resources they can
+        access.
+      </li>
+      <ul>
+        <li>
+          <strong>Managed Policies:</strong> Created and managed by AWS (e.g.,
+          <code>AdministratorAccess</code>) or by you (Customer Managed
+          Policies).
+        </li>
+        <li>
+          <strong>Inline Policies:</strong> Embedded directly within a specific
+          user, group, or role.
+        </li>
+      </ul>
+    </ul>
+
+    <h3>2. Resource-Based Policies</h3>
+    <ul>
+      <li>
+        <strong>Attachment:</strong> Attached directly to an AWS
+        <strong>resource</strong> (e.g., an S3 bucket, SQS queue, or KMS key).
+      </li>
+      <li>
+        <strong>Purpose:</strong> Control which
+        <strong>principals</strong> (from the same or other AWS accounts) can
+        access the resource and what actions they can perform.
+      </li>
+      <li>
+        <strong>Key Field:</strong> Must contain the
+        <strong><code>Principal</code></strong> element to specify the
+        identities being granted permissions.
+        <strong>S3 Bucket Policies</strong> are the most common example.
+      </li>
+    </ul>
+
+    <h3>3. Permissions Boundaries</h3>
+    <ul>
+      <li>
+        <strong>Attachment:</strong> Attached to an IAM <strong>User</strong> or
+        <strong>Role</strong>.
+      </li>
+      <li>
+        <strong>Purpose:</strong> A
+        <strong>maximum set of permissions</strong> that an identity-based
+        policy can grant. It does not grant permissions on its own; it only
+        limits the effective permissions of the identity.
+      </li>
+    </ul>
+
+    <h3>4. Service Control Policies (SCPs)</h3>
+    <ul>
+      <li>
+        <strong>Attachment:</strong> Attached to an
+        <strong>Organizational Unit (OU)</strong> or the root of an
+        <strong>AWS Organization</strong>.
+      </li>
+      <li>
+        <strong>Purpose:</strong> Define the
+        <strong>maximum available permissions</strong> for all IAM principals in
+        the affected accounts. They act as <strong>"guardrails"</strong> and
+        cannot grant permissions, only filter them (much like a Permissions
+        Boundary, but for an entire account/OU).
+      </li>
+    </ul>
+
+    <p>
+      <span style="font-size: 1.5em; color: var(--color-secondary)">🔑</span>
+    </p>
+    <h1>Key Differences: IAM Policy vs. S3 Bucket Policy</h1>
+    <p>
+      The primary difference lies in their <strong>attachment point</strong>,
+      the <strong>principal</strong> they govern, and their
+      <strong>evaluation logic</strong>.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Identity-Based Policy (IAM Policy)</th>
+          <th>Resource-Based Policy (S3 Bucket Policy)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Attachment</strong></td>
+          <td>An IAM User, Group, or Role.</td>
+          <td>
+            An AWS <strong>Resource</strong> (specifically, an S3 Bucket).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Governs</strong></td>
+          <td>What the identity can do (outbound permissions).</td>
+          <td>Who can access the resource (inbound permissions).</td>
+        </tr>
+        <tr>
+          <td><strong>Key Element</strong></td>
+          <td>Focuses on <code>Action</code> and <code>Resource</code>.</td>
+          <td>
+            <strong>Must</strong> include a <code>Principal</code> element.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Cross-Account</strong></td>
+          <td>
+            Difficult to use for cross-account access (requires assuming a
+            role).
+          </td>
+          <td>
+            Easily allows cross-account access by specifying an external
+            <code>Principal</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Default</strong></td>
+          <td>
+            <strong>Implicit Deny</strong> is the default. Access is only
+            granted if an <code>Allow</code> is found.
+          </td>
+          <td>
+            <strong>Implicit Deny</strong> is the default. Access is only
+            granted if an <code>Allow</code> is found.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Conflict</strong></td>
+          <td colspan="2">
+            If a statement applies to a request:
+            <strong
+              ><code>Deny</code> always overrides <code>Allow</code></strong
+            >.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Effective Permissions Logic</h2>
+    <p>
+      For a principal to access an S3 bucket, they must be
+      <strong>allowed</strong> by <strong>both</strong> their IAM Policy (if one
+      applies) <strong>AND</strong> the S3 Bucket Policy (if one exists).
+    </p>
+
+    <ul>
+      <li>
+        <strong>Case 1: Both Policies Exist</strong>
+        <ul>
+          <li>
+            The request must be explicitly <strong><code>Allow</code></strong
+            >ed by <strong>at least one</strong> IAM Policy
+            <strong>AND at least one</strong> S3 Bucket Policy.
+          </li>
+          <li>
+            An explicit <strong><code>Deny</code></strong> in *either* policy
+            takes precedence and denies access.
+          </li>
+        </ul>
+      </li>
+      <li>
+        <strong>Case 2: Only IAM Policy Exists</strong>
+        <ul>
+          <li>The request is evaluated solely against the IAM Policy.</li>
+        </ul>
+      </li>
+      <li>
+        <strong>Case 3: Only S3 Bucket Policy Exists</strong>
+        <ul>
+          <li>The request is evaluated solely against the S3 Bucket Policy.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <hr style="border-color: #333" />
+
+    <h1>AWS CLI Example: Attaching an IAM Policy</h1>
+    <p>
+      This command creates a Customer Managed Policy and then attaches it to an
+      IAM role.
+    </p>
+
+    <h3>1. Create the Policy JSON file (<code>my-read-policy.json</code>)</h3>
+    <pre class="json-block"><code><span class="json-bracket">{</span>
+  <span class="json-key">"Version"</span><span class="json-comma">:</span> <span class="json-val-str">"2012-10-17"</span><span class="json-comma">,</span>
+  <span class="json-key">"Statement"</span><span class="json-comma">:</span> <span class="json-bracket">[</span>
+    <span class="json-bracket">{</span>
+      <span class="json-key">"Sid"</span><span class="json-comma">:</span> <span class="json-val-str">"AllowS3Read"</span><span class="json-comma">,</span>
+      <span class="json-key">"Effect"</span><span class="json-comma">:</span> <span class="json-val-str">"Allow"</span><span class="json-comma">,</span>
+      <span class="json-key">"Action"</span><span class="json-comma">:</span> <span class="json-val-str">"s3:GetObject"</span><span class="json-comma">,</span>
+      <span class="json-key">"Resource"</span><span class="json-comma">:</span> <span class="json-val-str">"arn:aws:s3:::my-data-bucket/*"</span>
+    <span class="json-bracket">}</span>
+  <span class="json-bracket">]</span>
+<span class="json-bracket">}</span></code></pre>
+
+    <h3>2. Create the Policy using AWS CLI</h3>
+    <pre
+      class="json-block code-bash"
+    ><code><span class="cmd">aws iam create-policy \</span>
+    <span class="arg">--policy-name</span> MyS3ReadOnlyPolicy \
+    <span class="arg">--policy-document</span> <span class="mono">file://my-read-policy.json</span></code></pre>
+
+    <h3>3. Attach the Policy to a Role</h3>
+    <pre
+      class="json-block code-bash"
+    ><code><span class="cmd">aws iam attach-role-policy \</span>
+    <span class="arg">--role-name</span> MyAppRole \
+    <span class="arg">--policy-arn</span> <span class="mono">arn:aws:iam::123456789012:policy/MyS3ReadOnlyPolicy</span></code></pre>
+
+    <hr style="border-color: #333" />
+
+    <h1>AWS CLI Example: Applying an S3 Bucket Policy</h1>
+    <p>
+      This command applies a policy to an existing S3 bucket, allowing a
+      specific external IAM user (<code>ExternalUser</code>) to read objects
+      from it.
+    </p>
+
+    <h3>
+      1. Create the Bucket Policy JSON file
+      (<code>external-read-bucket-policy.json</code>)
+    </h3>
+    <pre class="json-block"><code><span class="json-bracket">{</span>
+  <span class="json-key">"Version"</span><span class="json-comma">:</span> <span class="json-val-str">"2012-10-17"</span><span class="json-comma">,</span>
+  <span class="json-key">"Statement"</span><span class="json-comma">:</span> <span class="json-bracket">[</span>
+    <span class="json-bracket">{</span>
+      <span class="json-key">"Sid"</span><span class="json-comma">:</span> <span class="json-val-str">"AllowExternalUserRead"</span><span class="json-comma">,</span>
+      <span class="json-key">"Effect"</span><span class="json-comma">:</span> <span class="json-val-str">"Allow"</span><span class="json-comma">,</span>
+      <span class="json-key">"Principal"</span><span class="json-comma">:</span> <span class="json-bracket">{</span>
+        <span class="json-key">"AWS"</span><span class="json-comma">:</span> <span class="json-val-str">"arn:aws:iam::987654321098:user/ExternalUser"</span> 
+        <span class="cmt">// 987654321098 is the external AWS account ID</span>
+      <span class="json-bracket">}</span><span class="json-comma">,</span>
+      <span class="json-key">"Action"</span><span class="json-comma">:</span> <span class="json-val-str">"s3:GetObject"</span><span class="json-comma">,</span>
+      <span class="json-key">"Resource"</span><span class="json-comma">:</span> <span class="json-val-str">"arn:aws:s3:::my-cross-account-bucket/*"</span>
+    <span class="json-bracket">}</span>
+  <span class="json-bracket">]</span>
+<span class="json-bracket">}</span></code></pre>
+
+    <h3>2. Apply the Policy to the S3 Bucket using AWS CLI</h3>
+    <pre
+      class="json-block code-bash"
+    ><code><span class="cmd">aws s3api put-bucket-policy \</span>
+    <span class="arg">--bucket</span> my-cross-account-bucket \
+    <span class="arg">--policy</span> <span class="mono">file://external-read-bucket-policy.json</span></code></pre>
+  </body>
+</html>

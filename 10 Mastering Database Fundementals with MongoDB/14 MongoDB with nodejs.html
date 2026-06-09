@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB & Node.js Connection Guide</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General VS Code Blackish Theme */
+      :root {
+        --color-bg-primary: #1e1e1e; /* VS Code dark background */
+        --color-bg-secondary: #252526; /* VS Code card/panel background */
+        --color-text-primary: #d4d4d4; /* Light grey text */
+        --color-text-heading: #569cd6; /* VS Code blue for headings/keywords */
+        --color-code-bg: #1e1e1e; /* Code block background */
+        --color-code-comment: #6a9955; /* VS Code green for comments */
+        --color-code-string: #ce9178; /* VS Code orange for strings */
+        --color-code-keyword: #c586c0; /* VS Code purple for keywords */
+        --color-code-variable: #9cdcfe; /* VS Code light blue for variables/imports */
+        --color-code-function: #dcdcaa; /* VS Code yellow for functions */
+        --color-code-number: #b5cea8; /* VS Code light green for numbers */
+        --color-code-class: #4ec9b0; /* VS Code light blue-green for class names */
+        --color-section-divider: #333333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg-primary);
+        color: var(--color-text-primary);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--color-bg-secondary);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1 {
+        color: var(--color-text-heading);
+        border-bottom: 2px solid var(--color-section-divider);
+        padding-bottom: 10px;
+        margin-top: 0;
+        font-weight: 700;
+        font-size: 2em;
+      }
+
+      h2 {
+        color: var(--color-code-class);
+        margin-top: 30px;
+        font-weight: 700;
+        font-size: 1.6em;
+        padding-bottom: 5px;
+        border-bottom: 1px solid var(--color-section-divider);
+      }
+
+      h3 {
+        color: var(--color-code-variable);
+        margin-top: 20px;
+        font-weight: 600;
+        font-size: 1.2em;
+      }
+
+      p,
+      li {
+        font-weight: 400;
+        margin-bottom: 10px;
+      }
+
+      ul {
+        padding-left: 20px;
+      }
+
+      /* Code Block Styling */
+      .code-block {
+        background-color: var(--color-code-bg);
+        border: 1px solid #333;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 15px 0;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .code-block pre {
+        margin: 0;
+        padding: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      /* Syntax Highlighting */
+      .comment {
+        color: var(--color-code-comment);
+      }
+      .keyword {
+        color: var(--color-code-keyword);
+      }
+      .variable {
+        color: var(--color-code-variable);
+      }
+      .string {
+        color: var(--color-code-string);
+      }
+      .number {
+        color: var(--color-code-number);
+      }
+      .function {
+        color: var(--color-code-function);
+      }
+      .bash-prompt {
+        color: var(--color-code-class);
+        font-weight: bold;
+      }
+      .class {
+        color: var(--color-code-class);
+      }
+      .method {
+        color: #569cd6;
+      } /* VS Code blue for methods */
+      .type {
+        color: #4ec9b0;
+      }
+      .emoji {
+        font-size: 1.1em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB & Node.js Connection Guide (Native Driver)</h1>
+      <p>
+        <span class="keyword">Understood</span>. If you don't want to use
+        <span class="keyword">Mongoose</span>, you should use the
+        <span class="class">official MongoDB Node.js Driver</span>. This driver
+        provides the low-level functions to connect to MongoDB and perform
+        operations directly.
+      </p>
+
+      <p>
+        Here is the complete guide for setting up your MongoDB server and
+        connecting your Node.js client using the native driver.
+      </p>
+
+      <h2>1. Project Setup and Installation</h2>
+      <p>
+        <span class="keyword">First</span>, set up your Node.js project and
+        install the necessary package.
+      </p>
+
+      <h3>Initialize Project:</h3>
+      <div class="code-block">
+        <pre><span class="comment">Bash</span>
+
+<span class="bash-prompt">mkdir node-mongo-driver-app</span>
+<span class="bash-prompt">cd node-mongo-driver-app</span>
+<span class="bash-prompt">npm init -y</span></pre>
+      </div>
+
+      <h3>Install the MongoDB Driver:</h3>
+      <div class="code-block">
+        <pre><span class="comment">Bash</span>
+
+<span class="bash-prompt">npm install mongodb</span></pre>
+      </div>
+
+      <h3>Create the Application File:</h3>
+      <p>
+        Create an <span class="string">index.js</span> file for your application
+        code.
+      </p>
+
+      <hr />
+
+      <h2>2. Node.js Client Connection Logic</h2>
+      <p>
+        The connection is handled by the
+        <span class="class">MongoClient</span> class from the installed driver.
+        You will use <span class="keyword">async/await</span> to ensure the
+        connection is established before running database operations.
+      </p>
+
+      <h3>Create and edit your index.js file:</h3>
+      <div class="code-block">
+        <pre><span class="comment">// index.js</span>
+<span class="keyword">import</span> { <span class="class">MongoClient</span> } <span class="keyword">from</span> <span class="string">'mongodb'</span>;
+
+<span class="comment">// 1. Connection URI (Replace with your actual string)</span>
+<span class="comment">// Local: 'mongodb://127.0.0.1:27017' (for localhost)</span>
+<span class="comment">// Atlas: 'mongodb+srv://&lt;user&gt;:&lt;password&gt;@cluster0.abcde.mongodb.net'</span>
+<span class="keyword">const</span> <span class="variable">uri</span> <span class="keyword">=</span> <span class="string">"mongodb://127.0.0.1:27017"</span>;
+
+<span class="comment">// 2. Create a new MongoClient</span>
+<span class="keyword">const</span> <span class="variable">client</span> <span class="keyword">=</span> <span class="keyword">new</span> <span class="class">MongoClient</span>(<span class="variable">uri</span>);
+
+<span class="keyword">async</span> <span class="keyword">function</span> <span class="function">run</span>() {
+    <span class="keyword">try</span> {
+        <span class="comment">// 3. Connect the client to the server (Awaits the asynchronous connection)</span>
+        <span class="keyword">await</span> <span class="variable">client</span>.<span class="method">connect</span>();
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">"&amp;#9989; Successfully connected to MongoDB!"</span>);
+
+        <span class="comment">// 4. Specify the database to use</span>
+        <span class="keyword">const</span> <span class="variable">database</span> <span class="keyword">=</span> <span class="variable">client</span>.<span class="method">db</span>(<span class="string">'myFirstDatabase'</span>);
+
+        <span class="comment">// 5. Specify the collection to use</span>
+        <span class="keyword">const</span> <span class="variable">collection</span> <span class="keyword">=</span> <span class="variable">database</span>.<span class="method">collection</span>(<span class="string">'users'</span>);
+
+        <span class="comment">// 6. Perform a CRUD Operation (Example: Insert One Document)</span>
+        <span class="keyword">const</span> <span class="variable">doc</span> <span class="keyword">=</span> { <span class="type">name</span>: <span class="string">"Alice"</span>, <span class="type">email</span>: <span class="string">"alice@example.com"</span>, <span class="type">age</span>: <span class="number">30</span> };
+        <span class="keyword">const</span> <span class="variable">result</span> <span class="keyword">=</span> <span class="keyword">await</span> <span class="variable">collection</span>.<span class="method">insertOne</span>(<span class="variable">doc</span>);
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">"&amp;#128109; New document inserted with ID: ${result.insertedId}"</span>);
+
+        <span class="comment">// 7. Perform a Read Operation (Example: Find the document we just created)</span>
+        <span class="keyword">const</span> <span class="variable">query</span> <span class="keyword">=</span> { <span class="type">name</span>: <span class="string">"Alice"</span> };
+        <span class="keyword">const</span> <span class="variable">foundUser</span> <span class="keyword">=</span> <span class="keyword">await</span> <span class="variable">collection</span>.<span class="method">findOne</span>(<span class="variable">query</span>);
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">"&amp;#128269; Found document:"</span>, <span class="variable">foundUser</span>);
+
+    } <span class="keyword">catch</span> (<span class="variable">e</span>) {
+        <span class="comment">// Log any errors that occur during connection or operations</span>
+        <span class="function">console</span>.<span class="method">error</span>(<span class="string">"&amp;#10060; An error occurred:"</span>, <span class="variable">e</span>);
+    } <span class="keyword">finally</span> {
+        <span class="comment">// 8. Close the connection when done (Always important!)</span>
+        <span class="keyword">await</span> <span class="variable">client</span>.<span class="method">close</span>();
+        <span class="function">console</span>.<span class="method">log</span>(<span class="string">"&amp;#128279; Connection closed."</span>);
+    }
+}
+
+<span class="function">run</span>();</pre>
+      </div>
+
+      <hr />
+
+      <h2>3. Running the Application</h2>
+      <p>Execute your Node.js script from the terminal:</p>
+
+      <div class="code-block">
+        <pre><span class="comment">Bash</span>
+
+<span class="bash-prompt">node index.js</span></pre>
+      </div>
+
+      <hr />
+
+      <h2>Key Connection Points</h2>
+      <ul>
+        <li>
+          <span class="code-block-inline"
+            ><span class="keyword">import</span> {
+            <span class="class">MongoClient</span> }
+            <span class="keyword">from</span>
+            <span class="string">'mongodb'</span>;</span
+          >: Imports the core class from the driver, which is your entry point
+          to the database.
+        </li>
+        <li>
+          <span class="code-block-inline"
+            ><span class="keyword">const</span>
+            <span class="variable">client</span> <span class="keyword">=</span>
+            <span class="keyword">new</span>
+            <span class="class">MongoClient</span>(<span class="variable"
+              >uri</span
+            >);</span
+          >: Creates a <span class="class">Client Instance</span>. At this
+          point, the connection is
+          <span class="keyword">not yet established</span>. It just sets up the
+          connection parameters.
+        </li>
+        <li>
+          <span class="code-block-inline"
+            ><span class="keyword">await</span>
+            <span class="variable">client</span>.<span class="method"
+              >connect</span
+            >();</span
+          >: This is the <span class="keyword">crucial step</span>. It is an
+          <span class="keyword">asynchronous network operation</span> that
+          establishes the physical connection to the MongoDB server. The
+          <span class="keyword">await</span> keyword ensures the code execution
+          <span class="keyword">waits</span> until the handshake is complete and
+          the connection is confirmed.
+        </li>
+        <li>
+          <span class="code-block-inline"
+            ><span class="variable">client</span>.<span class="method">db</span
+            >(<span class="string">'myFirstDatabase'</span>)</span
+          >: Once connected, you get a reference to a specific database. If the
+          database doesn't exist, MongoDB will create it implicitly upon first
+          data write.
+        </li>
+        <li>
+          <span class="code-block-inline"
+            ><span class="variable">database</span>.<span class="method"
+              >collection</span
+            >(<span class="string">'users'</span>)</span
+          >: You then get a reference to a specific collection (like a table in
+          SQL).
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

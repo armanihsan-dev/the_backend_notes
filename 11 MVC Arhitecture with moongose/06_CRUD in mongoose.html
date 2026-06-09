@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB CRUD with Mongoose Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Global Styles */
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #1e1e1e; /* Blakish/VSCode dark background */
+            color: #d4d4d4; /* Light text for contrast */
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #252526; /* Slightly lighter inner container */
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Typography */
+        h1 {
+            color: #569cd6; /* VSCode blue for primary headings */
+            border-bottom: 3px solid #569cd6;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        h2 {
+            color: #ce9178; /* VSCode orange/brown for section headings */
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        p, li {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        /* Code Block Styling (VSCode Dark Theme) */
+        pre {
+            background-color: #1e1e1e; /* Code block background */
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border: 1px solid #333;
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre;
+        }
+
+        /* Syntax Highlighting Mimicry */
+        .keyword { color: #569cd6; }       /* const, await, try, catch, module, return, function, etc. */
+        .string { color: #ce9178; }        /* 'string values' */
+        .comment { color: #6a9955; }       /* // comments */
+        .number { color: #b5cea8; }        /* 1, 10, 25, true, false, null */
+        .property { color: #9cdcfe; }      /* name, email, type, default, etc. */
+        .call { color: #dcdcaa; }          /* functionName() */
+        .class-name { color: #4ec9b0; }    /* User, Schema, Date, Promise */
+        .operator { color: #d4d4d4; }      /* =, :, <, >, . */
+        .bracket { color: #ffd700; }       /* {} */
+        .html-tag { color: #569cd6; }      /* For bash command block type */
+
+
+        /* Specific Code Class for bash */
+        .bash .html-tag { color: #569cd6; } /* npm install, etc. */
+
+        /* List Styling */
+        ol {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 15px;
+        }
+
+        .note {
+            color: #dcdcaa;
+            font-style: italic;
+            margin-top: -5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Complete Deep Dive into MongoDB CRUD Operations with Mongoose in Node.js</h1>
+        <p class="note">I'll provide a comprehensive guide covering everything from setup to advanced operations.</p>
+
+        <ol>
+            <li>
+                <h2>Setup and Installation</h2>
+                <pre class="bash"><code><span class="html-tag">bash</span>
+<span class="call">npm install</span> <span class="property">mongoose</span></code></pre>
+            </li>
+            
+            <li>
+                <h2>Establishing Connection</h2>
+                <p><span class="comment">// db.js - Database connection file</span></p>
+                <pre><code><span class="keyword">const</span> <span class="property">mongoose</span> <span class="operator">=</span> <span class="call">require</span>(<span class="string">'mongoose'</span>);
+
+<span class="comment">// Connection string format: mongodb://localhost:27017/database_name</span>
+<span class="keyword">const</span> <span class="property">connectDB</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">conn</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="property">mongoose</span>.<span class="call">connect</span>(<span class="string">'mongodb://localhost:27017/myapp'</span>, <span class="bracket">{</span>
+      <span class="property">useNewUrlParser</span>: <span class="number">true</span>,
+      <span class="property">useUnifiedTopology</span>: <span class="number">true</span>,
+    <span class="bracket">}</span>);
+        
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">`MongoDB Connected: ${</span><span class="property">conn</span>.<span class="property">connection</span>.<span class="property">host</span><span class="string">}`</span>);
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">`Error: ${</span><span class="property">error</span>.<span class="property">message</span><span class="string">}`</span>);
+    <span class="call">process</span>.<span class="call">exit</span>(<span class="number">1</span>); <span class="comment">// Exit with failure</span>
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// Connection events</span>
+<span class="property">mongoose</span>.<span class="property">connection</span>.<span class="call">on</span>(<span class="string">'connected'</span>, <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Mongoose connected to DB'</span>);
+<span class="bracket">}</span>);
+
+<span class="property">mongoose</span>.<span class="property">connection</span>.<span class="call">on</span>(<span class="string">'error'</span>, <span class="bracket">(</span><span class="property">err</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Mongoose connection error:'</span>, <span class="property">err</span>);
+<span class="bracket">}</span>);
+
+<span class="property">mongoose</span>.<span class="property">connection</span>.<span class="call">on</span>(<span class="string">'disconnected'</span>, <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Mongoose disconnected'</span>);
+<span class="bracket">}</span>);
+
+<span class="comment">// Graceful shutdown</span>
+<span class="call">process</span>.<span class="call">on</span>(<span class="string">'SIGINT'</span>, <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">await</span> <span class="property">mongoose</span>.<span class="property">connection</span>.<span class="call">close</span>();
+  <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Mongoose connection closed due to app termination'</span>);
+  <span class="call">process</span>.<span class="call">exit</span>(<span class="number">0</span>);
+<span class="bracket">}</span>);
+
+<span class="keyword">module</span>.<span class="property">exports</span> <span class="operator">=</span> <span class="property">connectDB</span>;</code></pre>
+            </li>
+
+            <li>
+                <h2>Defining Schemas and Models</h2>
+                <p>Mongoose uses Schemas to define the structure of documents and Models to interact with the database.</p>
+                <p><span class="comment">// models/User.js</span></p>
+                <pre><code><span class="keyword">const</span> <span class="property">mongoose</span> <span class="operator">=</span> <span class="call">require</span>(<span class="string">'mongoose'</span>);
+
+<span class="comment">// Define Schema</span>
+<span class="keyword">const</span> <span class="property">userSchema</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="property">mongoose</span>.<span class="call">Schema</span>(<span class="bracket">{</span>
+  <span class="comment">// Basic field types</span>
+  <span class="property">name</span>: <span class="bracket">{</span>
+    <span class="property">type</span>: <span class="class-name">String</span>,
+    <span class="property">required</span>: <span class="bracket">[</span><span class="number">true</span>, <span class="string">'Name is required'</span><span class="bracket">]</span>, <span class="comment">// Custom error message</span>
+    <span class="property">trim</span>: <span class="number">true</span>, <span class="comment">// Removes whitespace</span>
+    <span class="property">minlength</span>: <span class="bracket">[</span><span class="number">3</span>, <span class="string">'Name must be at least 3 characters'</span><span class="bracket">]</span>,
+    <span class="property">maxlength</span>: <span class="bracket">[</span><span class="number">50</span>, <span class="string">'Name cannot exceed 50 characters'</span><span class="bracket">]</span>
+  <span class="bracket">}</span>,
+  
+  <span class="property">email</span>: <span class="bracket">{</span>
+    <span class="property">type</span>: <span class="class-name">String</span>,
+    <span class="property">required</span>: <span class="number">true</span>,
+    <span class="property">unique</span>: <span class="number">true</span>, <span class="comment">// Creates unique index</span>
+    <span class="property">lowercase</span>: <span class="number">true</span>, <span class="comment">// Converts to lowercase</span>
+    <span class="property">match</span>: <span class="bracket">[</span><span class="operator">/^\S+@\S+\.\S+$/</span>, <span class="string">'Please enter a valid email'</span><span class="bracket">]</span>
+  <span class="bracket">}</span>,
+  
+  <span class="property">age</span>: <span class="bracket">{</span>
+    <span class="property">type</span>: <span class="class-name">Number</span>,
+    <span class="property">min</span>: <span class="bracket">[</span><span class="number">0</span>, <span class="string">'Age cannot be negative'</span><span class="bracket">]</span>,
+    <span class="property">max</span>: <span class="bracket">[</span><span class="number">150</span>, <span class="string">'Age seems unrealistic'</span><span class="bracket">]</span>,
+    <span class="property">default</span>: <span class="number">18</span>
+  <span class="bracket">}</span>,
+  
+  <span class="property">isActive</span>: <span class="bracket">{</span>
+    <span class="property">type</span>: <span class="class-name">Boolean</span>,
+    <span class="property">default</span>: <span class="number">true</span>
+  <span class="bracket">}</span>,
+  
+  <span class="comment">// Array of strings</span>
+  <span class="property">hobbies</span>: <span class="bracket">[</span><span class="class-name">String</span><span class="bracket">]</span>,
+  
+  <span class="comment">// Array of objects</span>
+  <span class="property">addresses</span>: <span class="bracket">[{</span>
+    <span class="property">street</span>: <span class="class-name">String</span>,
+    <span class="property">city</span>: <span class="class-name">String</span>,
+    <span class="property">zipCode</span>: <span class="class-name">String</span>,
+    <span class="property">isPrimary</span>: <span class="bracket">{</span>
+      <span class="property">type</span>: <span class="class-name">Boolean</span>,
+      <span class="property">default</span>: <span class="number">false</span>
+    <span class="bracket">}</span>
+  <span class="bracket">}</span><span class="bracket">]</span>,
+  
+  <span class="comment">// Nested object</span>
+  <span class="property">profile</span>: <span class="bracket">{</span>
+    <span class="property">bio</span>: <span class="class-name">String</span>,
+    <span class="property">website</span>: <span class="class-name">String</span>,
+    <span class="property">social</span>: <span class="bracket">{</span>
+      <span class="property">twitter</span>: <span class="class-name">String</span>,
+      <span class="property">linkedin</span>: <span class="class-name">String</span>
+    <span class="bracket">}</span>
+  <span class="bracket">}</span>,
+  
+  <span class="comment">// Reference to another model</span>
+  <span class="property">posts</span>: <span class="bracket">[{</span>
+    <span class="property">type</span>: <span class="property">mongoose</span>.<span class="property">Schema</span>.<span class="property">Types</span>.<span class="class-name">ObjectId</span>,
+    <span class="property">ref</span>: <span class="string">'Post'</span> <span class="comment">// Reference to Post model</span>
+  <span class="bracket">}</span><span class="bracket">]</span>,
+  
+  <span class="comment">// Date fields</span>
+  <span class="property">registeredAt</span>: <span class="bracket">{</span>
+    <span class="property">type</span>: <span class="class-name">Date</span>,
+    <span class="property">default</span>: <span class="class-name">Date</span>.<span class="call">now</span>
+  <span class="bracket">}</span>,
+  
+  <span class="property">lastLogin</span>: <span class="class-name">Date</span>,
+  
+  <span class="comment">// Enum - restrict to specific values</span>
+  <span class="property">role</span>: <span class="bracket">{</span>
+    <span class="property">type</span>: <span class="class-name">String</span>,
+    <span class="property">enum</span>: <span class="bracket">[</span><span class="string">'user'</span>, <span class="string">'admin'</span>, <span class="string">'moderator'</span><span class="bracket">]</span>,
+    <span class="property">default</span>: <span class="string">'user'</span>
+  <span class="bracket">}</span>,
+  
+  <span class="comment">// Mixed type - can store any type</span>
+  <span class="property">metadata</span>: <span class="property">mongoose</span>.<span class="property">Schema</span>.<span class="property">Types</span>.<span class="class-name">Mixed</span>
+
+<span class="bracket">}</span>, <span class="bracket">{</span>
+  <span class="comment">// Schema options</span>
+  <span class="property">timestamps</span>: <span class="number">true</span>, <span class="comment">// Adds createdAt and updatedAt automatically</span>
+  <span class="property">versionKey</span>: <span class="number">false</span> <span class="comment">// Removes __v field</span>
+<span class="bracket">}</span>);
+
+<span class="comment">// Virtual property (not stored in DB)</span>
+<span class="property">userSchema</span>.<span class="call">virtual</span>(<span class="string">'fullInfo'</span>).<span class="call">get</span>(<span class="keyword">function</span>(<span class="bracket">)</span> <span class="bracket">{</span>
+  <span class="keyword">return</span> <span class="string">`${</span><span class="keyword">this</span>.<span class="property">name</span><span class="string">} (${</span><span class="keyword">this</span>.<span class="property">email</span><span class="string">})`</span>;
+<span class="bracket">}</span>);
+
+<span class="comment">// Instance method</span>
+<span class="property">userSchema</span>.<span class="property">methods</span>.<span class="call">getPublicProfile</span> <span class="operator">=</span> <span class="keyword">function</span>(<span class="bracket">)</span> <span class="bracket">{</span>
+  <span class="keyword">return</span> <span class="bracket">{</span>
+    <span class="property">name</span>: <span class="keyword">this</span>.<span class="property">name</span>,
+    <span class="property">email</span>: <span class="keyword">this</span>.<span class="property">email</span>,
+    <span class="property">role</span>: <span class="keyword">this</span>.<span class="property">role</span>
+  <span class="bracket">}</span>;
+<span class="bracket">}</span>;
+
+<span class="comment">// Static method</span>
+<span class="property">userSchema</span>.<span class="property">statics</span>.<span class="call">findByEmail</span> <span class="operator">=</span> <span class="keyword">function</span>(<span class="property">email</span><span class="bracket">)</span> <span class="bracket">{</span>
+  <span class="keyword">return</span> <span class="keyword">this</span>.<span class="call">findOne</span>(<span class="bracket">{</span> <span class="property">email</span>: <span class="property">email</span> <span class="bracket">}</span>);
+<span class="bracket">}</span>;
+
+<span class="comment">// Pre-save middleware (runs before saving)</span>
+<span class="property">userSchema</span>.<span class="call">pre</span>(<span class="string">'save'</span>, <span class="keyword">function</span>(<span class="property">next</span><span class="bracket">)</span> <span class="bracket">{</span>
+  <span class="call">console</span>.<span class="call">log</span>(<span class="string">'About to save user:'</span>, <span class="keyword">this</span>.<span class="property">name</span>);
+  <span class="call">next</span>();
+<span class="bracket">}</span>);
+
+<span class="comment">// Post-save middleware (runs after saving)</span>
+<span class="property">userSchema</span>.<span class="call">post</span>(<span class="string">'save'</span>, <span class="keyword">function</span>(<span class="property">doc</span>, <span class="property">next</span><span class="bracket">)</span> <span class="bracket">{</span>
+  <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User saved:'</span>, <span class="property">doc</span>.<span class="property">name</span>);
+  <span class="call">next</span>();
+<span class="bracket">}</span>);
+
+<span class="comment">// Create and export model</span>
+<span class="keyword">const</span> <span class="class-name">User</span> <span class="operator">=</span> <span class="property">mongoose</span>.<span class="call">model</span>(<span class="string">'User'</span>, <span class="property">userSchema</span>);
+
+<span class="keyword">module</span>.<span class="property">exports</span> <span class="operator">=</span> <span class="class-name">User</span>;</code></pre>
+            </li>
+
+            <li>
+                <h2>CREATE Operations</h2>
+                <pre><code><span class="keyword">const</span> <span class="class-name">User</span> <span class="operator">=</span> <span class="call">require</span>(<span class="string">'./models/User'</span>);
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 1: Using save() - Instance method</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">createUserWithSave</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Create new instance</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class-name">User</span>(<span class="bracket">{</span>
+      <span class="property">name</span>: <span class="string">'John Doe'</span>,
+      <span class="property">email</span>: <span class="string">'john@example.com'</span>,
+      <span class="property">age</span>: <span class="number">25</span>,
+      <span class="property">hobbies</span>: <span class="bracket">[</span><span class="string">'reading'</span>, <span class="string">'gaming'</span><span class="bracket">]</span>,
+      <span class="property">addresses</span>: <span class="bracket">[{</span>
+        <span class="property">street</span>: <span class="string">'123 Main St'</span>,
+        <span class="property">city</span>: <span class="string">'New York'</span>,
+        <span class="property">zipCode</span>: <span class="string">'10001'</span>,
+        <span class="property">isPrimary</span>: <span class="number">true</span>
+      <span class="bracket">}</span><span class="bracket">]</span>,
+      <span class="property">profile</span>: <span class="bracket">{</span>
+        <span class="property">bio</span>: <span class="string">'Software Developer'</span>,
+        <span class="property">social</span>: <span class="bracket">{</span>
+          <span class="property">twitter</span>: <span class="string">'@johndoe'</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">}</span>);
+    
+    <span class="comment">// Save to database</span>
+    <span class="keyword">const</span> <span class="property">savedUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="property">user</span>.<span class="call">save</span>();
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User created:'</span>, <span class="property">savedUser</span>);
+    <span class="keyword">return</span> <span class="property">savedUser</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error creating user:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 2: Using create() - Model method</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">createUserWithCreate</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">create</span>(<span class="bracket">{</span>
+      <span class="property">name</span>: <span class="string">'Jane Smith'</span>,
+      <span class="property">email</span>: <span class="string">'jane@example.com'</span>,
+      <span class="property">age</span>: <span class="number">28</span>,
+      <span class="property">role</span>: <span class="string">'admin'</span>
+    <span class="bracket">}</span>);
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User created:'</span>, <span class="property">user</span>);
+    <span class="keyword">return</span> <span class="property">user</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error creating user:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 3: Create multiple documents</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">createMultipleUsers</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">users</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">insertMany</span>(<span class="bracket">[</span>
+      <span class="bracket">{</span> <span class="property">name</span>: <span class="string">'Alice'</span>, <span class="property">email</span>: <span class="string">'alice@example.com'</span>, <span class="property">age</span>: <span class="number">30</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">name</span>: <span class="string">'Bob'</span>, <span class="property">email</span>: <span class="string">'bob@example.com'</span>, <span class="property">age</span>: <span class="number">35</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">name</span>: <span class="string">'Charlie'</span>, <span class="property">email</span>: <span class="string">'charlie@example.com'</span>, <span class="property">age</span>: <span class="number">40</span> <span class="bracket">}</span>
+    <span class="bracket">]</span>);
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">`${</span><span class="property">users</span>.<span class="property">length</span><span class="string">} users created`</span>);
+    <span class="keyword">return</span> <span class="property">users</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error creating users:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 4: Create with validation handling</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">createUserWithValidation</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userData</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class-name">User</span>(<span class="property">userData</span>);
+    
+    <span class="comment">// Validate before saving</span>
+    <span class="keyword">const</span> <span class="property">validationError</span> <span class="operator">=</span> <span class="property">user</span>.<span class="call">validateSync</span>();
+    <span class="keyword">if</span> (<span class="property">validationError</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Validation errors:'</span>, <span class="property">validationError</span>.<span class="property">errors</span>);
+      <span class="keyword">return</span> <span class="number">null</span>;
+    <span class="bracket">}</span>
+    
+    <span class="keyword">await</span> <span class="property">user</span>.<span class="call">save</span>();
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User created successfully'</span>);
+    <span class="keyword">return</span> <span class="property">user</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="keyword">if</span> (<span class="property">error</span>.<span class="property">name</span> <span class="operator">===</span> <span class="string">'ValidationError'</span>) <span class="bracket">{</span>
+      <span class="comment">// Handle validation errors</span>
+      <span class="class-name">Object</span>.<span class="call">keys</span>(<span class="property">error</span>.<span class="property">errors</span>).<span class="call">forEach</span>(<span class="property">key</span> <span class="operator">=></span> <span class="bracket">{</span>
+        <span class="call">console</span>.<span class="call">log</span>(<span class="string">`${</span><span class="property">key</span><span class="string">: ${</span><span class="property">error</span>.<span class="property">errors</span><span class="bracket">[</span><span class="property">key</span><span class="bracket">]</span>.<span class="property">message</span><span class="string">}`</span>);
+      <span class="bracket">}</span>);
+    <span class="bracket">}</span> <span class="keyword">else</span> <span class="keyword">if</span> (<span class="property">error</span>.<span class="property">code</span> <span class="operator">===</span> <span class="number">11000</span>) <span class="bracket">{</span>
+      <span class="comment">// Handle duplicate key error</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Email already exists'</span>);
+    <span class="bracket">}</span> <span class="keyword">else</span> <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+    <span class="bracket">}</span>
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 5: Create or update (upsert)</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">createOrUpdate</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">email</span>, <span class="property">userData</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findOneAndUpdate</span>(
+      <span class="bracket">{</span> <span class="property">email</span>: <span class="property">email</span> <span class="bracket">}</span>,
+      <span class="property">userData</span>,
+      <span class="bracket">{</span>
+        <span class="property">new</span>: <span class="number">true</span>,        <span class="comment">// Return updated document</span>
+        <span class="property">upsert</span>: <span class="number">true</span>,      <span class="comment">// Create if doesn't exist</span>
+        <span class="property">runValidators</span>: <span class="number">true</span> <span class="comment">// Run schema validators</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User created/updated:'</span>, <span class="property">user</span>);
+    <span class="keyword">return</span> <span class="property">user</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="keyword">module</span>.<span class="property">exports</span> <span class="operator">=</span> <span class="bracket">{</span>
+  <span class="property">createUserWithSave</span>,
+  <span class="property">createUserWithCreate</span>,
+  <span class="property">createMultipleUsers</span>,
+  <span class="property">createUserWithValidation</span>,
+  <span class="property">createOrUpdate</span>
+<span class="bracket">}</span>;</code></pre>
+            </li>
+
+            <li>
+                <h2>READ Operations</h2>
+                <pre><code><span class="keyword">const</span> <span class="class-name">User</span> <span class="operator">=</span> <span class="call">require</span>(<span class="string">'./models/User'</span>);
+
+<span class="comment">// ============================================</span>
+<span class="comment">// BASIC FIND OPERATIONS</span>
+<span class="comment">// ============================================</span>
+
+<span class="comment">// Find all documents</span>
+<span class="keyword">const</span> <span class="property">findAllUsers</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">users</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>();
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">`Found ${</span><span class="property">users</span>.<span class="property">length</span><span class="string">} users`</span>);
+    <span class="keyword">return</span> <span class="property">users</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// Find with conditions</span>
+<span class="keyword">const</span> <span class="property">findWithConditions</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Simple equality</span>
+    <span class="keyword">const</span> <span class="property">adults</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span> <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$gte</span>: <span class="number">18</span> <span class="bracket">}</span> <span class="bracket">}</span>);
+    
+    <span class="comment">// Multiple conditions (AND)</span>
+    <span class="keyword">const</span> <span class="property">activeAdults</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span> 
+      <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$gte</span>: <span class="number">18</span> <span class="bracket">}</span>,
+      <span class="property">isActive</span>: <span class="number">true</span> 
+    <span class="bracket">}</span>);
+    
+    <span class="comment">// OR conditions</span>
+    <span class="keyword">const</span> <span class="property">users</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">$or</span>: <span class="bracket">[</span>
+        <span class="bracket">{</span> <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$lt</span>: <span class="number">18</span> <span class="bracket">}</span> <span class="bracket">}</span>,
+        <span class="bracket">{</span> <span class="property">role</span>: <span class="string">'admin'</span> <span class="bracket">}</span>
+      <span class="bracket">]</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">return</span> <span class="property">users</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// FIND ONE DOCUMENT</span>
+<span class="comment">// ============================================</span>
+
+<span class="comment">// Find single document</span>
+<span class="keyword">const</span> <span class="property">findOneUser</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Returns first match</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findOne</span>(<span class="bracket">{</span> <span class="property">email</span>: <span class="string">'john@example.com'</span> <span class="bracket">}</span>);
+    
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">user</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User not found'</span>);
+      <span class="keyword">return</span> <span class="number">null</span>;
+    <span class="bracket">}</span>
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User found:'</span>, <span class="property">user</span>);
+    <span class="keyword">return</span> <span class="property">user</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// Find by ID</span>
+<span class="keyword">const</span> <span class="property">findUserById</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Method 1: findById</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findById</span>(<span class="property">userId</span>);
+    
+    <span class="comment">// Method 2: findOne with _id</span>
+    <span class="comment">// const user = await User.findOne({ _id: userId });</span>
+    
+    <span class="keyword">return</span> <span class="property">user</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// QUERY OPERATORS</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">queryOperators</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Comparison operators</span>
+    <span class="keyword">const</span> <span class="property">ageQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">age</span>: <span class="bracket">{</span> 
+        <span class="property">$gt</span>: <span class="number">18</span>,   <span class="comment">// Greater than</span>
+        <span class="property">$gte</span>: <span class="number">18</span>,  <span class="comment">// Greater than or equal</span>
+        <span class="property">$lt</span>: <span class="number">65</span>,   <span class="comment">// Less than</span>
+        <span class="property">$lte</span>: <span class="number">65</span>,  <span class="comment">// Less than or equal</span>
+        <span class="property">$ne</span>: <span class="number">30</span>,   <span class="comment">// Not equal</span>
+        <span class="property">$in</span>: <span class="bracket">[</span><span class="number">25</span>, <span class="number">30</span>, <span class="number">35</span><span class="bracket">]</span>,  <span class="comment">// In array</span>
+        <span class="property">$nin</span>: <span class="bracket">[</span><span class="number">40</span>, <span class="number">45</span><span class="bracket">]</span>     <span class="comment">// Not in array</span>
+      <span class="bracket">}</span>
+    <span class="bracket">}</span>);
+    
+    <span class="comment">// Logical operators</span>
+    <span class="keyword">const</span> <span class="property">logicalQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">$and</span>: <span class="bracket">[</span>
+        <span class="bracket">{</span> <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$gte</span>: <span class="number">18</span> <span class="bracket">}</span> <span class="bracket">}</span>,
+        <span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">true</span> <span class="bracket">}</span>
+      <span class="bracket">]</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">const</span> <span class="property">orQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">$or</span>: <span class="bracket">[</span>
+        <span class="bracket">{</span> <span class="property">role</span>: <span class="string">'admin'</span> <span class="bracket">}</span>,
+        <span class="bracket">{</span> <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$gte</span>: <span class="number">60</span> <span class="bracket">}</span> <span class="bracket">}</span>
+      <span class="bracket">]</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">const</span> <span class="property">notQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$not</span>: <span class="bracket">{</span> <span class="property">$gte</span>: <span class="number">18</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">}</span>);
+    
+    <span class="comment">// Element operators</span>
+    <span class="keyword">const</span> <span class="property">existsQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">lastLogin</span>: <span class="bracket">{</span> <span class="property">$exists</span>: <span class="number">true</span> <span class="bracket">}</span>  <span class="comment">// Field exists</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">const</span> <span class="property">typeQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">age</span>: <span class="bracket">{</span> <span class="property">$type</span>: <span class="string">'number'</span> <span class="bracket">}</span>  <span class="comment">// Field type</span>
+    <span class="bracket">}</span>);
+    
+    <span class="comment">// Array operators</span>
+    <span class="keyword">const</span> <span class="property">arrayQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">hobbies</span>: <span class="bracket">{</span> <span class="property">$size</span>: <span class="number">2</span> <span class="bracket">}</span>  <span class="comment">// Array size</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">const</span> <span class="property">allQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">hobbies</span>: <span class="bracket">{</span> <span class="property">$all</span>: <span class="bracket">[</span><span class="string">'reading'</span>, <span class="string">'gaming'</span><span class="bracket">]</span> <span class="bracket">}</span>  <span class="comment">// Contains all</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">const</span> <span class="property">elemMatchQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">addresses</span>: <span class="bracket">{</span> 
+        <span class="property">$elemMatch</span>: <span class="bracket">{</span> 
+          <span class="property">city</span>: <span class="string">'New York'</span>,
+          <span class="property">isPrimary</span>: <span class="number">true</span> 
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">}</span>);
+    
+    <span class="comment">// String operators (Regex)</span>
+    <span class="keyword">const</span> <span class="property">regexQuery</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span>
+      <span class="property">name</span>: <span class="bracket">{</span> <span class="property">$regex</span>: <span class="operator">/john/i</span> <span class="bracket">}</span>  <span class="comment">// Case-insensitive search</span>
+    <span class="bracket">}</span>);
+    
+    <span class="keyword">return</span> <span class="bracket">{</span> <span class="property">ageQuery</span>, <span class="property">logicalQuery</span> <span class="bracket">}</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// FIELD SELECTION (Projection)</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">fieldSelection</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Include specific fields</span>
+    <span class="keyword">const</span> <span class="property">users</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">select</span>(<span class="string">'name email age'</span>);
+    
+    <span class="comment">// Exclude specific fields</span>
+    <span class="keyword">const</span> <span class="property">users2</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">select</span>(<span class="string">'-password -__v'</span>);
+    
+    <span class="comment">// Object notation</span>
+    <span class="keyword">const</span> <span class="property">users3</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>(<span class="bracket">{</span><span class="bracket">}</span>, <span class="bracket">{</span> <span class="property">name</span>: <span class="number">1</span>, <span class="property">email</span>: <span class="number">1</span>, <span class="property">_id</span>: <span class="number">0</span> <span class="bracket">}</span>);
+    
+    <span class="keyword">return</span> <span class="property">users</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// SORTING</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">sortingExamples</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Ascending order</span>
+    <span class="keyword">const</span> <span class="property">ascending</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">sort</span>(<span class="string">'age'</span>);
+    <span class="keyword">const</span> <span class="property">ascending2</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">sort</span>(<span class="bracket">{</span> <span class="property">age</span>: <span class="number">1</span> <span class="bracket">}</span>);
+    
+    <span class="comment">// Descending order</span>
+    <span class="keyword">const</span> <span class="property">descending</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">sort</span>(<span class="string">'-age'</span>);
+    <span class="keyword">const</span> <span class="property">descending2</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">sort</span>(<span class="bracket">{</span> <span class="property">age</span>: <span class="number">-1</span> <span class="bracket">}</span>);
+    
+    <span class="comment">// Multiple fields</span>
+    <span class="keyword">const</span> <span class="property">multiSort</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">sort</span>(<span class="bracket">{</span> <span class="property">age</span>: <span class="number">-1</span>, <span class="property">name</span>: <span class="number">1</span> <span class="bracket">}</span>);
+    
+    <span class="keyword">return</span> <span class="property">ascending</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// PAGINATION</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">paginationExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">page</span> <span class="operator">=</span> <span class="number">1</span>, <span class="property">limit</span> <span class="operator">=</span> <span class="number">10</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">skip</span> <span class="operator">=</span> <span class="bracket">(</span><span class="property">page</span> <span class="operator">-</span> <span class="number">1</span><span class="bracket">)</span> <span class="operator">*</span> <span class="property">limit</span>;
+    
+    <span class="keyword">const</span> <span class="property">users</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>()
+      .<span class="call">limit</span>(<span class="property">limit</span>)
+      .<span class="call">skip</span>(<span class="property">skip</span>)
+      .<span class="call">sort</span>(<span class="string">'-createdAt'</span>);
+    
+    <span class="keyword">const</span> <span class="property">total</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">countDocuments</span>();
+    
+    <span class="keyword">return</span> <span class="bracket">{</span>
+      <span class="property">users</span>,
+      <span class="property">currentPage</span>: <span class="property">page</span>,
+      <span class="property">totalPages</span>: <span class="class-name">Math</span>.<span class="call">ceil</span>(<span class="property">total</span> <span class="operator">/</span> <span class="property">limit</span>),
+      <span class="property">totalUsers</span>: <span class="property">total</span>
+    <span class="bracket">}</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// COUNTING</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">countingExamples</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Count all documents</span>
+    <span class="keyword">const</span> <span class="property">total</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">countDocuments</span>();
+    
+    <span class="comment">// Count with conditions</span>
+    <span class="keyword">const</span> <span class="property">activeUsers</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">countDocuments</span>(<span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">true</span> <span class="bracket">}</span>);
+    
+    <span class="comment">// Estimated count (faster but less accurate)</span>
+    <span class="keyword">const</span> <span class="property">estimate</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">estimatedDocumentCount</span>();
+    
+    <span class="keyword">return</span> <span class="bracket">{</span> <span class="property">total</span>, <span class="property">activeUsers</span>, <span class="property">estimate</span> <span class="bracket">}</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// POPULATION (Joining referenced documents)</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">populationExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Basic population</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findById</span>(<span class="string">'someId'</span>).<span class="call">populate</span>(<span class="string">'posts'</span>);
+    
+    <span class="comment">// Selective field population</span>
+    <span class="keyword">const</span> <span class="property">user2</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findById</span>(<span class="string">'someId'</span>)
+      .<span class="call">populate</span>(<span class="string">'posts'</span>, <span class="string">'title content'</span>);
+    
+    <span class="comment">// Multiple populations</span>
+    <span class="keyword">const</span> <span class="property">user3</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findById</span>(<span class="string">'someId'</span>)
+      .<span class="call">populate</span>(<span class="string">'posts'</span>)
+      .<span class="call">populate</span>(<span class="string">'friends'</span>);
+    
+    <span class="comment">// Nested population</span>
+    <span class="keyword">const</span> <span class="property">user4</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findById</span>(<span class="string">'someId'</span>)
+      .<span class="call">populate</span>(<span class="bracket">{</span>
+        <span class="property">path</span>: <span class="string">'posts'</span>,
+        <span class="property">populate</span>: <span class="bracket">{</span>
+          <span class="property">path</span>: <span class="string">'comments'</span>,
+          <span class="property">select</span>: <span class="string">'text author'</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>);
+    
+    <span class="keyword">return</span> <span class="property">user</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// LEAN QUERIES (Better performance)</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">leanQueries</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Returns plain JavaScript objects (not Mongoose documents)</span>
+    <span class="comment">// Faster and uses less memory</span>
+    <span class="keyword">const</span> <span class="property">users</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">find</span>().<span class="call">lean</span>();
+    
+    <span class="comment">// Cannot use Mongoose methods on lean results</span>
+    <span class="comment">// users[0].save() // This won't work</span>
+    
+    <span class="keyword">return</span> <span class="property">users</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="keyword">module</span>.<span class="property">exports</span> <span class="operator">=</span> <span class="bracket">{</span>
+  <span class="property">findAllUsers</span>,
+  <span class="property">findWithConditions</span>,
+  <span class="property">findOneUser</span>,
+  <span class="property">findUserById</span>,
+  <span class="property">queryOperators</span>,
+  <span class="property">fieldSelection</span>,
+  <span class="property">sortingExamples</span>,
+  <span class="property">paginationExample</span>,
+  <span class="property">countingExamples</span>,
+  <span class="property">populationExample</span>,
+  <span class="property">leanQueries</span>
+<span class="bracket">}</span>;</code></pre>
+            </li>
+
+            <li>
+                <h2>UPDATE Operations</h2>
+                <pre><code><span class="keyword">const</span> <span class="class-name">User</span> <span class="operator">=</span> <span class="call">require</span>(<span class="string">'./models/User'</span>);
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 1: Find, modify, and save</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">updateWithSave</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Find document</span>
+    <span class="keyword">const</span> <span class="property">user</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findById</span>(<span class="property">userId</span>);
+    
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">user</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User not found'</span>);
+      <span class="keyword">return</span> <span class="number">null</span>;
+    <span class="bracket">}</span>
+    
+    <span class="comment">// Modify fields</span>
+    <span class="property">user</span>.<span class="property">name</span> <span class="operator">=</span> <span class="string">'Updated Name'</span>;
+    <span class="property">user</span>.<span class="property">age</span> <span class="operator">=</span> <span class="number">30</span>;
+    <span class="property">user</span>.<span class="property">hobbies</span>.<span class="call">push</span>(<span class="string">'swimming'</span>);
+    
+    <span class="comment">// Save (triggers validation and middleware)</span>
+    <span class="keyword">const</span> <span class="property">updatedUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="property">user</span>.<span class="call">save</span>();
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User updated:'</span>, <span class="property">updatedUser</span>);
+    <span class="keyword">return</span> <span class="property">updatedUser</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 2: updateOne() - Updates first match</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">updateOneExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">email</span>: <span class="string">'john@example.com'</span> <span class="bracket">}</span>,  <span class="comment">// Filter</span>
+      <span class="bracket">{</span> 
+        <span class="property">$set</span>: <span class="bracket">{</span> <span class="property">age</span>: <span class="number">26</span> <span class="bracket">}</span>,
+        <span class="property">$push</span>: <span class="bracket">{</span> <span class="property">hobbies</span>: <span class="string">'cooking'</span> <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Modified count:'</span>, <span class="property">result</span>.<span class="property">modifiedCount</span>);
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Matched count:'</span>, <span class="property">result</span>.<span class="property">matchedCount</span>);
+    
+    <span class="comment">// Returns: { acknowledged: true, modifiedCount: 1, matchedCount: 1 }</span>
+    <span class="keyword">return</span> <span class="property">result</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 3: updateMany() - Updates all matches</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">updateManyExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateMany</span>(
+      <span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">false</span> <span class="bracket">}</span>,  <span class="comment">// Filter</span>
+      <span class="bracket">{</span> 
+        <span class="property">$set</span>: <span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">true</span> <span class="bracket">}</span>,
+        <span class="property">$inc</span>: <span class="bracket">{</span> <span class="property">loginCount</span>: <span class="number">1</span> <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">`Updated ${</span><span class="property">result</span>.<span class="property">modifiedCount</span><span class="string">} users`</span>);
+    <span class="keyword">return</span> <span class="property">result</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 4: findByIdAndUpdate()</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">findByIdAndUpdateExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">updatedUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findByIdAndUpdate</span>(
+      <span class="property">userId</span>,
+      <span class="bracket">{</span> 
+        <span class="property">name</span>: <span class="string">'New Name'</span>,
+        <span class="property">age</span>: <span class="number">35</span>
+      <span class="bracket">}</span>,
+      <span class="bracket">{</span>
+        <span class="property">new</span>: <span class="number">true</span>,        <span class="comment">// Return updated document (default: false)</span>
+        <span class="property">runValidators</span>: <span class="number">true</span>, <span class="comment">// Run schema validators</span>
+        <span class="property">upsert</span>: <span class="number">false</span>        <span class="comment">// Create if doesn't exist (default: false)</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">updatedUser</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User not found'</span>);
+      <span class="keyword">return</span> <span class="number">null</span>;
+    <span class="bracket">}</span>
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Updated user:'</span>, <span class="property">updatedUser</span>);
+    <span class="keyword">return</span> <span class="property">updatedUser</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 5: findOneAndUpdate()</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">findOneAndUpdateExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">updatedUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findOneAndUpdate</span>(
+      <span class="bracket">{</span> <span class="property">email</span>: <span class="string">'john@example.com'</span> <span class="bracket">}</span>,  <span class="comment">// Filter</span>
+      <span class="bracket">{</span> <span class="property">$set</span>: <span class="bracket">{</span> <span class="property">lastLogin</span>: <span class="keyword">new</span> <span class="class-name">Date</span>() <span class="bracket">}</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span>
+        <span class="property">new</span>: <span class="number">true</span>,
+        <span class="property">runValidators</span>: <span class="number">true</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="keyword">return</span> <span class="property">updatedUser</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// UPDATE OPERATORS</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">updateOperators</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// $set - Set field value</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$set</span>: <span class="bracket">{</span> <span class="property">name</span>: <span class="string">'John'</span>, <span class="property">age</span>: <span class="number">30</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $unset - Remove field</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$unset</span>: <span class="bracket">{</span> <span class="property">lastLogin</span>: <span class="string">''</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $inc - Increment/decrement number</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> 
+        <span class="property">$inc</span>: <span class="bracket">{</span> <span class="property">age</span>: <span class="number">1</span> <span class="bracket">}</span>,    <span class="comment">// Increment by 1</span>
+        <span class="property">$inc</span>: <span class="bracket">{</span> <span class="property">score</span>: <span class="number">-5</span> <span class="bracket">}</span>   <span class="comment">// Decrement by 5</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $mul - Multiply</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$mul</span>: <span class="bracket">{</span> <span class="property">score</span>: <span class="number">2</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $min - Update if new value is less</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$min</span>: <span class="bracket">{</span> <span class="property">age</span>: <span class="number">25</span> <span class="bracket">}</span> <span class="bracket">}</span>  <span class="comment">// Only updates if 25 < current age</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $max - Update if new value is greater</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$max</span>: <span class="bracket">{</span> <span class="property">score</span>: <span class="number">100</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $currentDate - Set to current date</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$currentDate</span>: <span class="bracket">{</span> <span class="property">lastModified</span>: <span class="number">true</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $rename - Rename field</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$rename</span>: <span class="bracket">{</span> <span class="string">'name'</span>: <span class="string">'fullName'</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Update operators executed'</span>);
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// ARRAY UPDATE OPERATORS</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">arrayUpdateOperators</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// $push - Add to array</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$push</span>: <span class="bracket">{</span> <span class="property">hobbies</span>: <span class="string">'swimming'</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $push with $each - Add multiple items</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> 
+        <span class="property">$push</span>: <span class="bracket">{</span> 
+          <span class="property">hobbies</span>: <span class="bracket">{</span> 
+            <span class="property">$each</span>: <span class="bracket">[</span><span class="string">'reading'</span>, <span class="string">'gaming'</span>, <span class="string">'cooking'</span><span class="bracket">]</span>,
+            <span class="property">$position</span>: <span class="number">0</span>  <span class="comment">// Insert at beginning</span>
+          <span class="bracket">}</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $addToSet - Add if doesn't exist (prevents duplicates)</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$addToSet</span>: <span class="bracket">{</span> <span class="property">hobbies</span>: <span class="string">'reading'</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $pull - Remove matching items</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$pull</span>: <span class="bracket">{</span> <span class="property">hobbies</span>: <span class="string">'gaming'</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $pull with condition</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> 
+        <span class="property">$pull</span>: <span class="bracket">{</span> 
+          <span class="property">addresses</span>: <span class="bracket">{</span> <span class="property">city</span>: <span class="string">'New York'</span> <span class="bracket">}</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $pop - Remove first or last element</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$pop</span>: <span class="bracket">{</span> <span class="property">hobbies</span>: <span class="number">1</span> <span class="bracket">}</span> <span class="bracket">}</span>  <span class="comment">// 1 = last, -1 = first</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $pullAll - Remove multiple values</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$pullAll</span>: <span class="bracket">{</span> <span class="property">hobbies</span>: <span class="bracket">[</span><span class="string">'reading'</span>, <span class="string">'gaming'</span><span class="bracket">]</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $ (positional) - Update first matching array element</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span>, <span class="string">'addresses.city'</span>: <span class="string">'New York'</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$set</span>: <span class="bracket">{</span> <span class="string">'addresses.$.isPrimary'</span>: <span class="number">true</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $[] - Update all array elements</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">$set</span>: <span class="bracket">{</span> <span class="string">'addresses.$[].isPrimary'</span>: <span class="number">false</span> <span class="bracket">}</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// $[<identifier>] - Update specific array elements</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> 
+        <span class="property">$set</span>: <span class="bracket">{</span> <span class="string">'addresses.$[elem].isPrimary'</span>: <span class="number">true</span> <span class="bracket">}</span>
+      <span class="bracket">}</span>,
+      <span class="bracket">{</span>
+        <span class="property">arrayFilters</span>: <span class="bracket">[{</span> <span class="string">'elem.city'</span>: <span class="string">'New York'</span> <span class="bracket">}]</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Array update operators executed'</span>);
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// NESTED DOCUMENT UPDATES</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">nestedDocumentUpdate</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Update nested field using dot notation</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> 
+        <span class="property">$set</span>: <span class="bracket">{</span> 
+          <span class="string">'profile.bio'</span>: <span class="string">'New bio'</span>,
+          <span class="string">'profile.social.twitter'</span>: <span class="string">'@newhandle'</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="comment">// Update entire nested object</span>
+    <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">_id</span>: <span class="property">userId</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span>
+        <span class="property">$set</span>: <span class="bracket">{</span>
+          <span class="property">profile</span>: <span class="bracket">{</span>
+            <span class="property">bio</span>: <span class="string">'Complete new profile'</span>,
+            <span class="property">website</span>: <span class="string">'https://example.com'</span>,
+            <span class="property">social</span>: <span class="bracket">{</span>
+              <span class="property">twitter</span>: <span class="string">'@handle'</span>,
+              <span class="property">linkedin</span>: <span class="string">'profile'</span>
+            <span class="bracket">}</span>
+          <span class="bracket">}</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Nested document updated'</span>);
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// BULK UPDATES</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">bulkUpdateExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">bulkOps</span> <span class="operator">=</span> <span class="bracket">[</span>
+      <span class="bracket">{</span>
+        <span class="property">updateOne</span>: <span class="bracket">{</span>
+          <span class="property">filter</span>: <span class="bracket">{</span> <span class="property">email</span>: <span class="string">'john@example.com'</span> <span class="bracket">}</span>,
+          <span class="property">update</span>: <span class="bracket">{</span> <span class="property">$set</span>: <span class="bracket">{</span> <span class="property">age</span>: <span class="number">26</span> <span class="bracket">}</span> <span class="bracket">}</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>,
+      <span class="bracket">{</span>
+        <span class="property">updateMany</span>: <span class="bracket">{</span>
+          <span class="property">filter</span>: <span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">false</span> <span class="bracket">}</span>,
+          <span class="property">update</span>: <span class="bracket">{</span> <span class="property">$set</span>: <span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">true</span> <span class="bracket">}</span> <span class="bracket">}</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>,
+      <span class="bracket">{</span>
+        <span class="property">deleteOne</span>: <span class="bracket">{</span>
+          <span class="property">filter</span>: <span class="bracket">{</span> <span class="property">email</span>: <span class="string">'old@example.com'</span> <span class="bracket">}</span>
+        <span class="bracket">}</span>
+      <span class="bracket">}</span>
+    <span class="bracket">]</span>;
+    
+    <span class="keyword">const</span> <span class="property">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">bulkWrite</span>(<span class="property">bulkOps</span>);
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Bulk operation result:'</span>, <span class="property">result</span>);
+    <span class="keyword">return</span> <span class="property">result</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// UPDATE WITH UPSERT</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">const</span> <span class="property">upsertExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">email</span>, <span class="property">userData</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">updateOne</span>(
+      <span class="bracket">{</span> <span class="property">email</span>: <span class="property">email</span> <span class="bracket">}</span>,
+      <span class="bracket">{</span> 
+        <span class="property">$set</span>: <span class="property">userData</span>,
+        <span class="property">$setOnInsert</span>: <span class="bracket">{</span> <span class="property">createdAt</span>: <span class="keyword">new</span> <span class="class-name">Date</span>() <span class="bracket">}</span>  <span class="comment">// Only set on insert</span>
+      <span class="bracket">}</span>,
+      <span class="bracket">{</span> <span class="property">upsert</span>: <span class="number">true</span> <span class="bracket">}</span>
+    <span class="bracket">)</span>;
+    
+    <span class="keyword">if</span> (<span class="property">result</span>.<span class="property">upsertedCount</span> <span class="operator">></span> <span class="number">0</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'New document created'</span>);
+    <span class="bracket">}</span> <span class="keyword">else</span> <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Document updated'</span>);
+    <span class="bracket">}</span>
+    
+    <span class="keyword">return</span> <span class="property">result</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="keyword">module</span>.<span class="property">exports</span> <span class="operator">=</span> <span class="bracket">{</span>
+  <span class="property">updateWithSave</span>,
+  <span class="property">updateOneExample</span>,
+  <span class="property">updateManyExample</span>,
+  <span class="property">findByIdAndUpdateExample</span>,
+  <span class="property">findOneAndUpdateExample</span>,
+  <span class="property">updateOperators</span>,
+  <span class="property">arrayUpdateOperators</span>,
+  <span class="property">nestedDocumentUpdate</span>,
+  <span class="property">bulkUpdateExample</span>,
+  <span class="property">upsertExample</span>
+<span class="bracket">}</span>;</code></pre>
+            </li>
+
+            <li>
+                <h2>DELETE Operations</h2>
+                <pre><code><span class="keyword">const</span> <span class="class-name">User</span> <span class="operator">=</span> <span class="call">require</span>(<span class="string">'./models/User'</span>);
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 1: deleteOne() - Delete first match</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">deleteOneExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">deleteOne</span>(<span class="bracket">{</span> <span class="property">email</span>: <span class="string">'john@example.com'</span> <span class="bracket">}</span>);
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Deleted count:'</span>, <span class="property">result</span>.<span class="property">deletedCount</span>);
+    
+    <span class="keyword">if</span> (<span class="property">result</span>.<span class="property">deletedCount</span> <span class="operator">===</span> <span class="number">0</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'No document found to delete'</span>);
+    <span class="bracket">}</span> <span class="keyword">else</span> <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'Document deleted successfully'</span>);
+    <span class="bracket">}</span>
+    
+    <span class="comment">// Returns: { acknowledged: true, deletedCount: 1 }</span>
+    <span class="keyword">return</span> <span class="property">result</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 2: deleteMany() - Delete all matches</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">deleteManyExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="keyword">const</span> <span class="property">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">deleteMany</span>(<span class="bracket">{</span> <span class="property">isActive</span>: <span class="number">false</span> <span class="bracket">}</span>);
+    
+    <span class="call">console</span>.<span class="call">log</span>(<span class="string">`Deleted ${</span><span class="property">result</span>.<span class="property">deletedCount</span><span class="string">} documents`</span>);
+    <span class="keyword">return</span> <span class="property">result</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 3: findByIdAndDelete()</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">findByIdAndDeleteExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">(</span><span class="property">userId</span><span class="bracket">)</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Returns the deleted document</span>
+    <span class="keyword">const</span> <span class="property">deletedUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findByIdAndDelete</span>(<span class="property">userId</span>);
+    
+    <span class="keyword">if</span> (<span class="operator">!</span><span class="property">deletedUser</span>) <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User not found'</span>);
+    <span class="bracket">}</span> <span class="keyword">else</span> <span class="bracket">{</span>
+      <span class="call">console</span>.<span class="call">log</span>(<span class="string">'User deleted:'</span>, <span class="property">deletedUser</span>);
+    <span class="bracket">}</span>
+    
+    <span class="keyword">return</span> <span class="property">deletedUser</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="comment">// ============================================</span>
+<span class="comment">// METHOD 4: findOneAndDelete()</span>
+<span class="comment">// ============================================</span>
+<span class="keyword">const</span> <span class="property">findOneAndDeleteExample</span> <span class="operator">=</span> <span class="keyword">async</span> <span class="bracket">()</span> <span class="operator">=></span> <span class="bracket">{</span>
+  <span class="keyword">try</span> <span class="bracket">{</span>
+    <span class="comment">// Finds one document by criteria and deletes it</span>
+    <span class="keyword">const</span> <span class="property">deletedUser</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="class-name">User</span>.<span class="call">findOneAndDelete</span>(<span class="bracket">{</span> <span class="property">role</span>: <span class="string">'moderator'</span> <span class="bracket">}</span>);
+    
+    <span class="keyword">return</span> <span class="property">deletedUser</span>;
+  <span class="bracket">}</span> <span class="keyword">catch</span> <span class="bracket">(</span><span class="property">error</span><span class="bracket">)</span> <span class="bracket">{</span>
+    <span class="call">console</span>.<span class="call">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>.<span class="property">message</span>);
+  <span class="bracket">}</span>
+<span class="bracket">}</span>;
+
+<span class="keyword">module</span>.<span class="property">exports</span> <span class="operator">=</span> <span class="bracket">{</span>
+  <span class="property">deleteOneExample</span>,
+  <span class="property">deleteManyExample</span>,
+  <span class="property">findByIdAndDeleteExample</span>,
+  <span class="property">findOneAndDeleteExample</span>
+<span class="bracket">}</span>;</code></pre>
+            </li>
+        </ol>
+    </div>
+    <div class="container">
+        <h1 class="note-header">10. Error Handling & Best Practices</h1>
+
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">mongoose</span> <span class="operator">=</span> <span class="builtin">require</span>(<span class="string">'mongoose'</span>);
+
+<span class="comment">// ============================================</span>
+<span class="comment">// 1. COMPREHENSIVE ERROR HANDLING</span>
+<span class="comment">// ============================================</span>
+
+<span class="keyword">class</span> <span class="type">DatabaseError</span> <span class="keyword">extends</span> <span class="type">Error</span> {
+  <span class="function">constructor</span>(<span class="variable">message</span>, <span class="variable">type</span>, <span class="variable">details</span> <span class="operator">=</span> {}) {
+    <span class="keyword">super</span>(<span class="variable">message</span>);
+    <span class="keyword">this</span>.<span class="property">name</span> <span class="operator">=</span> <span class="string">'DatabaseError'</span>;
+    <span class="keyword">this</span>.<span class="property">type</span> <span class="operator">=</span> <span class="variable">type</span>;
+    <span class="keyword">this</span>.<span class="property">details</span> <span class="operator">=</span> <span class="variable">details</span>;
+  }
+}
+
+<span class="keyword">const</span> <span class="function">handleMongooseError</span> <span class="operator">=</span> (<span class="variable">error</span>) <span class="operator">=></span> {
+  <span class="comment">// Validation Error</span>
+  <span class="keyword">if</span> (<span class="variable">error</span>.<span class="property">name</span> <span class="operator">===</span> <span class="string">'ValidationError'</span>) {
+    <span class="keyword">const</span> <span class="variable">errors</span> <span class="operator">=</span> <span class="type">Object</span>.<span class="builtin">keys</span>(<span class="variable">error</span>.<span class="property">errors</span>).<span class="method">map</span>(<span class="variable">key</span> <span class="operator">=></span> ({
+      <span class="property">field</span>: <span class="variable">key</span>,
+      <span class="property">message</span>: <span class="variable">error</span>.<span class="property">errors</span>[<span class="variable">key</span>].<span class="property">message</span>
+    }));
+    
+    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DatabaseError</span>(
+      <span class="string">'Validation failed'</span>,
+      <span class="string">'VALIDATION_ERROR'</span>,
+      { <span class="variable">errors</span> }
+    );
+  }
+  
+  <span class="comment">// Duplicate Key Error</span>
+  <span class="keyword">if</span> (<span class="variable">error</span>.<span class="property">code</span> <span class="operator">===</span> <span class="number">11000</span>) {
+    <span class="keyword">const</span> <span class="variable">field</span> <span class="operator">=</span> <span class="type">Object</span>.<span class="builtin">keys</span>(<span class="variable">error</span>.<span class="property">keyPattern</span>)[<span class="number">0</span>];
+    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DatabaseError</span>(
+      <span class="string">`</span><span class="property">${</span><span class="variable">field</span><span class="property">}</span><span class="string"> already exists`</span>,
+      <span class="string">'DUPLICATE_KEY'</span>,
+      { <span class="variable">field</span>, <span class="property">value</span>: <span class="variable">error</span>.<span class="property">keyValue</span>[<span class="variable">field</span>] }
+    );
+  }
+  
+  <span class="comment">// Cast Error (invalid ID format)</span>
+  <span class="keyword">if</span> (<span class="variable">error</span>.<span class="property">name</span> <span class="operator">===</span> <span class="string">'CastError'</span>) {
+    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DatabaseError</span>(
+      <span class="string">`Invalid </span><span class="property">${</span><span class="variable">error</span>.<span class="property">path</span><span class="property">}</span><span class="string">: </span><span class="property">${</span><span class="variable">error</span>.<span class="property">value</span><span class="property">}</span><span class="string">`</span>,
+      <span class="string">'CAST_ERROR'</span>,
+      { <span class="property">path</span>: <span class="variable">error</span>.<span class="property">path</span>, <span class="property">value</span>: <span class="variable">error</span>.<span class="property">value</span> }
+    );
+  }
+  
+  <span class="comment">// Document Not Found</span>
+  <span class="keyword">if</span> (<span class="variable">error</span>.<span class="property">name</span> <span class="operator">===</span> <span class="string">'DocumentNotFoundError'</span>) {
+    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DatabaseError</span>(
+      <span class="string">'Document not found'</span>,
+      <span class="string">'NOT_FOUND'</span>,
+      {}
+    );
+  }
+  
+  <span class="comment">// Connection Error</span>
+  <span class="keyword">if</span> (<span class="variable">error</span>.<span class="property">name</span> <span class="operator">===</span> <span class="string">'MongoNetworkError'</span>) {
+    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DatabaseError</span>(
+      <span class="string">'Database connection failed'</span>,
+      <span class="string">'CONNECTION_ERROR'</span>,
+      { <span class="property">originalError</span>: <span class="variable">error</span>.<span class="property">message</span> }
+    );
+  }
+  
+  <span class="comment">// Default error</span>
+  <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DatabaseError</span>(<span class="string">'An unexpected database error occurred'</span>, <span class="string">'UNKNOWN_ERROR'</span>, { <span class="property">originalError</span>: <span class="variable">error</span>.<span class="property">message</span> });
+};
+        </code></pre>
+
+        <h2>Database Summary & Key Concepts</h2>
+        <p>Let me create one final reference guide summarizing everything:</p>
+
+        <h1>Mongoose CRUD Complete Cheatsheet</h1>
+
+        <hr>
+
+        <h2>🔌 Connection</h2>
+        
+        <h3>// Basic connection</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="method">connect</span>(<span class="string">'mongodb://localhost:27017/dbname'</span>);
+        </code></pre>
+
+        <h3>// With options</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="method">connect</span>(<span class="variable">uri</span>, {
+  <span class="property">maxPoolSize</span>: <span class="number">10</span>,
+  <span class="property">serverSelectionTimeoutMS</span>: <span class="number">5000</span>
+});
+        </code></pre>
+        
+        <hr>
+
+        <h2>📋 Schema & Model</h2>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">schema</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">mongoose</span>.<span class="type">Schema</span>({
+  <span class="property">name</span>: { <span class="property">type</span>: <span class="type">String</span>, <span class="property">required</span>: <span class="literal">true</span> },
+  <span class="property">email</span>: { <span class="property">type</span>: <span class="type">String</span>, <span class="property">unique</span>: <span class="literal">true</span> },
+  <span class="property">age</span>: { <span class="property">type</span>: <span class="type">Number</span>, <span class="property">min</span>: <span class="number">0</span>, <span class="property">max</span>: <span class="number">120</span> },
+  <span class="property">role</span>: { <span class="property">type</span>: <span class="type">String</span>, <span class="property">enum</span>: [<span class="string">'user'</span>, <span class="string">'admin'</span>] },
+  <span class="property">tags</span>: [<span class="type">String</span>],
+  <span class="property">profile</span>: {
+    <span class="property">bio</span>: <span class="type">String</span>,
+    <span class="property">website</span>: <span class="type">String</span>
+  }
+}, { <span class="property">timestamps</span>: <span class="literal">true</span> });
+
+<span class="keyword">const</span> <span class="variable">Model</span> <span class="operator">=</span> <span class="variable">mongoose</span>.<span class="method">model</span>(<span class="string">'Model'</span>, <span class="variable">schema</span>);
+        </code></pre>
+
+        <hr>
+
+        <h2>✏️ CREATE Operations</h2>
+        
+        <h3>Method 1: save()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="type">Model</span>({ <span class="property">name</span>: <span class="string">'John'</span> });
+<span class="keyword">await</span> <span class="variable">doc</span>.<span class="method">save</span>();
+        </code></pre>
+
+        <h3>Method 2: create()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">create</span>({ <span class="property">name</span>: <span class="string">'John'</span> });
+        </code></pre>
+
+        <h3>Method 3: insertMany()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">docs</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">insertMany</span>([
+  { <span class="property">name</span>: <span class="string">'John'</span> },
+  { <span class="property">name</span>: <span class="string">'Jane'</span> }
+]);
+        </code></pre>
+
+        <hr>
+
+        <h2>📖 READ Operations</h2>
+        
+        <h3>Find All</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">docs</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>();
+        </code></pre>
+
+        <h3>Find with Conditions</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">docs</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>({ 
+  <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">18</span> },
+  <span class="property">isActive</span>: <span class="literal">true</span> 
+});
+        </code></pre>
+
+        <h3>Find One</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findOne</span>({ <span class="property">email</span>: <span class="string">'test@example.com'</span> });
+        </code></pre>
+
+        <h3>Find by ID</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findById</span>(<span class="variable">id</span>);
+        </code></pre>
+
+        <h3>Query Operators</h3>
+        <pre><code>
+<span class="comment">// Comparison</span>
+{ <span class="property">age</span>: { <span class="property">$gt</span>: <span class="number">18</span> } }        <span class="comment">// Greater than</span>
+{ <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">18</span> } }       <span class="comment">// Greater or equal</span>
+{ <span class="property">age</span>: { <span class="property">$lt</span>: <span class="number">65</span> } }        <span class="comment">// Less than</span>
+{ <span class="property">age</span>: { <span class="property">$lte</span>: <span class="number">65</span> } }       <span class="comment">// Less or equal</span>
+{ <span class="property">age</span>: { <span class="property">$ne</span>: <span class="number">30</span> } }        <span class="comment">// Not equal</span>
+{ <span class="property">age</span>: { <span class="property">$in</span>: [<span class="number">25</span>, <span class="number">30</span>] } }  <span class="comment">// In array</span>
+{ <span class="property">age</span>: { <span class="property">$nin</span>: [<span class="number">40</span>, <span class="number">45</span>] } } <span class="comment">// Not in array</span>
+
+<span class="comment">// Logical</span>
+{ <span class="property">$and</span>: [{ <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">18</span> } }, { <span class="property">isActive</span>: <span class="literal">true</span> }] }
+{ <span class="property">$or</span>: [{ <span class="property">role</span>: <span class="string">'admin'</span> }, { <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">60</span> } }] }
+{ <span class="property">$not</span>: { <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">18</span> } } }
+
+<span class="comment">// Element</span>
+{ <span class="property">lastLogin</span>: { <span class="property">$exists</span>: <span class="literal">true</span> } }
+{ <span class="property">age</span>: { <span class="property">$type</span>: <span class="string">'number'</span> } }
+
+<span class="comment">// Array</span>
+{ <span class="property">tags</span>: { <span class="property">$size</span>: <span class="number">2</span> } }
+{ <span class="property">tags</span>: { <span class="property">$all</span>: [<span class="string">'js'</span>, <span class="string">'node'</span>] } }
+{ <span class="property">tags</span>: <span class="string">'javascript'</span> }  <span class="comment">// Contains</span>
+
+<span class="comment">// Regex</span>
+{ <span class="property">name</span>: { <span class="property">$regex</span>: <span class="string">/john/i</span> } }
+        </code></pre>
+
+        <h3>Field Selection</h3>
+        <pre><code>
+<span class="comment">// Include fields</span>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>().<span class="method">select</span>(<span class="string">'name email'</span>);
+
+<span class="comment">// Exclude fields</span>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>().<span class="method">select</span>(<span class="string">'-password -__v'</span>);
+        </code></pre>
+
+        <h3>Sorting</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>().<span class="method">sort</span>(<span class="string">'age'</span>);           <span class="comment">// Ascending</span>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>().<span class="method">sort</span>(<span class="string">'-age'</span>);          <span class="comment">// Descending</span>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>().<span class="method">sort</span>({ <span class="property">age</span>: <span class="number">-1</span>, <span class="property">name</span>: <span class="number">1</span> });
+        </code></pre>
+
+        <h3>Pagination</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">page</span> <span class="operator">=</span> <span class="number">1</span>, <span class="variable">limit</span> <span class="operator">=</span> <span class="number">10</span>;
+<span class="keyword">const</span> <span class="variable">docs</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>()
+  .<span class="method">skip</span>((<span class="variable">page</span> <span class="operator">-</span> <span class="number">1</span>) <span class="operator">*</span> <span class="variable">limit</span>)
+  .<span class="method">limit</span>(<span class="variable">limit</span>);
+        </code></pre>
+
+        <h3>Population (JOIN)</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findById</span>(<span class="variable">id</span>).<span class="method">populate</span>(<span class="string">'posts'</span>);
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findById</span>(<span class="variable">id</span>).<span class="method">populate</span>(<span class="string">'posts'</span>, <span class="string">'title content'</span>);
+        </code></pre>
+
+        <h3>Lean (Performance)</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">docs</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>().<span class="method">lean</span>(); <span class="comment">// Plain JS objects</span>
+        </code></pre>
+        
+        <hr>
+
+        <h2>✏️ UPDATE Operations</h2>
+
+        <h3>Method 1: save()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findById</span>(<span class="variable">id</span>);
+<span class="variable">doc</span>.<span class="property">name</span> <span class="operator">=</span> <span class="string">'Updated'</span>;
+<span class="keyword">await</span> <span class="variable">doc</span>.<span class="method">save</span>();
+        </code></pre>
+
+        <h3>Method 2: updateOne()</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">updateOne</span>(
+  { <span class="property">email</span>: <span class="string">'test@example.com'</span> },
+  { <span class="property">$set</span>: { <span class="property">age</span>: <span class="number">30</span> } }
+);
+<span class="comment">// Returns: { modifiedCount: 1, matchedCount: 1 }</span>
+        </code></pre>
+
+        <h3>Method 3: updateMany()</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">updateMany</span>(
+  { <span class="property">isActive</span>: <span class="literal">false</span> },
+  { <span class="property">$set</span>: { <span class="property">isActive</span>: <span class="literal">true</span> } }
+);
+        </code></pre>
+
+        <h3>Method 4: findByIdAndUpdate()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findByIdAndUpdate</span>(
+  <span class="variable">id</span>,
+  { <span class="property">$set</span>: { <span class="property">name</span>: <span class="string">'New'</span> } },
+  { <span class="property">new</span>: <span class="literal">true</span>, <span class="property">runValidators</span>: <span class="literal">true</span> }
+);
+        </code></pre>
+
+        <h3>Method 5: findOneAndUpdate()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findOneAndUpdate</span>(
+  { <span class="property">email</span>: <span class="string">'test@example.com'</span> },
+  { <span class="property">$set</span>: { <span class="property">age</span>: <span class="number">30</span> } },
+  { <span class="property">new</span>: <span class="literal">true</span> }
+);
+        </code></pre>
+
+        <h3>Update Operators</h3>
+        <pre><code>
+<span class="comment">// Field operators</span>
+{ <span class="property">$set</span>: { <span class="property">name</span>: <span class="string">'John'</span> } }          <span class="comment">// Set value</span>
+{ <span class="property">$unset</span>: { <span class="property">age</span>: <span class="string">''</span> } }             <span class="comment">// Remove field</span>
+{ <span class="property">$inc</span>: { <span class="property">age</span>: <span class="number">1</span> } }                <span class="comment">// Increment</span>
+{ <span class="property">$mul</span>: { <span class="property">price</span>: <span class="number">1.1</span> } }            <span class="comment">// Multiply</span>
+{ <span class="property">$min</span>: { <span class="property">age</span>: <span class="number">25</span> } }               <span class="comment">// Update if less</span>
+{ <span class="property">$max</span>: { <span class="property">score</span>: <span class="number">100</span> } }            <span class="comment">// Update if greater</span>
+{ <span class="property">$currentDate</span>: { <span class="property">updated</span>: <span class="literal">true</span> } } <span class="comment">// Set current date</span>
+{ <span class="property">$rename</span>: { <span class="string">'name'</span>: <span class="string">'fullName'</span> } } <span class="comment">// Rename field</span>
+
+<span class="comment">// Array operators</span>
+{ <span class="property">$push</span>: { <span class="property">tags</span>: <span class="string">'new'</span> } }                    <span class="comment">// Add to array</span>
+{ <span class="property">$push</span>: { <span class="property">tags</span>: { <span class="property">$each</span>: [<span class="string">'a'</span>, <span class="string">'b'</span>] } } }   <span class="comment">// Add multiple</span>
+{ <span class="property">$addToSet</span>: { <span class="property">tags</span>: <span class="string">'unique'</span> } }             <span class="comment">// Add if not exists</span>
+{ <span class="property">$pull</span>: { <span class="property">tags</span>: <span class="string">'old'</span> } }                    <span class="comment">// Remove matching</span>
+{ <span class="property">$pop</span>: { <span class="property">tags</span>: <span class="number">1</span> } }                         <span class="comment">// Remove last (1) or first (-1)</span>
+{ <span class="property">$pullAll</span>: { <span class="property">tags</span>: [<span class="string">'a'</span>, <span class="string">'b'</span>] } }           <span class="comment">// Remove multiple</span>
+
+<span class="comment">// Positional</span>
+{ <span class="property">$set</span>: { <span class="string">'items.$.price'</span>: <span class="number">100</span> } }           <span class="comment">// Update first match</span>
+{ <span class="property">$set</span>: { <span class="string">'items.$[].price'</span>: <span class="number">100</span> } }         <span class="comment">// Update all</span>
+{ <span class="property">$set</span>: { <span class="string">'items.$[elem].price'</span>: <span class="number">100</span> } }     <span class="comment">// Update filtered</span>
+<span class="comment">// With arrayFilters: [{ 'elem.id': 5 }]</span>
+        </code></pre>
+
+        <h3>Upsert (Create if not exists)</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">updateOne</span>(
+  { <span class="property">email</span>: <span class="string">'test@example.com'</span> },
+  { <span class="property">$set</span>: { <span class="property">name</span>: <span class="string">'John'</span> } },
+  { <span class="property">upsert</span>: <span class="literal">true</span> }
+);
+        </code></pre>
+
+        <hr>
+
+        <h2>🗑️ DELETE Operations</h2>
+
+        <h3>Method 1: deleteOne()</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">deleteOne</span>({ <span class="property">email</span>: <span class="string">'test@example.com'</span> });
+<span class="comment">// Returns: { deletedCount: 1 }</span>
+        </code></pre>
+
+        <h3>Method 2: deleteMany()</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">deleteMany</span>({ <span class="property">isActive</span>: <span class="literal">false</span> });
+        </code></pre>
+
+        <h3>Method 3: findByIdAndDelete()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findByIdAndDelete</span>(<span class="variable">id</span>);
+<span class="comment">// Returns deleted document</span>
+        </code></pre>
+
+        <h3>Method 4: findOneAndDelete()</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">doc</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">findOneAndDelete</span>({ <span class="property">email</span>: <span class="string">'test@example.com'</span> });
+        </code></pre>
+
+        <h3>Soft Delete (Recommended)</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">updateOne</span>(
+  { <span class="property">_id</span>: <span class="variable">id</span> },
+  { <span class="property">$set</span>: { <span class="property">isDeleted</span>: <span class="literal">true</span>, <span class="property">deletedAt</span>: <span class="keyword">new</span> <span class="type">Date</span>() } }
+);
+
+<span class="comment">// Query excluding deleted</span>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">find</span>({ <span class="property">isDeleted</span>: { <span class="property">$ne</span>: <span class="literal">true</span> } });
+        </code></pre>
+
+        <hr>
+
+        <h2>🔄 Advanced Operations</h2>
+
+        <h3>Aggregation</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">result</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">aggregate</span>([
+  { <span class="property">$match</span>: { <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">18</span> } } },
+  { <span class="property">$group</span>: { 
+      <span class="property">_id</span>: <span class="string">'$role'</span>,
+      <span class="property">count</span>: { <span class="property">$sum</span>: <span class="number">1</span> },
+      <span class="property">avgAge</span>: { <span class="property">$avg</span>: <span class="string">'$age'</span> }
+  }},
+  { <span class="property">$sort</span>: { <span class="property">count</span>: <span class="number">-1</span> } }
+]);
+        </code></pre>
+
+        <h3>Transactions</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">session</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="method">startSession</span>();
+<span class="variable">session</span>.<span class="method">startTransaction</span>();
+<span class="keyword">try</span> {
+  <span class="keyword">await</span> <span class="type">Model1</span>.<span class="method">create</span>([{ <span class="property">name</span>: <span class="string">'John'</span> }], { <span class="variable">session</span> });
+  <span class="keyword">await</span> <span class="type">Model2</span>.<span class="method">create</span>([{ <span class="property">data</span>: <span class="string">'test'</span> }], { <span class="variable">session</span> });
+  <span class="keyword">await</span> <span class="variable">session</span>.<span class="method">commitTransaction</span>();
+} <span class="keyword">catch</span> (<span class="variable">error</span>) {
+  <span class="keyword">await</span> <span class="variable">session</span>.<span class="method">abortTransaction</span>();
+} <span class="keyword">finally</span> {
+  <span class="variable">session</span>.<span class="method">endSession</span>();
+}
+        </code></pre>
+
+        <h3>Bulk Operations</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">bulkWrite</span>([
+  { <span class="property">insertOne</span>: { <span class="property">document</span>: { <span class="property">name</span>: <span class="string">'John'</span> } } },
+  { <span class="property">updateOne</span>: { 
+      <span class="property">filter</span>: { <span class="property">_id</span>: <span class="variable">id</span> },
+      <span class="property">update</span>: { <span class="property">$set</span>: { <span class="property">name</span>: <span class="string">'Jane'</span> } }
+  }},
+  { <span class="property">deleteOne</span>: { <span class="property">filter</span>: { <span class="property">email</span>: <span class="string">'old@test.com'</span> } } }
+]);
+        </code></pre>
+
+        <hr>
+
+        <h2>🎣 Middleware (Hooks)</h2>
+
+        <h3>// Pre hooks</h3>
+        <pre><code>
+<span class="variable">schema</span>.<span class="method">pre</span>(<span class="string">'save'</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+  <span class="builtin">console</span>.<span class="method">log</span>(<span class="string">'Before save'</span>);
+  <span class="variable">next</span>();
+});
+
+<span class="variable">schema</span>.<span class="method">pre</span>(<span class="string">'validate'</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+  <span class="builtin">console</span>.<span class="method">log</span>(<span class="string">'Before validate'</span>);
+  <span class="variable">next</span>();
+});
+        </code></pre>
+
+        <h3>// Post hooks</h3>
+        <pre><code>
+<span class="variable">schema</span>.<span class="method">post</span>(<span class="string">'save'</span>, <span class="keyword">function</span>(<span class="variable">doc</span>, <span class="variable">next</span>) {
+  <span class="builtin">console</span>.<span class="method">log</span>(<span class="string">'After save:'</span>, <span class="variable">doc</span>);
+  <span class="variable">next</span>();
+});
+
+<span class="variable">schema</span>.<span class="method">post</span>(<span class="string">'find'</span>, <span class="keyword">function</span>(<span class="variable">docs</span>) {
+  <span class="builtin">console</span>.<span class="method">log</span>(<span class="string">`Found </span><span class="property">${</span><span class="variable">docs</span>.<span class="property">length</span><span class="property">}</span><span class="string"> documents`</span>);
+});
+        </code></pre>
+
+        <hr>
+
+        <h2>🔍 Indexes</h2>
+
+        <h3>// Schema-level indexes</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">schema</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">mongoose</span>.<span class="type">Schema</span>({
+  <span class="property">email</span>: { <span class="property">type</span>: <span class="type">String</span>, <span class="property">unique</span>: <span class="literal">true</span>, <span class="property">index</span>: <span class="literal">true</span> },
+  <span class="property">name</span>: { <span class="property">type</span>: <span class="type">String</span>, <span class="property">index</span>: <span class="literal">true</span> }
+});
+        </code></pre>
+
+        <h3>// Compound index</h3>
+        <pre><code>
+<span class="variable">schema</span>.<span class="method">index</span>({ <span class="property">name</span>: <span class="number">1</span>, <span class="property">age</span>: <span class="number">-1</span> });
+        </code></pre>
+
+        <h3>// Text index</h3>
+        <pre><code>
+<span class="variable">schema</span>.<span class="method">index</span>({ <span class="property">name</span>: <span class="string">'text'</span>, <span class="property">bio</span>: <span class="string">'text'</span> });
+        </code></pre>
+
+        <h3>// Geospatial index</h3>
+        <pre><code>
+<span class="variable">schema</span>.<span class="method">index</span>({ <span class="property">location</span>: <span class="string">'2dsphere'</span> });
+        </code></pre>
+
+        <hr>
+
+        <h2>🎯 Virtuals</h2>
+        <pre><code>
+<span class="variable">schema</span>.<span class="method">virtual</span>(<span class="string">'fullName'</span>).<span class="method">get</span>(<span class="keyword">function</span>() {
+  <span class="keyword">return</span> <span class="string">`</span><span class="property">${</span><span class="keyword">this</span>.<span class="property">firstName</span><span class="property">}</span><span class="string"> </span><span class="property">${</span><span class="keyword">this</span>.<span class="property">lastName</span><span class="property">}</span><span class="string">`</span>;
+});
+
+<span class="variable">schema</span>.<span class="method">virtual</span>(<span class="string">'fullName'</span>).<span class="method">set</span>(<span class="keyword">function</span>(<span class="variable">name</span>) {
+  <span class="keyword">const</span> [<span class="variable">first</span>, <span class="variable">last</span>] <span class="operator">=</span> <span class="variable">name</span>.<span class="method">split</span>(<span class="string">' '</span>);
+  <span class="keyword">this</span>.<span class="property">firstName</span> <span class="operator">=</span> <span class="variable">first</span>;
+  <span class="keyword">this</span>.<span class="property">lastName</span> <span class="operator">=</span> <span class="variable">last</span>;
+});
+
+<span class="comment">// Enable in output</span>
+<span class="variable">schema</span>.<span class="method">set</span>(<span class="string">'toJSON'</span>, { <span class="property">virtuals</span>: <span class="literal">true</span> });
+        </code></pre>
+
+        <hr>
+
+        <h2>⚡ Performance Tips</h2>
+        <ul>
+            <li>Use <span class="property">lean()</span> for read-only queries</li>
+            <li><span class="method">Select</span> only needed fields</li>
+            <li>Use <span class="property">indexes</span> on frequently queried fields</li>
+            <li>Use <span class="method">populate</span> sparingly - consider denormalization</li>
+            <li>Batch operations with <span class="method">insertMany</span>/<span class="method">bulkWrite</span></li>
+            <li>Use <span class="property">cursors</span> for large datasets</li>
+            <li>Enable <span class="property">connection pooling</span></li>
+            <li>Use <span class="type">Promise</span>.<span class="method">all()</span> for parallel queries</li>
+        </ul>
+
+        <hr>
+
+        <h2>🛡️ Common Errors</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Error</th>
+                    <th>Cause</th>
+                    <th>Solution</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>ValidationError</strong></td>
+                    <td>Schema validation failed</td>
+                    <td>Check required fields and validators</td>
+                </tr>
+                <tr>
+                    <td><strong>E11000 duplicate key</strong></td>
+                    <td>Unique constraint violation</td>
+                    <td>Use different value or upsert</td>
+                </tr>
+                <tr>
+                    <td><strong>CastError</strong></td>
+                    <td>Invalid ObjectId format</td>
+                    <td>Validate ID before query</td>
+                </tr>
+                <tr>
+                    <td><strong>DocumentNotFoundError</strong></td>
+                    <td>Document doesn't exist</td>
+                    <td>Check if document exists first</td>
+                </tr>
+                <tr>
+                    <td><strong>MongoNetworkError</strong></td>
+                    <td>Connection failed</td>
+                    <td>Check MongoDB is running</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr>
+
+        <h2>📚 Useful Methods</h2>
+
+        <h3>// Counting</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">countDocuments</span>();
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">countDocuments</span>({ <span class="property">age</span>: { <span class="property">$gte</span>: <span class="number">18</span> } });
+        </code></pre>
+
+        <h3>// Existence check</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">exists</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">exists</span>({ <span class="property">email</span>: <span class="string">'test@example.com'</span> });
+        </code></pre>
+
+        <h3>// Distinct values</h3>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">roles</span> <span class="operator">=</span> <span class="keyword">await</span> <span class="type">Model</span>.<span class="method">distinct</span>(<span class="string">'role'</span>);
+        </code></pre>
+
+        <h3>// Estimate count (faster, less accurate)</h3>
+        <pre><code>
+<span class="keyword">await</span> <span class="type">Model</span>.<span class="method">estimatedDocumentCount</span>();
+        </code></pre>
+
+        <hr>
+
+        <h2>🔐 Validation</h2>
+        <pre><code>
+<span class="keyword">const</span> <span class="variable">schema</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="variable">mongoose</span>.<span class="type">Schema</span>({
+  <span class="property">email</span>: {
+    <span class="property">type</span>: <span class="type">String</span>,
+    <span class="property">required</span>: [<span class="literal">true</span>, <span class="string">'Email is required'</span>],
+    <span class="property">unique</span>: <span class="literal">true</span>,
+    <span class="property">lowercase</span>: <span class="literal">true</span>,
+    <span class="property">trim</span>: <span class="literal">true</span>,
+    <span class="property">match</span>: [<span class="string">/^\S+@\S+\.\S+$/</span>, <span class="string">'Invalid email'</span>],
+    <span class="property">validate</span>: {
+      <span class="property">validator</span>: <span class="keyword">function</span>(<span class="variable">v</span>) {
+        <span class="keyword">return</span> <span class="string">/^\S+@\S+\.\S+$/</span>.<span class="method">test</span>(<span class="variable">v</span>);
+      },
+      <span class="property">message</span>: <span class="variable">props</span> <span class="operator">=></span> <span class="string">`</span><span class="property">${</span><span class="variable">props</span>.<span class="property">value</span><span class="property">}</span><span class="string"> is not valid!`</span>
+    }
+  },
+  <span class="property">age</span>: {
+    <span class="property">type</span>: <span class="type">Number</span>,
+    <span class="property">min</span>: [<span class="number">0</span>, <span class="string">'Age cannot be negative'</span>],
+    <span class="property">max</span>: [<span class="number">120</span>, <span class="string">'Age too high'</span>]
+  }
+});
+        </code></pre>
+
+        <hr>
+
+        <h2>🎓 Key Concepts Explained</h2>
+
+        <h3>How Mongoose Works:</h3>
+        <ul>
+            <li><strong>Connection Flow:</strong> Mongoose connects to MongoDB → Creates connection pool → Maintains persistent connections</li>
+            <li><strong>Schema to Model:</strong> Schema defines structure → Model is a constructor compiled from Schema → Model creates documents</li>
+            <li><strong>Document Lifecycle:</strong>
+                <ul>
+                    <li>New document → Validation → Pre-save hooks → Save to DB → Post-save hooks</li>
+                    <li>Query → Pre-query hooks → Execute query → Post-query hooks → Return results</li>
+                </ul>
+            </li>
+            <li><strong>Query Execution:</strong>
+                <ul>
+                    <li>Queries are chainable and lazy (don't execute until <span class="method">.exec()</span>, <span class="keyword">await</span>, or callback)</li>
+                    <li>Example: <span class="type">Model</span>.<span class="method">find</span>().<span class="method">where</span>(<span class="string">'age'</span>).<span class="method">gt</span>(<span class="number">18</span>).<span class="method">limit</span>(<span class="number">10</span>) builds query but doesn't execute</li>
+                </ul>
+            </li>
+            <li><strong>Middleware System:</strong>
+                <ul>
+                    <li><span class="property">Pre hooks</span> run before operation</li>
+                    <li><span class="property">Post hooks</span> run after operation</li>
+                    <li>Can modify documents or queries</li>
+                </ul>
+            </li>
+            <li><strong>Validation:</strong> Happens on <span class="method">save()</span> and <span class="method">create()</span>, optional on <span class="method">update()</span> with <span class="property">runValidators: true</span></li>
+            <li><strong>Performance:</strong>
+                <ul>
+                    <li><span class="method">.lean()</span> returns plain objects (no Mongoose methods, faster)</li>
+                    <li><span class="method">.select()</span> reduces data transfer</li>
+                    <li><span class="property">Indexes</span> speed up queries dramatically</li>
+                </ul>
+            </li>
+            <li><strong>When to Use What:</strong>
+                <ul>
+                    <li><span class="method">save()</span>: When you need middleware hooks and full validation</li>
+                    <li><span class="method">create()</span>: Quick creation with validation</li>
+                    <li><span class="method">updateOne()</span>: When you only need confirmation, not the document</li>
+                    <li><span class="method">findByIdAndUpdate()</span>: When you need the updated document returned</li>
+                    <li><span class="method">lean()</span>: For read-only operations where you don't need Mongoose features</li>
+                    <li><span class="method">populate()</span>: For small-medium datasets; avoid for large-scale joins</li>
+                </ul>
+            </li>
+        </ul>
+
+        <p>You now have a **complete understanding** of MongoDB CRUD operations with Mongoose! The artifacts contain working code examples for every operation. Feel free to ask if you need clarification on any specific concept! 🚀</p>
+
+    </div>
+</body>
+</html>

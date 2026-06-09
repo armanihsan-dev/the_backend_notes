@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenID Connect Flow Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Variables for the dark theme */
+      :root {
+        --color-background: #1e1e1e; /* Dark Blackish Background */
+        --color-text: #d4d4d4; /* Light Grey Text */
+        --color-accent: #569cd6; /* VS Code Blue for headings/accents */
+        --color-code-bg: #0d0d0d; /* Even darker for code blocks */
+        --color-code-text: #9cdcfe; /* Light Blue/Cyan for code */
+        --color-highlight: #4ec9b0; /* Green/Teal for key points */
+        --color-table-bg: #282828; /* Darker grey for table rows */
+      }
+
+      .pink {
+        color: palevioletred;
+      }
+      .green {
+        color: rgb(47, 205, 47);
+      }
+      .white {
+        color: white;
+      }
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-background);
+        color: var(--color-text);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        background-color: #252526; /* Slightly lighter inner background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-weight: 800;
+        color: var(--color-accent);
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+
+      .intro-text {
+        font-style: italic;
+        margin-bottom: 25px;
+        padding: 10px;
+        background-color: #333;
+        border-radius: 4px;
+      }
+
+      /* VS Code Code Block Styling */
+      pre {
+        background-color: var(--color-code-bg);
+        color: var(--color-code-text);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 20px 0;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      pre code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+      }
+
+      .comment {
+        color: #6a9955; /* VS Code Green for comments */
+      }
+
+      .keyword {
+        color: #569cd6; /* VS Code Blue for keywords */
+      }
+      .string {
+        color: #ce9178;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #3c3c3c;
+      }
+
+      th {
+        background-color: #333;
+        color: var(--color-highlight);
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: var(--color-table-bg);
+      }
+
+      /* Specific highlight for key information */
+      strong {
+        color: var(--color-highlight);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Receiving Auth code on backend (Corrected Flow)</h1>
+
+      <p class="intro-text">
+        complete set of code for an Authorization Code Flow with Google OpenID
+        Connect! You've successfully implemented all the key stages, including a
+        session management layer. Let's break down the data flow, communication,
+        and how the authorization code is handled, step-by-step.
+      </p>
+
+      <h2>🚀 The Complete Authentication Flow</h2>
+
+      <p>
+        The authentication process involves three distinct phases and four key
+        actors: the <strong>User</strong>, your
+        <strong>Frontend</strong> (running on <code>localhost:5500</code>), your
+        <strong>Backend</strong> (Express on <code>localhost:3000</code>), and
+        <strong>Google's Authorization Server</strong>.
+      </p>
+
+      <hr />
+
+      <h3>Phase 1: Initiation and Authorization (Frontend to Google)</h3>
+      <p>This phase starts when the user decides to log in.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Code Reference</th>
+            <th>Data Flow & Communication</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1. Initiate</td>
+            <td>User</td>
+            <td>Clicks the "Sign in with Google" button on login.html.</td>
+            <td><code>login.html</code></td>
+            <td>
+              <pre><code><span class="keyword">const</span> authURL = <span class="string">`<span class="green">https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=</span>${<span class="pink">clientId</span>}<span class="green">&scope=openid email profile&redirect_uri=</span>${<span class="pink">redirect_uri</span>}`</span></code></pre>
+            </td>
+          </tr>
+          <tr>
+            <td>2. Redirect</td>
+            <td>Frontend (script.js)</td>
+            <td>
+              The button click handler opens a new popup window and immediately
+              redirects the user's browser to Google's Authorization endpoint
+              (authURL).
+              <pre><code>button.<span class="keyword">addEventListener</span>(<span class="string">'click'</span>, () => {
+    <span class="keyword">window</span>.<span class="keyword">open</span>(authURL, <span class="string">'auth-popup'</span>, <span class="string">'...'</span>)
+})</code></pre>
+            </td>
+            <td><code>script.js</code></td>
+            <td>
+              The request URL contains: <strong>response_type=code</strong>,
+              <strong>client_id</strong>, <strong>scope</strong> (openid email
+              profile), and the
+              <strong>redirect_uri</strong>
+              (http://localhost:3000/auth/google/callback).
+            </td>
+          </tr>
+          <tr>
+            <td>3. Consent</td>
+            <td>Google</td>
+            <td>
+              Google authenticates the user (if not already) and asks for
+              consent to share profile data.
+            </td>
+            <td></td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>4. Grant</td>
+            <td>Google</td>
+            <td>
+              If the user grants access, Google generates a one-time
+              <strong>Authorization Code</strong>.
+            </td>
+            <td></td>
+            <td>
+              Google redirects the user's browser to your
+              <strong>redirect_uri</strong> (your Express route) with the
+              <strong>code</strong> as a query parameter.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h3>Phase 2: Authorization Code Exchange (Backend to Google)</h3>
+      <p>
+        This is the most critical server-side phase, where the
+        <strong>Authorization Code is received and exchanged for tokens</strong
+        >. This process is **server-to-server** (back-channel) and highly
+        secure.
+      </p>
+
+      <h4>How the Auth Code is Received on Express Route</h4>
+      <p>
+        1: When Google successfully authenticates the user and receives their
+        consent, it then redirects the user's browser back to the
+        **`redirect_uri`**. This URI must exactly match one of the authorized
+        redirect URIs configured in your Google Cloud project credentials and
+        must also match the `redirect_uri` parameter contained in the original
+        authorization request URL sent to Google. The redirection response
+        includes the **Authorization Code** as a query parameter.
+      </p>
+
+      <p>
+        The user's browser, after getting redirected by Google, hits the
+        following Express route:
+      </p>
+      <pre><code><span class="keyword">// app.js - Backend route is the target of the Google redirect</span>
+<span class="keyword">app</span>.<span class="keyword">get</span>('/auth/google/callback', <span class="keyword">async</span> (req, res) => {
+    <span class="comment">// 👈 The Authorization Code is automatically passed here by Google in the URL query string</span>
+    <span class="keyword">const</span> code = req.<span class="keyword">query</span>.code; 
+    <span class="comment">// ... logic proceeds to call fetchUserFromGoogle(code) ...</span>
+});</code></pre>
+
+      <p>
+        The <code>req.query.code</code> variable extracts the code from the URL,
+        which looks something like
+        <code>http://localhost:3000/auth/google/callback?code=4/0Af....</code>.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Code Reference</th>
+            <th>Data Flow & Communication</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>5. Receive Code</td>
+            <td>Backend (app.js)</td>
+            <td>
+              The server receives the GET request to the callback URI and
+              extracts the <strong>code</strong> from the query.
+            </td>
+            <td><code>app.js</code> (req.query.code)</td>
+            <td>
+              Receives the <strong>Authorization Code</strong> from Google via
+              the user's browser.
+            </td>
+          </tr>
+          <tr>
+            <td>6. Exchange Code</td>
+            <td>Backend (app.js)</td>
+            <td>
+              Calls <code>fetchUserFromGoogle(code)</code> to exchange the code
+              for tokens. This is a
+              <strong>server-to-server POST request</strong>.
+            </td>
+            <td><code>app.js</code> (calls service function)</td>
+            <td>
+              Sends the <strong>Authorization Code</strong>,
+              <strong>client_id</strong>, and <strong>client_secret</strong> to
+              Google's <code>/token</code> endpoint.
+              <pre><code><span class="comment">// google-auth-service.js (responsible for the POST request)</span>
+<span class="keyword">export async function</span> fetchUserFromGoogle(code) {
+  <span class="keyword">const</span> payload = <span class="string">`code=${code}&client_id=${clientId}&client_secret=${clientSecret}&redirect_uri=${redirect_uri}&grant_type=authorization_code`</span>;
+  <span class="keyword">const</span> response = <span class="keyword">await</span> fetch(<span class="string">'https://oauth2.googleapis.com/token'</span>, {
+    <span class="keyword">method</span>: <span class="string">'POST'</span>, <span class="keyword">body</span>: payload
+  });
+  <span class="comment">// ... rest of the token parsing logic ...</span>
+}</code></pre>
+            </td>
+          </tr>
+          <tr>
+            <td>7. Receive Tokens</td>
+            <td>Backend (google-auth-service.js)</td>
+            <td>Google validates the code and responds with tokens.</td>
+            <td><code>google-auth-service.js</code></td>
+            <td>
+              Receives <strong>Access Token</strong> and
+              <strong>ID Token</strong>.
+            </td>
+          </tr>
+          <tr>
+            <td>8. Extract Data</td>
+            <td>Backend (google-auth-service.js)</td>
+            <td>
+              The server decodes the <strong>ID Token</strong> to get user
+              details (sub, name, email, picture).
+            </td>
+            <td>
+              <code>google-auth-service.js</code> (uses atob on the token body)
+            </td>
+            <td>Extracts <strong>User Profile Data</strong>.</td>
+          </tr>
+          <tr>
+            <td>9. Session Management</td>
+            <td>Backend (app.js)</td>
+            <td>
+              The server saves/updates the user in <code>usersDB.json</code> and
+              creates a unique <code>sessionId</code> in
+              <code>sessionDB.json</code>.
+            </td>
+            <td><code>app.js</code> (Steps 3 & 4 logic)</td>
+            <td>
+              Writes <strong>User Data</strong> and
+              <strong>Session ID</strong> to local DBs.
+            </td>
+          </tr>
+          <tr>
+            <td>10. Final Redirect</td>
+            <td>Backend (app.js)</td>
+            <td>
+              The server redirects the user's browser to the frontend's
+              <code>callback.html</code>, passing the new
+              <strong>Session ID (sid)</strong> in the URL query.
+            </td>
+            <td><code>app.js</code> (res.redirect(...))</td>
+            <td>
+              Sends a 302 Redirect to
+              <code>http://localhost:5500/callback.html?sid=...</code>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h3>
+        Phase 3: Session Establishment and Profile Access (Frontend to Backend)
+      </h3>
+      <p>This phase completes the login and retrieves the user profile.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Code Reference</th>
+            <th>Communication Type</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>11. Set Cookie</td>
+            <td>Frontend (callback.js)</td>
+            <td>
+              The new window loads <code>callback.html</code> and the
+              <code>callback.js</code> script runs. It extracts the
+              <strong>sid</strong> from the URL and makes a GET request back to
+              the Express server.
+            </td>
+            <td><code>callback.js</code></td>
+            <td>
+              Frontend (JS) to Backend (Express) via <strong>Fetch</strong>.
+            </td>
+          </tr>
+          <tr>
+            <td>12. Set Cookie</td>
+            <td>Backend (app.js)</td>
+            <td>
+              The server handles the <code>/session-cookie</code> route, takes
+              the <strong>sid</strong> from the query, and sets it as an
+              <strong>sid HTTP-only cookie</strong> in the browser.
+            </td>
+            <td><code>app.js</code> (app.get('/session-cookie'))</td>
+            <td>
+              Backend Response sets the <strong>Set-Cookie header</strong>.
+            </td>
+          </tr>
+          <tr>
+            <td>13. Close Popup</td>
+            <td>Frontend (callback.js)</td>
+            <td>
+              The JS in the popup sends a <code>success</code> message to the
+              parent window and closes itself.
+            </td>
+            <td><code>callback.js</code></td>
+            <td>Inter-window communication (Popup to Parent).</td>
+          </tr>
+          <tr>
+            <td>14. Final Redirect</td>
+            <td>Frontend (script.js)</td>
+            <td>
+              The parent window receives the <code>success</code> message and
+              redirects the user to the main page (<code>/</code>).
+            </td>
+            <td><code>script.js</code></td>
+            <td>Frontend (JS) <strong>Navigation</strong>.</td>
+          </tr>
+          <tr>
+            <td>15. Fetch Profile</td>
+            <td>Frontend (profile.js)</td>
+            <td>
+              The main page loads <code>index.html</code>. The
+              <code>profile.js</code> script immediately makes a GET request to
+              <code>/profile</code>.
+            </td>
+            <td><code>profile.js</code> (fetchUserProfile)</td>
+            <td>
+              Frontend (JS) to Backend (Express) via <strong>Fetch</strong>.
+            </td>
+          </tr>
+          <tr>
+            <td>16. Verification</td>
+            <td>Backend (app.js)</td>
+            <td>
+              The server handles the <code>/profile</code> route. It checks the
+              <strong>HTTP-only cookie</strong> (<code>req.cookies.sid</code>),
+              finds the matching session in <code>sessionDB.json</code>, finds
+              the user in <code>usersDB.json</code>, and returns the user data.
+            </td>
+            <td><code>app.js</code> (app.get('/profile'))</td>
+            <td></td>
+          </tr>
+          <tr>
+            <td>17. Display Data</td>
+            <td>Frontend (profile.js)</td>
+            <td>
+              The JS receives the user data (Name, Email, Picture) and updates
+              the DOM.
+            </td>
+            <td><code>profile.js</code> (updateProfileUI)</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2>Summary of Communication Types</h2>
+
+      <ol>
+        <li>
+          <strong>Browser Redirects (Front-channel)</strong>
+          <p>
+            Used to direct the user between your app and Google's login pages.
+          </p>
+          <p>
+            <strong>Data transmitted via URL:</strong>
+            <code>redirect_uri</code>, <code>scope</code>, and crucially, the
+            <strong>Authorization Code</strong> (<code>code=...</code>).
+          </p>
+        </li>
+        <li>
+          <strong>Server-to-Server Requests (Back-channel)</strong>
+          <p>
+            Used for sensitive operations, primarily the exchange of the
+            Authorization Code for tokens. This is secure because the
+            <strong>client_secret is never exposed to the browser</strong>.
+          </p>
+          <p>
+            <strong>Data transmitted via secure HTTPS POST:</strong> The
+            <strong>Authorization Code</strong> and
+            <strong>client_secret</strong> (from Express to Google), and the
+            <strong>Access/ID Tokens</strong> (from Google to Express).
+          </p>
+        </li>
+        <li>
+          <strong>Client-to-Server API Calls (Fetch)</strong>
+          <p>
+            Used by your JavaScript to manage the session and retrieve protected
+            resources.
+          </p>
+          <p>
+            <strong>Authentication done via Cookies:</strong> The browser
+            automatically includes the <strong>sid cookie</strong> in requests
+            to <code>http://localhost:3000/profile</code> and
+            <code>http://localhost:3000/logout</code> because of the
+            <code>credentials: 'include'</code> setting and CORS configuration.
+          </p>
+        </li>
+      </ol>
+    </div>
+  </body>
+</html>

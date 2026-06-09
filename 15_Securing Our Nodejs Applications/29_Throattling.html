@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Throttling Deep Dive - Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1>✅ 1. Proper Definition: What is Throttling?</h1>
+    <p>
+      Throttling is a **traffic-control technique** that forces a **minimum
+      delay** between requests from the same client.
+    </p>
+    <p><strong>Key idea:</strong></p>
+    <p>
+      Even if a user sends 100 requests instantly, the server will **slow them
+      down** and release them in a **controlled time gap** instead of rejecting
+      them.
+    </p>
+    <p><strong>Formal definition</strong></p>
+    <p>
+      Throttling = Enforcing a **fixed processing rate** over time by
+      **delaying** excess requests rather than rejecting them.
+    </p>
+
+    <h2>✅ 2. How Throttling is DIFFERENT from Rate Limiting in Your Code</h2>
+    <p>Your code attempts to combine two distinct behaviors:</p>
+    <pre><code class="js"><span class="prop">app</span>.<span class="dir">use</span>(<span class="prop">limiter</span>, <span class="dir">throtte</span>());</code></pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th><code>rateLimit()</code> (Rate Limiting)</th>
+          <th><code>throtte()</code> (Throttling)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Purpose</td>
+          <td><strong class="kw">Reject</strong> extra requests</td>
+          <td><strong class="kw">Delay</strong> extra requests</td>
+        </tr>
+        <tr>
+          <td>Result</td>
+          <td>Sends <code class="op">429 Too Many Requests</code></td>
+          <td>Uses <code class="kw">setTimeout()</code> to wait</td>
+        </tr>
+        <tr>
+          <td>Behavior</td>
+          <td><strong class="kw">Hard block</strong></td>
+          <td><strong class="kw">Soft slow-down</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>Complete Practical Example in Express.js</h2>
+    <p>
+      Here is the complete, runnable code including your custom throttling
+      function:
+    </p>
+    <pre><code><span class="kw">import</span> <span class="prop">express</span> <span class="kw">from</span> <span class="str">"express"</span>;
+<span class="kw">import</span> <span class="prop">bcrypt</span> <span class="kw">from</span> <span class="str">"bcrypt"</span>;
+<span class="kw">import</span> { <span class="prop">rateLimit</span> } <span class="kw">from</span> <span class="str">"express-rate-limit"</span>;
+
+<span class="kw">const</span> <span class="prop">app</span> = <span class="dir">express</span>();
+<span class="kw">const</span> <span class="prop">PORT</span> = <span class="lit">4000</span>;
+
+<span class="kw">const</span> <span class="prop">limiter</span> = <span class="dir">rateLimit</span>({
+  <span class="prop">windowMs</span>: <span class="lit">20000</span>,
+  <span class="prop">limit</span>: <span class="lit">5</span>,
+  <span class="prop">standardHeaders</span>: <span class="str">"draft-8"</span>,
+  <span class="prop">legacyHeaders</span>: <span class="kw">false</span>,
+});
+
+<span class="prop">app</span>.<span class="dir">use</span>((<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+  <span class="prop">res</span>.<span class="dir">setHeader</span>(<span class="str">"Access-Control-Allow-Origin"</span>, <span class="str">"*"</span>);
+  <span class="dir">next</span>();
+});
+
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="prop">limiter</span>, <span class="dir">throtte</span>());
+
+<span class="kw">function</span> <span class="dir">throtte</span>(<span class="prop">waitTime</span> = <span class="lit">1000</span>) {
+  <span class="kw">const</span> <span class="prop">throttleData</span> = {}
+  <span class="kw">return</span> (<span class="prop">req</span>, <span class="prop">res</span>, <span class="prop">next</span>) => {
+    <span class="kw">const</span> <span class="prop">now</span> = <span class="dir">Date</span>.<span class="dir">now</span>()
+
+    <span class="kw">const</span> { <span class="prop">lastRequestTime</span>, <span class="prop">previousDelay</span> } = <span class="prop">throttleData</span>[<span class="prop">req</span>.<span class="prop">ip</span>] || {
+      <span class="prop">previousDelay</span>: <span class="lit">0</span>,
+      <span class="prop">lastRequestTime</span>: <span class="prop">now</span> - <span class="prop">waitTime</span>,
+    }
+
+    <span class="kw">const</span> <span class="prop">timePassed</span> = <span class="prop">now</span> - <span class="prop">lastRequestTime</span>
+    <span class="kw">const</span> <span class="prop">delay</span> = <span class="dir">Math</span>.<span class="dir">max</span>(<span class="lit">0</span>, <span class="prop">waitTime</span> + <span class="prop">previousDelay</span> - <span class="prop">timePassed</span>)
+
+    <span class="prop">throttleData</span>[<span class="prop">req</span>.<span class="prop">ip</span>] = {
+      <span class="prop">lastRequestTime</span>: <span class="prop">now</span>,
+      <span class="prop">previousDelay</span>: <span class="prop">delay</span>,
+    }
+
+    <span class="dir">setTimeout</span>(<span class="prop">next</span>, <span class="prop">delay</span>);
+  }
+}
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">"/"</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="prop">res</span>.<span class="dir">send</span>(<span class="str">"&lt;h1&gt;Hello World!&lt;/h1&gt;"</span>);
+});
+
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">"/register"</span>, <span class="kw">async</span> (<span class="prop">req</span>, <span class="prop">res</span>) => {
+  <span class="prop">bcrypt</span>.<span class="dir">hashSync</span>(<span class="str">"123456"</span>, <span class="lit">14</span>);
+  <span class="kw">return</span> <span class="prop">res</span>.<span class="dir">json</span>({ <span class="prop">message</span>: <span class="str">"Registered Successfully"</span> });
+});
+
+<span class="prop">app</span>.<span class="dir">listen</span>(<span class="prop">PORT</span>, <span class="str">"0.0.0.0"</span>, () => {
+  <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`🚀 Visit http://localhost:${PORT}`</span>);
+});</code></pre>
+
+    <hr />
+
+    <h2>✅ 3. How Your <code>throtte()</code> Function Works Internally</h2>
+    <p>Let’s break your function step by step 👇 (real timeline example)</p>
+    <p>Let’s assume:</p>
+    <ul>
+      <li>
+        <code class="prop">waitTime</code> = <code class="lit">2000ms</code> (2
+        seconds)
+      </li>
+    </ul>
+
+    <h3>🧠 First request: (Arrives at T=0ms)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Value</th>
+          <th>Calculation / Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="prop">now</code></td>
+          <td><code class="lit">0ms</code></td>
+          <td>Current time</td>
+        </tr>
+        <tr>
+          <td><code class="prop">lastRequestTime</code></td>
+          <td><code class="op">-2000ms</code></td>
+          <td>
+            Initial value: <code class="prop">now</code> -
+            <code class="prop">waitTime</code>, ensuring
+            <code class="prop">delay</code> is initially 0.
+          </td>
+        </tr>
+        <tr>
+          <td><code class="prop">timePassed</code></td>
+          <td><code class="lit">2000ms</code></td>
+          <td><code class="lit">0</code> - <code class="op">(-2000)</code></td>
+        </tr>
+        <tr>
+          <td><code class="prop">delay</code></td>
+          <td><code class="lit">0ms</code></td>
+          <td>
+            <code class="dir">Math.max</code>(<code class="lit">0</code>,
+            <code class="lit">2000</code> + <code class="lit">0</code> -
+            <code class="lit">2000</code>) = <code class="lit">0</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>✅ **First request runs instantly.**</p>
+
+    <h3>🧠 Second request sent immediately (Arrives at T=100ms)</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Step</th>
+          <th>Value</th>
+          <th>Calculation / Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="prop">now</code></td>
+          <td><code class="lit">100ms</code></td>
+          <td>Current time</td>
+        </tr>
+        <tr>
+          <td><code class="prop">lastRequestTime</code></td>
+          <td><code class="lit">0ms</code></td>
+          <td>From the previous request's update</td>
+        </tr>
+        <tr>
+          <td><code class="prop">timePassed</code></td>
+          <td><code class="lit">100ms</code></td>
+          <td><code class="lit">100</code> - <code class="lit">0</code></td>
+        </tr>
+        <tr>
+          <td><code class="prop">previousDelay</code></td>
+          <td><code class="lit">0ms</code></td>
+          <td>From the previous request's update</td>
+        </tr>
+        <tr>
+          <td><code class="prop">delay</code></td>
+          <td><code class="lit">1900ms</code></td>
+          <td>
+            <code class="dir">Math.max</code>(<code class="lit">0</code>,
+            <code class="lit">2000</code> + <code class="lit">0</code> -
+            <code class="lit">100</code>) = <code class="lit">1900ms</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>✅ **Request waits 1.9s, then executes.**</p>
+
+    <h3>🧠 Third request comes quickly (Arrives at T=200ms)</h3>
+    <p>
+      This time, <code class="prop">previousDelay</code> is stored from the
+      calculation of Request 2 (it was <code class="lit">1900ms</code>).
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Value</th>
+          <th>Calculation / Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="prop">now</code></td>
+          <td><code class="lit">200ms</code></td>
+          <td>Current time</td>
+        </tr>
+        <tr>
+          <td><code class="prop">lastRequestTime</code></td>
+          <td><code class="lit">100ms</code></td>
+          <td>From the previous request's update</td>
+        </tr>
+        <tr>
+          <td><code class="prop">timePassed</code></td>
+          <td><code class="lit">100ms</code></td>
+          <td><code class="lit">200</code> - <code class="lit">100</code></td>
+        </tr>
+        <tr>
+          <td><code class="prop">previousDelay</code></td>
+          <td><code class="lit">1900ms</code></td>
+          <td>The delay calculated for the previous request.</td>
+        </tr>
+        <tr>
+          <td><code class="prop">delay</code></td>
+          <td><code class="lit">3800ms</code></td>
+          <td>
+            <code class="dir">Math.max</code>(<code class="lit">0</code>,
+            <code class="lit">2000</code> + <code class="lit">1900</code> -
+            <code class="lit">100</code>) = <code class="lit">3800ms</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>✅ **Request waits 3.8s, then executes.**</p>
+    <p>
+      This creates a **queue-like slowing effect** where each request is delayed
+      by the standard wait time *plus* the unserved delay accumulated from the
+      previous request. This behavior is similar to a **Leaky Bucket**
+      algorithm.
+    </p>
+
+    <hr />
+
+    <h2>✅ 5. Why <code>previousDelay</code> Exists</h2>
+    <p>The line:</p>
+    <pre><code><span class="kw">const</span> <span class="prop">delay</span> = <span class="dir">Math</span>.<span class="dir">max</span>(<span class="lit">0</span>, <span class="prop">waitTime</span> + <span class="prop">previousDelay</span> - <span class="prop">timePassed</span>)</code></pre>
+    <p>does something smart:</p>
+    <ul>
+      <li>It **accumulates delay** to avoid request bursts.</li>
+      <li>
+        It ensures that if the server is already "behind" (because of unserved
+        <code class="prop">previousDelay</code>), the new request has to wait
+        for the accumulated delay to clear.
+      </li>
+      <li>
+        Without <code class="prop">previousDelay</code>, users could bypass true
+        throttling by timing requests cleverly, and you would only enforce a
+        fixed delay between the *start* of the current request and the *start*
+        of the previous one.
+      </li>
+    </ul>
+
+    <h2>✅ 6. Visual Mental Model</h2>
+    <p>The system behaves like a queue with a controlled output rate:</p>
+    <pre><code>Incoming requests:
+R1 → <span class="cmt">✅ instantly</span>
+R2 → <span class="cmt">⏳ delayed 1.9s</span>
+R3 → <span class="cmt">⏳ delayed 3.8s</span>
+R4 → <span class="cmt">⏳ delayed even more…</span></code></pre>
+    <p>
+      So **throttling** behaves like a **queue** with a **controlled output
+      rate**.
+    </p>
+
+    <h2>✅ 7. Technical Classification of Your Algorithm</h2>
+    <p>
+      Your custom throttling function uses a form of flow control that can be
+      classified as:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Type</td>
+          <td>Fixed-delay throttling</td>
+        </tr>
+        <tr>
+          <td>Pattern</td>
+          <td>Leaky bucket style</td>
+        </tr>
+        <tr>
+          <td>Keyed by</td>
+          <td>Client <code class="prop">IP</code></td>
+        </tr>
+        <tr>
+          <td>Storage</td>
+          <td>
+            In-memory <code class="prop">object</code> (<code class="prop"
+              >throttleData</code
+            >)
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <h1>Using npm package: <strong>express-fast-throttle</strong></h1>
+
+    <p>
+      <strong>express-fast-throttle</strong> is a lightweight throttling
+      middleware built for developers who want a simple and effective way to
+      slow down rapid requests without blocking users completely.
+    </p>
+
+    <p>
+      It is especially useful for those who want better control, improved 
+      performance, and a clean, customizable throttling strategy tailored to
+      real application needs.
+    </p>
+
+    <a href="https://www.npmjs.com/package/express-fast-throttle">
+      npm package link
+    </a>
+  </body>
+</html>

@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bash Deployment Automation | Complete Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- THEME VARIABLES --- */
+      :root {
+        --bg-primary: #09090b;
+        --bg-secondary: #18181b;
+        --bg-tertiary: #27272a;
+        --text-primary: #f4f4f5;
+        --text-secondary: #a1a1aa;
+        --accent: #34d399;
+        --accent-dim: rgba(52, 211, 153, 0.1);
+        --danger: #ef4444;
+        --danger-dim: rgba(239, 68, 68, 0.1);
+        --border: #27272a;
+        --code-bg: #1e1e20;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        display: flex;
+        min-height: 100vh;
+      }
+
+      /* --- SIDEBAR --- */
+      .sidebar {
+        width: 280px;
+        background-color: var(--bg-primary);
+        border-right: 1px solid var(--border);
+        position: fixed;
+        height: 100vh;
+        padding: 2rem;
+        overflow-y: auto;
+        top: 0;
+        left: 0;
+        z-index: 10;
+        scrollbar-width: thin;
+        scrollbar-color: var(--bg-tertiary) var(--bg-primary);
+      }
+
+      .logo {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        color: var(--accent);
+        letter-spacing: -0.05em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-link {
+        display: block;
+        color: var(--text-secondary);
+        text-decoration: none;
+        padding: 0.5rem 0;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        border-left: 2px solid transparent;
+        padding-left: 12px;
+        margin-left: -12px;
+      }
+
+      .nav-link:hover {
+        color: var(--text-primary);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--bg-secondary) 0%,
+          transparent 100%
+        );
+      }
+
+      .nav-link.active {
+        color: var(--accent);
+        border-left-color: var(--accent);
+        background: linear-gradient(
+          90deg,
+          var(--accent-dim) 0%,
+          transparent 100%
+        );
+        font-weight: 600;
+      }
+
+      .nav-section {
+        margin-bottom: 2rem;
+      }
+
+      .nav-title {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        color: #52525b;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+        letter-spacing: 0.1em;
+      }
+
+      /* --- MAIN CONTENT --- */
+      .main-content {
+        margin-left: 280px;
+        padding: 4rem 6rem;
+        max-width: 1200px;
+        width: 100%;
+      }
+
+      section {
+        margin-bottom: 5rem;
+        scroll-margin-top: 2rem;
+      }
+
+      /* Typography */
+      h1 {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        letter-spacing: -0.05em;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 2rem;
+        margin-top: 2rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0.5rem;
+        color: var(--text-primary);
+        letter-spacing: -0.02em;
+      }
+
+      h3 {
+        font-size: 1.4rem;
+        margin-top: 2.5rem;
+        margin-bottom: 1rem;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      h4 {
+        color: var(--text-primary);
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 1.1rem;
+      }
+
+      p {
+        margin-bottom: 1.25rem;
+        color: var(--text-secondary);
+      }
+
+      strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5rem;
+        background: var(--bg-secondary);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.95rem;
+      }
+
+      th,
+      td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        color: var(--text-secondary);
+      }
+
+      th {
+        background: var(--bg-tertiary);
+        color: var(--accent);
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Code Blocks */
+      pre {
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin: 1.5rem 0;
+        padding: 1.5rem !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+
+      code {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: 0.9rem;
+      }
+
+      p code,
+      li code,
+      td code {
+        background: var(--bg-tertiary);
+        padding: 0.2rem 0.4rem;
+        border-radius: 4px;
+        color: var(--accent);
+        font-size: 0.85em;
+        border: 1px solid var(--border);
+      }
+
+      /* Note Boxes */
+      .note-box {
+        background: var(--bg-secondary);
+        border-left: 4px solid var(--accent);
+        padding: 1.5rem;
+        border-radius: 0 8px 8px 0;
+        margin: 2rem 0;
+      }
+
+      .note-title {
+        font-weight: 700;
+        color: var(--accent);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        letter-spacing: 0.05em;
+      }
+
+      /* Lists */
+      ul,
+      ol {
+        margin-left: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: var(--text-secondary);
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+
+      /* Badge */
+      .badge {
+        display: inline-block;
+        background: var(--accent-dim);
+        color: var(--accent);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-right: 0.5rem;
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      /* Footer */
+      footer {
+        margin-top: 4rem;
+        border-top: 1px solid var(--border);
+        padding-top: 2rem;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .main-content {
+          padding: 3rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        body {
+          flex-direction: column;
+        }
+        .sidebar {
+          position: relative;
+          width: 100%;
+          height: auto;
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          padding: 1rem;
+        }
+        .nav-section {
+          display: none;
+        } 
+        .main-content {
+          margin-left: 0;
+          padding: 2rem 1.5rem;
+        }
+        h1 {
+          font-size: 2rem;
+        }
+        table {
+          display: block;
+          overflow-x: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-terminal"></i> BASH GUIDE</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Introduction</div>
+        <a href="#introduction" class="nav-link">What is Deployment Automation?</a>
+        <a href="#why-automate" class="nav-link">Why Automate?</a>
+        <a href="#project-structure" class="nav-link">Project Structure</a>
+        <a href="#bash-basics" class="nav-link">Bash Basics</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Basic Bash</div>
+        <a href="#first-script" class="nav-link">Creating First Script</a>
+        <a href="#chmod" class="nav-link">Making It Executable</a>
+        <a href="#running-script" class="nav-link">Running Your Script</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Real Deployment</div>
+        <a href="#manual-process" class="nav-link">Manual Process</a>
+        <a href="#automate-it" class="nav-link">Automate It!</a>
+        <a href="#complete-script" class="nav-link">Complete Script Breakdown</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">MERN Stack</span>
+        <h1>BASH DEPLOYMENT AUTOMATION</h1>
+        <p>AUTOMATE YOUR MERN STACK DEPLOYMENTS</p>
+      </section>
+
+      <section id="introduction">
+        <h2>WHAT IS DEPLOYMENT AUTOMATION WITH BASH SCRIPTING?</h2>
+        
+        <p>Deployment Automation is the process of automating the steps required to deploy software applications to various environments (development, staging, production).</p>
+
+        <p>Bash Scripting in this context means writing shell scripts (.sh files) that execute deployment commands automatically, replacing manual command-by-command execution.</p>
+      </section>
+
+      <section id="why-automate">
+        <h2>WHY AUTOMATE DEPLOYMENTS?</h2>
+
+        <ul>
+          <li><strong>Consistency:</strong> Same steps every time</li>
+          <li><strong>Speed:</strong> Deploy in minutes instead of hours</li>
+          <li><strong>Reliability:</strong> Fewer human errors</li>
+          <li><strong>Reproducibility:</strong> Easy to deploy to multiple environments</li>
+          <li><strong>Documentation:</strong> Scripts serve as deployment documentation</li>
+        </ul>
+      </section>
+
+      <section id="project-structure">
+        <h2>PROJECT STRUCTURE</h2>
+
+        <h3>1. Project Structure</h3>
+        <pre><code class="language-text">my-mern-project/
+│
+├── deploy.sh        ← your script here (IMPORTANT)
+│
+├── client/          ← React frontend
+│   ├── package.json
+│   ├── node_modules/
+│   ├── public/
+│   └── src/
+│
+├── server/          ← Node/Express backend
+│   ├── package.json
+│   ├── node_modules/
+│   ├── server.js (or app.js)
+│   └── routes/
+│
+└── README.md (optional)</code></pre>
+      </section>
+
+      <section id="bash-basics">
+        <h2>BASH BASICS</h2>
+
+        <h3>What is Bash?</h3>
+        <p>Think of Bash as "talking to your computer in a way it understands". Instead of clicking buttons, you type commands.</p>
+
+        <h3>What is a Bash Script?</h3>
+        <p>A script is just a text file with a list of commands that your computer can run automatically.</p>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-lightbulb"></i> Real-Life Analogy</span>
+            <p><strong>Manual deployment</strong> = Following a recipe step-by-step yourself</p>
+            <p><strong>Automated deployment with bash script</strong> = A robot chef that follows the recipe for you</p>
+        </div>
+      </section>
+
+      <section id="first-script">
+        <h2>PART 1: BASIC BASH - THE ABSOLUTE BASICS</h2>
+
+        <h3>1. Creating Your First Script</h3>
+        
+        <h4>Step 1: Create a text file</h4>
+        <pre><code class="language-bash"># Type this in your terminal:
+nano simple-script.sh</code></pre>
+
+        <p>This opens a text editor. Type:</p>
+        <pre><code class="language-bash">#!/bin/bash
+# This is my first script
+echo "Hello, I'm learning Bash!"
+echo "Today is: $(date)"</code></pre>
+
+        <h4>What each line means:</h4>
+        <ul>
+          <li><code>#!/bin/bash</code> = "Hey computer, this is a bash script, read it with bash!"</li>
+          <li><code># This is my first script</code> = Just a comment (computer ignores it)</li>
+          <li><code>echo</code> = "Print this text on screen"</li>
+          <li><code>$(date)</code> = "Get today's date and put it here"</li>
+        </ul>
+
+        <h4>Step 2: Save and exit</h4>
+        <ul>
+          <li>Press <code>Ctrl + X</code></li>
+          <li>Press <code>Y</code> (for Yes to save)</li>
+          <li>Press <code>Enter</code></li>
+        </ul>
+      </section>
+
+      <section id="chmod">
+        <h2>2. MAKING IT EXECUTABLE: CHMOD +X</h2>
+
+        <p><strong>Problem:</strong> Your computer says "Permission denied" when you try to run the script.</p>
+
+        <p><strong>Why?</strong> Because by default, text files aren't "executable" (can't be run like a program).</p>
+
+        <p><strong>Solution:</strong> Make it executable with <code>chmod +x</code></p>
+
+        <pre><code class="language-bash"># Let's break down what this means:
+chmod +x simple-script.sh</code></pre>
+
+        <h3>What chmod +x means:</h3>
+        <ul>
+          <li><code>chmod</code> = "Change Mode" (change permissions)</li>
+          <li><code>+x</code> = "Add eXecute permission" (make it runnable)</li>
+          <li><code>simple-script.sh</code> = The file you want to change</li>
+        </ul>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-key"></i> Think of it like this</span>
+            <pre><code class="language-text">File permissions = Lock on a door
+- r (read) = Can look through the window
+- w (write) = Can open the door and change things
+- x (execute) = Can actually go inside and use it
+
+chmod +x = Give the key to go inside and run it</code></pre>
+        </div>
+      </section>
+
+      <section id="running-script">
+        <h2>3. RUNNING YOUR SCRIPT: ./DEPLOY.SH</h2>
+
+        <pre><code class="language-bash"># This is how you run it:
+./simple-script.sh</code></pre>
+
+        <h3>What ./ means:</h3>
+        <ul>
+          <li><code>.</code> = "Current folder" (where you are now)</li>
+          <li><code>/</code> = Separator</li>
+          <li>So <code>./</code> = "Look in the current folder"</li>
+        </ul>
+
+        <h4>Why not just simple-script.sh?</h4>
+        <p>Because your computer looks in special places for programs. <code>./</code> says "Look RIGHT HERE in this folder".</p>
+      </section>
+
+      <section id="manual-process">
+        <h2>PART 2: YOUR FIRST REAL DEPLOYMENT SCRIPT</h2>
+
+        <p>Let's create a super simple MERN deployment script.</p>
+
+        <h3>Step-by-Step Manual Process (What you do now):</h3>
+        <ol>
+          <li>Go to React folder</li>
+          <li>Install packages: <code>npm install</code></li>
+          <li>Build React app: <code>npm run build</code></li>
+          <li>Go to backend folder</li>
+          <li>Install backend packages: <code>npm install</code></li>
+          <li>Restart the server</li>
+        </ol>
+      </section>
+
+      <section id="automate-it">
+        <h2>NOW AUTOMATE IT!</h2>
+
+        <h3>Create the script:</h3>
+        <pre><code class="language-bash">nano deploy.sh</code></pre>
+
+        <p>Type this (I'll explain line-by-line):</p>
+        <pre><code class="language-bash">#!/bin/bash
+
+echo "🚀 Starting MERN Deployment..."
+
+# ask commit message
+read -p "Enter commit message: " msg
+
+echo "Building React app..."
+cd client
+
+npm install
+npm run build
+
+git add .
+git commit -m "$msg"
+git push
+
+echo "Setting up backend..."
+cd ../server
+
+npm install
+
+echo "Restarting server..."
+npm run dev
+
+echo "✅ Deployment complete!"</code></pre>
+
+        <h3>Make it executable:</h3>
+        <pre><code class="language-bash">chmod +x deploy.sh</code></pre>
+
+        <h3>Run it:</h3>
+        <pre><code class="language-bash">./deploy.sh</code></pre>
+
+        <div class="note-box">
+            <span class="note-title"><i class="fa-solid fa-terminal"></i> Terminal Interaction</span>
+            <p>Terminal will ask:</p>
+            <pre><code class="language-text">Enter commit message:</code></pre>
+            <p>You type:</p>
+            <pre><code class="language-text">fixed login bug</code></pre>
+        </div>
+      </section>
+
+      <section id="complete-script">
+        <h2>PART 3: BREAKING DOWN A COMPLETE SCRIPT</h2>
+
+        <p>Let me explain a REAL but simple deployment script piece by piece:</p>
+
+        <pre><code class="language-bash">#!/bin/bash
+# ----------------------------
+# PART 1: SETUP
+# ----------------------------
+echo "Starting deployment..."
+
+# Store the current folder path
+PROJECT_DIR="/home/ubuntu/my-mern-app"
+BACKUP_DIR="/home/ubuntu/backups"
+
+# ----------------------------
+# PART 2: FUNCTIONS
+# ----------------------------
+# Functions are like mini-scripts inside your script
+
+# Function to backup the database
+backup_database() {
+    echo "Backing up database..."
+    # This would backup MongoDB
+    mongodump --out="$BACKUP_DIR/backup-$(date +%Y%m%d)"
+}
+
+# Function to deploy frontend
+deploy_frontend() {
+    echo "Deploying frontend..."
+    cd "$PROJECT_DIR/client"
+    npm install
+    npm run build
+}
+
+# Function to deploy backend
+deploy_backend() {
+    echo "Deploying backend..."
+    cd "$PROJECT_DIR/server"
+    npm install
+    # Copy the React build to backend public folder
+    cp -r ../client/build/* public/
+}
+
+# ----------------------------
+# PART 3: MAIN DEPLOYMENT
+# ----------------------------
+# This is where everything runs
+
+echo "=== MERN DEPLOYMENT STARTED ==="
+
+# Step 1: Backup
+backup_database
+
+# Step 2: Update code from GitHub
+echo "Getting latest code..."
+cd "$PROJECT_DIR"
+git pull origin main
+
+# Step 3: Deploy both parts
+deploy_frontend
+deploy_backend
+
+# Step 4: Restart
+echo "Restarting application..."
+pm2 restart all
+
+echo "=== DEPLOYMENT COMPLETE ==="</code></pre>
+      </section>
+
+      <footer>
+        <p>Bash Deployment Automation Guide</p>
+        <p>Generated for <strong>MERN Stack Deployments</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem;">
+          <a href="https://www.linkedin.com/in/arman-khan-5a790430a/" target="_blank" style="color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+            <i class="fab fa-linkedin" style="font-size: 1.2rem;"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+
+    <!-- Active Section Highlighter -->
+    <script>
+      const sections = document.querySelectorAll('section[id]');
+      const navLinks = document.querySelectorAll('.nav-link');
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            navLinks.forEach(link => link.classList.remove('active'));
+            const activeLink = document.querySelector(`a[href="#${entry.target.id}"]`);
+            if (activeLink) {
+              activeLink.classList.add('active');
+            }
+          }
+        });
+      }, {
+        rootMargin: '-20% 0px -70% 0px'
+      });
+      
+      sections.forEach(section => observer.observe(section));
+    </script>
+  </body>
+</html>

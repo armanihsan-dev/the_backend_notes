@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Projection Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling for Blackish Theme */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* Dark background, similar to VS Code */
+        color: #d4d4d4; /* Light text color */
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter background for the content area */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code blue for headings */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #dcdcaa; /* VS Code yellow/gold for emphasis */
+        font-weight: 700;
+      }
+
+      em {
+        color: #c586c0; /* VS Code pink/purple for added emphasis */
+        font-style: normal;
+      }
+
+      /* VS Code-like Code Block Styling */
+      pre {
+        background-color: #1e1e1e; /* Pure blackish background for the code area */
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Fira Code', monospace; /* Monospace font for code */
+        font-size: 0.9em;
+        margin: 20px 0;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6);
+      }
+
+      .code-lang {
+        color: #569cd6; /* Blue for the language label */
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+        border-bottom: 1px solid #3c3c3c;
+        padding-bottom: 5px;
+      }
+
+      /* Syntax Highlighting-like Colors (Simulated) */
+      .kw {
+        color: #569cd6;
+      } /* Keywords (const, for, await, etc.) */
+      .lit {
+        color: #b5cea8;
+      } /* Literals (numbers, strings) */
+      .fn {
+        color: #dcdcaa;
+      } /* Function names (find, on, log, etc.) */
+      .cmt {
+        color: #6a9955;
+      } /* Comments */
+      .prop {
+        color: #9cdcfe;
+      } /* Properties/Variables (document, err, _id, etc.) */
+
+      .tbl {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+      .tbl th,
+      .tbl td {
+        border: 1px solid #3c3c3c;
+        padding: 12px;
+        text-align: left;
+      }
+      .tbl th {
+        background-color: #333333;
+        color: #569cd6;
+      }
+      .tbl tr:nth-child(even) {
+        background-color: #2c2c2c;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Projection</h1>
+      <p>
+        <strong>Projection</strong> in MongoDB is the process of selecting only
+        the necessary fields from a document in a query result. Instead of
+        retrieving the entire document, which can be large and wasteful of
+        bandwidth and memory, projection allows you to **include or exclude
+        specific fields**.
+      </p>
+      <p>
+        It's analogous to selecting specific columns in a SQL
+        <span class="kw">SELECT</span> statement (e.g.,
+        <span class="kw">SELECT name, email FROM users;</span>).
+      </p>
+
+      <h2>1. Clear Definition and Goal</h2>
+      <h3>Definition</h3>
+      <p>
+        <strong>Projection</strong> is an
+        <em>optional second argument</em> passed to the
+        <span class="fn">.find()</span> method (or used within an
+        <span class="fn">.aggregate()</span> pipeline) that defines which fields
+        from the matching documents should be **included** or **excluded** in
+        the final result set.
+      </p>
+
+      <h3>Goal</h3>
+      <p>The main goal of projection is <strong>optimization</strong>: 💡</p>
+      <ul>
+        <li>
+          <strong>Reduce Network Traffic:</strong> Sending less data from the
+          database server to the application server.
+        </li>
+        <li>
+          <strong>Increase Query Speed:</strong> Less data processing is
+          required for document deserialization.
+        </li>
+        <li>
+          <strong>Decrease Memory Usage:</strong> The application needs less
+          memory to hold the smaller, partial documents.
+        </li>
+      </ul>
+
+      <h2>2. Syntax Explanation</h2>
+      <p>
+        The projection is an <strong>object</strong> where the field names are
+        the keys, and the values are used to specify inclusion or exclusion:
+      </p>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Value</th>
+            <th>Meaning</th>
+            <th>Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="lit">1</span></td>
+            <td><strong>Include</strong></td>
+            <td>The field will be present in the result.</td>
+          </tr>
+          <tr>
+            <td><span class="lit">0</span></td>
+            <td><strong>Exclude</strong></td>
+            <td>The field will be omitted from the result.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>The Inclusion/Exclusion Rule 💡</h3>
+      <p>
+        You generally
+        <strong
+          >cannot mix inclusion (<span class="lit">1</span>) and exclusion
+          (<span class="lit">0</span>) statements</strong
+        >
+        in the same projection object, with one crucial exception:
+      </p>
+
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Example</th>
+            <th>Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Inclusion (Default Exclusion)</td>
+            <td><span class="prop">{ name: 1, email: 1 }</span></td>
+            <td>
+              Only <span class="prop">_id</span>,
+              <span class="prop">name</span>, and
+              <span class="prop">email</span> are returned. All other fields are
+              excluded.
+            </td>
+          </tr>
+          <tr>
+            <td>Exclusion (Default Inclusion)</td>
+            <td><span class="prop">{ password: 0, ssn: 0 }</span></td>
+            <td>
+              All fields **except** <span class="prop">password</span> and
+              <span class="prop">ssn</span> are returned.
+            </td>
+          </tr>
+          <tr>
+            <td>The Exception</td>
+            <td><span class="prop">{ password: 0, name: 1 }</span></td>
+            <td>
+              <strong><em class="prop">Invalid!</em></strong> You cannot use
+              <span class="lit">1</span> and
+              <span class="lit">0</span> together.
+            </td>
+          </tr>
+          <tr>
+            <td>The Exception to the Exception</td>
+            <td><span class="prop">{ password: 0, _id: 0 }</span></td>
+            <td>
+              <strong><em class="prop">Valid!</em></strong> You can explicitly
+              **exclude** the <span class="prop">_id</span> field while
+              including all others.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong>The <span class="prop">_id</span> Field:</strong> The
+        <span class="prop">_id</span> field is
+        <strong>always included by default</strong> unless you explicitly set it
+        to <span class="lit">0</span>.
+      </p>
+
+      <h2>3. How Projection Works (Practical Example in Node.js)</h2>
+      <p>
+        Consider a MongoDB collection named <span class="prop">users</span> with
+        the following document structure:
+      </p>
+
+      <div class="code-lang">JSON</div>
+      <pre>
+{
+  <span class="lit">"_id"</span>: <span class="fn">ObjectId</span>(<span class="lit">"..."</span>),
+  <span class="lit">"name"</span>: <span class="lit">"Alice Johnson"</span>,
+  <span class="lit">"email"</span>: <span class="lit">"alice@example.com"</span>,
+  <span class="lit">"password"</span>: <span class="lit">"hashed_password_123"</span>,
+  <span class="lit">"is_admin"</span>: <span class="kw">false</span>,
+  <span class="lit">"last_login"</span>: <span class="fn">ISODate</span>(<span class="lit">"..."</span>)
+}</pre>
+
+      <h3>
+        Scenario 1: Including Only Necessary Fields (Optimized for a User List)
+      </h3>
+      <p>
+        We want to list all users, but only show their
+        <span class="prop">name</span> and <span class="prop">email</span>.
+      </p>
+      <p><strong>Projection Object:</strong></p>
+      <div class="code-lang">JavaScript</div>
+      <pre>{ <span class="prop">name</span>: <span class="lit">1</span>, <span class="prop">email</span>: <span class="lit">1</span> }</pre>
+      <p><strong>Node.js Code:</strong></p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="kw">const</span> <span class="prop">projection</span> = {
+    <span class="prop">name</span>: <span class="lit">1</span>,
+    <span class="prop">email</span>: <span class="lit">1</span>
+};
+
+<span class="cmt">// .find(query, projection)</span>
+<span class="kw">const</span> <span class="prop">usersCursor</span> = <span class="prop">usersCollection</span>.<span class="fn">find</span>({}, <span class="prop">projection</span>);
+<span class="kw">const</span> <span class="prop">usersList</span> = <span class="kw">await</span> <span class="prop">usersCursor</span>.<span class="fn">toArray</span>();
+
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="prop">usersList</span>);</pre>
+
+      <p><strong>Result for each document:</strong></p>
+      <div class="code-lang">JSON</div>
+      <pre>
+[
+  {
+    <span class="lit">"_id"</span>: <span class="fn">ObjectId</span>(<span class="lit">"..."</span>),  <span class="cmt">// Included by default</span>
+    <span class="lit">"name"</span>: <span class="lit">"Alice Johnson"</span>,
+    <span class="lit">"email"</span>: <span class="lit">"alice@example.com"</span>
+  },
+  <span class="cmt">// ... more documents</span>
+]</pre>
+
+      <h3>
+        Scenario 2: Excluding Sensitive Fields (Optimized for a User Profile)
+      </h3>
+      <p>
+        We want to get a full user profile but hide the
+        <span class="prop">password</span> and the
+        <span class="prop">_id</span>.
+      </p>
+      <p><strong>Projection Object:</strong></p>
+      <div class="code-lang">JavaScript</div>
+      <pre>{ <span class="prop">password</span>: <span class="lit">0</span>, <span class="prop">_id</span>: <span class="lit">0</span> }</pre>
+      <p><strong>Node.js Code:</strong></p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="kw">const</span> <span class="prop">projection</span> = {
+    <span class="prop">password</span>: <span class="lit">0</span>,
+    <span class="prop">_id</span>: <span class="lit">0</span> <span class="cmt">// Explicitly excluding _id</span>
+};
+
+<span class="kw">const</span> <span class="prop">userProfile</span> = <span class="kw">await</span> <span class="prop">usersCollection</span>.<span class="fn">findOne</span>({ <span class="prop">name</span>: <span class="lit">"Alice Johnson"</span> }, <span class="prop">projection</span>);
+
+<span class="fn">console</span>.<span class="fn">log</span>(<span class="prop">userProfile</span>);</pre>
+
+      <p><strong>Result:</strong></p>
+      <div class="code-lang">JSON</div>
+      <pre>
+{
+  <span class="lit">"name"</span>: <span class="lit">"Alice Johnson"</span>,
+  <span class="lit">"email"</span>: <span class="lit">"alice@example.com"</span>,
+  <span class="lit">"is_admin"</span>: <span class="kw">false</span>,
+  <span class="lit">"last_login"</span>: <span class="fn">ISODate</span>(<span class="lit">"..."</span>)
+}</pre>
+
+      <h3>Projection on Nested Fields</h3>
+      <p>
+        You can project sub-fields within embedded documents using
+        <strong>dot notation</strong>.
+      </p>
+      <p>
+        If a document has a structure like
+        <span class="prop">{ profile: { phone: "...", address: "..." } }</span>,
+        and you only want the phone number:
+      </p>
+      <p><strong>Projection Object:</strong></p>
+      <div class="code-lang">JavaScript</div>
+      <pre>{ <span class="lit">'profile.phone'</span>: <span class="lit">1</span> }</pre>
+      <p><strong>Result:</strong></p>
+      <div class="code-lang">JSON</div>
+      <pre>
+{
+  <span class="lit">"_id"</span>: <span class="fn">ObjectId</span>(<span class="lit">"..."</span>),
+  <span class="lit">"profile"</span>: {
+    <span class="lit">"phone"</span>: <span class="lit">"..."</span>
+  }
+}</pre>
+
+      <h2>4. Use Cases of Projection in Node.js</h2>
+      <p>
+        Projection is **essential** for building scalable Node.js applications
+        that interact with MongoDB:
+      </p>
+      <ol>
+        <li>
+          <strong>API Performance 🚀</strong>
+          <p>
+            When building a REST API endpoint that returns a list of items
+            (e.g., <span class="prop">/api/products</span>), you should
+            **never** return the entire document if you don't need all fields.
+          </p>
+          <ul>
+            <li>
+              <span class="prop">Bad:</span>
+              <span class="prop">db.products.find()</span> (returns image
+              binaries, descriptions, full history).
+            </li>
+            <li>
+              <span class="prop">Good:</span>
+              <span class="prop"
+                >db.products.find({}, { name: 1, price: 1, thumbnail_url: 1
+                })</span
+              >
+              (returns only lightweight metadata for a quick list view).
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Security 🔒</strong>
+          <p>
+            Projection is the primary mechanism to **prevent sensitive data**
+            from leaving the database layer.
+          </p>
+          <ul>
+            <li>
+              <span class="prop">Use Case:</span> User login or session
+              management.
+            </li>
+            <li>
+              <span class="prop">Projection:</span> Always exclude sensitive
+              fields when fetching user data for display:
+            </li>
+          </ul>
+          <div class="code-lang">JavaScript</div>
+          <pre>{ <span class="prop">password</span>: <span class="lit">0</span>, <span class="prop">ssn</span>: <span class="lit">0</span>, <span class="prop">api_keys</span>: <span class="lit">0</span> }</pre>
+        </li>
+        <li>
+          <strong>Debugging and Logging 📝</strong>
+          <p>
+            When performing an operation that logs the documents being
+            processed, you can project a small set of identifying fields to keep
+            logs clean and readable.
+          </p>
+          <ul>
+            <li>
+              <span class="prop">Projection:</span>
+              <span class="prop">{ _id: 1, status: 1, last_updated: 1 }</span>
+            </li>
+          </ul>
+          <p>
+            This quickly tells you **which** document failed without printing
+            the entire object.
+          </p>
+        </li>
+      </ol>
+
+      <hr />
+
+      <h1>Effect of Projection on Network Bandwidth</h1>
+      <p>
+        The effect of projection on network bandwidth is a **direct and
+        significant reduction** of the data transferred between the MongoDB
+        server and the Node.js client (or any application layer). This is one of
+        the primary reasons to use projection.
+      </p>
+
+      <h2>How Projection Reduces Bandwidth</h2>
+      <p>
+        Projection achieves bandwidth savings through the following mechanisms:
+      </p>
+      <ul>
+        <li>
+          <strong>Reduced Data Volume:</strong> When you use projection, MongoDB
+          only pulls the requested fields from the disk and sends only those
+          fields across the network. If your original document is
+          <span class="lit">10 kB</span> but you only project two fields
+          totaling <span class="lit">1 kB</span>, you've reduced the network
+          payload by **<span class="lit">90%</span>**.
+          <p>
+            <em>Example:</em> Retrieving a large text field (like a product
+            description or a binary image file) that isn't needed for a simple
+            list view would unnecessarily consume bandwidth without projection.
+          </p>
+        </li>
+        <li>
+          <strong>Faster Transmission:</strong> Less data means the transmission
+          time is shorter, which improves the overall response time and
+          throughput of your application. This is particularly noticeable in
+          cloud-based deployments where network latency and bandwidth costs can
+          be higher.
+        </li>
+        <li>
+          <strong>Optimization for Batches:</strong> As MongoDB sends query
+          results in **batches**, a smaller document size due to projection
+          means **more documents can fit into a single
+          <span class="lit">16 MiB</span> batch**. This reduces the total number
+          of network round trips (the number of
+          <span class="fn">getMore</span> operations) required to fetch the
+          entire result set, leading to much faster completion times.
+        </li>
+      </ul>
+
+      <h2>Summary of Effect</h2>
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Without Projection</th>
+            <th>With Projection</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>High Bandwidth Usage</td>
+            <td>Low Bandwidth Usage</td>
+          </tr>
+          <tr>
+            <td>Fewer documents per batch</td>
+            <td>More documents per batch</td>
+          </tr>
+          <tr>
+            <td>Slower query response time</td>
+            <td>Faster query response time</td>
+          </tr>
+          <tr>
+            <td>Higher overhead for data serialization/deserialization</td>
+            <td>Lower overhead for data serialization/deserialization</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        In essence, using projection is a crucial technique for **optimizing
+        network efficiency** and making your database calls faster and more
+        cost-effective.
+      </p>
+    </div>
+  </body>
+</html>

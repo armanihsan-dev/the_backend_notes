@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS S3 Presigned URLs in Node.js</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>
+      <span class="dir">💻</span> Generating AWS S3 Presigned URLs in Node.js
+    </h1>
+    <p>
+      You can use the
+      <code class="dir">@aws-sdk/s3-request-presigner</code> package along with
+      <code class="dir">@aws-sdk/client-s3</code> to generate presigned URLs for
+      Amazon S3 objects in your Node.js application.
+    </p>
+
+    <hr />
+
+    <h2>1. What is a Presigned URL?</h2>
+    <p>
+      A <strong>Presigned URL</strong> is a URL that you can generate using your
+      AWS security credentials to grant temporary access to a specific S3
+      object.
+    </p>
+    <ul>
+      <li>
+        <strong>Temporary Access:</strong> The URL includes parameters that sign
+        the request and specify an expiration time. After the expiration time,
+        the URL will no longer work.
+      </li>
+      <li>
+        <strong>Security:</strong> This allows a user who **does not** have AWS
+        security credentials or permissions to access, upload, or download a
+        specific object. The URL is essentially pre-signed with the permissions
+        of the IAM user or role that generated it.
+      </li>
+    </ul>
+
+    <h2>2. Installation</h2>
+    <p>You need both the S3 client and the request presigner package:</p>
+
+    <span class="code-title">Bash</span>
+    <pre><code><span class="cmt"># Bash</span>
+<span class="dir">npm</span> <span class="dir">install</span> <span class="prop">@aws-sdk/client-s3</span> <span class="prop">@aws-sdk/s3-request-presigner</span></code></pre>
+
+    <h2>3. Syntax</h2>
+    <p>
+      The core function for generating a presigned URL is
+      <code class="dir">getSignedUrl</code> from
+      <code class="dir">@aws-sdk/s3-request-presigner</code>.
+    </p>
+
+    <span class="code-title">JavaScript Syntax</span>
+    <pre><code><span class="kw">import</span> { <span class="dir">getSignedUrl</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/s3-request-presigner"</span>;
+<span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">Command</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+
+<span class="cmt">// ... Inside an async function ...</span>
+<span class="kw">const</span> <span class="prop">url</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">getSignedUrl</span>(
+  <span class="prop">client</span>: <span class="prop">S3Client</span>,
+  <span class="prop">command</span>: <span class="prop">Command</span>, <span class="cmt">// e.g., GetObjectCommand, PutObjectCommand</span>
+  <span class="prop">options</span>: { <span class="prop">expiresIn</span>: <span class="type">number</span> } <span class="cmt">// Time in seconds</span>
+);</code></pre>
+
+    <h3>Key Parameters</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>client</code></td>
+          <td><code>S3Client</code></td>
+          <td>
+            An instance of the <code class="prop">S3Client</code> configured
+            with your AWS credentials and region.
+          </td>
+        </tr>
+        <tr>
+          <td><code>command</code></td>
+          <td><code>Command</code></td>
+          <td>
+            The specific AWS SDK S3 Command you want the URL to execute (<code
+              class="prop"
+              >GetObjectCommand</code
+            >
+            for GET, <code class="prop">PutObjectCommand</code> for PUT, etc.).
+          </td>
+        </tr>
+        <tr>
+          <td><code>options</code></td>
+          <td><code>{ expiresIn: number }</code></td>
+          <td>
+            An object specifying the URL expiration time in seconds. Defaults to
+            <code class="lit">900</code> seconds (15 minutes).
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>4. How It Works</h2>
+    <ol>
+      <li>
+        <strong>S3 Client Initialization:</strong> You create an
+        <code class="prop">S3Client</code> instance with your credentials.
+      </li>
+      <li>
+        <strong>Command Creation:</strong> You create a
+        <code class="prop">Command</code> object (e.g.,
+        <code class="prop">GetObjectCommand</code>) that specifies the bucket
+        name, object key, and any other S3 parameters.
+      </li>
+      <li>
+        <strong>Signing:</strong> The
+        <code class="dir">getSignedUrl</code> function takes the command and the
+        S3 client. It uses the client's credentials and region to calculate a
+        **Signature Version 4** signature.
+      </li>
+      <li>
+        <strong>URL Generation:</strong> The function then appends the
+        signature, credentials, expiration time, and other required parameters
+        as query string parameters to the S3 object URL.
+      </li>
+      <li>
+        <strong>Temporary Access:</strong> The generated URL is returned. Any
+        user who receives this URL can perform the specified action (GET or PUT)
+        on the object for the duration set by
+        <code class="prop">expiresIn</code>.
+      </li>
+    </ol>
+
+    <h2>5. Node.js Example</h2>
+    <p>
+      Here is a complete Node.js example for generating both GET (download) and
+      PUT (upload) presigned URLs.
+    </p>
+
+    <span class="code-title">JavaScript Example for GET and PUT</span>
+    <pre><code><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">GetObjectCommand</span>, <span class="prop">PutObjectCommand</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/client-s3"</span>;
+<span class="kw">import</span> { <span class="dir">getSignedUrl</span> } <span class="kw">from</span> <span class="str">"@aws-sdk/s3-request-presigner"</span>;
+
+<span class="cmt">// ⚠️ Replace with your actual values and configure AWS credentials securely ⚠️</span>
+<span class="kw">const</span> <span class="prop">REGION</span> <span class="op">=</span> <span class="str">"us-east-1"</span>;
+<span class="kw">const</span> <span class="prop">BUCKET_NAME</span> <span class="op">=</span> <span class="str">"your-unique-bucket-name"</span>;
+<span class="kw">const</span> <span class="prop">OBJECT_KEY</span> <span class="op">=</span> <span class="str">"path/to/my-file.txt"</span>;
+<span class="kw">const</span> <span class="prop">EXPIRATION_SECONDS</span> <span class="op">=</span> <span class="lit">3600</span>; <span class="cmt">// 1 hour</span>
+
+<span class="cmt">// 1. Initialize S3 Client</span>
+<span class="kw">const</span> <span class="prop">s3Client</span> <span class="op">=</span> <span class="kw">new</span> <span class="prop">S3Client</span>({ <span class="prop">region</span>: <span class="prop">REGION</span> });
+
+<span class="cmt">/**
+ * Generates a presigned URL for downloading an S3 object (GET request).
+ * @param {string} key - The S3 object key (file path).
+ * @returns {Promise&lt;string&gt;} The presigned GET URL.
+ */</span>
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">generateGetPresignedUrl</span>(<span class="prop">key</span>) {
+  <span class="kw">const</span> <span class="prop">command</span> <span class="op">=</span> <span class="kw">new</span> <span class="prop">GetObjectCommand</span>({
+    <span class="prop">Bucket</span>: <span class="prop">BUCKET_NAME</span>,
+    <span class="prop">Key</span>: <span class="prop">key</span>,
+  });
+
+  <span class="kw">const</span> <span class="prop">signedUrl</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">getSignedUrl</span>(<span class="prop">s3Client</span>, <span class="prop">command</span>, {
+    <span class="prop">expiresIn</span>: <span class="prop">EXPIRATION_SECONDS</span>,
+  });
+
+  <span class="kw">return</span> <span class="prop">signedUrl</span>;
+}
+
+<span class="cmt">/**
+ * Generates a presigned URL for uploading an S3 object (PUT request).
+ * @param {string} key - The S3 object key (file path).
+ * @param {string} contentType - The Content-Type of the file being uploaded (important!).
+ * @returns {Promise&lt;string&gt;} The presigned PUT URL.
+ */</span>
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">generatePutPresignedUrl</span>(<span class="prop">key</span>, <span class="prop">contentType</span>) {
+  <span class="kw">const</span> <span class="prop">command</span> <span class="op">=</span> <span class="kw">new</span> <span class="prop">PutObjectCommand</span>({
+    <span class="prop">Bucket</span>: <span class="prop">BUCKET_NAME</span>,
+    <span class="prop">Key</span>: <span class="prop">key</span>,
+    <span class="prop">ContentType</span>: <span class="prop">contentType</span>, <span class="cmt">// Critical for client upload</span>
+  });
+
+  <span class="kw">const</span> <span class="prop">signedUrl</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">getSignedUrl</span>(<span class="prop">s3Client</span>, <span class="prop">command</span>, {
+    <span class="prop">expiresIn</span>: <span class="prop">EXPIRATION_SECONDS</span>,
+  });
+
+  <span class="kw">return</span> <span class="prop">signedUrl</span>;
+}
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">main</span>() {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">downloadUrl</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">generateGetPresignedUrl</span>(<span class="prop">OBJECT_KEY</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`\n✅ Download (GET) Signed URL (Expires in ${EXPIRATION_SECONDS}s):\n${downloadUrl}`</span>);
+
+    <span class="kw">const</span> <span class="prop">uploadUrl</span> <span class="op">=</span> <span class="kw">await</span> <span class="dir">generatePutPresignedUrl</span>(<span class="str">"uploads/new-image.jpg"</span>, <span class="str">"image/jpeg"</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`\n✅ Upload (PUT) Signed URL (Expires in ${EXPIRATION_SECONDS}s):\n${uploadUrl}`</span>);
+
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">"\nUsage:"</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`– To download: Use 'curl "${downloadUrl}"'`</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`– To upload: Use 'curl -X PUT -H "Content-Type: image/jpeg" --upload-file ./local-file.jpg "${uploadUrl}"'`</span>);
+    
+  } <span class="kw">catch</span> (<span class="prop">error</span>) {
+    <span class="dir">console</span>.<span class="op">error</span>(<span class="str">"Error generating presigned URL:"</span>, <span class="prop">error</span>);
+  }
+}
+
+<span class="dir">main</span>();</code></pre>
+  </body>
+</html>

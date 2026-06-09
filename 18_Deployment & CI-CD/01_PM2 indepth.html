@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PM2: The Complete Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>PM2: The Complete Guide</h1>
+
+    <h2>What is PM2?</h2>
+    <p>
+      PM2 is a <strong>production process manager</strong> for Node.js
+      applications that helps you
+      <strong>keep your applications alive forever</strong>, reload them without
+      downtime, and manage their performance.
+    </p>
+
+    <h2>Why NOT to use <code>npm start</code> in AWS EC2:</h2>
+    <ul>
+      <li>
+        <strong>No process management:</strong> If your app crashes, it stays
+        dead
+      </li>
+      <li>
+        <strong>No auto-restart:</strong> You need to manually restart after
+        failures
+      </li>
+      <li>
+        <strong>No load balancing:</strong> Can't handle multiple CPU cores
+        efficiently
+      </li>
+      <li>
+        <strong>No monitoring:</strong> No logs management or performance
+        metrics
+      </li>
+      <li>
+        <strong>Terminates on logout:</strong> Process stops when SSH session
+        ends
+      </li>
+    </ul>
+
+    <h2>Basic PM2 Commands (Ubuntu)</h2>
+    <h3>Installation:</h3>
+    <pre><code><span class="cmt"># Install PM2 globally</span>
+<span class="kw">npm</span> install -g pm2
+<span class="cmt"># OR using yarn</span>
+<span class="kw">yarn</span> global add pm2</code></pre>
+
+    <h3>Starting & Managing Applications:</h3>
+    <pre><code><span class="cmt"># Start your Node.js app</span>
+pm2 <span class="dir">start</span> app.js
+
+<span class="cmt"># Start with a custom name</span>
+pm2 <span class="dir">start</span> app.js --name <span class="str">"my-api"</span>
+
+<span class="cmt"># List all running applications</span>
+pm2 <span class="dir">list</span>
+
+<span class="cmt"># Monitor CPU/Memory usage</span>
+pm2 <span class="dir">monit</span>
+
+<span class="cmt"># Stop an application</span>
+pm2 <span class="dir">stop</span> app_name
+
+<span class="cmt"># Restart an application</span>
+pm2 <span class="dir">restart</span> app_name
+
+<span class="cmt"># Delete from PM2 list</span>
+pm2 <span class="dir">delete</span> app_name
+
+<span class="cmt"># View application logs</span>
+pm2 <span class="dir">logs</span> app_name
+
+<span class="cmt"># Clear all logs</span>
+pm2 <span class="dir">flush</span></code></pre>
+
+    <h2>Setting PM2 to Auto-Start on System Boot</h2>
+    <h3>Step-by-Step Setup:</h3>
+    <pre><code><span class="cmt"># 1. Generate startup script</span>
+pm2 <span class="dir">startup</span>
+
+<span class="cmt"># You'll see output like:
+# [PM2] To setup the Startup Script, copy/paste the following command:
+# sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu</span>
+
+<span class="cmt"># 2. Run the command provided by PM2</span>
+<span class="kw">sudo</span> env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu
+
+<span class="cmt"># 3. Save current PM2 processes</span>
+pm2 <span class="dir">save</span>
+
+<span class="cmt"># 4. Test reboot behavior (optional - do in maintenance window)</span>
+<span class="kw">sudo</span> reboot</code></pre>
+
+    <h3>Verification:</h3>
+    <pre><code><span class="cmt"># Check if PM2 service is enabled</span>
+<span class="kw">sudo</span> systemctl status pm2-ubuntu
+
+<span class="cmt"># Manually test the startup script</span>
+<span class="kw">sudo</span> systemctl start pm2-ubuntu</code></pre>
+
+    <h3>Update PM2 processes after changes:</h3>
+    <pre><code><span class="cmt"># After adding new apps or changes</span>
+pm2 <span class="dir">save</span></code></pre>
+
+    <h2>Production Benefits of PM2</h2>
+
+    <h3>1. Zero Downtime Reloads:</h3>
+    <pre><code><span class="cmt"># Reload app without downtime (for cluster mode)</span>
+pm2 <span class="dir">reload</span> app_name
+
+<span class="cmt"># Graceful reload with 5-second timeout</span>
+pm2 <span class="dir">gracefulReload</span> app_name --timeout <span class="lit">5000</span></code></pre>
+
+    <h3>2. Cluster Mode (Load Balancing):</h3>
+    <pre><code><span class="cmt"># Start app using all CPU cores</span>
+pm2 <span class="dir">start</span> app.js -i max
+
+<span class="cmt"># Scale to specific number of instances</span>
+pm2 <span class="dir">scale</span> app_name <span class="lit">4</span></code></pre>
+
+    <h3>3. Monitoring & Logging:</h3>
+    <pre><code><span class="cmt"># Real-time dashboard</span>
+pm2 <span class="dir">dashboard</span>
+
+<span class="cmt"># JSON/CSV export of metrics</span>
+pm2 <span class="dir">show</span> app_name
+
+<span class="cmt"># Log management with rotation</span>
+pm2 <span class="dir">install</span> pm2-logrotate
+pm2 <span class="dir">set</span> pm2-logrotate:max_size 10M
+pm2 <span class="dir">set</span> pm2-logrotate:retain 30</code></pre>
+
+    <h3>4. Application Configuration File (Ecosystem):</h3>
+    <p>Create <strong>ecosystem.config.js</strong>:</p>
+    <pre><code><span class="kw">module.exports</span> = {
+  <span class="prop">apps</span>: [{
+    <span class="prop">name</span>: <span class="str">'my-app'</span>,
+    <span class="prop">script</span>: <span class="str">'./app.js'</span>,
+    <span class="prop">instances</span>: <span class="str">'max'</span>,
+    <span class="prop">autorestart</span>: <span class="lit">true</span>,
+    <span class="prop">watch</span>: <span class="lit">false</span>,
+    <span class="prop">max_memory_restart</span>: <span class="str">'1G'</span>,
+    <span class="prop">env</span>: {
+      <span class="prop">NODE_ENV</span>: <span class="str">'development'</span>,
+    },
+    <span class="prop">env_production</span>: {
+      <span class="prop">NODE_ENV</span>: <span class="str">'production'</span>,
+    }
+  }]
+};</code></pre>
+
+    <pre><code><span class="cmt"># Start with ecosystem file</span>
+pm2 <span class="dir">start</span> ecosystem.config.js --env production
+
+<span class="cmt"># Start and save to PM2</span>
+pm2 <span class="dir">startOrRestart</span> ecosystem.config.js --env production
+pm2 <span class="dir">save</span></code></pre>
+
+    <h2>Complete Example Workflow</h2>
+    <h3>Deploying a Node.js App on AWS EC2:</h3>
+    <pre><code><span class="cmt"># 1. SSH into EC2 instance</span>
+ssh -i key.pem ubuntu@ec2-ip
+
+<span class="cmt"># 2. Install Node.js and PM2</span>
+curl -sL https://deb.nodesource.com/setup_18.x | <span class="kw">sudo</span> -E bash -
+<span class="kw">sudo</span> apt install nodejs
+<span class="kw">sudo</span> npm install -g pm2
+
+<span class="cmt"># 3. Clone your application</span>
+git clone https://github.com/your/app.git
+cd app
+npm install
+
+<span class="cmt"># 4. Start with PM2</span>
+pm2 <span class="dir">start</span> server.js --name <span class="str">"api-server"</span>
+
+<span class="cmt"># 5. Setup auto-start on boot</span>
+pm2 <span class="dir">startup</span>
+<span class="cmt"># Run the provided command</span>
+pm2 <span class="dir">save</span>
+
+<span class="cmt"># 6. Setup Nginx as reverse proxy (optional)</span>
+<span class="kw">sudo</span> apt install nginx
+<span class="kw">sudo</span> nano /etc/nginx/sites-available/default
+<span class="cmt"># Add: location / { proxy_pass http://localhost:3000; }</span>
+<span class="kw">sudo</span> systemctl restart nginx</code></pre>
+
+    <h2>Key Advantages Over <code>npm start</code>:</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>npm start</th>
+          <th>PM2</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Auto-restart on crash</td>
+          <td><span class="op">❌ No</span></td>
+          <td><strong>✅ Yes</strong></td>
+        </tr>
+        <tr>
+          <td>Process management</td>
+          <td><span class="op">❌ No</span></td>
+          <td><strong>✅ Yes</strong></td>
+        </tr>
+        <tr>
+          <td>Load balancing</td>
+          <td><span class="op">❌ No</span></td>
+          <td><strong>✅ Yes</strong></td>
+        </tr>
+        <tr>
+          <td>Log management</td>
+          <td><span class="op">❌ Manual</span></td>
+          <td><strong>✅ Automatic</strong></td>
+        </tr>
+        <tr>
+          <td>Monitoring</td>
+          <td><span class="op">❌ No</span></td>
+          <td><strong>✅ Built-in</strong></td>
+        </tr>
+        <tr>
+          <td>Survives SSH logout</td>
+          <td><span class="op">❌ No</span></td>
+          <td><strong>✅ Yes</strong></td>
+        </tr>
+        <tr>
+          <td>Startup on system boot</td>
+          <td><span class="op">❌ Manual</span></td>
+          <td><strong>✅ Automatic</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Important PM2 Tips:</h2>
+    <pre><code><span class="cmt"># View detailed info about an app</span>
+pm2 <span class="dir">show</span> app_name
+
+<span class="cmt"># Reset restart count</span>
+pm2 <span class="dir">reset</span> app_name
+
+<span class="cmt"># Generate static website for monitoring</span>
+pm2 <span class="dir">serve</span> /path <span class="lit">8080</span>
+
+<span class="cmt"># Update PM2</span>
+npm install -g pm2@latest
+pm2 <span class="dir">update</span>
+
+<span class="cmt"># Kill PM2 daemon</span>
+pm2 <span class="dir">kill</span></code></pre>
+
+    <h2>Troubleshooting Auto-Start Issues:</h2>
+    <pre><code><span class="cmt"># Check PM2 logs</span>
+pm2 <span class="dir">logs</span>
+
+<span class="cmt"># Check systemd service status</span>
+<span class="kw">sudo</span> journalctl -u pm2-ubuntu -f
+
+<span class="cmt"># Re-dump startup script</span>
+pm2 <span class="dir">unstartup</span>
+pm2 <span class="dir">startup</span>
+pm2 <span class="dir">save</span>
+
+<span class="cmt"># Check saved processes</span>
+pm2 <span class="dir">resurrect</span></code></pre>
+
+    <hr />
+    <p>
+      PM2 transforms your Node.js deployment from fragile to
+      <strong>production-ready</strong> with minimal configuration. It's the
+      industry standard for running Node.js applications in production
+      environments.
+    </p>
+  </body>
+</html>

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB & Mongoose Indexing Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styling & Dark Theme */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark Background */
+        --text-color: #d4d4d4; /* Light text for contrast */
+        --heading-color: #569cd6; /* Blue for primary headings */
+        --highlight-color: #dcdcaa; /* Yellow for key concepts/analogies */
+        --code-bg: #1f1f1f; /* Slightly lighter/different code block bg */
+        --code-keyword: #c586c0; /* VS Code Purple for keywords */
+        --code-function: #dcdcaa; /* Yellow for functions/methods */
+        --code-property: #9cd656; /* Green for properties */
+        --code-string: #ce9178; /* Orange for strings/values */
+        --code-number: #b5cea8; /* Light green/number */
+        --code-boolean: #569cd6; /* Blue for boolean */
+        --code-comment: #6a9955; /* Darker green for comments */
+        --table-header-bg: #3c3c3c;
+        --hr-color: #333333;
+        --error-color: #f44747; /* Red for errors */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 950px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #252526; /* Slightly lighter body background than overall theme */
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings and Sections */
+      h2 {
+        color: var(--heading-color);
+        font-size: 1.6em;
+        border-bottom: 2px solid var(--hr-color);
+        padding-bottom: 5px;
+        margin-top: 35px;
+        font-weight: 900;
+      }
+
+      .section-header {
+        color: var(--highlight-color);
+        font-size: 1.4em;
+        margin-top: 25px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+      }
+
+      .section-header span {
+        margin-left: 10px;
+      }
+
+      p {
+        margin-bottom: 15px;
+        font-weight: 300;
+      }
+
+      strong {
+        color: var(--highlight-color);
+        font-weight: 700;
+      }
+
+      /* Inline Code and Tags */
+      .inline-code {
+        font-family: 'Consolas', 'Monaco', monospace;
+        background-color: #303031;
+        padding: 2px 4px;
+        border-radius: 3px;
+        color: var(--code-property);
+      }
+
+      .inline-tag {
+        font-family: 'Consolas', 'Monaco', monospace;
+        color: var(--code-string);
+        font-weight: 700;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        overflow-x: auto;
+        border-radius: 4px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        border: 1px solid #3c3c3c;
+        line-height: 1.4;
+        margin: 15px 0;
+      }
+
+      /* Code coloring shortcuts */
+      .c-kw {
+        color: var(--code-keyword);
+      }
+      .c-func {
+        color: var(--code-function);
+      }
+      .c-prop {
+        color: var(--code-property);
+      }
+      .c-str {
+        color: var(--code-string);
+      }
+      .c-num {
+        color: var(--code-number);
+      }
+      .c-bool {
+        color: var(--code-boolean);
+      }
+      .c-comment {
+        color: var(--code-comment);
+      }
+
+      .code-explanation {
+        background-color: #303031;
+        padding: 10px 15px;
+        border-left: 4px solid var(--code-property);
+        margin: 10px 0;
+        border-radius: 4px;
+        font-size: 0.95em;
+      }
+
+      /* Lists */
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      ul li {
+        margin-bottom: 8px;
+        position: relative;
+        padding-left: 15px;
+      }
+
+      ul li::before {
+        content: '•';
+        color: var(--heading-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--hr-color);
+        padding: 12px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--table-header-bg);
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #2c2c2c;
+      }
+
+      .error-output {
+        color: var(--error-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2 class="section-header">🧩 1. What Is an Index in MongoDB?</h2>
+      <p>
+        An index is a **data structure** that improves the speed of queries on a
+        collection.
+      </p>
+      <p>
+        Think of it like an **index in a book** 📚: instead of reading every
+        page, MongoDB can jump directly to where the data is.
+      </p>
+      <ul>
+        <li>
+          Without an index → MongoDB must scan every document (<span
+            class="inline-tag"
+            >COLLSCAN</span
+          >) — **slow** for large collections.
+        </li>
+        <li>
+          With an index → MongoDB jumps directly to matching documents (<span
+            class="inline-tag"
+            >IXSCAN</span
+          >).
+        </li>
+      </ul>
+
+      <h2 class="section-header">🔢 2. Types of Indexes</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Purpose</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Normal (non-unique)</td>
+            <td>Speeds up queries on a field</td>
+            <td>
+              <span class="inline-tag">email</span>,
+              <span class="inline-tag">createdAt</span>
+            </td>
+          </tr>
+          <tr>
+            <td>Unique</td>
+            <td>Ensures no duplicate values for that field</td>
+            <td>
+              <span class="inline-tag">_id</span>,
+              <span class="inline-tag">email</span> (if you don’t want duplicate
+              users)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="section-header">⚙️ 3. Defining Indexes in Mongoose Schema</h2>
+      <p>Mongoose lets you define indexes in two ways:</p>
+
+      <h3>✅ Method 1: Inside Schema Field Definition</h3>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">import</span> <span class="c-prop">mongoose</span> <span class="c-kw">from</span> <span class="c-str">"mongoose"</span>;
+<span class="c-kw">const</span> <span class="c-prop">userSchema</span> = <span class="c-kw">new</span> <span class="c-prop">mongoose</span>.<span class="c-func">Schema</span>({
+  <span class="c-prop">name</span>: {
+    <span class="c-prop">type</span>: <span class="c-kw">String</span>,
+    <span class="c-prop">index</span>: <span class="c-bool">true</span>, <span class="c-comment">// normal index</span>
+  },
+  <span class="c-prop">email</span>: {
+    <span class="c-prop">type</span>: <span class="c-kw">String</span>,
+    <span class="c-prop">unique</span>: <span class="c-bool">true</span>, <span class="c-comment">// unique index</span>
+    <span class="c-prop">required</span>: <span class="c-bool">true</span>,
+  },
+  <span class="c-prop">age</span>: {
+    <span class="c-prop">type</span>: <span class="c-kw">Number</span>,
+  }
+});
+<span class="c-kw">const</span> <span class="c-prop">User</span> = <span class="c-prop">mongoose</span>.<span class="c-func">model</span>(<span class="c-str">"User"</span>, <span class="c-prop">userSchema</span>);
+        </pre>
+
+      <h4 class="section-header">🔍 Explanation:</h4>
+      <ul>
+        <li>
+          <span class="inline-code">index: true</span> → creates a **normal
+          index**.
+        </li>
+        <li>
+          <span class="inline-code">unique: true</span> → creates a **unique
+          index**, ensuring no duplicate values in that field.
+        </li>
+      </ul>
+
+      <h3>
+        ✅ Method 2: Using <span class="inline-code">.index()</span> on the
+        Schema
+      </h3>
+      <p>
+        This gives more control and allows **compound indexes** (indexes on
+        multiple fields).
+      </p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-prop">userSchema</span>.<span class="c-func">index</span>({ <span class="c-prop">name</span>: <span class="c-num">1</span> });          <span class="c-comment">// normal ascending index</span>
+<span class="c-prop">userSchema</span>.<span class="c-func">index</span>({ <span class="c-prop">email</span>: <span class="c-num">1</span> }, { <span class="c-prop">unique</span>: <span class="c-bool">true</span> });  <span class="c-comment">// unique index</span>
+<span class="c-prop">userSchema</span>.<span class="c-func">index</span>({ <span class="c-prop">age</span>: <span class="c-num">-1</span>, <span class="c-prop">name</span>: <span class="c-num">1</span> }); <span class="c-comment">// compound index</span>
+        </pre>
+      <p>Here:</p>
+      <ul>
+        <li>
+          <span class="inline-code">{ name: 1 }</span> → **ascending** order
+        </li>
+        <li>
+          <span class="inline-code">{ age: -1 }</span> → **descending** order
+        </li>
+        <li>
+          <span class="inline-code">{ unique: true }</span> → ensures
+          **uniqueness**
+        </li>
+      </ul>
+
+      <h2 class="section-header">📦 4. How Mongoose Creates Indexes</h2>
+      <p>
+        By default, when you first run your app, Mongoose automatically builds
+        indexes defined in your schema.
+      </p>
+      <p>When you call:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-prop">mongoose</span>.<span class="c-func">model</span>(<span class="c-str">"User"</span>, <span class="c-prop">userSchema</span>);
+        </pre>
+      <p>
+        → Mongoose runs <span class="inline-code">.ensureIndexes()</span> in the
+        background.
+      </p>
+      <p>
+        If you don’t want that automatic behavior (useful in production),
+        disable it:
+      </p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-prop">mongoose</span>.<span class="c-func">connect</span>(<span class="c-prop">MONGO_URI</span>, { <span class="c-prop">autoIndex</span>: <span class="c-bool">false</span> });
+        </pre>
+      <p>Then manually create indexes when needed:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">createIndexes</span>(); <span class="c-comment">// or</span>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">syncIndexes</span>();   <span class="c-comment">// sync schema indexes with DB</span>
+        </pre>
+
+      <h2 class="section-header">
+        🧠 5. Understanding <span class="inline-code">syncIndexes()</span> vs
+        <span class="inline-code">createIndexes()</span>
+      </h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">createIndexes()</span></td>
+            <td>Creates indexes if not existing</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">syncIndexes()</span></td>
+            <td>
+              Drops indexes from MongoDB that aren’t defined in the schema and
+              adds missing ones
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <h4>Example:</h4>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">syncIndexes</span>();
+<span class="c-func">console</span>.<span class="c-func">log</span>(<span class="c-str">"Indexes synced with schema!"</span>);
+        </pre>
+
+      <h2 class="section-header">
+        💥 6. Unique Index Example (with Duplicate Error Handling)
+      </h2>
+      <h4>Schema:</h4>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">const</span> <span class="c-prop">userSchema</span> = <span class="c-kw">new</span> <span class="c-prop">mongoose</span>.<span class="c-func">Schema</span>({
+  <span class="c-prop">email</span>: {
+    <span class="c-prop">type</span>: <span class="c-kw">String</span>,
+    <span class="c-prop">required</span>: <span class="c-bool">true</span>,
+    <span class="c-prop">unique</span>: <span class="c-bool">true</span>, <span class="c-comment">// prevents duplicate emails</span>
+  },
+  <span class="c-prop">name</span>: <span class="c-kw">String</span>,
+});
+<span class="c-kw">const</span> <span class="c-prop">User</span> = <span class="c-prop">mongoose</span>.<span class="c-func">model</span>(<span class="c-str">"User"</span>, <span class="c-prop">userSchema</span>);
+        </pre>
+      <h4>Example:</h4>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">try</span> {
+  <span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">create</span>({ <span class="c-prop">name</span>: <span class="c-str">"Arman"</span>, <span class="c-prop">email</span>: <span class="c-str">"arman@gmail.com"</span> });
+  <span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">create</span>({ <span class="c-prop">name</span>: <span class="c-str">"Kamran"</span>, <span class="c-prop">email</span>: <span class="c-str">"arman@gmail.com"</span> }); <span class="c-comment">// duplicate</span>
+} <span class="c-kw">catch</span> (<span class="c-prop">err</span>) {
+  <span class="c-func">console</span>.<span class="c-func">log</span>(<span class="c-str">"❌ Duplicate Error:"</span>, <span class="c-prop">err</span>.<span class="c-prop">message</span>);
+}
+        </pre>
+      <h4>Output:</h4>
+      <pre class="error-output">
+❌ Duplicate Error: E11000 duplicate key error collection: test.users index: email_1 dup key: { email: "arman@gmail.com" }
+        </pre
+      >
+
+      <h2 class="section-header">🧹 7. How to Remove / Drop Indexes</h2>
+      <p>You can drop indexes using:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-prop">collection</span>.<span class="c-func">dropIndex</span>(<span class="c-str">"email_1"</span>);
+        </pre>
+      <p>To check all indexes:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">const</span> <span class="c-prop">indexes</span> = <span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-prop">collection</span>.<span class="c-func">indexes</span>();
+<span class="c-func">console</span>.<span class="c-func">log</span>(<span class="c-prop">indexes</span>);
+        </pre>
+      <p>To drop all indexes:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-prop">collection</span>.<span class="c-func">dropIndexes</span>();
+        </pre>
+
+      <h2 class="section-header">🧭 8. Full Practical Example</h2>
+      <p><span class="inline-code">indexDemo.js</span></p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">import</span> <span class="c-prop">mongoose</span> <span class="c-kw">from</span> <span class="c-str">"mongoose"</span>;
+
+<span class="c-kw">await</span> <span class="c-prop">mongoose</span>.<span class="c-func">connect</span>(<span class="c-str">"mongodb://127.0.0.1:27017/indexDemo"</span>);
+
+<span class="c-kw">const</span> <span class="c-prop">userSchema</span> = <span class="c-kw">new</span> <span class="c-prop">mongoose</span>.<span class="c-func">Schema</span>({
+  <span class="c-prop">name</span>: { <span class="c-prop">type</span>: <span class="c-kw">String</span>, <span class="c-prop">index</span>: <span class="c-bool">true</span> },
+  <span class="c-prop">email</span>: { <span class="c-prop">type</span>: <span class="c-kw">String</span>, <span class="c-prop">unique</span>: <span class="c-bool">true</span>, <span class="c-prop">required</span>: <span class="c-bool">true</span> },
+  <span class="c-prop">age</span>: <span class="c-kw">Number</span>,
+});
+
+<span class="c-comment">// compound index: faster query for both name & age</span>
+<span class="c-prop">userSchema</span>.<span class="c-func">index</span>({ <span class="c-prop">name</span>: <span class="c-num">1</span>, <span class="c-prop">age</span>: <span class="c-num">-1</span> });
+
+<span class="c-kw">const</span> <span class="c-prop">User</span> = <span class="c-prop">mongoose</span>.<span class="c-func">model</span>(<span class="c-str">"User"</span>, <span class="c-prop">userSchema</span>);
+
+<span class="c-comment">// sync indexes with schema</span>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">syncIndexes</span>();
+<span class="c-func">console</span>.<span class="c-func">log</span>(<span class="c-str">"✅ Indexes created:"</span>, <span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-prop">collection</span>.<span class="c-func">indexes</span>());
+
+<span class="c-comment">// Insert docs</span>
+<span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">create</span>({ <span class="c-prop">name</span>: <span class="c-str">"Arman"</span>, <span class="c-prop">email</span>: <span class="c-str">"arman@gmail.com"</span>, <span class="c-prop">age</span>: <span class="c-num">25</span> });
+
+<span class="c-kw">try</span> {
+  <span class="c-comment">// duplicate email</span>
+  <span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">create</span>({ <span class="c-prop">name</span>: <span class="c-str">"Kamran"</span>, <span class="c-prop">email</span>: <span class="c-str">"arman@gmail.com"</span>, <span class="c-prop">age</span>: <span class="c-num">30</span> });
+} <span class="c-kw">catch</span> (<span class="c-prop">err</span>) {
+  <span class="c-func">console</span>.<span class="c-func">error</span>(<span class="c-str">"❌ Duplicate key error:"</span>, <span class="c-prop">err</span>.<span class="c-prop">message</span>);
+}
+
+<span class="c-comment">// Query using index</span>
+<span class="c-kw">const</span> <span class="c-prop">users</span> = <span class="c-kw">await</span> <span class="c-prop">User</span>.<span class="c-func">find</span>({ <span class="c-prop">name</span>: <span class="c-str">"Arman"</span> }).<span class="c-func">explain</span>(<span class="c-str">"executionStats"</span>);
+<span class="c-func">console</span>.<span class="c-func">log</span>(<span class="c-str">"🔍 Query plan:"</span>, <span class="c-prop">users</span>.<span class="c-prop">executionStats</span>);
+
+<span class="c-kw">await</span> <span class="c-prop">mongoose</span>.<span class="c-prop">connection</span>.<span class="c-func">close</span>();
+        </pre>
+
+      <h2 class="section-header">📊 9. Viewing Indexes in Mongo Shell</h2>
+      <p>Run this in MongoDB shell or Compass:</p>
+      <div class="code-language">JavaScript</div>
+      <pre>
+<span class="c-kw">db</span>.<span class="c-prop">users</span>.<span class="c-func">getIndexes</span>()
+        </pre>
+      <h4>Output example:</h4>
+      <div class="code-language">JavaScript</div>
+      <pre>
+[
+  { <span class="c-str">"v"</span>: <span class="c-num">2</span>, <span class="c-str">"key"</span>: { <span class="c-str">"_id"</span>: <span class="c-num">1</span> }, <span class="c-str">"name"</span>: <span class="c-str">"_id_"</span> },
+  { <span class="c-str">"v"</span>: <span class="c-num">2</span>, <span class="c-str">"key"</span>: { <span class="c-str">"email"</span>: <span class="c-num">1</span> }, <span class="c-str">"name"</span>: <span class="c-str">"email_1"</span>, <span class="c-str">"unique"</span>: <span class="c-bool">true</span> },
+  { <span class="c-str">"v"</span>: <span class="c-num">2</span>, <span class="c-str">"key"</span>: { <span class="c-str">"name"</span>: <span class="c-num">1</span> }, <span class="c-str">"name"</span>: <span class="c-str">"name_1"</span> }]
+        </pre>
+
+      <h2 class="section-header">🧩 10. Key Takeaways</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">index: true</span></td>
+            <td>Creates a simple index</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">unique: true</span></td>
+            <td>Creates a unique index (no duplicates).</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">.index()</span></td>
+            <td>Define normal or compound indexes manually</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">createIndexes()</span></td>
+            <td>Builds missing indexes</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">syncIndexes()</span></td>
+            <td>Makes DB indexes match schema</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">dropIndex()</span></td>
+            <td>Removes an index manually</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

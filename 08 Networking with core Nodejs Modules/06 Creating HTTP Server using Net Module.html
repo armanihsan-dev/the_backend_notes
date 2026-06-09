@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js TCP Server Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --heading-color: #a0c4ff;
+        --code-bg: #1f1f1f;
+        --code-text: #b5e853;
+        --comment-text: #6a9955;
+        --tag-color: #4b8ff9;
+        --icon-color: #ff9f1c;
+        --section-bg: #1e1e1e;
+        --border-color: #333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        margin: 0;
+        padding: 2rem;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: var(--section-bg);
+        padding: 2.5rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        border: 1px solid var(--border-color);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        font-weight: 700;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+      }
+
+      p {
+        margin-bottom: 1rem;
+      }
+
+      .icon {
+        color: var(--icon-color);
+        margin-right: 10px;
+      }
+
+      .code-block {
+        background-color: var(--code-bg);
+        padding: 1.5rem;
+        border-radius: 10px;
+        overflow-x: auto;
+        border: 1px solid var(--border-color);
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        white-space: pre-wrap;
+      }
+
+      .code-block h3 {
+        margin-top: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+      }
+
+      .language-js {
+        font-family: 'Courier New', Courier, monospace;
+        color: var(--code-text);
+      }
+
+      .js-comment {
+        color: var(--comment-text);
+      }
+
+      .js-keyword {
+        color: #569cd6;
+      }
+
+      .js-const {
+        color: #9cdcfe;
+      }
+
+      .js-string {
+        color: #ce9178;
+      }
+
+      .js-log {
+        color: #d7ba7d;
+      }
+
+      .js-method {
+        color: #dcdcaa;
+      }
+
+      strong {
+        color: var(--tag-color);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Node.js TCP Server</h1>
+      <p>
+        Using the <strong>net</strong> module in Node.js, you can build a server
+        that operates at the TCP level, which is the underlying protocol for
+        HTTP. This allows for low-level control of the data stream, including
+        sending files. Here's a breakdown of how to create such a server to
+        transfer files.
+      </p>
+
+      <h2><span class="icon">⚙️</span> The net Module</h2>
+      <p>
+        The <strong>net</strong> module is a core Node.js module that provides
+        an asynchronous network API for creating stream-based TCP or IPC
+        (Inter-Process Communication) servers and clients. A key concept in this
+        module is the <strong>socket object</strong>, which represents the
+        connection between the client and the server.
+      </p>
+      <p>
+        The main method for creating a server is
+        <code>net.createServer()</code>, which takes a callback function. This
+        function is executed every time a new client connects and is passed the
+        <strong>socket object</strong> for that connection. The
+        <strong>socket object</strong> is a duplex stream, meaning you can both
+        read from it (<code>socket.on('data', ...)</code>) and write to it
+        (<code>socket.write(...)</code>).
+      </p>
+
+      <h2><span class="icon">📝</span> Example: File Transfer Server</h2>
+      <p>
+        The following example demonstrates a TCP server that listens for a
+        client connection and then sends a specified file to the client.
+      </p>
+
+      <div class="code-block">
+        <h3>server.js</h3>
+        <pre class="language-js">
+<span class="js-keyword">const</span> <span class="js-const">net</span> = require(<span class="js-string">'net'</span>);
+<span class="js-keyword">const</span> <span class="js-const">fs</span> = require(<span class="js-string">'fs'</span>);
+<span class="js-keyword">const</span> <span class="js-const">path</span> = require(<span class="js-string">'path'</span>);
+
+<span class="js-keyword">const</span> <span class="js-const">HOST</span> = <span class="js-string">'127.0.0.1'</span>;
+<span class="js-keyword">const</span> <span class="js-const">PORT</span> = <span class="js-string">6969</span>;
+<span class="js-keyword">const</span> <span class="js-const">FILE_TO_SEND</span> = <span class="js-string">'myFile.txt'</span>; <span class="js-comment">// Make sure this file exists in the same directory</span>
+
+<span class="js-comment">// Create a new TCP server</span>
+<span class="js-keyword">const</span> <span class="js-const">server</span> = net.<span class="js-method">createServer</span>(socket => {
+  console.<span class="js-log">log</span>(<span class="js-string">'Client connected: '</span> + socket.remoteAddress + <span class="js-string">':'</span> + socket.remotePort);
+
+  <span class="js-comment">// Path to the file to be sent</span>
+  <span class="js-keyword">const</span> <span class="js-const">filePath</span> = path.<span class="js-method">join</span>(__dirname, FILE_TO_SEND);
+
+  <span class="js-comment">// Check if the file exists</span>
+  <span class="js-keyword">if</span> (!fs.<span class="js-method">existsSync</span>(filePath)) {
+    console.<span class="js-log">error</span>(<span class="js-string">'File not found: '</span> + filePath);
+    socket.<span class="js-method">end</span>(<span class="js-string">'Error: File not found.\n'</span>);
+    <span class="js-keyword">return</span>;
+  }
+
+  <span class="js-comment">// Create a readable stream for the file</span>
+  <span class="js-keyword">const</span> <span class="js-const">fileStream</span> = fs.<span class="js-method">createReadStream</span>(filePath);
+  
+  <span class="js-comment">// Pipe the file stream directly to the socket</span>
+  fileStream.<span class="js-method">pipe</span>(socket);
+  
+  <span class="js-comment">// Log when the file transfer is complete</span>
+  fileStream.<span class="js-method">on</span>(<span class="js-string">'end'</span>, () => {
+    console.<span class="js-log">log</span>(<span class="js-string">'File '</span> + FILE_TO_SEND + <span class="js-string">' sent successfully to client.'</span>);
+    socket.<span class="js-method">end</span>(); <span class="js-comment">// Close the connection after the file is sent</span>
+  });
+
+  <span class="js-comment">// Handle errors during file transfer or connection</span>
+  fileStream.<span class="js-method">on</span>(<span class="js-string">'error'</span>, err => {
+    console.<span class="js-log">error</span>(<span class="js-string">'File stream error:'</span>, err);
+    socket.<span class="js-method">end</span>(<span class="js-string">'Error: Failed to read file.\n'</span>);
+  });
+
+  socket.<span class="js-method">on</span>(<span class="js-string">'end'</span>, () => {
+    console.<span class="js-log">log</span>(<span class="js-string">'Client disconnected.'</span>);
+  });
+  
+  socket.<span class="js-method">on</span>(<span class="js-string">'error'</span>, err => {
+    console.<span class="js-log">log</span>(<span class="js-string">'Socket error:'</span>, err);
+  });
+});
+
+<span class="js-comment">// Start the server</span>
+server.<span class="js-method">listen</span>(PORT, HOST, () => {
+  console.<span class="js-log">log</span>(<span class="js-string">'Server listening on '</span> + HOST + <span class="js-string">':'</span> + PORT);
+});
+            </pre>
+      </div>
+
+      <h2><span class="icon">🧑‍💻</span> How the Code Works</h2>
+      <p>
+        <strong>Require Modules:</strong> We start by importing the necessary
+        modules: <code>net</code> for the TCP server, <code>fs</code> (File
+        System) for file operations, and <code>path</code> for handling file
+        paths.
+      </p>
+      <p>
+        <strong>Server Creation:</strong> The
+        <code>net.createServer()</code> method creates a new TCP server
+        instance. The callback function <code>(socket) => { ... }</code> is the
+        main event listener for new connections.
+      </p>
+      <p>
+        <strong>Connection Handling:</strong> When a client connects, the
+        callback logs the client's address and port.
+      </p>
+      <p>
+        <strong>File Stream:</strong> We use
+        <code>fs.createReadStream()</code> to create a readable stream of the
+        file we want to send. Using a stream is more memory-efficient than
+        reading the entire file into memory, especially for large files.
+      </p>
+      <p>
+        <strong>Piping:</strong> The <code>fileStream.pipe(socket)</code> method
+        is the core of the file transfer. It efficiently "pipes" or redirects
+        the data from the readable file stream directly to the writable socket
+        stream. This handles the chunks of data being read and written
+        automatically.
+      </p>
+      <p>
+        <strong>Events:</strong> The code includes event listeners for the
+        <code>fileStream</code> (<code>end</code>, <code>error</code>) and the
+        <code>socket</code> (<code>end</code>, <code>error</code>) to handle
+        success and failure cases and to log connection status.
+      </p>
+      <p>
+        <strong>Listening:</strong> Finally, <code>server.listen()</code> starts
+        the server on the specified host and port, making it ready to accept
+        incoming connections.
+      </p>
+
+      <p>
+        This example provides a solid foundation for a TCP server that can
+        transfer files. However, it's important to note that it's a very basic
+        implementation. It doesn't handle HTTP protocol-specific headers (like
+        <code>Content-Type</code> or <code>Content-Length</code>) or client
+        requests for specific files. Building a full-fledged HTTP server from
+        scratch would involve manual parsing of the incoming data stream to
+        understand the HTTP request (e.g., <code>GET /file.html HTTP/1.1</code>)
+        and then formatting the response accordingly.
+      </p>
+    </div>
+  </body>
+</html>

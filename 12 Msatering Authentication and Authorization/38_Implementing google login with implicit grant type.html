@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Implicit Grant Implementation (Deprecated)</title>
+    <!-- Link to Nunito Font from Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for Blakish Notes */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark Background */
+        --container-bg: #252526; /* Slightly lighter inner panel */
+        --text-color: #d4d4d4; /* Light text for contrast */
+        --heading-color: #569cd6; /* VS Code blue for headings/keywords */
+        --accent-color: #c586c0; /* VS Code purple for accents/bold */
+        --warning-color: #ff9d00; /* VS Code orange for warnings */
+        --code-bg: #1f1f1f; /* Dedicated code block background */
+        --font-family-notes: 'Nunito', sans-serif;
+        --font-family-code: 'Consolas', 'Courier New', monospace;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: var(--font-family-notes);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+        padding: 40px;
+        background-color: var(--container-bg);
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      h1 {
+        color: #4ec9b0; /* Teal/Green for main title */
+        border-bottom: 3px solid #333;
+        padding-bottom: 10px;
+        margin-top: 0;
+        font-weight: 900;
+      }
+
+      h2,
+      h3 {
+        color: var(--heading-color);
+        margin-top: 30px;
+        font-weight: 700;
+      }
+
+      strong {
+        color: var(--accent-color);
+        font-weight: 700;
+      }
+
+      ul {
+        list-style: none;
+        padding-left: 20px;
+      }
+
+      ul li:before {
+        content: '•';
+        color: var(--accent-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Security Warning Box */
+      .security-warning {
+        background-color: #381d1d; /* Dark Reddish-Brown */
+        border-left: 5px solid #ff0000;
+        padding: 15px;
+        margin: 25px 0;
+        border-radius: 5px;
+        color: white;
+        font-weight: 700;
+      }
+      .security-warning span {
+        color: #ff0000;
+        font-size: 1.2em;
+        margin-right: 10px;
+      }
+
+      /* Code Block Styling (VS Code Theme) */
+      .code-container {
+        margin: 20px 0;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+      }
+
+      .code-header {
+        background-color: #3c3c3c;
+        color: var(--text-color);
+        padding: 8px 15px;
+        font-size: 0.9em;
+        font-weight: 700;
+        border-bottom: 1px solid #1f1f1f;
+      }
+
+      pre code {
+        display: block;
+        background-color: var(--code-bg);
+        padding: 15px;
+        margin: 0;
+        overflow-x: auto;
+        font-family: var(--font-family-code);
+        font-size: 0.9em;
+        line-height: 1.4;
+        tab-size: 4;
+        white-space: pre;
+      }
+
+      /* Syntax Highlighting Classes */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .string {
+        color: #dcdcaa;
+      } /* Yellow */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .constant {
+        color: #4fc1ff;
+      } /* Cyan */
+      .function {
+        color: #dcdcaa;
+      } /* Yellow for function names */
+      .number {
+        color: #b5cea8;
+      } /* Light Green */
+      .punctuation {
+        color: #d4d4d4;
+      }
+      .tag {
+        color: #569cd6;
+      } /* Blue for HTML tags */
+      .attribute {
+        color: #9cdcfe;
+      } /* Light Blue for HTML attributes */
+      .value {
+        color: #ce9178;
+      } /* Orange/Brown for attribute values */
+      .js-keyword {
+        color: #569cd6;
+      }
+      .js-function-call {
+        color: #dcdcaa;
+      }
+
+      /* Client Demo Styling (Must be contained within the public/index.html code block's style tags) */
+      /* Note: For the embedded index.html code block, we must use light theme styles 
+           since the client will be run standalone */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Google Implicit Grant Implementation (Deprecated)</h1>
+      <p>
+        This is an excellent practical request! You are correct that the
+        **Implicit Grant Flow** delivers the token directly to the client, which
+        is then responsible for passing it to the server for validation.
+      </p>
+
+      <div class="security-warning">
+        <span>⚠️</span> **IMPORTANT SECURITY WARNING:**
+        <p>
+          Before diving in, please be aware that the **Implicit Grant Flow** is
+          **deprecated** by the **OAuth 2.0 Security Best Current Practice** and
+          is considered **insecure for production use**. It has been replaced by
+          the **Authorization Code Flow with PKCE (Proof Key for Code
+          Exchange)** for all public clients (like SPAs).
+        </p>
+        <p>
+          However, since you requested it for learning purposes, I will show you
+          the exact implementation of the Implicit Flow.
+        </p>
+      </div>
+
+      <!-- Implementation Structure -->
+      <h2>Implementation Structure Overview</h2>
+      <p>We will build this in three parts:</p>
+      <ul>
+        <li>**Google Cloud Setup**: Setting up the credentials.</li>
+        <li>
+          **Client** (<code>index.html</code>): Initiates the login and extracts
+          the token from the URL fragment.
+        </li>
+        <li>
+          **Server** (<code>server.js</code>): Receives the token from the
+          client, verifies its authenticity with Google, and returns the
+          verified user profile.
+        </li>
+      </ul>
+      <p>I will generate the files for the client and server below.</p>
+
+      <!-- Prerequisites and Setup -->
+      <h2>Part 1: Prerequisites and Setup</h2>
+
+      <h3>1. Google Console Setup</h3>
+      <ul>
+        <li>
+          **Create a Project**: In Google Cloud Console, create a new project.
+        </li>
+        <li>
+          **Configure Consent Screen**: Go to "OAuth consent screen" and set up
+          basic app information.
+        </li>
+        <li>
+          **Create Credentials**: Go to "Credentials" -> "Create Credentials" ->
+          "OAuth client ID."
+          <ul>
+            <li>Select Application Type: **Web application**.</li>
+            <li>
+              Set **Authorized JavaScript origins** to:
+              <code>http://localhost:3000</code> (or whatever port you use).
+            </li>
+            <li>
+              Set **Authorized redirect URIs** to:
+              <code>http://localhost:3000/</code> (or the exact path your HTML
+              page is served from).
+            </li>
+            <li>
+              **Crucially, note down your <code>YOUR_GOOGLE_CLIENT_ID</code>**.
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3>2. Server Setup</h3>
+      <p>
+        For the server, you will need Node.js and the following dependencies.
+        Create a directory for your project, and save the following files inside
+        it.
+      </p>
+      <p>I'll start by generating the <code>package.json</code> file:</p>
+
+      <div class="code-container">
+        <div class="code-header">package.json</div>
+        <pre><code><span class="punctuation">{</span>
+  <span class="string">"name"</span><span class="punctuation">:</span> <span class="string">"google-implicit-grant-server"</span><span class="punctuation">,</span>
+  <span class="string">"version"</span><span class="punctuation">:</span> <span class="string">"1.0.0"</span><span class="punctuation">,</span>
+  <span class="string">"description"</span><span class="punctuation">:</span> <span class="string">"Express server for Google Implicit Grant Token Verification"</span><span class="punctuation">,</span>
+  <span class="string">"main"</span><span class="punctuation">:</span> <span class="string">"server.js"</span><span class="punctuation">,</span>
+  <span class="string">"scripts"</span><span class="punctuation">:</span> <span class="punctuation">{</span>
+    <span class="string">"start"</span><span class="punctuation">:</span> <span class="string">"node server.js"</span>
+  <span class="punctuation">},</span>
+  <span class="string">"dependencies"</span><span class="punctuation">:</span> <span class="punctuation">{</span>
+    <span class="string">"express"</span><span class="punctuation">:</span> <span class="string">"^4.18.2"</span><span class="punctuation">,</span>
+    <span class="string">"google-auth-library"</span><span class="punctuation">:</span> <span class="string">"^9.4.1"</span><span class="punctuation">,</span>
+    <span class="string">"cors"</span><span class="punctuation">:</span> <span class="string">"^2.8.5"</span> <span class="comment">// Added cors dependency for explicit clarity</span>
+  <span class="punctuation">}</span>
+<span class="punctuation">}</span></code></pre>
+      </div>
+      <p>
+        To install dependencies, run:
+        <code
+          ><span class="variable">npm</span>
+          <span class="js-function-call">install</span></code
+        >
+      </p>
+
+      <!-- Code Implementation -->
+      <h2>Part 2 & 3: Code Implementation (Client and Server)</h2>
+      <p>We will use port **3000** for the server in this example.</p>
+
+      <h3>The Express Server (<code>server.js</code>)</h3>
+      <p>This server will:</p>
+      <ul>
+        <li>
+          Serve the static <code>index.html</code> file from a
+          <code>public</code> directory.
+        </li>
+        <li>
+          Listen for a **POST** request on <code>/api/verify-token</code>.
+        </li>
+        <li>
+          Use the **GoogleAuthLibrary** to verify the ID Token against Google's
+          public keys.
+        </li>
+        <li>Return the verified user data.</li>
+      </ul>
+      <p>
+        Replace <code>YOUR_GOOGLE_CLIENT_ID</code> with the ID you obtained from
+        the Google Cloud Console:
+      </p>
+
+      <div class="code-container">
+        <div class="code-header">server.js (Node.js/Express)</div>
+        <pre><code><span class="js-keyword">const</span> <span class="variable">express</span> <span class="punctuation">=</span> <span class="js-function-call">require</span><span class="punctuation">(</span><span class="string">'express'</span><span class="punctuation">);</span>
+<span class="js-keyword">const</span> <span class="punctuation">{</span> <span class="variable">OAuth2Client</span> <span class="punctuation">}</span> <span class="punctuation">=</span> <span class="js-function-call">require</span><span class="punctuation">(</span><span class="string">'google-auth-library'</span><span class="punctuation">);</span>
+<span class="js-keyword">const</span> <span class="variable">path</span> <span class="punctuation">=</span> <span class="js-function-call">require</span><span class="punctuation">(</span><span class="string">'path'</span><span class="punctuation">);</span>
+<span class="js-keyword">const</span> <span class="variable">cors</span> <span class="punctuation">=</span> <span class="js-function-call">require</span><span class="punctuation">(</span><span class="string">'cors'</span><span class="punctuation">);</span>
+
+<span class="comment">// ⚠️ Replace this with your actual Google Client ID</span>
+<span class="js-keyword">const</span> <span class="variable">CLIENT_ID</span> <span class="punctuation">=</span> <span class="string">'YOUR_GOOGLE_CLIENT_ID'</span><span class="punctuation">;</span> 
+
+<span class="comment">// Initialize the Google OAuth2 client for token verification</span>
+<span class="js-keyword">const</span> <span class="variable">client</span> <span class="punctuation">=</span> <span class="js-keyword">new</span> <span class="variable">OAuth2Client</span><span class="punctuation">(</span><span class="variable">CLIENT_ID</span><span class="punctuation">);</span>
+
+<span class="js-keyword">const</span> <span class="variable">app</span> <span class="punctuation">=</span> <span class="js-function-call">express</span><span class="punctuation">();</span>
+<span class="js-keyword">const</span> <span class="variable">PORT</span> <span class="punctuation">=</span> <span class="number">3000</span><span class="punctuation">;</span>
+
+<span class="comment">// Middleware setup</span>
+<span class="variable">app</span><span class="punctuation">.</span><span class="js-function-call">use</span><span class="punctuation">(</span><span class="js-function-call">cors</span><span class="punctuation">());</span> <span class="comment">// Enable CORS if client runs on a different port/domain (though here they are the same)</span>
+<span class="variable">app</span><span class="punctuation">.</span><span class="js-function-call">use</span><span class="punctuation">(</span><span class="variable">express</span><span class="punctuation">.</span><span class="js-function-call">json</span><span class="punctuation">());</span> <span class="comment">// To parse JSON bodies from client POST requests</span>
+<span class="variable">app</span><span class="punctuation">.</span><span class="js-function-call">use</span><span class="punctuation">(</span><span class="variable">express</span><span class="punctuation">.</span><span class="js-function-call">static</span><span class="punctuation">(</span><span class="variable">path</span><span class="punctuation">.</span><span class="js-function-call">join</span><span class="punctuation">(</span><span class="variable">__dirname</span><span class="punctuation">,</span> <span class="string">'public'</span><span class="punctuation">)));</span> <span class="comment">// Serve the static index.html</span>
+
+<span class="comment">// --- ID TOKEN VERIFICATION ENDPOINT ---</span>
+<span class="variable">app</span><span class="punctuation">.</span><span class="js-function-call">post</span><span class="punctuation">(</span><span class="string">'/api/verify-token'</span><span class="punctuation">,</span> <span class="js-keyword">async</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="punctuation">=></span> <span class="punctuation">{</span>
+    <span class="js-keyword">const</span> <span class="punctuation">{</span> <span class="variable">id_token</span> <span class="punctuation">}</span> <span class="punctuation">=</span> <span class="variable">req</span><span class="punctuation">.</span><span class="variable">body</span><span class="punctuation">;</span>
+
+    <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="punctuation">!</span><span class="variable">id_token</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+        <span class="js-keyword">return</span> <span class="variable">res</span><span class="punctuation">.</span><span class="js-function-call">status</span><span class="punctuation">(</span><span class="number">400</span><span class="punctuation">).</span><span class="js-function-call">send</span><span class="punctuation">({</span> <span class="variable">error</span><span class="punctuation">:</span> <span class="string">'ID Token is missing in the request body.'</span> <span class="punctuation">});</span>
+    <span class="punctuation">}</span>
+
+    <span class="js-keyword">try</span> <span class="punctuation">{</span>
+        <span class="comment">// 1. Verify the ID token using the official Google library</span>
+        <span class="js-keyword">const</span> <span class="variable">ticket</span> <span class="punctuation">=</span> <span class="js-keyword">await</span> <span class="variable">client</span><span class="punctuation">.</span><span class="js-function-call">verifyIdToken</span><span class="punctuation">({</span>
+            <span class="variable">idToken</span><span class="punctuation">:</span> <span class="variable">id_token</span><span class="punctuation">,</span>
+            <span class="variable">audience</span><span class="punctuation">:</span> <span class="variable">CLIENT_ID</span><span class="punctuation">,</span> <span class="comment">// Ensure the token is intended for our app</span>
+        <span class="punctuation">});</span>
+
+        <span class="comment">// 2. Extract the payload (verified user data)</span>
+        <span class="js-keyword">const</span> <span class="variable">payload</span> <span class="punctuation">=</span> <span class="variable">ticket</span><span class="punctuation">.</span><span class="js-function-call">getPayload</span><span class="punctuation">();</span>
+        
+        <span class="comment">// 3. Extract the relevant user information for the client profile</span>
+        <span class="js-keyword">const</span> <span class="variable">profile</span> <span class="punctuation">=</span> <span class="punctuation">{</span>
+            <span class="variable">id</span><span class="punctuation">:</span> <span class="variable">payload</span><span class="punctuation">[</span><span class="string">'sub'</span><span class="punctuation">]</span><span class="punctuation">,</span>
+            <span class="variable">email</span><span class="punctuation">:</span> <span class="variable">payload</span><span class="punctuation">[</span><span class="string">'email'</span><span class="punctuation">]</span><span class="punctuation">,</span>
+            <span class="variable">name</span><span class="punctuation">:</span> <span class="variable">payload</span><span class="punctuation">[</span><span class="string">'name'</span><span class="punctuation">]</span><span class="punctuation">,</span>
+            <span class="variable">picture</span><span class="punctuation">:</span> <span class="variable">payload</span><span class="punctuation">[</span><span class="string">'picture'</span><span class="punctuation">]</span><span class="punctuation">,</span>
+            <span class="variable">isVerified</span><span class="punctuation">:</span> <span class="variable">payload</span><span class="punctuation">[</span><span class="string">'email_verified'</span><span class="punctuation">]</span>
+        <span class="punctuation">};</span>
+
+        <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">log</span><span class="punctuation">(</span><span class="string">`Token verified successfully for user: ${profile.email}`</span><span class="punctuation">);</span>
+        
+        <span class="comment">// 4. Send the verified, clean user profile back to the client</span>
+        <span class="variable">res</span><span class="punctuation">.</span><span class="js-function-call">status</span><span class="punctuation">(</span><span class="number">200</span><span class="punctuation">).</span><span class="js-function-call">json</span><span class="punctuation">({</span> <span class="variable">success</span><span class="punctuation">:</span> <span class="js-keyword">true</span><span class="punctuation">,</span> <span class="variable">profile</span> <span class="punctuation">});</span>
+
+    <span class="punctuation">}</span> <span class="js-keyword">catch</span> <span class="punctuation">(</span><span class="variable">error</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+        <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">error</span><span class="punctuation">(</span><span class="string">'Token verification failed:'</span><span class="punctuation">,</span> <span class="variable">error</span><span class="punctuation">.</span><span class="variable">message</span><span class="punctuation">);</span>
+        <span class="variable">res</span><span class="punctuation">.</span><span class="js-function-call">status</span><span class="punctuation">(</span><span class="number">401</span><span class="punctuation">).</span><span class="js-function-call">send</span><span class="punctuation">({</span> <span class="variable">success</span><span class="punctuation">:</span> <span class="js-keyword">false</span><span class="punctuation">,</span> <span class="variable">error</span><span class="punctuation">:</span> <span class="string">'Invalid or expired ID Token.'</span> <span class="punctuation">});</span>
+    <span class="punctuation">}</span>
+<span class="punctuation">});</span>
+
+<span class="comment">// Serve the index.html from the root path</span>
+<span class="variable">app</span><span class="punctuation">.</span><span class="js-function-call">get</span><span class="punctuation">(</span><span class="string">'/'</span><span class="punctuation">,</span> <span class="punctuation">(</span><span class="variable">req</span><span class="punctuation">,</span> <span class="variable">res</span><span class="punctuation">)</span> <span class="punctuation">=></span> <span class="punctuation">{</span>
+    <span class="variable">res</span><span class="punctuation">.</span><span class="js-function-call">sendFile</span><span class="punctuation">(</span><span class="variable">path</span><span class="punctuation">.</span><span class="js-function-call">join</span><span class="punctuation">(</span><span class="variable">__dirname</span><span class="punctuation">,</span> <span class="string">'public'</span><span class="punctuation">,</span> <span class="string">'index.html'</span><span class="punctuation">));</span>
+<span class="punctuation">});</span>
+
+<span class="variable">app</span><span class="punctuation">.</span><span class="js-function-call">listen</span><span class="punctuation">(</span><span class="variable">PORT</span><span class="punctuation">,</span> <span class="punctuation">()</span> <span class="punctuation">=></span> <span class="punctuation">{</span>
+    <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">log</span><span class="punctuation">(</span><span class="string">`Server running on http://localhost:${PORT}`</span><span class="punctuation">);</span>
+    <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">log</span><span class="punctuation">(</span><span class="string">`Static files served from: ${path.join(__dirname, 'public')}`</span><span class="punctuation">);</span>
+<span class="punctuation">});</span></code></pre>
+      </div>
+
+      <h3>The Client-Side HTML/JS (<code>public/index.html</code>)</h3>
+      <p>
+        Create a directory named <code>public</code> and save the following file
+        inside it. This client-side code handles:
+      </p>
+      <ul>
+        <li>
+          Generating the Google Authorization URL (using
+          <code>response_type=id_token token</code>).
+        </li>
+        <li>On page load, checking for a token in the URL fragment.</li>
+        <li>
+          If a token exists, it is extracted and sent to the Express server for
+          verification.
+        </li>
+        <li>If verification succeeds, the user profile is rendered.</li>
+      </ul>
+      <p>
+        Remember to replace <code>YOUR_GOOGLE_CLIENT_ID</code> in this file as
+        well:
+      </p>
+
+      <div class="code-container">
+        <div class="code-header">public/index.html (Client)</div>
+        <pre><code><span class="tag">&lt;!DOCTYPE html&gt;</span>
+<span class="tag">&lt;html</span> <span class="attribute">lang</span><span class="value">="en"</span><span class="tag">&gt;</span>
+<span class="tag">&lt;head&gt;</span>
+    <span class="tag">&lt;meta</span> <span class="attribute">charset</span><span class="value">="UTF-8"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;meta</span> <span class="attribute">name</span><span class="value">="viewport"</span> <span class="attribute">content</span><span class="value">="width=device-width, initial-scale=1.0"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;title&gt;</span>Implicit Grant Login Example<span class="tag">&lt;/title&gt;</span>
+    <span class="tag">&lt;link</span> <span class="attribute">href</span><span class="value">="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"</span> <span class="attribute">rel</span><span class="value">="stylesheet"</span><span class="tag">&gt;</span>
+    <span class="tag">&lt;style&gt;</span>
+        <span class="comment">/* Styles for the client-side demo */</span>
+        <span class="css-selector">body</span> <span class="punctuation">{</span>
+            <span class="css-property">font-family</span>: <span class="value">'Nunito'</span>, <span class="value">sans-serif</span><span class="punctuation">;</span>
+            <span class="css-property">background-color</span>: <span class="value">#f4f7f6</span><span class="punctuation">;</span>
+            <span class="css-property">color</span>: <span class="value">#333</span><span class="punctuation">;</span>
+            <span class="css-property">display</span>: <span class="value">flex</span><span class="punctuation">;</span>
+            <span class="css-property">justify-content</span>: <span class="value">center</span><span class="punctuation">;</span>
+            <span class="css-property">align-items</span>: <span class="value">center</span><span class="punctuation">;</span>
+            <span class="css-property">min-height</span>: <span class="value">100vh</span><span class="punctuation">;</span>
+            <span class="css-property">margin</span>: <span class="value">0</span><span class="punctuation">;</span>
+            <span class="css-property">padding</span>: <span class="value">20px</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">.container</span> <span class="punctuation">{</span>
+            <span class="css-property">background-color</span>: <span class="value">#ffffff</span><span class="punctuation">;</span>
+            <span class="css-property">padding</span>: <span class="value">40px</span><span class="punctuation">;</span>
+            <span class="css-property">border-radius</span>: <span class="value">12px</span><span class="punctuation">;</span>
+            <span class="css-property">box-shadow</span>: <span class="value">0 10px 25px rgba(0, 0, 0, 0.1)</span><span class="punctuation">;</span>
+            <span class="css-property">text-align</span>: <span class="value">center</span><span class="punctuation">;</span>
+            <span class="css-property">max-width</span>: <span class="value">400px</span><span class="punctuation">;</span>
+            <span class="css-property">width</span>: <span class="value">100%</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">h1</span> <span class="punctuation">{</span>
+            <span class="css-property">color</span>: <span class="value">#4CAF50</span><span class="punctuation">;</span>
+            <span class="css-property">font-weight</span>: <span class="value">700</span><span class="punctuation">;</span>
+            <span class="css-property">margin-bottom</span>: <span class="value">20px</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">.login-button</span> <span class="punctuation">{</span>
+            <span class="css-property">display</span>: <span class="value">inline-block</span><span class="punctuation">;</span>
+            <span class="css-property">background-color</span>: <span class="value">#db4437</span><span class="punctuation">;</span> <span class="comment">/* Google Red */</span>
+            <span class="css-property">color</span>: <span class="value">white</span><span class="punctuation">;</span>
+            <span class="css-property">padding</span>: <span class="value">12px 25px</span><span class="punctuation">;</span>
+            <span class="css-property">border-radius</span>: <span class="value">8px</span><span class="punctuation">;</span>
+            <span class="css-property">text-decoration</span>: <span class="value">none</span><span class="punctuation">;</span>
+            <span class="css-property">font-weight</span>: <span class="value">700</span><span class="punctuation">;</span>
+            <span class="css-property">transition</span>: <span class="value">background-color 0.3s</span><span class="punctuation">;</span>
+            <span class="css-property">cursor</span>: <span class="value">pointer</span><span class="punctuation">;</span>
+            <span class="css-property">border</span>: <span class="value">none</span><span class="punctuation">;</span>
+            <span class="css-property">outline</span>: <span class="value">none</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">.login-button:hover</span> <span class="punctuation">{</span>
+            <span class="css-property">background-color</span>: <span class="value">#c0392b</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">.profile-card</span> <span class="punctuation">{</span>
+            <span class="css-property">margin-top</span>: <span class="value">20px</span><span class="punctuation">;</span>
+            <span class="css-property">border</span>: <span class="value">1px solid #ddd</span><span class="punctuation">;</span>
+            <span class="css-property">padding</span>: <span class="value">20px</span><span class="punctuation">;</span>
+            <span class="css-property">border-radius</span>: <span class="value">8px</span><span class="punctuation">;</span>
+            <span class="css-property">text-align</span>: <span class="value">left</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">.profile-card img</span> <span class="punctuation">{</span>
+            <span class="css-property">width</span>: <span class="value">80px</span><span class="punctuation">;</span>
+            <span class="css-property">height</span>: <span class="value">80px</span><span class="punctuation">;</span>
+            <span class="css-property">border-radius</span>: <span class="value">50%</span><span class="punctuation">;</span>
+            <span class="css-property">margin-bottom</span>: <span class="value">10px</span><span class="punctuation">;</span>
+            <span class="css-property">border</span>: <span class="value">3px solid #4CAF50</span><span class="punctuation">;</span>
+            <span class="css-property">display</span>: <span class="value">block</span><span class="punctuation">;</span>
+            <span class="css-property">margin</span>: <span class="value">0 auto 10px</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+        <span class="css-selector">.status-message</span> <span class="punctuation">{</span>
+            <span class="css-property">margin-top</span>: <span class="value">20px</span><span class="punctuation">;</span>
+            <span class="css-property">padding</span>: <span class="value">15px</span><span class="punctuation">;</span>
+            <span class="css-property">border-radius</span>: <span class="value">8px</span><span class="punctuation">;</span>
+            <span class="css-property">background-color</span>: <span class="value">#f0f0f0</span><span class="punctuation">;</span>
+            <span class="css-property">color</span>: <span class="value">#555</span><span class="punctuation">;</span>
+            <span class="css-property">font-style</span>: <span class="value">italic</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+    <span class="tag">&lt;/style&gt;</span>
+<span class="tag">&lt;/head&gt;</span>
+<span class="tag">&lt;body&gt;</span>
+    <span class="tag">&lt;div</span> <span class="attribute">class</span><span class="value">="container"</span><span class="tag">&gt;</span>
+        <span class="tag">&lt;h1&gt;</span>Google Implicit Grant Flow<span class="tag">&lt;/h1&gt;</span>
+        
+        <span class="tag">&lt;div</span> <span class="attribute">id</span><span class="value">="app-content"</span><span class="tag">&gt;</span>
+            <span class="tag">&lt;!--</span> <span class="comment">Content will be rendered here by JS</span> <span class="tag">--&gt;</span>
+            <span class="tag">&lt;p&gt;</span>Click below to log in with Google and receive an ID token via the URL fragment.<span class="tag">&lt;/p&gt;</span>
+            <span class="tag">&lt;button</span> <span class="attribute">class</span><span class="value">="login-button"</span> <span class="attribute">onclick</span><span class="value">="login()"</span><span class="tag">&gt;</span>Sign in with Google<span class="tag">&lt;/button&gt;</span>
+        <span class="tag">&lt;/div&gt;</span>
+
+    <span class="tag">&lt;/div&gt;</span>
+
+    <span class="tag">&lt;script&gt;</span>
+        <span class="comment">// ⚠️ Replace this with your actual Google Client ID</span>
+        <span class="js-keyword">const</span> <span class="variable">CLIENT_ID</span> <span class="punctuation">=</span> <span class="string">'YOUR_GOOGLE_CLIENT_ID'</span><span class="punctuation">;</span>
+        <span class="comment">// This must match the Authorized redirect URI set in the console (http://localhost:3000/)</span>
+        <span class="js-keyword">const</span> <span class="variable">REDIRECT_URI</span> <span class="punctuation">=</span> <span class="string">'http://localhost:3000/'</span><span class="punctuation">;</span> 
+        <span class="js-keyword">const</span> <span class="variable">SCOPES</span> <span class="punctuation">=</span> <span class="string">'profile email'</span><span class="punctuation">;</span>
+        <span class="js-keyword">const</span> <span class="variable">SERVER_VERIFY_ENDPOINT</span> <span class="punctuation">=</span> <span class="string">'/api/verify-token'</span><span class="punctuation">;</span>
+
+        <span class="js-keyword">const</span> <span class="variable">appContent</span> <span class="punctuation">=</span> <span class="variable">document</span><span class="punctuation">.</span><span class="js-function-call">getElementById</span><span class="punctuation">(</span><span class="string">'app-content'</span><span class="punctuation">);</span>
+
+        <span class="comment">// Helper to parse the URL fragment (the part after #)</span>
+        <span class="js-keyword">function</span> <span class="js-function-call">parseFragment</span><span class="punctuation">(</span><span class="variable">hash</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+            <span class="js-keyword">const</span> <span class="variable">params</span> <span class="punctuation">=</span> <span class="punctuation">{};</span>
+            <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="variable">hash</span><span class="punctuation">.</span><span class="js-function-call">startsWith</span><span class="punctuation">(</span><span class="string">'#'</span><span class="punctuation">))</span> <span class="punctuation">{</span>
+                <span class="variable">hash</span> <span class="punctuation">=</span> <span class="variable">hash</span><span class="punctuation">.</span><span class="js-function-call">substring</span><span class="punctuation">(</span><span class="number">1</span><span class="punctuation">);</span>
+            <span class="punctuation">}</span>
+            <span class="variable">hash</span><span class="punctuation">.</span><span class="js-function-call">split</span><span class="punctuation">(</span><span class="string">'&'</span><span class="punctuation">).</span><span class="js-function-call">forEach</span><span class="punctuation">(</span><span class="variable">pair</span> <span class="punctuation">=></span> <span class="punctuation">{</span>
+                <span class="js-keyword">const</span> <span class="punctuation">[</span><span class="variable">key</span><span class="punctuation">,</span> <span class="variable">value</span><span class="punctuation">]</span> <span class="punctuation">=</span> <span class="variable">pair</span><span class="punctuation">.</span><span class="js-function-call">split</span><span class="punctuation">(</span><span class="string">'='</span><span class="punctuation">);</span>
+                <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="variable">key</span> <span class="punctuation">&amp;&amp;</span> <span class="variable">value</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+                    <span class="variable">params</span><span class="punctuation">[</span><span class="variable">decodeURIComponent</span><span class="punctuation">(</span><span class="variable">key</span><span class="punctuation">)]</span> <span class="punctuation">=</span> <span class="variable">decodeURIComponent</span><span class="punctuation">(</span><span class="variable">value</span><span class="punctuation">);</span>
+                <span class="punctuation">}</span>
+            <span class="punctuation">});</span>
+            <span class="js-keyword">return</span> <span class="variable">params</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+
+        <span class="comment">// Function to initiate the Implicit Grant flow (available globally for the button)</span>
+        <span class="js-keyword">function</span> <span class="js-function-call">login</span><span class="punctuation">()</span> <span class="punctuation">{</span>
+            <span class="js-keyword">const</span> <span class="variable">authUrl</span> <span class="punctuation">=</span> <span class="string">`https://accounts.google.com/o/oauth2/v2/auth?`</span> <span class="punctuation">+</span>
+                <span class="string">`client_id=${CLIENT_ID}&`</span> <span class="punctuation">+</span>
+                <span class="string">`redirect_uri=${REDIRECT_URI}&`</span> <span class="punctuation">+</span>
+                <span class="string">`response_type=id_token token&`</span> <span class="punctuation">+</span> <span class="comment">// Key for Implicit Flow</span>
+                <span class="string">`scope=${SCOPES}&`</span> <span class="punctuation">+</span>
+                <span class="string">`state=random_state_string&`</span> <span class="punctuation">+</span> <span class="comment">// State parameter for CSRF protection</span>
+                <span class="string">`nonce=${Math.random().toString(36).substring(2, 15)}`</span><span class="punctuation">;</span> <span class="comment">// Nonce for replay attack prevention</span>
+            
+            <span class="comment">// Redirect the user</span>
+            <span class="variable">window</span><span class="punctuation">.</span><span class="variable">location</span><span class="punctuation">.</span><span class="variable">href</span> <span class="punctuation">=</span> <span class="variable">authUrl</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+
+        <span class="comment">// Function to send the token to the backend for verification</span>
+        <span class="js-keyword">async</span> <span class="js-keyword">function</span> <span class="js-function-call">verifyTokenWithServer</span><span class="punctuation">(</span><span class="variable">idToken</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+            <span class="js-keyword">try</span> <span class="punctuation">{</span>
+                <span class="variable">appContent</span><span class="punctuation">.</span><span class="variable">innerHTML</span> <span class="punctuation">=</span> <span class="string">`<div class="status-message">Verifying token with server...</div>`</span><span class="punctuation">;</span>
+                
+                <span class="js-keyword">const</span> <span class="variable">response</span> <span class="punctuation">=</span> <span class="js-keyword">await</span> <span class="js-function-call">fetch</span><span class="punctuation">(</span><span class="variable">SERVER_VERIFY_ENDPOINT</span><span class="punctuation">,</span> <span class="punctuation">{</span>
+                    <span class="variable">method</span><span class="punctuation">:</span> <span class="string">'POST'</span><span class="punctuation">,</span>
+                    <span class="variable">headers</span><span class="punctuation">:</span> <span class="punctuation">{</span> <span class="string">'Content-Type'</span><span class="punctuation">:</span> <span class="string">'application/json'</span> <span class="punctuation">},</span>
+                    <span class="variable">body</span><span class="punctuation">:</span> <span class="variable">JSON</span><span class="punctuation">.</span><span class="js-function-call">stringify</span><span class="punctuation">({</span> <span class="variable">id_token</span><span class="punctuation">:</span> <span class="variable">idToken</span> <span class="punctuation">})</span>
+                <span class="punctuation">});</span>
+
+                <span class="js-keyword">const</span> <span class="variable">data</span> <span class="punctuation">=</span> <span class="js-keyword">await</span> <span class="variable">response</span><span class="punctuation">.</span><span class="js-function-call">json</span><span class="punctuation">();</span>
+
+                <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="variable">data</span><span class="punctuation">.</span><span class="variable">success</span> <span class="punctuation">&amp;&amp;</span> <span class="variable">data</span><span class="punctuation">.</span><span class="variable">profile</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+                    <span class="js-function-call">renderProfile</span><span class="punctuation">(</span><span class="variable">data</span><span class="punctuation">.</span><span class="variable">profile</span><span class="punctuation">);</span>
+                <span class="punctuation">}</span> <span class="js-keyword">else</span> <span class="punctuation">{</span>
+                    <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">error</span><span class="punctuation">(</span><span class="string">'Server verification failed:'</span><span class="punctuation">,</span> <span class="variable">data</span><span class="punctuation">.</span><span class="variable">error</span><span class="punctuation">);</span>
+                    <span class="js-function-call">renderError</span><span class="punctuation">(</span><span class="string">'Token verification failed. '</span> <span class="punctuation">+</span> <span class="punctuation">(</span><span class="variable">data</span><span class="punctuation">.</span><span class="variable">error</span> <span class="punctuation">||</span> <span class="string">'Server error.'</span><span class="punctuation">));</span>
+                <span class="punctuation">}</span>
+
+            <span class="punctuation">}</span> <span class="js-keyword">catch</span> <span class="punctuation">(</span><span class="variable">error</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+                <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">error</span><span class="punctuation">(</span><span class="string">'Network error during token verification:'</span><span class="punctuation">,</span> <span class="variable">error</span><span class="punctuation">);</span>
+                <span class="js-function-call">renderError</span><span class="punctuation">(</span><span class="string">'Could not reach the server for verification. Check server.js console.'</span><span class="punctuation">);</span>
+            <span class="punctuation">}</span>
+        <span class="punctuation">}</span>
+
+        <span class="comment">// UI rendering functions</span>
+        <span class="js-keyword">function</span> <span class="js-function-call">renderLogin</span><span class="punctuation">()</span> <span class="punctuation">{</span>
+            <span class="variable">appContent</span><span class="punctuation">.</span><span class="variable">innerHTML</span> <span class="punctuation">=</span> <span class="string">`
+                &lt;p&gt;Click below to log in with Google and receive an ID token via the URL fragment.&lt;/p&gt;
+                &lt;button class="login-button" onclick="login()"&gt;Sign in with Google&lt;/button&gt;
+                &lt;div class="status-message" id="message-box"&gt;Awaiting user login...&lt;/div&gt;
+            `</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+
+        <span class="js-keyword">function</span> <span class="js-function-call">renderProfile</span><span class="punctuation">(</span><span class="variable">profile</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+            <span class="variable">appContent</span><span class="punctuation">.</span><span class="variable">innerHTML</span> <span class="punctuation">=</span> <span class="string">`
+                &lt;h2&gt;Welcome, ${profile.name}!&lt;/h2&gt;
+                &lt;div class="profile-card"&gt;
+                    &lt;img src="${profile.picture || 'https://placehold.co/80x80/cccccc/333333?text=User'}" 
+                         alt="User Profile Picture" onerror="this.onerror=null;this.src='https://placehold.co/80x80/cccccc/333333?text=User'"&gt;
+                    &lt;p&gt;&lt;strong&gt;Email:&lt;/strong&gt; ${profile.email}&lt;/p&gt;
+                    &lt;p&gt;&lt;strong&gt;Google ID:&lt;/strong&gt; ${profile.id}&lt;/p&gt;
+                    &lt;p&gt;&lt;strong&gt;Status:&lt;/strong&gt; &lt;span style="color: green;"&gt;Verified by Server&lt;/span&gt;&lt;/p&gt;
+                &lt;/div&gt;
+                &lt;button class="login-button" onclick="window.location.href='${REDIRECT_URI}'" style="margin-top: 20px;"&gt;Logout (Clear URL)&lt;/button&gt;
+                &lt;div class="status-message" style="background-color: #e6ffed; color: #1e8449;"&gt;
+                    The server successfully validated the token and provided this clean profile data.
+                &lt;/div&gt;
+            `</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+
+        <span class="js-keyword">function</span> <span class="js-function-call">renderError</span><span class="punctuation">(</span><span class="variable">message</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+            <span class="variable">appContent</span><span class="punctuation">.</span><span class="variable">innerHTML</span> <span class="punctuation">=</span> <span class="string">`
+                &lt;h2&gt;Authentication Failed&lt;/h2&gt;
+                &lt;div class="status-message" style="background-color: #ffe6e6; color: #c0392b; border: 1px solid #c0392b;"&gt;
+                    &lt;strong&gt;Error:&lt;/strong&gt; ${message}
+                &lt;/div&gt;
+                &lt;button class="login-button" onclick="login()" style="margin-top: 20px;"&gt;Try Again&lt;/button&gt;
+            `</span><span class="punctuation">;</span>
+        <span class="punctuation">}</span>
+
+        <span class="comment">// Main initialization logic to check the URL fragment on load</span>
+        <span class="js-keyword">function</span> <span class="js-function-call">init</span><span class="punctuation">()</span> <span class="punctuation">{</span>
+            <span class="js-keyword">const</span> <span class="variable">fragment</span> <span class="punctuation">=</span> <span class="variable">window</span><span class="punctuation">.</span><span class="variable">location</span><span class="punctuation">.</span><span class="variable">hash</span><span class="punctuation">;</span>
+
+            <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="variable">fragment</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+                <span class="variable">appContent</span><span class="punctuation">.</span><span class="variable">innerHTML</span> <span class="punctuation">=</span> <span class="string">`<div class="status-message">Token detected in URL fragment. Processing...</div>`</span><span class="punctuation">;</span>
+                <span class="js-keyword">const</span> <span class="variable">params</span> <span class="punctuation">=</span> <span class="js-function-call">parseFragment</span><span class="punctuation">(</span><span class="variable">fragment</span><span class="punctuation">);</span>
+                <span class="js-keyword">const</span> <span class="variable">idToken</span> <span class="punctuation">=</span> <span class="variable">params</span><span class="punctuation">[</span><span class="string">'id_token'</span><span class="punctuation">];</span>
+
+                <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="variable">idToken</span><span class="punctuation">)</span> <span class="punctuation">{</span>
+                    <span class="comment">// We successfully received the token. Send it to the server for verification.</span>
+                    <span class="js-function-call">verifyTokenWithServer</span><span class="punctuation">(</span><span class="variable">idToken</span><span class="punctuation">);</span>
+                    
+                    <span class="comment">// Clean the URL fragment to prevent re-triggering on refresh</span>
+                    <span class="variable">window</span><span class="punctuation">.</span><span class="variable">history</span><span class="punctuation">.</span><span class="js-function-call">replaceState</span><span class="punctuation">(</span><span class="js-keyword">null</span><span class="punctuation">,</span> <span class="string">''</span><span class="punctuation">,</span> <span class="variable">window</span><span class="punctuation">.</span><span class="variable">location</span><span class="punctuation">.</span><span class="variable">pathname</span><span class="punctuation">);</span>
+                    
+                <span class="punctuation">}</span> <span class="js-keyword">else</span> <span class="js-keyword">if</span> <span class="punctuation">(</span><span class="variable">params</span><span class="punctuation">[</span><span class="string">'error'</span><span class="punctuation">])</span> <span class="punctuation">{</span>
+                    <span class="js-function-call">renderError</span><span class="punctuation">(</span><span class="string">`Google returned an error: ${params['error_description'] || params['error']}`</span><span class="punctuation">);</span>
+                <span class="punctuation">}</span> <span class="js-keyword">else</span> <span class="punctuation">{</span>
+                    <span class="js-function-call">renderError</span><span class="punctuation">(</span><span class="string">'Fragment detected but no ID token found.'</span><span class="punctuation">);</span>
+                    <span class="variable">console</span><span class="punctuation">.</span><span class="js-function-call">warn</span><span class="punctuation">(</span><span class="string">'URL fragment parameters:'</span><span class="punctuation">,</span> <span class="variable">params</span><span class="punctuation">);</span>
+                    <span class="js-function-call">renderLogin</span><span class="punctuation">();</span> <span class="comment">// Show login button if token is missing but fragment exists</span>
+                <span class="punctuation">}</span>
+
+            <span class="punctuation">}</span> <span class="js-keyword">else</span> <span class="punctuation">{</span>
+                <span class="comment">// No token in the URL fragment, show the login button</span>
+                <span class="js-function-call">renderLogin</span><span class="punctuation">();</span>
+            <span class="punctuation">}</span>
+        <span class="punctuation">}</span>
+
+        <span class="variable">window</span><span class="punctuation">.</span><span class="variable">onload</span> <span class="punctuation">=</span> <span class="variable">init</span><span class="punctuation">;</span>
+    <span class="tag">&lt;/script&gt;</span>
+<span class="tag">&lt;/body&gt;</span>
+<span class="tag">&lt;/html&gt;</span></code></pre>
+      </div>
+
+      <h2>How to Run This Example</h2>
+      <ol>
+        <li>
+          **Save Files:** Create a main directory. Save the `server.js` and
+          `package.json` code above directly into the main directory. Create a
+          subdirectory named `public` and save the `index.html` code block into
+          it.
+        </li>
+        <li>
+          **Install Dependencies:** Open your terminal in the main directory and
+          run `npm install`.
+        </li>
+        <li>
+          **Replace Placeholders:** Critically, replace all instances of
+          `YOUR_GOOGLE_CLIENT_ID` in **both** `server.js` and the JavaScript
+          section of `public/index.html` with your actual Google Client ID.
+        </li>
+        <li>**Start Server:** Run `node server.js` or `npm start`.</li>
+        <li>
+          **Test:** Open `http://localhost:3000` in your browser. Click the
+          "Sign in with Google" button and follow the flow.
+        </li>
+      </ol>
+    </div>
+  </body>
+</html>

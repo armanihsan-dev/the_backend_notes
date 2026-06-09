@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sending Logs to Loki | Complete Guide</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-paper-plane"></i> LOKI LOGS</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-loki" class="nav-link">What is Loki?</a>
+        <a href="#push-vs-pull" class="nav-link">Push vs Pull</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Basics</div>
+        <a href="#stream" class="nav-link">What is a Stream?</a>
+        <a href="#labels" class="nav-link">What is a Label?</a>
+        <a href="#log-format" class="nav-link">Log Entry Format</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Sending Logs</div>
+        <a href="#postman-setup" class="nav-link">Postman Setup</a>
+        <a href="#first-log" class="nav-link">Your First Log</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Stream Grouping</div>
+        <a href="#golden-rule" class="nav-link">The Golden Rule</a>
+        <a href="#examples" class="nav-link">Examples</a>
+        <a href="#diagram" class="nav-link">Visual Diagram</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">V. Querying</div>
+        <a href="#querying" class="nav-link">Querying Logs</a>
+        <a href="#timestamps" class="nav-link">Timestamp Helpers</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability & Logs</span>
+        <h1>SENDING LOGS TO LOKI</h1>
+        <p>A COMPLETE GUIDE TO PUSHING, STREAMING, AND QUERYING LOGS IN LOKI</p>
+      </section>
+
+      <!-- ─── WHAT IS LOKI ──────────────────────────────────── -->
+      <section id="what-is-loki">
+        <h2>WHAT IS LOKI?</h2>
+        <p>
+          Loki is a log aggregation system that <strong>only indexes labels</strong> — not the log
+          content itself. Think of it like a filing cabinet where:
+        </p>
+        <ul>
+          <li><strong>Labels</strong> = File folder names (fast to find)</li>
+          <li><strong>Log content</strong> = Papers inside folders (only read when needed)</li>
+        </ul>
+      </section>
+
+      <!-- ─── PUSH VS PULL ──────────────────────────────────── -->
+      <section id="push-vs-pull">
+        <h2>LOKI'S DATA COLLECTION: PUSH VS. PULL</h2>
+        <p>
+          Loki uses a <strong>PUSH model</strong> — it waits for data to be sent to it. It does
+          <strong>NOT</strong> actively scrape or pull logs automatically.
+        </p>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-bullseye"></i> The Simple Answer
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Think of Loki like an <strong>API server</strong> — it sits and waits for data. You must
+            send logs to it.
+          </p>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Does Loki support it?</th>
+              <th>How it works</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Push (Send)</td>
+              <td style="color: var(--accent)">✅ Primary method</td>
+              <td>You send logs via HTTP POST requests to Loki's API</td>
+            </tr>
+            <tr>
+              <td>Pull (Scrape)</td>
+              <td style="color: var(--danger)">❌ Not directly</td>
+              <td>Loki does NOT read log files itself</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>How to Get Logs into Loki</h3>
+        <p>Since Loki only accepts pushed data, you send logs directly to Loki's HTTP API:</p>
+        <pre><code class="language-bash">curl -H "Content-Type: application/json" \
+  -X POST "http://localhost:3100/loki/api/v1/push" \
+  --data-raw '{"streams": [{ "stream": { "app": "myapp" }, "values": [ [ "1570818238000000000", "log message" ] ] }]}'</code></pre>
+      </section>
+
+      <!-- ─── STREAM ─────────────────────────────────────────── -->
+      <section id="stream">
+        <h2>PART 1: BASIC CONCEPTS</h2>
+        <h3>1.1 What is a Stream?</h3>
+        <p>A <strong>stream</strong> = A group of logs that share the exact same labels.</p>
+        <pre><code class="language-text">Stream = {label1="value1", label2="value2", ...}</code></pre>
+        <p>Example: All logs from the same service have <code>{app="myapp", env="production"}</code></p>
+      </section>
+
+      <!-- ─── LABELS ─────────────────────────────────────────── -->
+      <section id="labels">
+        <h3>1.2 What is a Label?</h3>
+        <p>Labels = Key-value pairs that Loki uses to <strong>index and group</strong> logs.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Meaning</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>app</code></td>
+              <td>Application name</td>
+              <td><code>{app="payment-service"}</code></td>
+            </tr>
+            <tr>
+              <td><code>level</code></td>
+              <td>Log severity</td>
+              <td><code>{level="error"}</code></td>
+            </tr>
+            <tr>
+              <td><code>env</code></td>
+              <td>Environment</td>
+              <td><code>{env="production"}</code></td>
+            </tr>
+            <tr>
+              <td><code>pod</code></td>
+              <td>Kubernetes pod</td>
+              <td><code>{pod="api-pod-xyz"}</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── LOG FORMAT ────────────────────────────────────── -->
+      <section id="log-format">
+        <h3>1.3 The Log Entry Format</h3>
+        <pre><code class="language-json">{
+  "streams": [
+    {
+      "stream": { LABELS_GO_HERE },
+      "values": [
+        [ "TIMESTAMP_IN_NANOSECONDS", "LOG_MESSAGE_STRING" ]
+      ]
+    }
+  ]
+}</code></pre>
+      </section>
+
+      <!-- ─── POSTMAN SETUP ─────────────────────────────────── -->
+      <section id="postman-setup">
+        <h2>PART 2: SENDING YOUR FIRST LOG (POSTMAN)</h2>
+
+        <h3>Step 1: Start Loki</h3>
+        <pre><code class="language-bash">docker run -p 3100:3100 grafana/loki:latest</code></pre>
+
+        <h3>Step 2: Postman Setup</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Method</td>
+              <td><code>POST</code></td>
+            </tr>
+            <tr>
+              <td>URL</td>
+              <td><code>http://localhost:3100/loki/api/v1/push</code></td>
+            </tr>
+            <tr>
+              <td>Header</td>
+              <td><code>Content-Type: application/json</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── FIRST LOG ─────────────────────────────────────── -->
+      <section id="first-log">
+        <h3>Step 3: Your First Log (Simple)</h3>
+        <pre><code class="language-json">{
+  "streams": [
+    {
+      "stream": {
+        "app": "my-first-app",
+        "level": "info"
+      },
+      "values": [
+        ["1777274604038000000", "Hello Loki! This is my first log"]
+      ]
+    }
+  ]
+}</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-circle-info"></i> What this means
+          </span>
+          <ul style="color: var(--text-secondary); margin-bottom: 0">
+            <li><code>"app": "my-first-app"</code> → Label: application name</li>
+            <li><code>"level": "info"</code> → Label: log severity</li>
+            <li><code>"1777274604038000000"</code> → Timestamp in nanoseconds</li>
+            <li><code>"Hello Loki!"</code> → The actual log message</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ─── GOLDEN RULE ───────────────────────────────────── -->
+      <section id="golden-rule">
+        <h2>PART 3: HOW LOKI GROUPS LOGS</h2>
+        <h3>The Golden Rule: Same Labels = Same Stream</h3>
+        <p>Loki creates <strong>ONE stream</strong> for logs with identical labels.</p>
+      </section>
+
+      <!-- ─── EXAMPLES ──────────────────────────────────────── -->
+      <section id="examples">
+        <h3>Example 1: Two logs, same labels → ONE stream</h3>
+        <pre><code class="language-json">{
+  "streams": [
+    {
+      "stream": { "app": "myapp", "level": "info" },
+      "values": [
+        ["1777274604038000000", "Log message 1"],
+        ["1777274604039000000", "Log message 2"]
+      ]
+    }
+  ]
+}</code></pre>
+        <p>Result: Both logs go to <strong>Stream 1</strong> <code>{app="myapp", level="info"}</code></p>
+
+        <h3>Example 2: Different level → TWO streams</h3>
+        <pre><code class="language-json">{
+  "streams": [
+    {
+      "stream": { "app": "myapp", "level": "info" },
+      "values": [["1777274604038000000", "Info log"]]
+    },
+    {
+      "stream": { "app": "myapp", "level": "error" },
+      "values": [["1777274604039000000", "Error log"]]
+    }
+  ]
+}</code></pre>
+        <ul>
+          <li>Stream 1: <code>{app="myapp", level="info"}</code></li>
+          <li>Stream 2: <code>{app="myapp", level="error"}</code></li>
+        </ul>
+
+        <h3>Example 3: Missing a label → DIFFERENT stream</h3>
+        <pre><code class="language-json">{
+  "streams": [
+    {
+      "stream": { "app": "myapp" },
+      "values": [["1777274604038000000", "No level label"]]
+    },
+    {
+      "stream": { "app": "myapp", "level": "info" },
+      "values": [["1777274604039000000", "With level label"]]
+    }
+  ]
+}</code></pre>
+        <ul>
+          <li>Stream 1: <code>{app="myapp"}</code></li>
+          <li>Stream 2: <code>{app="myapp", level="info"}</code> ← Different stream!</li>
+        </ul>
+      </section>
+
+      <!-- ─── DIAGRAM ───────────────────────────────────────── -->
+      <section id="diagram">
+        <h2>PART 4: VISUAL DIAGRAM OF STREAM GROUPING</h2>
+        <pre><code class="language-text">SENT PAYLOAD:
+┌─────────────────────────────────────────────────────────┐
+│ Stream 1: {app="api", env="prod", level="info"}        │
+│   ├── Log 1: "User login success"                      │
+│   ├── Log 2: "User logout"                             │
+│   └── Log 3: "Health check"                            │
+├─────────────────────────────────────────────────────────┤
+│ Stream 2: {app="api", env="prod", level="error"}       │
+│   ├── Log 4: "Database connection failed"              │
+│   └── Log 5: "Timeout on request 123"                  │
+└─────────────────────────────────────────────────────────┘
+
+LOKI STORAGE:
+┌─────────────────────────────────────────────────────────┐
+│ Stream A: {app="api", env="prod", level="info"}        │
+│   [Log1, Log2, Log3]                                    │
+├─────────────────────────────────────────────────────────┤
+│ Stream B: {app="api", env="prod", level="error"}       │
+│   [Log4, Log5]                                          │
+└─────────────────────────────────────────────────────────┘</code></pre>
+      </section>
+
+      <!-- ─── QUERYING ──────────────────────────────────────── -->
+      <section id="querying">
+        <h2>QUERYING YOUR LOGS</h2>
+
+        <h3>Filter by Service Name</h3>
+        <pre><code class="language-bash">GET http://localhost:3100/loki/api/v1/query_range?query={app="HTTTPie"}</code></pre>
+
+        <h3>Filter by Range Query (Recommended)</h3>
+        <pre><code class="language-bash">http://localhost:3100/loki/api/v1/query_range?query={label%3D"value"}&limit=10&start=1777271751761000000&end=1777275351757000000</code></pre>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>start</code></td>
+              <td>Now() − 1 hour in nanoseconds</td>
+            </tr>
+            <tr>
+              <td><code>end</code></td>
+              <td>Now() in nanoseconds</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── TIMESTAMPS ────────────────────────────────────── -->
+      <section id="timestamps">
+        <h3>JS Code to Log the Timestamps</h3>
+        <pre><code class="language-javascript">// Current time in nanoseconds
+const nowNs = Date.now() * 1_000_000;
+console.log(`Now: ${nowNs}`);
+
+// One hour ago in nanoseconds
+const oneHourAgoNs = (Date.now() - 3_600_000) * 1_000_000;
+console.log(`One hour ago: ${oneHourAgoNs}`);</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">💡 Quick Summary</span>
+          <pre style="margin: 0.75rem 0 0; background: var(--bg-secondary)"><code class="language-text">LOKI IN ONE LINE:
+  Push-based log storage that indexes labels, not content.
+
+SEND LOGS:
+  POST http://localhost:3100/loki/api/v1/push
+
+QUERY LOGS:
+  GET  http://localhost:3100/loki/api/v1/query_range
+
+GOLDEN RULE:
+  Same labels = Same stream. Different labels = Different stream.</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Sending Logs to Loki Guide</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

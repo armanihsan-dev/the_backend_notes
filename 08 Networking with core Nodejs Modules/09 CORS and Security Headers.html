@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CORS and Security Headers</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 800px;
+        margin: auto;
+      }
+      h1,
+      h2,
+      h3 {
+        color: #bb86fc;
+      }
+      h1 {
+        border-bottom: 2px solid #bb86fc;
+        padding-bottom: 0.5rem;
+      }
+      p,
+      ul,
+      li {
+        color: #bdbdbd;
+      }
+      .code-block {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+        overflow-x: auto;
+      }
+      .code-block pre {
+        margin: 0;
+        font-family: 'Courier New', Courier, monospace;
+        color: #d4d4d4;
+      }
+      .code-block .comment {
+        color: #6a9955;
+      }
+      .code-block .keyword {
+        color: #569cd6;
+      }
+      .code-block .string {
+        color: #ce9178;
+      }
+      .code-block .function {
+        color: #dcdcaa;
+      }
+      .code-block .variable {
+        color: #9cdcfe;
+      }
+      .code-block .number {
+        color: #b5cea8;
+      }
+      .code-block .operator {
+        color: #e0e0e0;
+      }
+      .list-item-title {
+        color: #dcdcaa;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>CORS and Security Headers</h1>
+    <p>
+      Cross-Origin Resource Sharing (CORS) and security headers are crucial for
+      modern web development, particularly in Node.js. CORS headers control how
+      resources are requested from a different domain, while security headers
+      protect against common web vulnerabilities. Since Node.js TCP servers
+      operate at a lower level than HTTP, they don't inherently handle these
+      headers. You must manually add them to your HTTP responses.
+    </p>
+
+    <h2>CORS Headers</h2>
+    <p>
+      CORS is a security feature that allows or denies cross-origin requests. A
+      cross-origin request occurs when a web page loaded from one origin
+      (domain, protocol, or port) requests a resource from a different origin.
+      Without proper CORS headers, browsers block these requests. The most
+      important CORS header is <code>Access-Control-Allow-Origin</code>.
+    </p>
+
+    <h3>Access-Control-Allow-Origin</h3>
+    <p>
+      This header specifies which origins are permitted to access the server's
+      resources.
+    </p>
+    <ul>
+      <li>
+        <span class="list-item-title">Syntax:</span>
+        <code>Access-Control-Allow-Origin: &lt;origin&gt; | *</code>
+      </li>
+      <li>
+        <span class="list-item-title">Definition:</span>
+        <ul>
+          <li>
+            <code>&lt;origin&gt;</code>: A specific domain, like
+            <code>https://example.com</code>. This is the most secure option.
+          </li>
+          <li>
+            <code>*</code>: A wildcard that allows any domain to access the
+            resources. Use this with caution, as it can be a security risk.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>Other CORS Headers</h3>
+    <ul>
+      <li>
+        <span class="list-item-title">Access-Control-Allow-Methods:</span>
+        Specifies which HTTP methods (e.g., GET, POST, PUT, DELETE) are allowed.
+      </li>
+      <li>
+        <span class="list-item-title">Access-Control-Allow-Headers:</span> Lists
+        the headers that a client can send in a request.
+      </li>
+      <li>
+        <span class="list-item-title">Access-Control-Allow-Credentials:</span>
+        Indicates whether the server allows credentials (like cookies and HTTP
+        authentication) to be sent with the request.
+      </li>
+    </ul>
+
+    <h2>Security Headers</h2>
+    <p>
+      Security headers are HTTP response headers that mitigate various types of
+      attacks. Implementing these headers is a simple but effective way to
+      improve your application's security.
+    </p>
+
+    <h3>Strict-Transport-Security (HSTS)</h3>
+    <p>
+      This header forces clients to use HTTPS for all future requests to the
+      domain, preventing downgrade attacks.
+    </p>
+    <ul>
+      <li>
+        <span class="list-item-title">Syntax:</span>
+        <code
+          >Strict-Transport-Security: max-age=&lt;seconds&gt;;
+          includeSubDomains</code
+        >
+      </li>
+      <li>
+        <span class="list-item-title">Definition:</span>
+        <ul>
+          <li>
+            <code>max-age</code>: The time, in seconds, the browser should
+            remember to use HTTPS.
+          </li>
+          <li>
+            <code>includeSubDomains</code>: An optional directive that applies
+            the rule to all subdomains.
+          </li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>X-Content-Type-Options</h3>
+    <p>
+      This header prevents a browser from "sniffing" the content type of a
+      response, which can lead to attacks where malicious files are executed
+      with an incorrect MIME type.
+    </p>
+    <ul>
+      <li>
+        <span class="list-item-title">Syntax:</span>
+        <code>X-Content-Type-Options: nosniff</code>
+      </li>
+      <li>
+        <span class="list-item-title">Definition:</span> This instructs the
+        browser to use the declared content type and not to guess it.
+      </li>
+    </ul>
+
+    <h3>Content-Security-Policy (CSP)</h3>
+    <p>
+      CSP is an advanced security header that helps prevent Cross-Site Scripting
+      (XSS) and other code injection attacks by specifying which content sources
+      are allowed to be loaded by the browser.
+    </p>
+    <ul>
+      <li>
+        <span class="list-item-title">Syntax:</span>
+        <code>Content-Security-Policy: &lt;directive&gt; &lt;source&gt;</code>
+      </li>
+      <li>
+        <span class="list-item-title">Definition:</span> CSP uses a series of
+        directives to define allowed sources for different resource types. For
+        example:
+        <ul>
+          <li>
+            <code>default-src 'self'</code>: Only allows resources from the same
+            origin.
+          </li>
+          <li>
+            <code>script-src 'self' https://trusted-cdn.com</code>: Only allows
+            scripts from the current domain and a specified CDN.
+          </li>
+          <li><code>img-src *</code>: Allows images from any source.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2>Node.js TCP Server Example</h2>
+    <p>
+      A basic Node.js TCP server using the built-in <code>net</code> module is a
+      low-level implementation. To add headers, you must craft the HTTP response
+      manually. A more common approach is to use the <code>http</code> module,
+      which simplifies header management.
+    </p>
+
+    <h3>Example Using http module</h3>
+    <p>
+      This is the standard and recommended way to create a web server in Node.js
+      and apply headers.
+    </p>
+
+    <div class="code-block">
+      <pre><span class="comment">// JavaScript</span>
+
+<span class="keyword">const</span> <span class="variable">http</span> <span class="operator">=</span> <span class="variable">require</span><span class="operator">(</span><span class="string">'http'</span><span class="operator">)</span><span class="operator">;</span>
+
+<span class="keyword">const</span> <span class="variable">server</span> <span class="operator">=</span> <span class="variable">http</span><span class="operator">.</span><span class="function">createServer</span><span class="operator">(</span><span class="operator">(</span><span class="variable">req</span><span class="operator">,</span> <span class="variable">res</span><span class="operator">)</span> <span class="operator">=></span> <span class="operator">{</span>
+  <span class="comment">// Set CORS headers</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">setHeader</span><span class="operator">(</span><span class="string">'Access-Control-Allow-Origin'</span><span class="operator">,</span> <span class="string">'https://your-frontend-domain.com'</span><span class="operator">)</span><span class="operator">;</span> <span class="comment">// Be specific</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">setHeader</span><span class="operator">(</span><span class="string">'Access-Control-Allow-Methods'</span><span class="operator">,</span> <span class="string">'GET, POST, OPTIONS'</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">setHeader</span><span class="operator">(</span><span class="string">'Access-Control-Allow-Headers'</span><span class="operator">,</span> <span class="string">'Content-Type, Authorization'</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="comment">// Set Security headers</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">setHeader</span><span class="operator">(</span><span class="string">'Strict-Transport-Security'</span><span class="operator">,</span> <span class="string">'max-age=31536000; includeSubDomains'</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">setHeader</span><span class="operator">(</span><span class="string">'X-Content-Type-Options'</span><span class="operator">,</span> <span class="string">'nosniff'</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">setHeader</span><span class="operator">(</span><span class="string">"Content-Security-Policy"</span><span class="operator">,</span> <span class="string">"default-src 'self'; script-src 'self'"</span><span class="operator">)</span><span class="operator">;</span>
+
+  <span class="keyword">if</span> <span class="operator">(</span><span class="variable">req</span><span class="operator">.</span><span class="variable">method</span> <span class="operator">===</span> <span class="string">'OPTIONS'</span><span class="operator">)</span> <span class="operator">{</span>
+    <span class="comment">// Handle preflight requests for CORS</span>
+    <span class="variable">res</span><span class="operator">.</span><span class="function">writeHead</span><span class="operator">(</span><span class="number">204</span><span class="operator">)</span><span class="operator">;</span> <span class="comment">// No content</span>
+    <span class="variable">res</span><span class="operator">.</span><span class="function">end</span><span class="operator">(</span><span class="operator">)</span><span class="operator">;</span>
+    <span class="keyword">return</span><span class="operator">;</span>
+  <span class="operator">}</span>
+
+  <span class="comment">// Your server logic here</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">writeHead</span><span class="operator">(</span><span class="number">200</span><span class="operator">,</span> <span class="operator">{</span> <span class="string">'Content-Type'</span><span class="operator">:</span> <span class="string">'text/plain'</span> <span class="operator">}</span><span class="operator">)</span><span class="operator">;</span>
+  <span class="variable">res</span><span class="operator">.</span><span class="function">end</span><span class="operator">(</span><span class="string">'Hello, World!'</span><span class="operator">)</span><span class="operator">;</span>
+<span class="operator">}</span><span class="operator">)</span><span class="operator">;</span>
+
+<span class="keyword">const</span> <span class="variable">PORT</span> <span class="operator">=</span> <span class="number">3000</span><span class="operator">;</span>
+<span class="variable">server</span><span class="operator">.</span><span class="function">listen</span><span class="operator">(</span><span class="variable">PORT</span><span class="operator">,</span> <span class="operator">(</span><span class="operator">)</span> <span class="operator">=></span> <span class="operator">{</span>
+  <span class="variable">console</span><span class="operator">.</span><span class="function">log</span><span class="operator">(</span><span class="string">`Server is running on http://localhost:${PORT}`</span><span class="operator">)</span><span class="operator">;</span>
+<span class="operator">}</span><span class="operator">)</span><span class="operator">;</span></pre>
+    </div>
+
+    <h3>Explanation of the Code</h3>
+    <ul>
+      <li>
+        <span class="list-item-title"
+          ><code>http.createServer(...)</code>:</span
+        >
+        This function creates a server instance. The callback function is
+        executed for every incoming HTTP request.
+      </li>
+      <li>
+        <span class="list-item-title"
+          ><code>res.setHeader(name, value)</code>:</span
+        >
+        This method is used to set a header on the response object. It is the
+        correct way to add custom headers.
+      </li>
+      <li>
+        <span class="list-item-title">CORS Headers:</span> We set
+        <code>Access-Control-Allow-Origin</code> to a specific domain for
+        security. We also define allowed methods and headers.
+      </li>
+      <li>
+        <span class="list-item-title">Security Headers:</span> We add
+        <code>Strict-Transport-Security</code> to enforce HTTPS,
+        <code>X-Content-Type-Options</code> to prevent MIME sniffing, and
+        <code>Content-Security-Policy</code> to control resource loading.
+      </li>
+      <li>
+        <span class="list-item-title">Preflight OPTIONS Request:</span> When a
+        browser makes a "non-simple" cross-origin request (e.g., using a POST
+        method with a custom header), it first sends an OPTIONS request. The
+        server must respond to this preflight request with the appropriate CORS
+        headers before the actual request is sent.
+      </li>
+      <li>
+        <span class="list-item-title">Server Logic:</span> After handling
+        headers, the server can proceed with its main logic, like sending a
+        Hello, World! response.
+      </li>
+    </ul>
+    <img
+      src="./images/CROS and Security Headers.png"
+      width="100%"
+      height="600px"
+      alt=""
+    />
+    <div class="">
+      <h1>Understanding the 3D Image</h1>
+      <p>
+        The 3D image provides a metaphorical view of an HTTP response and the
+        role of CORS and security headers. Here's a breakdown of the visual
+        elements:
+      </p>
+
+      <div class="header-section">
+        <h3 class="header-title">HTTP Response</h3>
+        <p>
+          The entire structure, depicted as an open cube or box, represents a
+          digital HTTP response. The glowing "200 OK" at the top signifies a
+          successful response from a server.
+        </p>
+      </div>
+
+      <div class="header-section">
+        <h3 class="header-title">Server</h3>
+        <p>
+          At the core of the structure is a central glowing icon representing
+          the server. This symbolizes that all the headers and data originate
+          from and are controlled by the server.
+        </p>
+      </div>
+
+      <div class="header-section">
+        <h3 class="header-title">CORS</h3>
+        <p>
+          The blue panel on the left illustrates the Cross-Origin Resource
+          Sharing (CORS) concept. The visual of a puzzle piece fitting into a
+          globe represents how a resource from one origin (the puzzle piece) is
+          allowed to connect with and be used by a different origin (the globe).
+          The <code>Access-Control-Allow-Origin: *</code> header is shown below,
+          specifying which origins are permitted to access the server's
+          resources.
+        </p>
+      </div>
+
+      <div class="header-section">
+        <h3 class="header-title">Security Headers</h3>
+        <p>
+          The black panel on the right represents the security headers. The
+          shield and lock icon visually conveys the purpose of these headers: to
+          protect the application and its users. Below the shield, three key
+          security headers are listed, each on its own floating data packet:
+        </p>
+        <ul class="sub-header-list">
+          <li>
+            <strong class="header-title">Content-Security-Policy:</strong> This
+            header is crucial for preventing code injection attacks like
+            Cross-Site Scripting (XSS).
+          </li>
+          <li>
+            <strong class="header-title">X-Frame-Options:</strong> This header
+            helps protect against clickjacking attacks by controlling whether a
+            webpage can be embedded in a frame.
+          </li>
+          <li>
+            <strong class="header-title">Strict-Transport-Security:</strong>
+            This header forces browsers to use a secure HTTPS connection,
+            preventing man-in-the-middle attacks.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </body>
+</html>

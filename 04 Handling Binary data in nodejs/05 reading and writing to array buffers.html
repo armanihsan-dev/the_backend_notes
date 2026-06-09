@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DataView in JavaScript Notes</title>
+	<style>
+/* Basic Reset and Body Styling */
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+.container {
+    max-width: 900px;
+    margin: 20px auto;
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Headings */
+h1 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 40px;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 15px;
+}
+
+h2 {
+    color: #34495e;
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+/* Paragraphs and Lists */
+p {
+    margin-bottom: 15px;
+}
+
+ul, ol {
+    margin-bottom: 15px;
+    padding-left: 25px;
+}
+
+li {
+    margin-bottom: 8px;
+}
+
+/* Code Snippets */
+code {
+    font-family: 'Courier New', monospace;
+    background-color: #eef;
+    padding: 2px 5px;
+    border-radius: 4px;
+    color: #c7254e; /* For inline code */
+}
+
+pre {
+    background-color: #2d2d2d; /* Dark background for code blocks */
+    color: #f8f8f2; /* Light text for code blocks */
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto; /* Enable horizontal scrolling for long lines */
+    margin-bottom: 20px;
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Modern monospaced font */
+    font-size: 0.9em;
+}
+
+pre code {
+    background-color: transparent; /* Remove background for code inside pre */
+    color: inherit; /* Inherit color from pre */
+    padding: 0;
+    border-radius: 0;
+}
+
+/* Specific Section Styling */
+.question-answer {
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px dashed #ddd;
+}
+
+.question-answer:last-child {
+    border-bottom: none; /* No border for the last section */
+}
+
+/* Strong emphasis */
+strong {
+    color: #e74c3c;
+}
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>DataView in JavaScript Notes</h1>
+
+        <p>In JavaScript, a <code>DataView</code> provides a low-level interface for reading and writing multiple numeric data types in an <code>ArrayBuffer</code>. It's particularly useful when dealing with binary data, network protocols, or file formats where you need precise control over byte order and data representation.</p>
+
+        <section class="question-answer">
+            <h2>How do we connect an ArrayBuffer to a DataView in JavaScript?</h2>
+            <p>You connect an <code>ArrayBuffer</code> to a <code>DataView</code> by passing the <code>ArrayBuffer</code> instance (and optionally an <code>byteOffset</code> and <code>byteLength</code>) to the <code>DataView</code> constructor:</p>
+            <pre><code class="language-javascript">const buffer = new ArrayBuffer(16); // Create an ArrayBuffer of 16 bytes
+const view = new DataView(buffer); // Connect a DataView to the entire buffer
+
+// You can also connect a DataView to a portion of the buffer
+const partialView = new DataView(buffer, 4, 8); // Starts at byte offset 4, 8 bytes long</code></pre>
+        </section>
+
+        <section class="question-answer">
+            <h2>Can we connect multiple DataView instances to a single buffer?</h2>
+            <p>Yes, you can connect multiple <code>DataView</code> instances to a single <code>ArrayBuffer</code>. Each <code>DataView</code> can operate on the same or different parts of the buffer, allowing for flexible access to the underlying binary data.</p>
+            <pre><code class="language-javascript">const buffer = new ArrayBuffer(16);
+
+const view1 = new DataView(buffer); // View of the entire buffer
+const view2 = new DataView(buffer, 0, 8); // View of the first 8 bytes
+const view3 = new DataView(buffer, 8, 8); // View of the last 8 bytes
+
+view1.setUint8(0, 100);
+console.log(view2.getUint8(0)); // Output: 100</code></pre>
+        </section>
+
+        <section class="question-answer">
+            <h2>What is the difference between getUint8 and getInt8?</h2>
+            <p>Both <code>getUint8()</code> and <code>getInt8()</code> read an 8-bit (1-byte) integer from the <code>DataView</code> at a specified byte offset. The difference lies in how they interpret the bits:</p>
+            <ul>
+                <li><strong><code>getUint8()</code> (Unsigned 8-bit integer):</strong> Interprets all 8 bits as representing a non-negative value. The range is from 0 to 255.</li>
+                <li><strong><code>getInt8()</code> (Signed 8-bit integer):</strong> Interprets the most significant bit (MSB) as the sign bit (0 for positive, 1 for negative) and the remaining 7 bits as the magnitude, using two's complement representation for negative numbers. The range is from -128 to 127.</li>
+            </ul>
+        </section>
+
+        <section class="question-answer">
+            <h2>Why can’t we store numbers greater than 127 at a specific index using <code>view.setInt8(1, 135)</code>?</h2>
+            <p>You can't directly store a number greater than 127 using <code>setInt8()</code> because <code>setInt8()</code> is designed to store a signed 8-bit integer. As explained above, the maximum positive value a signed 8-bit integer can hold is 127.</p>
+            <p>When you attempt to store a value like 135, which exceeds this limit, the <code>setInt8()</code> method effectively performs a *truncation* or *wraparound* based on two's complement arithmetic.</p>
+        </section>
+
+        <section class="question-answer">
+            <h2>Why does that number return as a negative value?</h2>
+            <p>When you try to store 135 using <code>setInt8()</code>, it's interpreted in a way that results in a negative value due to two's complement representation.</p>
+            <p>Let's break it down:</p>
+            <ul>
+                <li><strong>Binary representation of 135:</strong> In 8 bits, 135 is <code>10000111</code>.</li>
+                <li><strong>Signed 8-bit interpretation:</strong> When this bit pattern <code>10000111</code> is read as a signed 8-bit integer:
+                    <ul>
+                        <li>The most significant bit (the leftmost <code>1</code>) indicates that the number is negative.</li>
+                        <li>To find the magnitude of the negative number, you perform the two's complement operation on <code>10000111</code>:
+                            <ol>
+                                <li>Invert the bits: <code>01111000</code></li>
+                                <li>Add 1: <code>01111001</code></li>
+                            </ol>
+                        </li>
+                        <li>This binary <code>01111001</code> represents the decimal value 121.</li>
+                    </ul>
+                </li>
+            </ul>
+            <p>Therefore, the original <code>10000111</code> is interpreted as -121.</p>
+            <p>So, <code>view.setInt8(1, 135)</code> will store the bits representing 135, but when you then retrieve it using <code>getInt8()</code>, it will be interpreted as -121.</p>
+        </section>
+
+        <section class="question-answer">
+            <h2>Explain the properties of DataView.</h2>
+            <p>A <code>DataView</code> instance has the following key properties:</p>
+            <ul>
+                <li><strong><code>buffer</code>:</strong> This read-only property returns the <code>ArrayBuffer</code> that the <code>DataView</code> is referencing.</li>
+                <li><strong><code>byteLength</code>:</strong> This read-only property returns the length of the <code>DataView</code> in bytes. This might be the entire length of the <code>ArrayBuffer</code> or a smaller portion if an <code>byteLength</code> was specified in the constructor.</li>
+                <li><strong><code>byteOffset</code>:</strong> This read-only property returns the offset in bytes from the start of the <code>ArrayBuffer</code> that the <code>DataView</code> starts at. This will be 0 if no offset was specified, or the <code>byteOffset</code> passed to the constructor.</li>
+            </ul>
+        </section>
+
+        <section class="question-answer">
+            <h2>By default, do setInt methods write in big-endian? How can we store the value in little-endian instead?</h2>
+            <p>By default, all <code>DataView</code> <code>set</code> methods (like <code>setInt8</code>, <code>setUint16</code>, <code>setFloat32</code>, etc.) write values in <strong>big-endian</strong> format. This means the most significant byte is stored at the lowest memory address.</p>
+            <p>To store the value in <strong>little-endian</strong> format, you need to pass <code>true</code> as the last argument to the <code>set</code> method.</p>
+            <p>Here's an example:</p>
+            <pre><code class="language-javascript">const buffer = new ArrayBuffer(4);
+const view = new DataView(buffer);
+
+// Storing a 16-bit integer (e.g., 256) in big-endian (default)
+view.setUint16(0, 256); // Buffer: [0x01, 0x00, 0x00, 0x00] (Hex representation)
+console.log(view.getUint8(0)); // Output: 1
+console.log(view.getUint8(1)); // Output: 0
+
+// Storing a 16-bit integer (e.g., 256) in little-endian
+view.setUint16(0, 256, true); // Buffer: [0x00, 0x01, 0x00, 0x00] (Hex representation)
+console.log(view.getUint8(0)); // Output: 0
+console.log(view.getUint8(1)); // Output: 1</code></pre>
+        </section>
+    </div>
+</body>
+</html>

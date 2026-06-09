@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Path Resolution in Node.js</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-color: #1a1a1a;
+        --text-color: #d4d4d4;
+        --heading-color: #f0f0f0;
+        --code-bg: #1e1e1e;
+        --code-border: #333;
+        --code-text: #d4d4d4;
+        --code-keyword: #569cd6;
+        --code-string: #ce9178;
+        --code-comment: #6a9955;
+        --code-variable: #9cdcfe;
+        --code-number: #b5cea8;
+        --highlight-color: #f7b731;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 2rem;
+        line-height: 1.6;
+      }
+
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        color: var(--heading-color);
+        font-weight: 700;
+      }
+
+      h2 {
+        border-bottom: 2px solid var(--highlight-color);
+        padding-bottom: 0.5rem;
+        margin-top: 3rem;
+      }
+
+      p,
+      ul,
+      li {
+        margin-bottom: 1rem;
+      }
+
+      /* VS Code-like Code Block Styling */
+      pre {
+        background-color: var(--code-bg);
+        border: 1px solid var(--code-border);
+        border-radius: 8px;
+        padding: 1.5rem;
+        overflow-x: auto;
+        font-family: 'Fira Code', 'Cascadia Code', 'Consolas', 'Courier New',
+          monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+
+      code {
+        font-family: inherit;
+        color: var(--code-text);
+      }
+
+      pre code {
+        display: block;
+      }
+
+      .code-block .keyword {
+        color: var(--code-keyword);
+      }
+      .code-block .string {
+        color: var(--code-string);
+      }
+      .code-block .comment {
+        color: var(--code-comment);
+      }
+      .code-block .variable {
+        color: var(--code-variable);
+      }
+      .code-block .number {
+        color: var(--code-number);
+      }
+      .code-block .path {
+        color: #f78c6c;
+      } /* Example color for paths */
+      .code-block .highlight {
+        color: #dcdcaa;
+      } /* A general highlight */
+
+      /* Special markers */
+      .marker {
+        color: var(--highlight-color);
+        font-weight: 700;
+      }
+
+      .note {
+        background-color: #2a2a2a;
+        border-left: 4px solid var(--highlight-color);
+        padding: 1rem;
+        margin: 1.5rem 0;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Path Resolution in Node.js</h1>
+    <p>
+      ⚡ So the name of this concept is: Path resolution in Node.js →
+      specifically the difference between module resolution and filesystem
+      resolution.
+    </p>
+
+    <h2>1. What is a “path”?</h2>
+    <p>
+      A path tells Node (or your OS) where a file/directory lives. Two main
+      types:
+    </p>
+    <ul>
+      <li><strong>Absolute path</strong> → starts from root of disk</li>
+      <pre
+        class="code-block"
+      ><code><span class="path">C:\Users\Arman\project\storage\file.txt</span>   <span class="comment">(Windows)</span>
+<span class="path">/home/arman/project/storage/file.txt</span>       <span class="comment">(Linux/Mac)</span></code></pre>
+      <li><strong>Relative path</strong> → starts from some reference point</li>
+      <pre class="code-block"><code><span class="path">./storage/file.txt</span>
+<span class="path">../filesDB.json</span></code></pre>
+    </ul>
+    <p>
+      <span class="marker">👉</span> The confusion is always: relative to what?
+    </p>
+
+    <h2>2. Two contexts in Node.js</h2>
+    <p>
+      <strong
+        >(A) Module Resolution (<code>import</code> /
+        <code>require</code>)</strong
+      >
+    </p>
+    <p>When you do:</p>
+    <pre
+      class="code-block"
+    ><code><span class="keyword">import</span> filesData <span class="keyword">from</span> <span class="string">'../filesDB.json'</span><span class="punctuation">;</span></code></pre>
+    <p>
+      <code>../filesDB.json</code> is relative to the file where this import is
+      written. Node’s module loader resolves it. Doesn’t care about where you
+      run node.
+    </p>
+    <p><span class="marker">📌</span> Think: “relative to this source file”.</p>
+
+    <p>
+      <strong>(B) Filesystem Resolution (<code>fs</code> module)</strong>
+    </p>
+    <p>When you do:</p>
+    <pre
+      class="code-block"
+    ><code><span class="keyword">import</span> { <span class="variable">writeFile</span> } <span class="keyword">from</span> <span class="string">"node:fs/promises"</span><span class="punctuation">;</span>
+<span class="keyword">await</span> <span class="variable">writeFile</span>(<span class="string">"./storage/file.txt"</span>, <span class="string">"hello"</span>)<span class="punctuation">;</span></code></pre>
+    <p>
+      <code>./storage/file.txt</code> is relative to the current working
+      directory (<code>process.cwd()</code>). If you <code>cd</code> into
+      different folders before running node, the meaning of
+      <code>./storage</code> changes. Doesn’t care about where the code file is
+      saved.
+    </p>
+    <p>
+      <span class="marker">📌</span> Think: “relative to where I started node”.
+    </p>
+
+    <h2>3. Visual Example</h2>
+    <p>Project structure:</p>
+    <pre
+      class="code-block"
+    ><code><span class="path">F:\node application\Storify - Procodrr\</span>
+  <span class="path">├── project\</span>
+  <span class="path">│     ├── app.js</span>
+  <span class="path">│     ├── routes\DirectoryRoutes.js</span>
+  <span class="path">│     └── storage\</span>
+  <span class="path">│           └── hello.txt</span></code></pre>
+
+    <h3>Case A: Run from inside project</h3>
+    <pre
+      class="code-block"
+    ><code><span class="variable">cd</span> <span class="path">project</span>
+<span class="variable">node</span> <span class="path">app.js</span></code></pre>
+    <p>
+      <code>process.cwd()</code> = <code>...Storify - Procodrr\project</code>
+    </p>
+    <p><code>./storage/hello.txt</code> <span class="marker">✅</span> works</p>
+
+    <h3>Case B: Run from parent folder</h3>
+    <pre
+      class="code-block"
+    ><code><span class="variable">cd</span> <span class="string">"F:\node application\Storify - Procodrr"</span>
+<span class="variable">node</span> <span class="path">project/app.js</span></code></pre>
+    <p><code>process.cwd()</code> = <code>...Storify - Procodrr</code></p>
+    <p>
+      <code>./storage/hello.txt</code> <span class="marker">❌</span> fails (no
+      storage here)
+    </p>
+
+    <h2>4. The Fix: Always Anchor Paths</h2>
+    <p>
+      To avoid surprises, anchor paths to your file’s location using
+      <code>import.meta.url</code>:
+    </p>
+    <pre
+      class="code-block"
+    ><code><span class="keyword">import</span> path <span class="keyword">from</span> <span class="string">"node:path"</span><span class="punctuation">;</span>
+<span class="keyword">import</span> { <span class="variable">fileURLToPath</span> } <span class="keyword">from</span> <span class="string">"node:url"</span><span class="punctuation">;</span>
+
+<span class="keyword">const</span> <span class="variable">__filename</span> = <span class="variable">fileURLToPath</span>(<span class="variable">import</span>.<span class="variable">meta</span>.<span class="variable">url</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">__dirname</span> = path.<span class="variable">dirname</span>(<span class="variable">__filename</span>)<span class="punctuation">;</span>
+<span class="keyword">const</span> <span class="variable">storagePath</span> = path.<span class="variable">join</span>(<span class="variable">__dirname</span>, <span class="string">"../storage"</span>, <span class="string">"hello.txt"</span>)<span class="punctuation">;</span></code></pre>
+    <p>
+      <span class="marker">✅</span> Always points to
+      <code>project/storage/hello.txt</code>, no matter where you run node.
+    </p>
+
+    <h2>5. Golden Rules (Cheat Sheet)</h2>
+    <ul>
+      <li>
+        <strong>Imports (<code>import</code>/<code>require</code>)</strong> →
+        relative to the source file.
+      </li>
+      <li>
+        <strong
+          ><code>fs</code> paths (<code>writeFile</code>,
+          <code>readFile</code>)</strong
+        >
+        → relative to <code>process.cwd()</code> (the folder you ran node in).
+      </li>
+      <li>
+        <strong>Safe solution</strong> → use <code>__dirname</code> (ESM: build
+        it yourself with <code>import.meta.url</code>) to always get
+        file-relative paths.
+      </li>
+    </ul>
+
+    <h2>6. Why Node.js is like this?</h2>
+    <ul>
+      <li>
+        <strong
+          ><code>import</code>/<code>require</code> are about modules</strong
+        >
+        → naturally, relative to the file that uses them.
+      </li>
+      <li>
+        <strong><code>fs</code> functions are about filesystem</strong> →
+        naturally, relative to where your program is running (like any shell
+        command).
+      </li>
+    </ul>
+  </body>
+</html>

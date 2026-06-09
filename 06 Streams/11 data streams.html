@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node.js Notes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            font-family: 'Nunito', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #2c2c2c;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        h1, h2, h3 {
+            color: #f0f0f0;
+            border-bottom: 2px solid #555;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        p, ul, table {
+            margin-bottom: 20px;
+        }
+
+        ul {
+            padding-left: 20px;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        strong {
+            color: #92e6a7;
+        }
+
+        pre {
+            background-color: #0d1a26;
+            color: #d6eaff;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #3e4451;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #444;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #444;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #3a3a3a;
+        }
+
+        .ascii-diagram {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #1d1d1d;
+            padding: 20px;
+            border-radius: 8px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .note {
+            padding: 15px;
+            background-color: #4a4a4a;
+            border-left: 4px solid #70a1ff;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Node.js Streams and Child Processes</h1>
+
+    <p>In Node.js, standard input, standard output, and standard error are three fundamental data streams that are automatically available to every running process. They're part of a system called stdio (standard input/output), a concept that originated in the Unix operating system and is now used universally.</p>
+
+    <h2>1. Standard Input (stdin)</h2>
+    <p>Standard input (stdin) is a readable stream used to take data into a program. By default, it's connected to the keyboard, allowing a user to type and send data to the process. In a more automated context, a program's stdin can be piped from the stdout of another program. In Node.js, you can access it through the global process.stdin object.</p>
+    <p><strong>How it works:</strong> process.stdin is a readable stream that emits data events whenever input is received. You can listen for these events to read data.</p>
+    <p><strong>Example:</strong></p>
+    <pre><code class="language-javascript">process.stdin.on('data', (data) => {
+  console.log(`You typed: ${data.toString()}`);
+});
+console.log('Please type something:');</code></pre>
+    <p>When you run this code, it will prompt you to type, and it will echo back whatever you enter.</p>
+
+    <h2>2. Standard Output (stdout)</h2>
+    <p>Standard output (stdout) is a writable stream used to send normal data out of a program. By default, it's connected to the terminal screen, which is why when you use console.log(), the text appears there. In Node.js, you can access it through the global process.stdout object.</p>
+    <p><strong>How it works:</strong> process.stdout is a writable stream. You can use its write() method to send data to the console or whatever destination it's connected to.</p>
+    <p><strong>Example:</strong></p>
+    <pre><code class="language-javascript">process.stdout.write('This is standard output.\n');</code></pre>
+    <p>This is the underlying mechanism that console.log() uses, but process.stdout.write() gives you more direct control.</p>
+
+    <h2>3. Standard Error (stderr)</h2>
+    <p>Standard error (stderr) is a writable stream used to send error messages or diagnostics out of a program. Like stdout, it's also connected to the terminal screen by default. The key distinction is that stderr is kept separate from stdout so that you can filter or redirect normal output without losing important error messages. In Node.js, you access it via process.stderr.</p>
+    <p><strong>How it works:</strong> process.stderr is a writable stream, just like stdout. You use its write() method to output error messages.</p>
+    <p><strong>Example:</strong></p>
+    <pre><code class="language-javascript">process.stderr.write('An error occurred during processing!\n');</code></pre>
+    <p>This is the stream that console.error() writes to.</p>
+
+    <h2>Summary: Key Differences and a Practical Analogy</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Stream</th>
+                <th>Type</th>
+                <th>Default Destination</th>
+                <th>Purpose</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>stdin</td>
+                <td>Readable</td>
+                <td>Keyboard</td>
+                <td>Receiving input</td>
+            </tr>
+            <tr>
+                <td>stdout</td>
+                <td>Writable</td>
+                <td>Terminal Screen</td>
+                <td>Normal program output</td>
+            </tr>
+            <tr>
+                <td>stderr</td>
+                <td>Writable</td>
+                <td>Terminal Screen</td>
+                <td>Error messages and diagnostics</td>
+            </tr>
+        </tbody>
+    </table>
+    <p>Think of a process as a small factory:</p>
+    <ul>
+        <li>stdin is the conveyor belt that brings raw materials in.</li>
+        <li>stdout is the conveyor belt that sends the finished products out.</li>
+        <li>stderr is a separate emergency chute that sends broken parts or safety warnings out, ensuring they're not mixed with the good products.</li>
+    </ul>
+    <p>This separation is crucial when you want to automate tasks. For example, you can redirect a program's stdout to a file to log its results, while still having stderr print to the console so you can see any errors in real-time.</p>
+
+    <!-- NEW SECTION ADDED HERE -->
+    <div class="note">
+        <h2>Redirecting Streams in the Terminal</h2>
+        <p>You can store console data directly into files using redirection operators. This is helpful for logging and debugging.</p>
+
+        <h3>1. Redirect Only Standard Error (stderr)</h3>
+        <p>Use the file descriptor <strong>2</strong> followed by the redirection operator <code>></code>.</p>
+        
+        <p><strong>Overwrite the file:</strong></p>
+        <pre><code class="language-bash">command 2> error.log</code></pre>
+        <p>(Example: <code>ls /nonexistent_directory 2> error.log</code> will put the error message in <code>error.log</code> and nothing will be displayed on the screen.)</p>
+
+        <p><strong>Append to the file:</strong></p>
+        <pre><code class="language-bash">command 2>> error.log</code></pre>
+
+        <h3>2. Redirect Both stdout and stderr to the Same File</h3>
+        <p>Use this to capture all output in a single log file.</p>
+        <pre><code class="language-bash">command &> all_output.log</code></pre>
+        <p>OR</p>
+        <pre><code class="language-bash">command > all_output.log 2>&1</code></pre>
+        <p><em>(The <code>2>&1</code> command redirects file descriptor 2 (stderr) to file descriptor 1 (stdout), which has already been redirected to the file.)</em></p>
+
+        <h3>3. Display on Console AND Save to File</h3>
+        <p>If you want to see the output live while also saving it, use the pipe operator <code>|</code> with the <code>tee</code> command.</p>
+        <pre><code class="language-bash">command 2>&1 | tee error.log</code></pre>
+        <p><em>(This redirects stderr to stdout first, then uses <code>tee</code> to read the combined stream and write it to both the screen and the file.)</em></p>
+    </div>
+    <!-- END NEW SECTION -->
+
+    <hr>
+    
+    <h1>What is spawn() and Child Processes in Node.js?</h1>
+
+    <p>In Node.js, spawn() is a method from the child_process module that launches a new process to execute a given command. It's the most fundamental way to create a child process.</p>
+
+    <h2>Key Characteristics of spawn()</h2>
+    <ul>
+        <li><strong>Non-Blocking and Asynchronous:</strong> spawn() doesn't wait for the child process to finish. It returns immediately with a ChildProcess object. The main Node.js process can continue to run while the child process works in the background.</li>
+        <li><strong>Streams for I/O:</strong> The primary feature of spawn() is its use of streams for input and output. The ChildProcess object it returns has stdin, stdout, and stderr streams. This allows you to send data to the child process and receive data from it in real-time, which is crucial for long-running tasks or processes that produce large amounts of data. This approach avoids buffering all the output in memory, which can be a significant advantage over other methods like exec().</li>
+        <li><strong>Arguments as an Array:</strong> The command and its arguments are passed as separate strings in an array. For example, to run <code>ls -lh /usr</code>, you would use <code>spawn('ls', ['-lh', '/usr'])</code>. This is safer and more secure than passing the command as a single string, as it prevents shell injection vulnerabilities.</li>
+        <li><strong>Events:</strong> The ChildProcess object is an EventEmitter and emits events that allow you to manage the lifecycle of the child process. The most common events are:
+            <ul>
+                <li><strong>data:</strong> Emitted on stdout and stderr streams when data is available.</li>
+                <li><strong>exit:</strong> Emitted when the child process has terminated.</li>
+                <li><strong>close:</strong> Emitted after the exit event and when all I/O streams have been closed.</li>
+            </ul>
+        </li>
+    </ul>
+
+    <h2>Practical Example: Communication between Processes</h2>
+    <p>Here's a practical example of communication between a parent and child process using <code>spawn()</code> and standard streams.</p>
+    <p><strong>Project Structure:</strong></p>
+    <p><code>parent.js</code><br><code>child.js</code></p>
+    
+    <p><strong>child.js</strong></p>
+    <pre><code class="language-javascript">
+// Listen for incoming data from parent via stdin
+process.stdin.on("data", (data) => {
+  const message = data.toString().trim();
+  console.log(`Child received: ${message}`);
+
+  // Send a processed response back via stdout
+  process.stdout.write(`Processed in child: ${message.toUpperCase()}\n`);
+});
+
+// If there's an error
+process.stdin.on("error", (err) => {
+  console.error(`Child stdin error: ${err}`);
+});
+</code></pre>
+    
+    <p><strong>parent.js</strong></p>
+    <pre><code class="language-javascript">
+import { spawn } from "child_process";
+
+const child = spawn("node", ["child.js"]);
+
+// Listen to stdout from the child
+child.stdout.on("data", (data) => {
+  console.log(`Parent got from child: ${data}`);
+});
+
+// Listen to stderr from the child
+child.stderr.on("data", (data) => {
+  console.error(`Child error: ${data}`);
+});
+
+// Send data to the child's stdin
+child.stdin.write("hello child\n");
+child.stdin.write("this is parent speaking\n");
+
+// Close stdin so child knows no more input is coming
+setTimeout(() => {
+  child.stdin.end();
+}, 1000);
+
+// When child exits
+child.on("close", (code) => {
+  console.log(`Child process exited with code ${code}`);
+});
+</code></pre>
+    <p><strong>How It Works</strong><br>Parent runs <code>spawn("node", ["child.js"])</code>.<br>Anything the parent writes to <code>child.stdin</code> is sent to the child process’s <code>process.stdin</code>.<br>The child reads it, transforms it (<code>.toUpperCase()</code>), and sends it back via <code>process.stdout</code>.<br>Parent listens to <code>child.stdout</code> and logs the response.</p>
+    <hr>
+    
+    <h2>I/O Flow Diagram</h2>
+    <p>Here’s the ASCII diagram showing how stdin, stdout, and stderr flow between a parent process (your main Node.js app) and a spawned child process:</p>
+    <pre class="ascii-diagram">
+            ┌──────────────────────────┐
+            │      Parent Process       │
+            │  (main.js - runs spawn)   │
+            └──────────┬───┬────────────┘
+                       │   │
+         writes to     │   │ reads from
+         child.stdin   │   │ child.stdout
+                       ▼   │
+        ┌─────────────────────┐
+        │   stdin (input)     │
+        │   process.stdin     │
+Child   │---------------------│   Normal output
+Process │   stdout (output)   │----------------──► Parent reads child.stdout
+(worker │   process.stdout    │
+ script)│---------------------│   Error output
+        │   stderr (errors)   │----------------──► Parent reads child.stderr
+        │   process.stderr    │
+        └─────────────────────┘
+    </pre>
+    <p><strong>How to Read This</strong></p>
+    <ul>
+        <li><strong>stdin:</strong> Parent writes to <code>child.stdin</code> → Child reads via <code>process.stdin</code>.</li>
+        <li><strong>stdout:</strong> Child writes to <code>process.stdout</code> → Parent reads via <code>child.stdout</code>.</li>
+        <li><strong>stderr:</strong> Child writes errors to <code>process.stderr</code> → Parent reads via <code>child.stderr</code>.</li>
+    </ul>
+
+    <hr>
+    
+    <h2>What .on("close", ...) Means</h2>
+    <p>When you spawn a process in Node.js (spawn, exec, etc.), the returned ChildProcess object emits various events:</p>
+    <ul>
+        <li><strong>close:</strong> Emitted when the process has completely ended and all stdio streams (stdin, stdout, stderr) are closed.</li>
+        <li><strong>exit:</strong> Emitted when the process exits, but might happen before the stdio streams are fully flushed.</li>
+    </ul>
+    <h3>Why We Use It</h3>
+    <pre><code>child.on("close", (code) => {
+  console.log(`Child process exited with code ${code}`);
+});</code></pre>
+    <p><strong>code:</strong> The exit code given by the process.</p>
+    <ul>
+        <li><strong>0:</strong> Success / no errors.</li>
+        <li><strong>Non-zero:</strong> Some error occurred.</li>
+    </ul>
+    <p>This callback runs after:</p>
+    <ul>
+        <li>The process stops running.</li>
+        <li>All input/output streams are done.</li>
+    </ul>
+    <h3>Difference Between exit and close</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>When Fired</th>
+                <th>Streams Closed?</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>exit</td>
+                <td>When the process stops running</td>
+                <td>❌ Not guaranteed</td>
+            </tr>
+            <tr>
+                <td>close</td>
+                <td>When process ends and all stdio streams are closed</td>
+                <td>✅ Yes</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Dive: Mongoose Document Middleware</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for the Blakish Theme */
+      body {
+        background-color: #1a1a1a; /* Very dark background */
+        color: #f0f0f0; /* Light text */
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 30px;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 950px;
+        margin: 0 auto;
+        background-color: #252526; /* VS Code sidebar color */
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #c586c0; /* Purple/Magenta accent for headings */
+        border-bottom: 2px solid #569cd6; /* Blue underline */
+        padding-bottom: 5px;
+        margin-top: 30px;
+        font-weight: 800;
+      }
+
+      p,
+      ul {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #569cd6; /* Blue for strong emphasis */
+        font-weight: 700;
+      }
+
+      /* Inline Code & Keywords */
+      .code-inline,
+      .hook-name {
+        background-color: #1e1e1e;
+        color: #4ec9b0; /* Light green/teal for inline code/methods */
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-family: Consolas, 'Courier New', monospace;
+        font-weight: 700;
+      }
+
+      .hook-name {
+        color: #dcdcaa; /* Yellow for specific hook names */
+      }
+
+      .warning {
+        padding: 10px;
+        border: 1px solid #ffcc00;
+        background-color: #332b1e;
+        color: #ffd700;
+        border-radius: 5px;
+        margin: 20px 0;
+        font-weight: 700;
+      }
+
+      /* Table Styles */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        color: #cccccc;
+        font-size: 0.95em;
+      }
+
+      th,
+      td {
+        border: 1px solid #3e3e42;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3e3e42;
+        color: #9cdcfe;
+        font-weight: 800;
+      }
+
+      td {
+        background-color: #2d2d30;
+      }
+
+      table td:nth-child(2),
+      table td:nth-child(1) {
+        font-family: Consolas, 'Courier New', monospace;
+      }
+
+      /* Code Block Styles (VS Code Dark Theme - Monokai/Dark+) */
+      .code-block {
+        background-color: #1e1e1e; /* VS Code Dark+ background */
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-family: Consolas, 'Courier New', monospace;
+        margin: 20px 0;
+        border: 1px solid #3c3c3c;
+      }
+      .code-block pre {
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      /* VS Code Dark Theme Colors */
+      .c {
+        color: #6a9955;
+      } /* Comment/Green */
+      .k {
+        color: #569cd6;
+      } /* Keyword/Blue */
+      .t {
+        color: #4ec9b0;
+      } /* Type/Class/Teal */
+      .s {
+        color: #ce9178;
+      } /* String/Orange */
+      .p {
+        color: #f0f0f0;
+      } /* Punctuation/White */
+      .m {
+        color: #b5cea8;
+      } /* Numeric/Light Green */
+      .n {
+        color: #9cdcfe;
+      } /* Variable/Object/Light Blue */
+      .f {
+        color: #dcdcaa;
+      } /* Function/Method name/Yellow */
+      .w {
+        color: #ffd700;
+      } /* Warning/Special Accent */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Document Middleware (Document Hooks)</h1>
+
+      <p>
+        <strong class="code-inline">Document middleware</strong>, often called
+        **document hooks**, are functions executed during the lifecycle of a
+        **single Mongoose document** before or after a specific operation. They
+        are the most common and fundamental type of Mongoose middleware.
+      </p>
+
+      <h2>How Document Middleware Works</h2>
+      <p>
+        Document middleware is defined on the **Mongoose Schema** and is
+        triggered when you call certain methods directly on an instance of a
+        Model (a document).
+      </p>
+
+      <h3>1. The Context (<code class="code-inline">this</code>)</h3>
+      <p>
+        The key feature of document middleware is that the keyword
+        <code class="code-inline">this</code> inside the middleware function
+        refers to the **Mongoose document** being acted upon. This grants you
+        full access to the document's properties and methods.
+      </p>
+      <ul>
+        <li>
+          You can modify fields:
+          <code class="code-inline">this.name = this.name.toUpperCase();</code>
+        </li>
+        <li>
+          You can check if fields were changed:
+          <code class="code-inline">this.isModified('password')</code>
+        </li>
+      </ul>
+
+      <h3>2. Supported Hooks (Syntax & Definitions)</h3>
+      <p>Document middleware is supported for the following methods:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Hook Type</th>
+            <th>Hook Name (Syntax)</th>
+            <th>Definition</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td rowspan="4"><strong>Pre-Hooks (Before)</strong></td>
+            <td>
+              <span class="hook-name"
+                >schema.pre('save', function(next) { ... })</span
+              >
+            </td>
+            <td>
+              Runs before a document is saved (to create or update) or when
+              using <code class="code-inline">Model.create()</code>. Most common
+              hook.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="hook-name"
+                >schema.pre('validate', function(next) { ... })</span
+              >
+            </td>
+            <td>Runs before Mongoose's built-in validation.</td>
+          </tr>
+          <tr>
+            <td>
+              <span class="hook-name"
+                >schema.pre('remove', function(next) { ... })</span
+              >
+            </td>
+            <td>
+              Runs before a document is removed using
+              <code class="code-inline">doc.remove()</code>.
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="hook-name"
+                >schema.pre('deleteOne', function(next) { ... })</span
+              >
+            </td>
+            <td>
+              Runs before a document is deleted using
+              <code class="code-inline">doc.deleteOne()</code>.
+            </td>
+          </tr>
+          <tr>
+            <td rowspan="3"><strong>Post-Hooks (After)</strong></td>
+            <td>
+              <span class="hook-name"
+                >schema.post('save', function(doc, next) { ... })</span
+              >
+            </td>
+            <td>
+              Runs after a document has been successfully saved. The saved
+              document is passed as the first argument (<code
+                class="code-inline"
+                >doc</code
+              >).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="hook-name"
+                >schema.post('init', function(doc) { ... })</span
+              >
+            </td>
+            <td>
+              Runs after a document has been initialized (e.g., when retrieved
+              from the database).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="hook-name"
+                >schema.post('remove', function(doc, next) { ... })</span
+              >
+            </td>
+            <td>Runs after a document has been successfully removed.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="warning">
+        <p>
+          <strong>⚠️ Important Note on Updates:</strong> Document middleware
+          **does not** fire for most **Query** update methods like
+          <code class="code-inline">Model.updateOne()</code>,
+          <code class="code-inline">Model.findOneAndUpdate()</code>, or
+          <code class="code-inline">Model.updateMany()</code>. These methods
+          execute **Query Middleware** instead, as they don't load the document
+          into Mongoose memory first.
+        </p>
+      </div>
+
+      <h2>Practical Use Cases (Real-World Scenarios)</h2>
+      <p>
+        Document middleware is critical for maintaining data integrity and
+        encapsulating business logic directly within your schemas.
+      </p>
+
+      <h3>1. Hashing Passwords (<span class="hook-name">pre('save')</span>)</h3>
+      <p>
+        This is the quintessential use case for
+        <code class="code-inline">pre('save')</code>. Before a new user document
+        is saved, you need to hash the plain-text password.
+      </p>
+
+      <div class="code-block">
+        <pre><span class="c">// Install bcryptjs package for hashing</span>
+<span class="k">const</span> <span class="n">bcrypt</span> <span class="p">=</span> <span class="n">require</span>(<span class="s">'bcryptjs'</span>)<span class="p">;</span> 
+
+<span class="c">// Pre-save hook for password hashing</span>
+<span class="n">userSchema</span>.<span class="f">pre</span>(<span class="s">'save'</span>, <span class="k">async</span> <span class="k">function</span>(<span class="n">next</span>) {
+  <span class="c">// 'this' is the user document being saved</span>
+  <span class="k">if</span> (<span class="p">!</span><span class="k">this</span>.<span class="f">isModified</span>(<span class="s">'password'</span>)) {
+    <span class="c">// Only hash if the password field is new or has been modified</span>
+    <span class="k">return</span> <span class="n">next</span>();
+  }
+
+  <span class="k">try</span> {
+    <span class="k">const</span> <span class="n">salt</span> <span class="p">=</span> <span class="k">await</span> <span class="n">bcrypt</span>.<span class="f">genSalt</span>(<span class="m">10</span>);
+    <span class="k">this</span>.<span class="n">password</span> <span class="p">=</span> <span class="k">await</span> <span class="n">bcrypt</span>.<span class="f">hash</span>(<span class="k">this</span>.<span class="n">password</span>, <span class="n">salt</span>);
+    <span class="n">next</span>();
+  } <span class="k">catch</span> (<span class="n">error</span>) {
+    <span class="n">next</span>(<span class="n">error</span>); <span class="c">// Pass the error to stop the save operation</span>
+  }
+<span class="p">});</span></pre>
+      </div>
+
+      <h3>
+        2. Auto-Updating Timestamps (<span class="hook-name">pre('save')</span>)
+      </h3>
+      <p>
+        While Mongoose Schemas have a built-in
+        <code class="code-inline">timestamps: true</code> option, you might need
+        custom timestamp logic, like ensuring a
+        <code class="code-inline">slug</code> is only set on creation but an
+        <code class="code-inline">updatedAt</code> field is updated on every
+        save.
+      </p>
+
+      <div class="code-block">
+        <pre><span class="c">// Pre-save hook for custom modification logic</span>
+<span class="n">productSchema</span>.<span class="f">pre</span>(<span class="s">'save'</span>, <span class="k">function</span>(<span class="n">next</span>) {
+  <span class="c">// 'this' is the product document</span>
+  
+  <span class="c">// 1. Set 'slug' only if it's a new document</span>
+  <span class="k">if</span> (<span class="k">this</span>.<span class="n">isNew</span>) {
+    <span class="k">this</span>.<span class="n">slug</span> <span class="p">=</span> <span class="f">createSlug</span>(<span class="k">this</span>.<span class="n">name</span>); <span class="c">// Custom slug generation function</span>
+  }
+  
+  <span class="c">// 2. Always update the 'lastModified' field if any field changed</span>
+  <span class="k">if</span> (<span class="k">this</span>.<span class="f">isModified</span>()) {
+    <span class="k">this</span>.<span class="n">lastModified</span> <span class="p">=</span> <span class="k">new</span> <span class="t">Date</span>();
+  }
+  
+  <span class="n">next</span>();
+<span class="p">});</span></pre>
+      </div>
+
+      <h3>
+        3. Cascading Deletes / Cleanup (<span class="hook-name"
+          >post('remove')</span
+        >
+        or <span class="hook-name">post('deleteOne')</span>)
+      </h3>
+      <p>
+        After a parent document is deleted, you often need to clean up related
+        child documents to prevent orphaned data.
+        <code class="code-inline">post</code> hooks are perfect for this, as the
+        parent document has already been successfully removed.
+      </p>
+
+      <div class="code-block">
+        <pre><span class="c">// Assume a Blog Post has many Comments</span>
+<span class="n">postSchema</span>.<span class="f">post</span>(<span class="s">'remove'</span>, <span class="k">async</span> <span class="k">function</span>(<span class="n">doc</span>, <span class="n">next</span>) {
+  <span class="c">// 'doc' is the post that was just removed</span>
+  
+  <span class="c">// Use the Comment model to delete all comments associated with this post ID</span>
+  <span class="k">try</span> {
+    <span class="k">await</span> <span class="t">CommentModel</span>.<span class="f">deleteMany</span>({ <span class="n">postId</span>: <span class="n">doc</span>.<span class="n">_id</span> });
+    <span class="f">console</span>.<span class="f">log</span>(<span class="s">`Deleted all comments for post: ${</span><span class="n">doc</span>.<span class="n">_id</span><span class="s">}`</span>);
+    <span class="n">next</span>();
+  } <span class="k">catch</span> (<span class="n">error</span>) {
+    <span class="c">// Post-hooks don't stop the main operation, but you can log the error</span>
+    <span class="f">console</span>.<span class="f">error</span>(<span class="s">'Error during comment cleanup:'</span>, <span class="n">error</span>);
+    <span class="n">next</span>(<span class="n">error</span>); 
+  }
+<span class="p">});</span>
+
+<span class="c">// To execute this hook, you must use doc.remove():</span>
+<span class="c">// const post = await PostModel.findById(postId);</span>
+<span class="c">// await post.remove(); </span></pre>
+      </div>
+
+      <p>Export to Sheets</p>
+    </div>
+  </body>
+</html>

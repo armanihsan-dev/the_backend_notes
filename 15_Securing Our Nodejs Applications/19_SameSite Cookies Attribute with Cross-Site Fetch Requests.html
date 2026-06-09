@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SameSite Cookies Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Blackish Theme */
+      :root {
+        --color-bg: #05050b; /* Dark background, similar to VS Code */
+        --color-surface: #1b1b1f; /* Slightly lighter for containers/code blocks */
+        --color-text: #cccccc; /* Light gray text */
+        --color-primary: #569cd6; /* VS Code blue for keywords/titles */
+        --color-secondary: #dcdcaa; /* VS Code yellow for strings/definitions */
+        --color-accent: #c586c0; /* VS Code magenta for functions/directives */
+        --color-heading: #9cdcfe; /* Lighter blue for main headings */
+        --color-violation: #f08080; /* Light coral for warnings/violations */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-heading);
+        border-bottom: 2px solid var(--color-surface);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+
+      h2 {
+        font-size: 1.6em;
+      }
+
+      h3 {
+        font-size: 1.3em;
+        color: var(--color-primary);
+      }
+
+      /* Paragraphs and Emphasis */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: var(--color-secondary);
+        font-weight: 700;
+      }
+
+      /* Lists */
+      ul {
+        list-style: disc;
+        margin-left: 20px;
+        padding: 0;
+      }
+
+      /* Code Sections (VS Code Blackish Theme) */
+      pre {
+        background-color: var(--color-surface);
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        border: 1px solid #333;
+        margin: 20px 0;
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: var(--color-text);
+        background-color: var(--color-surface);
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+
+      pre code {
+        padding: 0;
+        background-color: transparent;
+      }
+
+      /* VS Code Syntax Highlighting Simulation */
+      .kw {
+        color: var(--color-primary);
+      } /* Keyword (const, import, if, etc.) */
+      .str {
+        color: var(--color-secondary);
+      } /* String literal */
+      .dir {
+        color: var(--color-accent);
+      } /* Directive/function name */
+      .prop {
+        color: #4ec9b0;
+      } /* Property/variable name */
+      .op {
+        color: #f08080;
+      } /* Violation/Error */
+      .cmt {
+        color: #6a9955;
+      } /* Comment */
+      .mono {
+        color: #4ec9b0;
+      } /* Monospace for URLs/URIs */
+      .type {
+        color: #808080;
+      } /* Types/Comments */
+      .lit {
+        color: #b5cea8;
+      } /* Numbers/Boolean literals */
+
+      /* Tables for Key Components */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2c2c2c;
+      }
+      th,
+      td {
+        border: 1px solid #444;
+        padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #383838;
+        color: var(--color-heading);
+        font-weight: 700;
+      }
+      td code {
+        background-color: #383838;
+      }
+
+      /* Report JSON Styling */
+      .json-block {
+        background-color: #1a1a1a;
+        border: 1px solid #333;
+      }
+      .json-key {
+        color: var(--color-primary);
+      }
+      .json-val {
+        color: var(--color-secondary);
+      }
+
+      /* Custom Icons/Markers */
+      .icon {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+      .fire {
+        color: #ff9d00;
+      } /* 🔥 */
+      .warning {
+        color: var(--color-violation);
+      } /* ⚠️ */
+      .check {
+        color: #6a9955;
+      } /* ✔ */
+      .cross {
+        color: var(--color-violation);
+      } /* ❌ */
+      .green {
+        color: #6a9955;
+        font-weight: bold;
+      }
+      .red {
+        color: var(--color-violation);
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SameSite Cookies Attribute with Cross-Site Fetch Requests🍪</h1>
+    <p>
+      The <strong class="prop">SameSite cookie attribute</strong> is a crucial
+      security feature that controls whether a browser should send cookies along
+      with <strong class="prop">cross-site requests</strong>. It is a primary
+      defense against
+      <strong class="prop">Cross-Site Request Forgery (CSRF)</strong> attacks.
+    </p>
+
+    <p>
+      <sup>1</sup> The SameSite cookie attribute is a crucial security feature
+      that controls whether a browser should send cookies along with cross-site
+      requests.
+    </p>
+    <p>
+      <sup>2</sup> It is a primary defense against Cross-Site Request Forgery
+      (CSRF) attacks.
+    </p>
+
+    <h2>
+      <span class="icon fire">🔥</span> 1. What does browser consider SAME-SITE?
+    </h2>
+
+    <p>
+      A <strong class="str">“site”</strong> = <span class="prop">scheme</span> +
+      <span class="prop">registrable domain</span>
+    </p>
+    <p>
+      <span class="icon warning">⚠️</span>
+      <strong class="op">PORT IS IGNORED</strong> completely.
+    </p>
+
+    <p>So <strong class="str">"site"</strong> =</p>
+    <ul>
+      <li><code>http://localhost</code></li>
+      <li><code>http://127.0.0.1</code></li>
+      <li><code>https://example.com</code></li>
+      <li><code>https://www.example.com</code></li>
+    </ul>
+    <p>
+      <span class="icon cross">❌</span> Port is
+      <strong class="op">NOT</strong> included
+    </p>
+    <p>Means:</p>
+    <ul>
+      <li><code>http://localhost:80</code></li>
+      <li><code>http://localhost:3000</code></li>
+      <li><code>http://localhost:5500</code></li>
+    </ul>
+    <p>All belong to the same site &rarr; <code>http://localhost</code>.</p>
+
+    <h2>
+      <span class="icon fire">🔥</span> 2. SAME-SITE vs CROSS-SITE (VERY
+      IMPORTANT)
+    </h2>
+
+    <h3><span class="icon check">✔</span> SAME-SITE means:</h3>
+    <p>
+      <span class="prop">scheme</span> +
+      <span class="prop">registrable domain</span> are
+      <strong class="green">same</strong>
+    </p>
+    <p>(even if port is different)</p>
+
+    <h3><span class="icon cross">❌</span> CROSS-SITE means:</h3>
+    <p>
+      Either <span class="prop">scheme</span> OR
+      <span class="prop">domain</span> is
+      <strong class="red">different</strong>.
+    </p>
+
+    <h3><span class="icon check">✔</span> Example A:</h3>
+    <p>
+      Frontend &rarr; <code>http://localhost:5500</code><br />
+      Backend &rarr; <code>http://localhost:80</code>
+    </p>
+    <p><strong class="green">🟢 Same site</strong></p>
+    <p>Because both share:</p>
+    <p>
+      <code><span class="prop">scheme</span> = http</code> &nbsp;
+      <code><span class="prop">domain</span> = localhost</code>
+    </p>
+    <p>
+      So <code class="prop">SameSite=Lax</code> cookie
+      <strong class="green">WILL BE SET</strong> (not blocked)
+    </p>
+
+    <h3><span class="icon cross">❌</span> Example B:</h3>
+    <p>
+      Frontend &rarr; <code>http://127.0.0.1:5500</code><br />
+      Backend &rarr; <code>http://localhost:80</code>
+    </p>
+    <p><strong class="red">🔴 NOT same-site</strong></p>
+    <p>Because:</p>
+    <p><code>localhost != 127.0.0.1</code></p>
+    <p>Different domains &rarr; cross-site</p>
+    <p>
+      So a <code class="prop">SameSite=Lax</code> cookie will
+      <strong class="red">NOT</strong> be set in a cross-site fetch
+      <code class="prop">POST</code> request.
+    </p>
+
+    <h3><span class="icon check">✔</span> Example C:</h3>
+    <p>
+      Frontend &rarr; <code>http://localhost:5500</code><br />
+      Backend &rarr; <code>https://localhost:443</code>
+    </p>
+    <p>
+      <span class="icon cross">❌</span>
+      <strong class="red">Different scheme</strong>
+    </p>
+    <p><code>http</code> vs <code>https</code></p>
+    <p>So &rarr; <strong class="red">cross-site</strong></p>
+    <p>
+      Thus &rarr; <code class="prop">Lax</code> cookie will
+      <strong class="red">NOT</strong> be set
+    </p>
+
+    <hr />
+
+    <h2>🍪 SameSite Attribute Definition and Values</h2>
+    <p>
+      The <code class="prop">SameSite</code> attribute is set on the server when
+      a cookie is created, and it instructs the browser on how to handle that
+      cookie in requests originating from a different site.
+    </p>
+
+    <h3><span class="icon check">🔑</span> Key SameSite Values</h3>
+    <p>The attribute can take one of three values:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Value</th>
+          <th>Behavior in Cross-Site Requests</th>
+          <th>Security Level</th>
+          <th>Use Case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Strict</strong></td>
+          <td>
+            <strong class="red">Never</strong> sent with cross-site requests.
+            The cookie is <strong class="prop">only</strong> sent when the
+            request originates from the <span class="prop">same site</span> as
+            the cookie's domain.
+          </td>
+          <td>Highest</td>
+          <td>
+            Essential session cookies that should
+            <strong class="red">never</strong> be used in a cross-site context.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Lax (Default)</strong></td>
+          <td>
+            <strong class="green">Only</strong> sent with cross-site requests
+            that are <span class="prop">top-level navigations</span> using
+            "safe" HTTP methods (like <code class="prop">GET</code>). It
+            prevents cookies from being sent in
+            <code class="dir">fetch()</code>,
+            <code class="dir">XMLHttpRequest</code>,
+            <code class="prop">iframes</code>, or non-<code class="prop"
+              >GET</code
+            >
+            form submissions from a different site.
+          </td>
+          <td>Medium</td>
+          <td>
+            General-purpose cookies. This is the
+            <strong class="prop">default</strong> behavior in modern browsers if
+            no <code class="prop">SameSite</code> attribute is specified.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>None</strong></td>
+          <td>
+            The cookie is sent with
+            <strong class="green">all</strong> cross-site requests.
+            <strong class="prop">Requires</strong> the
+            <code class="prop">Secure</code> attribute to be set, meaning the
+            cookie will only be sent over HTTPS.
+          </td>
+          <td>Lowest</td>
+          <td>
+            Necessary for <strong class="prop">third-party contexts</strong>,
+            such as embedded content (<code>&lt;iframe&gt;</code>), third-party
+            analytics, or cross-site API calls.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h2>🌐 Cross-Site Fetch Requests and Cookie Behavior</h2>
+
+    <p>
+      A <strong class="prop">cross-site fetch request</strong> occurs when the
+      browser initiates an <code class="prop">HTTP</code> request (e.g., using
+      the <code class="dir">fetch()</code> API or
+      <code class="dir">XMLHttpRequest</code>) from one
+      <strong class="prop">origin</strong> (the front-end/client) to a
+      <strong class="prop">different origin</strong> (the server/API).<sup
+        >3</sup
+      >
+    </p>
+
+    <ul>
+      <li>
+        <strong class="prop">Origin</strong> is defined by the combination of
+        scheme, domain, and port (e.g., <code>https://client.com:443</code>).
+      </li>
+      <li>
+        <strong class="prop">Site</strong> is a more relaxed concept, typically
+        defined as the <span class="prop">registrable domain</span> plus the
+        <span class="prop">scheme</span> (e.g.,
+        <code>https://client.com</code> includes <code>app.client.com</code>).
+      </li>
+    </ul>
+
+    <p>
+      The default behavior for a cross-site
+      <code class="dir">fetch()</code> request is to
+      <strong class="red">not send</strong> any cookies associated with the
+      target domain. However, to explicitly include cookies with a cross-site
+      request (which is required for third-party cookies to work), the
+      client-side <code class="dir">fetch()</code> call must include the
+      <code class="prop">credentials: 'include'</code> option.
+    </p>
+
+    <h3>SameSite Behavior with <code class="dir">fetch()</code></h3>
+    <p>
+      Even with <code class="prop">credentials: 'include'</code>, the browser's
+      decision to send the cookie is still governed by the
+      <code class="prop">SameSite</code> attribute:
+    </p>
+    <ul>
+      <li>
+        <code class="prop">SameSite=Strict</code>: The cookie is
+        <strong class="red">never sent</strong> in a cross-site
+        <code class="dir">fetch()</code> request.
+      </li>
+      <li>
+        <code class="prop">SameSite=Lax</code>: The cookie is
+        <strong class="red">never sent</strong> in a cross-site
+        <code class="dir">fetch()</code> request (since
+        <code class="dir">fetch()</code> is not a top-level navigation).
+      </li>
+      <li>
+        <code class="prop">SameSite=None; Secure</code>: The cookie
+        <strong class="green">will be sent</strong> in a cross-site
+        <code class="dir">fetch()</code> request, provided:
+        <ol>
+          <li>
+            The client-side <code class="dir">fetch()</code> includes
+            <code class="prop">credentials: 'include'</code>.
+          </li>
+          <li>The request is made over <strong class="prop">HTTPS</strong>.</li>
+          <li>
+            The server's response includes the necessary
+            <strong class="prop">CORS headers</strong> (especially
+            <code class="prop">Access-Control-Allow-Credentials: true</code
+            >).<sup>4</sup>
+          </li>
+        </ol>
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>💾 When Will a Cookie Save and Sit?</h2>
+    <p>
+      A cookie is <strong class="prop">saved</strong> (or "sits") on the
+      client's browser <strong class="prop">only after</strong> a successful
+      <code class="prop">HTTP</code> response that contains the
+      <code class="prop">Set-Cookie</code> header has been received and
+      processed.
+    </p>
+
+    <h3>Two Critical Requirements for Saving a Cookie</h3>
+    <ol>
+      <li>
+        <strong class="prop">Server Response:</strong> The server must send a
+        <code class="prop">Set-Cookie</code> header in the
+        <code class="prop">HTTP</code> response.
+        <pre
+          class="http-block"
+        ><code><span class="kw">Set-Cookie</span>: <span class="prop">session_id</span>=<span class="str">abc12345</span>; <span class="kw">HttpOnly</span>; <span class="kw">SameSite</span>=<span class="lit">Lax</span>; <span class="kw">Secure</span></code></pre>
+      </li>
+      <li>
+        <strong class="prop">Browser Policy Check:</strong> The browser must
+        <strong class="prop">accept</strong> the cookie based on its policies.
+        <ul>
+          <li>
+            <strong class="prop">Same-Origin Policy (CORS):</strong> If the
+            response is from a
+            <strong class="prop">cross-origin request</strong> (e.g., a
+            cross-site <code class="dir">fetch()</code>):
+            <ul>
+              <li>
+                The request must include
+                <code class="prop">credentials: 'include'</code> on the client
+                side.
+              </li>
+              <li>
+                The server response must include the
+                <code class="prop">Access-Control-Allow-Credentials: true</code>
+                <code class="prop">CORS</code> header, and the
+                <code class="prop">Access-Control-Allow-Origin</code> header
+                must <strong class="red">not be the wildcard</strong> (<code
+                  class="str"
+                  >*</code
+                >).
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong class="prop">SameSite/Secure Policy:</strong> If the cookie
+            has <code class="prop">SameSite=None</code>, it
+            <strong class="prop">must</strong> also have
+            <code class="prop">Secure</code>. If the cookie is being set over
+            plain <code class="prop">HTTP</code> but has the
+            <code class="prop">Secure</code> attribute, the browser will
+            <strong class="red">reject</strong> it.
+          </li>
+        </ul>
+      </li>
+    </ol>
+
+    <hr />
+
+    <h2>🛠️ Practical Example with Express.js</h2>
+    <p>
+      Here's an example using <strong class="dir">Express.js</strong> to set a
+      cookie with different <code class="prop">SameSite</code> attributes.
+    </p>
+
+    <h3>Express.js Backend Example (<code class="prop">server.js</code>)</h3>
+    <p>
+      This server runs on
+      <code class="mono">https://api.example.com</code> (using a local
+      server/proxy for HTTPS).
+    </p>
+
+    <pre><code><span class="kw">const</span> <span class="prop">express</span> = <span class="dir">require</span>(<span class="str">'express'</span>);
+<span class="kw">const</span> <span class="prop">app</span> = <span class="dir">express</span>();
+<span class="kw">const</span> <span class="prop">cors</span> = <span class="dir">require</span>(<span class="str">'cors'</span>);
+<span class="kw">const</span> <span class="prop">PORT</span> = <span class="lit">3000</span>;
+
+<span class="cmt">// Configure CORS for cross-site requests that include credentials</span>
+<span class="prop">app</span>.<span class="dir">use</span>(<span class="dir">cors</span>({
+    <span class="prop">origin</span>: <span class="str">'https://client.example.com'</span>, <span class="cmt">// The domain of your frontend application</span>
+    <span class="prop">credentials</span>: <span class="lit">true</span>, <span class="cmt">// IMPORTANT: Allows cookies/auth headers to be sent</span>
+}));
+
+<span class="cmt">// Route to set a SameSite=Lax cookie (Default)</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">'/set-lax-cookie'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="cmt">// Cookie is set with SameSite=Lax (or no attribute, as it's the default)</span>
+    <span class="prop">res</span>.<span class="dir">cookie</span>(<span class="str">'lax_session'</span>, <span class="str">'my_lax_data'</span>, {
+        <span class="prop">httpOnly</span>: <span class="lit">true</span>,
+        <span class="prop">secure</span>: <span class="lit">true</span>, <span class="cmt">// Best practice for production</span>
+        <span class="prop">sameSite</span>: <span class="str">'Lax'</span>,
+        <span class="prop">maxAge</span>: <span class="lit">3600000</span> <span class="cmt">// 1 hour</span>
+    });
+    <span class="prop">res</span>.<span class="dir">send</span>(<span class="str">'Lax cookie set'</span>);
+});
+
+<span class="cmt">// Route to set a SameSite=None cookie (Required for cross-site fetch)</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">'/set-none-cookie'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) => {
+    <span class="cmt">// Cookie is set with SameSite=None; MUST include Secure: true</span>
+    <span class="prop">res</span>.<span class="dir">cookie</span>(<span class="str">'cross_site_token'</span>, <span class="str">'my_none_data'</span>, {
+        <span class="prop">httpOnly</span>: <span class="lit">true</span>,
+        <span class="prop">secure</span>: <span class="lit">true</span>, <span class="cmt">// REQUIRED for SameSite=None</span>
+        <span class="prop">sameSite</span>: <span class="str">'None'</span>, <span class="cmt">// Allows the cookie to be sent cross-site</span>
+        <span class="prop">maxAge</span>: <span class="lit">3600000</span> <span class="cmt">// 1 hour</span>
+    });
+    <span class="prop">res</span>.<span class="dir">send</span>(<span class="str">'None cookie set (Requires HTTPS on server and client)'</span>);
+});
+
+<span class="prop">app</span>.<span class="dir">listen</span>(<span class="prop">PORT</span>, () => {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Server listening at https://api.example.com:${PORT}`</span>);
+});</code></pre>
+
+    <h3>Client-Side <code class="dir">fetch()</code> Example</h3>
+    <p>
+      This front-end code runs on a different domain,
+      <code class="mono">https://client.example.com</code>.
+    </p>
+
+    <pre><code><span class="cmt">// This is a cross-site request from client.example.com to api.example.com</span>
+<span class="kw">const</span> <span class="prop">API_URL</span> = <span class="str">'https://api.example.com:3000/set-none-cookie'</span>;
+
+<span class="kw">async function</span> <span class="dir">setAndFetchCookie</span>() {
+    <span class="kw">try</span> {
+        <span class="cmt">// 1. Set the cookie: The request to set the cookie must also include</span>
+        <span class="cmt">//    'credentials: "include"' for the browser to process the Set-Cookie header</span>
+        <span class="cmt">//    if the request is cross-site.</span>
+        <span class="kw">let</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="prop">API_URL</span>, {
+            <span class="prop">method</span>: <span class="str">'GET'</span>,
+            <span class="prop">credentials</span>: <span class="str">'include'</span> <span class="cmt">// Allows the browser to send cookies AND process Set-Cookie</span>
+        });
+
+        <span class="kw">if</span> (<span class="prop">response</span>.<span class="prop">ok</span>) {
+            <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Cookie setting request successful.'</span>);
+            <span class="cmt">// Cookie (SameSite=None; Secure) is now saved on the client.</span>
+
+            <span class="cmt">// 2. Fetch data, including the previously set cookie.</span>
+            <span class="cmt">// This subsequent cross-site fetch request WILL include the cookie</span>
+            <span class="cmt">// because it was set with SameSite=None; Secure and the request</span>
+            <span class="cmt">// includes credentials.</span>
+            <span class="kw">let</span> <span class="prop">dataResponse</span> = <span class="kw">await</span> <span class="dir">fetch</span>(<span class="str">'https://api.example.com:3000/data'</span>, {
+                <span class="prop">credentials</span>: <span class="str">'include'</span>
+            });
+
+            <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Data fetch status:'</span>, <span class="prop">dataResponse</span>.<span class="prop">status</span>);
+        }
+    } <span class="kw">catch</span> (<span class="prop">error</span>) {
+        <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">'Error:'</span>, <span class="prop">error</span>);
+    }
+}
+
+<span class="cmt">// NOTE: If you tried to fetch a cookie set with SameSite=Lax here, </span>
+<span class="cmt">// the browser would NOT include it in the cross-site fetch request, </span>
+<span class="cmt">// even with credentials: 'include'.</span>
+
+<span class="dir">setAndFetchCookie</span>();</code></pre>
+  </body>
+</html>

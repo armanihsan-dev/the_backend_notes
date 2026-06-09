@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Querying Guide</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Main Container Styling (Blackish Theme) */
+      body {
+        background-color: #1e1e1e; /* Dark Gray/Blackish background */
+        color: #d4d4d4; /* Light text for contrast */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner panel */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code blue for headings */
+        border-bottom: 1px solid #333;
+        padding-bottom: 5px;
+        margin-top: 25px;
+        font-weight: 800; /* Extra bold headings */
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ffd700; /* Highlight key terms in yellow */
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      pre {
+        background-color: #1f1f1f; /* Darker background for code */
+        color: #dcdcdc; /* Light text for code */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace; /* Monospace font for code */
+        font-size: 0.9em;
+        margin: 15px 0;
+        white-space: pre-wrap; /* Allows wrapping for long lines */
+      }
+
+      /* VS Code Syntax Highlighting Classes */
+      .code-comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .code-keyword {
+        color: #c586c0;
+      } /* Purple/Pink for keywords (const, function, await) */
+      .code-string {
+        color: #ce9178;
+      } /* Orange for strings */
+      .code-method {
+        color: #dcdcdc;
+      } /* White for method names (.find, .toArray) */
+      .code-type {
+        color: #4ec9b0;
+      } /* Teal for types (MongoClient) */
+      .code-variable {
+        color: #9cdcfe;
+      } /* Light blue for variables */
+      .code-property {
+        color: #dcdcdc;
+      } /* White/Light gray for properties (name, price) */
+      .code-operator {
+        color: #b5cea8;
+      } /* Light green for operators ($gt, $lte) */
+      .code-literal {
+        color: #b5cea8;
+      } /* Light green for numeric literals */
+      .code-function {
+        color: #dcdcdc;
+      } /* White for function calls */
+
+      /* Table Styling */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+        text-align: left;
+      }
+      .data-table th,
+      .data-table td {
+        border: 1px solid #3c3c3c;
+        padding: 10px;
+        background-color: #2d2d30;
+      }
+      .data-table th {
+        background-color: #3c3c3c;
+        color: #569cd6;
+        font-weight: 700;
+      }
+      /* Highlight specific column data */
+      .data-table td:nth-child(2) {
+        font-family: 'Consolas', 'Courier New', monospace;
+        color: #dcdcdc;
+      }
+      .data-table td:first-child {
+        color: #ffd700;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Querying Guide: Reading Documents</h1>
+
+      <h2>1. Reading Documents via MongoDB Shell (Terminal) 💻</h2>
+      <p>
+        The MongoDB Shell uses the
+        <strong><code>db.collection.find()</code></strong> method to query and
+        retrieve documents.
+      </p>
+
+      <h3>Basic Syntax</h3>
+      <p>
+        The <strong><code>find()</code></strong> method takes up to two
+        arguments:
+      </p>
+      <ul>
+        <li>
+          <strong>Query Criteria (Filter)</strong>: An optional document that
+          specifies the selection filter. This is where you put your conditions
+          (e.g., <code>{ price: 10 }</code>).
+        </li>
+        <li>
+          <strong>Projection (Fields)</strong>: An optional document that
+          specifies which fields to return. (e.g.,
+          <code>{ name: 1, _id: 0 }</code>).
+        </li>
+      </ul>
+
+      <pre>
+<span class="code-function">db</span>.<span class="code-method">collectionName</span>.<span class="code-method">find</span>(
+    <span class="code-comment">// 1. Query Criteria (Filter)</span>
+    <span class="code-bracket">{</span> &lt;<span class="code-variable">field</span>&gt;: &lt;<span class="code-variable">value</span>&gt; <span class="code-bracket">}</span>, 
+    <span class="code-comment">// 2. Projection (Fields to include/exclude)</span>
+    <span class="code-bracket">{</span> &lt;<span class="code-variable">field</span>&gt;: <span class="code-literal">1</span> <span class="code-bracket">}</span> 
+)
+        </pre>
+
+      <h3>Practical Example</h3>
+      <p>
+        Assume we have a collection called
+        <strong><code>products</code></strong> with documents like this:
+      </p>
+      <pre>
+<span class="code-bracket">{</span> <span class="code-property">name</span>: <span class="code-string">"Laptop"</span>, <span class="code-property">price</span>: <span class="code-literal">999</span>, <span class="code-property">stock</span>: <span class="code-literal">15</span>, <span class="code-property">tags</span>: [<span class="code-string">"electronics"</span>, <span class="code-string">"tech"</span>] <span class="code-bracket">}</span>
+<span class="code-bracket">{</span> <span class="code-property">name</span>: <span class="code-string">"Mouse"</span>, <span class="code-property">price</span>: <span class="code-literal">25</span>, <span class="code-property">stock</span>: <span class="code-literal">50</span>, <span class="code-property">tags</span>: [<span class="code-string">"electronics"</span>] <span class="code-bracket">}</span>
+<span class="code-bracket">{</span> <span class="code-property">name</span>: <span class="code-string">"Coffee Maker"</span>, <span class="code-property">price</span>: <span class="code-literal">120</span>, <span class="code-property">stock</span>: <span class="code-literal">5</span>, <span class="code-property">tags</span>: [<span class="code-string">"home"</span>, <span class="code-string">"kitchen"</span>] <span class="code-bracket">}</span>
+        </pre>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Query Goal</th>
+            <th>Shell Syntax</th>
+            <th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Read All</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{}</span
+              >)
+            </td>
+            <td>
+              Retrieves <strong>all</strong> documents in the
+              <code>products</code> collection. An empty filter
+              <code>{}</code> matches everything.
+            </td>
+          </tr>
+          <tr>
+            <td>Simple Filter</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">name</span>:
+              <span class="code-string">"Laptop"</span>
+              <span class="code-bracket">}</span>)
+            </td>
+            <td>
+              Finds documents where the <code>name</code> field is
+              <strong>exactly</strong> "Laptop".
+            </td>
+          </tr>
+          <tr>
+            <td>Projection</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">name</span>:
+              <span class="code-string">"Laptop"</span>
+              <span class="code-bracket">}</span>,
+              <span class="code-bracket">{</span>
+              <span class="code-property">price</span>:
+              <span class="code-literal">1</span>,
+              <span class="code-property">_id</span>:
+              <span class="code-literal">0</span>
+              <span class="code-bracket">}</span>)
+            </td>
+            <td>
+              Finds the Laptop, but only returns the <code>price</code> field.
+              <code>_id: 0</code> explicitly hides the default
+              <code>_id</code> field.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Advanced Filtering with Query Operators</h3>
+      <p>
+        Query operators always start with a **dollar sign (<span
+          class="code-operator"
+          >$</span
+        >)** and are used inside the query criteria document.
+      </p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Operator</th>
+            <th>Definition</th>
+            <th>Query Goal</th>
+            <th>Shell Syntax</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code-operator">$gt</span></td>
+            <td>Greater Than</td>
+            <td>Find products with price **over 100**.</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">price</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$gt</span>:
+              <span class="code-literal">100</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="code-operator">$lt</span></td>
+            <td>Less Than</td>
+            <td>Find products with stock **less than 10**.</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">stock</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$lt</span>:
+              <span class="code-literal">10</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="code-operator">$gte</span></td>
+            <td>Greater Than or Equal To</td>
+            <td>Find products with price **120 or more**.</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">price</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$gte</span>:
+              <span class="code-literal">120</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="code-operator">$lte</span></td>
+            <td>Less Than or Equal To</td>
+            <td>Find products with price **up to 50**.</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">price</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$lte</span>:
+              <span class="code-literal">50</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="code-operator">$in</span></td>
+            <td>In an array</td>
+            <td>Find items with name "Mouse" **or** "Laptop".</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">name</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$in</span>: [<span class="code-string"
+                >"Mouse"</span
+              >, <span class="code-string">"Laptop"</span>]
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="code-operator">$and</span></td>
+            <td>AND logic</td>
+            <td>Find items where price is **> 20** AND stock is **< 20**.</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">price</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$gt</span>:
+              <span class="code-literal">20</span>
+              <span class="code-bracket">}</span>,
+              <span class="code-property">stock</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$lt</span>:
+              <span class="code-literal">20</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+          <tr>
+            <td><span class="code-operator">$or</span></td>
+            <td>OR logic</td>
+            <td>Find items that are > 900 OR have stock < 10.</td>
+            <td>
+              <span class="code-function">db</span>.<span class="code-method"
+                >products</span
+              >.<span class="code-method">find</span>(<span class="code-bracket"
+                >{</span
+              >
+              <span class="code-operator">$or</span>: [<span
+                class="code-bracket"
+                >{</span
+              >
+              <span class="code-property">price</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$gt</span>:
+              <span class="code-literal">900</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>,
+              <span class="code-bracket">{</span>
+              <span class="code-property">stock</span>:
+              <span class="code-bracket">{</span>
+              <span class="code-operator">$lt</span>:
+              <span class="code-literal">10</span>
+              <span class="code-bracket">}</span>
+              <span class="code-bracket">}</span>]
+              <span class="code-bracket">}</span>)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr />
+
+      <h2>2. Reading Documents via Node.js (Driver) 🌐</h2>
+      <p>
+        When using Node.js, you interact with the database using the official
+        <strong><code>mongodb</code> NPM package (driver)</strong>. The
+        equivalent method for <code>db.collection.find()</code> is
+        <strong><code>collection.find()</code></strong
+        >, which returns a <strong>Cursor</strong>.
+      </p>
+
+      <h3>Prerequisites</h3>
+      <pre>
+<span class="code-keyword">const</span> <span class="code-bracket">{</span> <span class="code-type">MongoClient</span> <span class="code-bracket">}</span> <span class="code-keyword">=</span> <span class="code-function">require</span>(<span class="code-string">"mongodb"</span>);
+<span class="code-keyword">const</span> <span class="code-variable">uri</span> <span class="code-keyword">=</span> <span class="code-string">"mongodb://localhost:27017"</span>;
+<span class="code-keyword">const</span> <span class="code-variable">client</span> <span class="code-keyword">=</span> <span class="code-keyword">new</span> <span class="code-type">MongoClient</span>(<span class="code-variable">uri</span>);
+
+<span class="code-keyword">async function</span> <span class="code-method">run</span>() <span class="code-bracket">{</span>
+    <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">connect</span>();
+    <span class="code-keyword">const</span> <span class="code-variable">database</span> <span class="code-keyword">=</span> <span class="code-variable">client</span>.<span class="code-method">db</span>(<span class="code-string">"myStore"</span>); <span class="code-comment">// Select database</span>
+    <span class="code-keyword">const</span> <span class="code-variable">products</span> <span class="code-keyword">=</span> <span class="code-variable">database</span>.<span class="code-method">collection</span>(<span class="code-string">"products"</span>); <span class="code-comment">// Select collection</span>
+    
+    <span class="code-comment">// --- Querying Logic Goes Here ---</span>
+<span class="code-bracket">}</span>
+<span class="code-method">run</span>().<span class="code-method">catch</span>(<span class="code-function">console</span>.<span class="code-method">error</span>);
+        </pre>
+
+      <h3>The <code>find()</code> and Cursor Methods</h3>
+      <p>
+        The <strong><code>find()</code></strong> method returns a **Cursor**,
+        which is an object that points to the result set. You use specific
+        methods on the cursor to get the data:
+      </p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Use Case</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <code
+                ><span class="code-method">find</span>({ ... }).<span
+                  class="code-method"
+                  >toArray</span
+                >()</code
+              >
+            </td>
+            <td><strong>Most common</strong> for small to medium results.</td>
+            <td>Loads all documents into memory as a JavaScript array.</td>
+          </tr>
+          <tr>
+            <td>
+              <code
+                ><span class="code-method">find</span>({ ... }).<span
+                  class="code-method"
+                  >limit</span
+                >(N)</code
+              >
+            </td>
+            <td>To fetch only the top <strong>N</strong> results.</td>
+            <td>Limits the number of documents returned.</td>
+          </tr>
+          <tr>
+            <td>
+              <code><span class="code-method">findOne</span>({ ... })</code>
+            </td>
+            <td>To retrieve a single document.</td>
+            <td>
+              Returns the first document that matches the criteria, or
+              <code>null</code>. Does not require
+              <code>await ... .toArray()</code>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Node.js Examples</h3>
+
+      <h4>Example 1: Simple Filter and <code>toArray()</code></h4>
+      <p>
+        Find all products with a price greater than 100, returning them as a
+        single array.
+      </p>
+      <pre>
+<span class="code-comment">// Filter: price > 100</span>
+<span class="code-keyword">const</span> <span class="code-variable">query</span> <span class="code-keyword">=</span> <span class="code-bracket">{</span> <span class="code-property">price</span>: <span class="code-bracket">{</span> <span class="code-operator">$gt</span>: <span class="code-literal">100</span> <span class="code-bracket">}</span> <span class="code-bracket">}</span>; 
+
+<span class="code-keyword">const</span> <span class="code-variable">productsList</span> <span class="code-keyword">=</span> <span class="code-keyword">await</span> <span class="code-variable">products</span>.<span class="code-method">find</span>(<span class="code-variable">query</span>).<span class="code-method">toArray</span>();
+<span class="code-function">console</span>.<span class="code-method">log</span>(<span class="code-string">"Expensive Products:"</span>, <span class="code-variable">productsList</span>);
+        </pre>
+
+      <h4>
+        Example 2: Advanced Filtering with
+        <span class="code-operator">$and</span>,
+        <span class="code-operator">$lte</span>, and Projection
+      </h4>
+      <p>
+        Find a specific document that matches two conditions: **price is less
+        than or equal to 100** AND **stock is greater than or equal to 20**.
+        Only return the **name** and **stock** fields.
+      </p>
+      <pre>
+<span class="code-comment">// 1. Query Criteria (Filter)</span>
+<span class="code-keyword">const</span> <span class="code-variable">advancedFilter</span> <span class="code-keyword">=</span> <span class="code-bracket">{</span>
+    <span class="code-comment">// $and is implicit when using multiple field: value pairs, </span>
+    <span class="code-comment">// but useful for multiple conditions on the same field or $or logic</span>
+    <span class="code-operator">$and</span>: [
+        <span class="code-bracket">{</span> <span class="code-property">price</span>: <span class="code-bracket">{</span> <span class="code-operator">$lte</span>: <span class="code-literal">100</span> <span class="code-bracket">}</span> <span class="code-bracket">}</span>, <span class="code-comment">// Less than or equal to 100</span>
+        <span class="code-bracket">{</span> <span class="code-property">stock</span>: <span class="code-bracket">{</span> <span class="code-operator">$gte</span>: <span class="code-literal">20</span> <span class="code-bracket">}</span> <span class="code-bracket">}</span> <span class="code-comment">// Greater than or equal to 20</span>
+    ]
+<span class="code-bracket">}</span>;
+
+<span class="code-comment">// 2. Projection: Include 1 (or true) for fields you want, 0 (or false) to exclude.</span>
+<span class="code-keyword">const</span> <span class="code-variable">projection</span> <span class="code-keyword">=</span> <span class="code-bracket">{</span> <span class="code-property">name</span>: <span class="code-literal">1</span>, <span class="code-property">stock</span>: <span class="code-literal">1</span>, <span class="code-property">_id</span>: <span class="code-literal">0</span> <span class="code-bracket">}</span>; 
+
+<span class="code-keyword">const</span> <span class="code-variable">filteredProducts</span> <span class="code-keyword">=</span> <span class="code-keyword">await</span> <span class="code-variable">products</span>
+    .<span class="code-method">find</span>(<span class="code-variable">advancedFilter</span>)
+    .<span class="code-method">project</span>(<span class="code-variable">projection</span>) <span class="code-comment">// Node.js driver uses .project() for the projection argument</span>
+    .<span class="code-method">toArray</span>();
+
+<span class="code-function">console</span>.<span class="code-method">log</span>(<span class="code-string">"Filtered Results (Name and Stock only):"</span>, <span class="code-variable">filteredProducts</span>);
+        </pre>
+
+      <h4>
+        Example 3: Using <code>findOne()</code> with
+        <span class="code-operator">$in</span>
+      </h4>
+      <p>Find a single product that is either a "Mouse" or a "Keyboard."</p>
+      <pre>
+<span class="code-keyword">const</span> <span class="code-variable">item</span> <span class="code-keyword">=</span> <span class="code-keyword">await</span> <span class="code-variable">products</span>.<span class="code-method">findOne</span>(<span class="code-bracket">{</span> 
+    <span class="code-property">name</span>: <span class="code-bracket">{</span> <span class="code-operator">$in</span>: [<span class="code-string">"Mouse"</span>, <span class="code-string">"Keyboard"</span>] <span class="code-bracket">}</span> 
+<span class="code-bracket">}</span>);
+
+<span class="code-keyword">if</span> (<span class="code-variable">item</span>) <span class="code-bracket">{</span>
+    <span class="code-function">console</span>.<span class="code-method">log</span>(<span class="code-string">"Found a single accessory:"</span>, <span class="code-variable">item</span>.<span class="code-property">name</span>, <span class="code-string">"at $"</span>, <span class="code-variable">item</span>.<span class="code-property">price</span>);
+<span class="code-bracket">}</span> <span class="code-keyword">else</span> <span class="code-bracket">{</span>
+    <span class="code-function">console</span>.<span class="code-method">log</span>(<span class="code-string">"No matching item found."</span>);
+<span class="code-bracket">}</span>
+        </pre>
+    </div>
+  </body>
+</html>

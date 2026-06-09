@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alerting with Prometheus & Alertmanager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-bell"></i> ALERTING</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#overview" class="nav-link">Components Overview</a>
+        <a href="#flow" class="nav-link">Alert Flow</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Configuration</div>
+        <a href="#step1" class="nav-link">Step 1 — Prometheus Config</a>
+        <a href="#step2" class="nav-link">Step 2 — Alert Rules</a>
+        <a href="#step3" class="nav-link">Step 3 — Alertmanager Config</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Running & Testing</div>
+        <a href="#step4" class="nav-link">Step 4 — Run Everything</a>
+        <a href="#step5" class="nav-link">Step 5 — Test the Pipeline</a>
+        <a href="#webhook-payload" class="nav-link">Webhook Payload</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus</span>
+        <h1>ALERTING</h1>
+        <p>PROMETHEUS ALERTING RULES & ALERTMANAGER — FROM ZERO TO HERO</p>
+      </section>
+
+      <!-- ─── OVERVIEW ───────────────────────────────────────── -->
+      <section id="overview">
+        <h2>WHAT ARE THESE COMPONENTS?</h2>
+
+        <div class="comparison-grid">
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid var(--accent)">
+            <h4 style="color:var(--accent);margin-top:0"><i class="fa-solid fa-file-code"></i> Prometheus Alert Rules</h4>
+            <p style="margin-bottom:0">
+              Conditions you define using <strong>PromQL</strong> that tell
+              Prometheus <em>when</em> to trigger an alert. For example:
+              <em>"Alert if the server has been down for 5 minutes"</em> or
+              <em>"Alert if CPU usage exceeds 80%."</em>
+            </p>
+          </div>
+          <div style="background:var(--bg-secondary);padding:1.5rem;border-radius:8px;border-left:4px solid #3b82f6">
+            <h4 style="color:#3b82f6;margin-top:0"><i class="fa-solid fa-server"></i> Alertmanager</h4>
+            <p style="margin-bottom:0.75rem">A <strong>separate service</strong> that handles alerts sent by Prometheus. It manages:</p>
+            <ul style="margin-bottom:0">
+              <li><strong>Deduplication</strong> — removing duplicate alerts</li>
+              <li><strong>Grouping</strong> — bundling similar alerts together</li>
+              <li><strong>Routing</strong> — sending to Slack, email, webhooks</li>
+              <li><strong>Silencing</strong> — muting alerts during maintenance</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #f59e0b;margin-top:1.5rem">
+          <span class="note-title" style="color:#f59e0b"><i class="fa-solid fa-webhook"></i> Webhooks</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            HTTP <strong>POST requests</strong> that Alertmanager sends to a URL
+            you specify. Your application (e.g. your Express.js app) receives
+            these POST requests and can take action — sending notifications,
+            logging, or triggering automated responses.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── FLOW ───────────────────────────────────────────── -->
+      <section id="flow">
+        <h2>ALERT FLOW — HOW IT ALL CONNECTS</h2>
+
+        <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin:1.5rem 0;overflow-x:auto">
+          <svg viewBox="0 0 660 130" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:660px;display:block;margin:0 auto;font-family:'JetBrains Mono',monospace">
+            <defs>
+              <marker id="arr" markerWidth="7" markerHeight="7" refX="4" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L7,3.5 z" fill="#52525b"/>
+              </marker>
+              <marker id="arr-green" markerWidth="7" markerHeight="7" refX="4" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L7,3.5 z" fill="#34d399"/>
+              </marker>
+            </defs>
+
+            <!-- Your App -->
+            <rect x="10" y="45" width="110" height="40" rx="6" fill="#27272a" stroke="#3b82f6" stroke-width="1.5"/>
+            <text x="65" y="61" text-anchor="middle" fill="#3b82f6" font-size="10" font-weight="700">YOUR APP</text>
+            <text x="65" y="76" text-anchor="middle" fill="#71717a" font-size="8">:4000/metrics</text>
+
+            <!-- Arrow 1 -->
+            <line x1="120" y1="65" x2="158" y2="65" stroke="#52525b" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="139" y="58" text-anchor="middle" fill="#71717a" font-size="8">scrape</text>
+
+            <!-- Prometheus -->
+            <rect x="160" y="45" width="120" height="40" rx="6" fill="#27272a" stroke="#f59e0b" stroke-width="1.5"/>
+            <text x="220" y="61" text-anchor="middle" fill="#f59e0b" font-size="10" font-weight="700">PROMETHEUS</text>
+            <text x="220" y="76" text-anchor="middle" fill="#71717a" font-size="8">evaluates rules</text>
+
+            <!-- Arrow 2 -->
+            <line x1="280" y1="65" x2="318" y2="65" stroke="#52525b" stroke-width="1.5" marker-end="url(#arr)"/>
+            <text x="299" y="58" text-anchor="middle" fill="#71717a" font-size="8">fires alert</text>
+
+            <!-- Alertmanager -->
+            <rect x="320" y="45" width="130" height="40" rx="6" fill="#27272a" stroke="#34d399" stroke-width="1.5"/>
+            <text x="385" y="61" text-anchor="middle" fill="#34d399" font-size="10" font-weight="700">ALERTMANAGER</text>
+            <text x="385" y="76" text-anchor="middle" fill="#71717a" font-size="8">routes &amp; deduplicates</text>
+
+            <!-- Arrow 3 -->
+            <line x1="450" y1="65" x2="488" y2="65" stroke="#34d399" stroke-width="1.5" marker-end="url(#arr-green)"/>
+            <text x="469" y="58" text-anchor="middle" fill="#34d399" font-size="8">webhook</text>
+
+            <!-- Receiver -->
+            <rect x="490" y="45" width="120" height="40" rx="6" fill="#27272a" stroke="#a78bfa" stroke-width="1.5"/>
+            <text x="550" y="61" text-anchor="middle" fill="#a78bfa" font-size="10" font-weight="700">RECEIVER</text>
+            <text x="550" y="76" text-anchor="middle" fill="#71717a" font-size="8">Slack / email / app</text>
+
+            <!-- Labels -->
+            <text x="65"  y="105" text-anchor="middle" fill="#52525b" font-size="8">① expose metrics</text>
+            <text x="220" y="105" text-anchor="middle" fill="#52525b" font-size="8">② evaluate PromQL</text>
+            <text x="385" y="105" text-anchor="middle" fill="#52525b" font-size="8">③ group &amp; route</text>
+            <text x="550" y="105" text-anchor="middle" fill="#52525b" font-size="8">④ notify</text>
+          </svg>
+        </div>
+
+        <table>
+          <thead><tr><th>Component</th><th>File</th><th>Default Port</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>Your App</td><td><code>app.js</code></td><td><code>:4000</code></td><td>Exposes <code>/metrics</code> endpoint</td></tr>
+            <tr><td>Prometheus</td><td><code>prometheus.yml</code></td><td><code>:9090</code></td><td>Scrapes metrics, evaluates alert rules</td></tr>
+            <tr><td>Alertmanager</td><td><code>alertmanager.yml</code></td><td><code>:9093</code></td><td>Receives alerts, routes to receivers</td></tr>
+            <tr><td>Receiver</td><td>—</td><td>any</td><td>Slack, email, webhook, PagerDuty</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── STEP 1 ──────────────────────────────────────────── -->
+      <section id="step1">
+        <h2>STEP 1 — CONFIGURE PROMETHEUS</h2>
+
+        <p>Your <code>prometheus.yml</code> needs three key sections for alerting:</p>
+
+        <pre><code class="language-yaml">global:
+  scrape_interval: 15s
+  evaluation_interval: 10s  # How often Prometheus checks alert conditions
+
+# Tell Prometheus where Alertmanager is running
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'localhost:9093'  # Default Alertmanager port
+
+# List of files containing your alert rules
+rule_files:
+  - 'alert_rules.yml'
+
+scrape_configs:
+  - job_name: 'my-express-app'
+    static_configs:
+      - targets: ['localhost:4000']</code></pre>
+
+        <h3>Key Fields Explained</h3>
+        <table>
+          <thead><tr><th>Field</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>evaluation_interval</code></td><td>How often Prometheus checks if alert conditions are met</td></tr>
+            <tr><td><code>alerting.alertmanagers</code></td><td>The Alertmanager endpoint(s) Prometheus sends fired alerts to</td></tr>
+            <tr><td><code>rule_files</code></td><td>YAML files containing your alert rule definitions</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── STEP 2 ──────────────────────────────────────────── -->
+      <section id="step2">
+        <h2>STEP 2 — CREATE ALERT RULES</h2>
+
+        <p>Create a file called <code>alert_rules.yml</code>:</p>
+
+        <pre><code class="language-yaml">groups:
+  - name: http_alerts
+    rules:
+
+      # Alert when /fail endpoint returns 500 errors too often
+      - alert: HighFailureRate
+        expr: rate(http_requests_total{status_code="500"}[1m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: express-app
+        annotations:
+          summary: "High failure rate on {{ $labels.instance }}"
+          description: "Failure rate is {{ humanize $value }} errors per second"
+
+      # Alert when your Express app is down
+      - alert: ExpressAppDown
+        expr: up{job="my-express-app"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Express app is down"
+          description: "The app on {{ $labels.instance }} has been down for 30s"
+
+      # Alert when /fail endpoint gets too many requests
+      - alert: TooManyFailures
+        expr: rate(http_requests_total{path="/fail"}[2m]) > 5
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High request rate to /fail endpoint"
+          description: "{{ $labels.path }} is receiving {{ humanize $value }} req/s"</code></pre>
+
+        <h3>Rule Components Explained</h3>
+        <table>
+          <thead><tr><th>Field</th><th>Required</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>alert</code></td><td>✅ Yes</td><td>Name of the alert — appears in Alertmanager UI</td></tr>
+            <tr><td><code>expr</code></td><td>✅ Yes</td><td>PromQL expression — alert fires when this returns a value</td></tr>
+            <tr><td><code>for</code></td><td>Optional</td><td>Condition must stay true for this duration before firing</td></tr>
+            <tr><td><code>labels</code></td><td>Optional</td><td>Key-value pairs for categorization and routing</td></tr>
+            <tr><td><code>annotations</code></td><td>Optional</td><td>Human-readable info shown in notifications</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> The for: Duration
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            Without <code>for</code>, a single bad data point fires the alert
+            immediately — causing noisy false positives. With <code>for: 1m</code>,
+            the condition must stay true for a full minute before Prometheus
+            considers it a real problem.
+          </p>
+          <pre style="margin:0;background:var(--bg-secondary)"><code class="language-text">expr fires  →  PENDING state  →  (for: 1m passes)  →  FIRING state
+                                        ↑
+                              if condition clears here, alert is cancelled</code></pre>
+        </div>
+
+        <h3>Alert States</h3>
+        <table>
+          <thead><tr><th>State</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><strong style="color:#f59e0b">PENDING</strong></td><td>Condition is true but <code>for</code> duration hasn't elapsed yet</td></tr>
+            <tr><td><strong style="color:var(--danger)">FIRING</strong></td><td>Condition has been true for the full <code>for</code> duration — alert sent to Alertmanager</td></tr>
+            <tr><td><strong style="color:var(--accent)">RESOLVED</strong></td><td>Condition is no longer true — Alertmanager sends a resolve notification</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── STEP 3 ──────────────────────────────────────────── -->
+      <section id="step3">
+        <h2>STEP 3 — CONFIGURE ALERTMANAGER</h2>
+
+        <p>Create <code>alertmanager.yml</code>:</p>
+
+        <pre><code class="language-yaml">global:
+  resolve_timeout: 5m  # How long to wait before marking an alert as resolved
+
+route:
+  receiver: 'webhook_receiver'
+  group_by: ['alertname', 'severity']  # Group alerts with same name + severity
+  group_wait: 10s        # Wait before sending initial notification (allows batching)
+  group_interval: 5m     # Wait before sending updated notifications
+  repeat_interval: 4h    # Re-send the same alert if still firing after 4h
+
+  # Route critical alerts to the same receiver (can add more routes here)
+  routes:
+    - match:
+        severity: critical
+      receiver: 'webhook_receiver'
+      continue: true
+
+receivers:
+  - name: 'webhook_receiver'
+    webhook_configs:
+      - url: 'http://localhost:4000/alert'
+        send_resolved: true  # Also notify when alert resolves</code></pre>
+
+        <h3>Configuration Fields Explained</h3>
+        <table>
+          <thead><tr><th>Field</th><th>What It Does</th></tr></thead>
+          <tbody>
+            <tr><td><code>receiver</code></td><td>Default destination for all alerts (webhook, Slack, email)</td></tr>
+            <tr><td><code>group_by</code></td><td>Labels used to group related alerts into one notification</td></tr>
+            <tr><td><code>group_wait</code></td><td>Initial delay — lets related alerts batch together before sending</td></tr>
+            <tr><td><code>group_interval</code></td><td>How long to wait before sending updates to an existing group</td></tr>
+            <tr><td><code>repeat_interval</code></td><td>How often to re-notify about a still-firing alert</td></tr>
+            <tr><td><code>send_resolved</code></td><td>Send a notification when the alert condition clears</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> group_wait vs group_interval</span>
+          <p style="margin-bottom:0">
+            <code>group_wait</code> applies to the <strong>first</strong>
+            notification of a new group. <code>group_interval</code> applies
+            to <strong>subsequent</strong> updates. Keep <code>group_wait</code>
+            short (10–30s) so you're not waiting too long for the first alert.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── STEP 4 ──────────────────────────────────────────── -->
+      <section id="step4">
+        <h2>STEP 4 — RUN EVERYTHING</h2>
+
+        <p>Start each component in order:</p>
+
+        <h3>1. Start Alertmanager</h3>
+        <pre><code class="language-bash">alertmanager --config.file=alertmanager.yml</code></pre>
+
+        <h3>2. Start Prometheus</h3>
+        <pre><code class="language-bash">prometheus --config.file=prometheus.yml</code></pre>
+
+        <h3>3. Start Your Express App</h3>
+        <pre><code class="language-bash">node app.js</code></pre>
+
+        <h3>Verify Everything is Running</h3>
+        <table>
+          <thead><tr><th>Service</th><th>URL</th><th>What to Check</th></tr></thead>
+          <tbody>
+            <tr><td>Your App metrics</td><td><code>http://localhost:4000/metrics</code></td><td>Should show Prometheus metrics</td></tr>
+            <tr><td>Prometheus UI</td><td><code>http://localhost:9090/alerts</code></td><td>Should show your alert rules</td></tr>
+            <tr><td>Alertmanager UI</td><td><code>http://localhost:9093</code></td><td>Should show active alerts</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── STEP 5 ──────────────────────────────────────────── -->
+      <section id="step5">
+        <h2>STEP 5 — TEST THE ALERT PIPELINE</h2>
+
+        <h3>Test Your Webhook Directly</h3>
+        <p>Verify your Express app receives webhook payloads correctly:</p>
+        <pre><code class="language-bash">curl -X POST http://localhost:4000/alert \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "firing",
+    "labels": {
+      "alertname": "TestAlert",
+      "severity": "warning"
+    },
+    "annotations": {
+      "summary": "This is a test"
+    }
+  }'</code></pre>
+
+        <h3>Trigger a Real Alert</h3>
+        <p>Send requests to the <code>/fail</code> endpoint to trigger the <code>HighFailureRate</code> alert:</p>
+        <pre><code class="language-javascript">async function sendRequests() {
+  for (let i = 1; i <= 20; i++) {
+    await fetch('http://localhost:4000/fail')
+  }
+}
+sendRequests()</code></pre>
+
+        <h3>What to Expect</h3>
+        <table>
+          <thead><tr><th>Time</th><th>What Happens</th><th>Where to See It</th></tr></thead>
+          <tbody>
+            <tr><td>Immediately</td><td>Alert enters <strong style="color:#f59e0b">PENDING</strong> state</td><td><code>localhost:9090/alerts</code></td></tr>
+            <tr><td>After <code>for: 1m</code></td><td>Alert enters <strong style="color:var(--danger)">FIRING</strong> state</td><td><code>localhost:9090/alerts</code></td></tr>
+            <tr><td>After <code>group_wait: 10s</code></td><td>Alertmanager sends webhook POST</td><td><code>localhost:9093</code></td></tr>
+            <tr><td>Immediately</td><td>Your app console logs the payload</td><td>Terminal running <code>node app.js</code></td></tr>
+            <tr><td>When requests stop</td><td>Alert enters <strong style="color:var(--accent)">RESOLVED</strong> state</td><td>Another POST sent with <code>"status":"resolved"</code></td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Nothing Happening?
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Check that <code>evaluation_interval</code> in <code>prometheus.yml</code>
+            is set and Prometheus can reach Alertmanager at <code>localhost:9093</code>.
+            Visit <code>localhost:9090/targets</code> to confirm your app is being
+            scraped successfully.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── WEBHOOK PAYLOAD ────────────────────────────────── -->
+      <section id="webhook-payload">
+        <h2>WHAT THE WEBHOOK RECEIVES</h2>
+
+        <p>
+          When an alert fires, Alertmanager sends a <strong>JSON POST
+          request</strong> to your <code>/alert</code> endpoint. Here's the
+          full payload structure:
+        </p>
+
+        <pre><code class="language-json">{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"HighFailureRate\"}",
+  "status": "firing",
+  "receiver": "webhook_receiver",
+  "groupLabels": {
+    "alertname": "HighFailureRate"
+  },
+  "commonLabels": {
+    "alertname": "HighFailureRate",
+    "severity": "critical",
+    "service": "express-app"
+  },
+  "commonAnnotations": {
+    "summary": "High failure rate on localhost:4000",
+    "description": "Failure rate is 0.5 errors per second"
+  },
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": { "alertname": "HighFailureRate", "severity": "critical" },
+      "annotations": { "summary": "High failure rate on localhost:4000" },
+      "startsAt": "2024-01-01T10:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z"
+    }
+  ]
+}</code></pre>
+
+        <h3>Payload Fields Explained</h3>
+        <table>
+          <thead><tr><th>Field</th><th>What It Contains</th></tr></thead>
+          <tbody>
+            <tr><td><code>status</code></td><td><code>"firing"</code> or <code>"resolved"</code></td></tr>
+            <tr><td><code>groupLabels</code></td><td>Labels used to group this batch of alerts</td></tr>
+            <tr><td><code>commonLabels</code></td><td>Labels shared by all alerts in this group</td></tr>
+            <tr><td><code>commonAnnotations</code></td><td>Annotations shared by all alerts in this group</td></tr>
+            <tr><td><code>alerts[]</code></td><td>Array of individual alert objects in this group</td></tr>
+            <tr><td><code>alerts[].startsAt</code></td><td>When the alert started firing</td></tr>
+            <tr><td><code>alerts[].endsAt</code></td><td><code>0001-...</code> means still firing; real time means resolved</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">💡 Golden Rule</span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">The full alerting pipeline in one line:</p>
+          <pre style="margin:0;background:var(--bg-secondary)"><code class="language-text">PromQL condition fires
+  → Prometheus waits for `for:` duration
+    → Alert sent to Alertmanager
+      → Alertmanager groups + waits `group_wait`
+        → Webhook POST sent to your app
+          → Your app handles it (Slack, log, ticket)</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Alerting with Prometheus &amp; Alertmanager</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

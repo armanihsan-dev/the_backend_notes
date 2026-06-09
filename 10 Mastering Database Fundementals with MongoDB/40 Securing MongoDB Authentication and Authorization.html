@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Authentication & Authorization Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base styles for a stunning blackish theme */
+      :root {
+        --bg-color: #1e1e1e; /* Deep grayish-black */
+        --text-color: #f0f0f0; /* Off-white for body text */
+        --header-color: #4ec9b0; /* Light green/teal for headers */
+        --accent-color: #569cd6; /* Light blue for key points/links */
+        --table-border-color: #383838;
+        --code-bg: #1e1e1e; /* VS Code dark theme background */
+        --code-text: #d4d4d4; /* Default code text color */
+        --keyword-color: #569cd6; /* Blue for keywords (e.g., const, async) */
+        --string-color: #ce9178; /* Orange/Brown for strings */
+        --comment-color: #6a9955; /* Green for comments */
+        --function-color: #dcdcaa; /* Yellow/Cream for functions */
+        --table-header-bg: #2d2d2d;
+        --table-alt-bg: #282828;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter blackish box for content */
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--header-color);
+        font-weight: 900;
+        border-bottom: 2px solid #383838;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        color: var(--accent-color);
+        font-size: 2.5em;
+        border-bottom: 3px solid var(--accent-color);
+      }
+
+      p,
+      li {
+        font-weight: 400;
+      }
+
+      /* Tables (Conceptual Data/Roles) */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid var(--table-border-color);
+        padding: 12px 15px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--table-header-bg);
+        color: var(--header-color);
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: var(--table-alt-bg);
+      }
+
+      /* Code Block Styling (VSCode Dark Theme) */
+      pre {
+        background-color: var(--code-bg);
+        color: var(--code-text);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 15px 0;
+        border: 1px solid #3a3a3a;
+      }
+
+      .code-lang {
+        display: block;
+        color: var(--comment-color);
+        font-size: 0.8em;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+      }
+
+      /* Syntax Highlighting */
+      .kw {
+        color: var(--keyword-color);
+      } /* Keyword: const, async, function, role, use, db */
+      .str {
+        color: var(--string-color);
+      } /* String: "adminUser", "appDB", 'readWrite' */
+      .cmt {
+        color: var(--comment-color);
+      } /* Comment: // Prompts for password securely */
+      .func {
+        color: var(--function-color);
+      } /* Function/Method: createUser, connect, findOne */
+      .prop {
+        color: #9cdcfe;
+      } /* Property/Variable: user, pwd, roles, MongoClient */
+      .op {
+        color: #f8f8f2;
+      } /* Operator/Punctuation: {, }, :, . */
+      .type {
+        color: #4ec9b0;
+      } /* Type/Class: MongoClient */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Authentication & Authorization Deep Dive</h1>
+      <p>
+        The core of security in MongoDB is **Authentication** (verifying the
+        user's identity) and **Authorization** (determining what the
+        authenticated user is allowed to do). MongoDB implements Authorization
+        using **Role-Based Access Control (RBAC)**.
+      </p>
+
+      <p>
+        Here is a deep dive into how to set up and manage this in MongoDB using
+        <span class="prop">mongosh</span> and how to connect using the Node.js
+        Driver.
+      </p>
+
+      <hr />
+
+      <h2>1. Core Security Concepts in MongoDB</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Authentication</strong></td>
+            <td>
+              The process of verifying a user's identity. This is typically done
+              with a **username and password**. The default mechanism is
+              **SCRAM** (Salted Challenge Response Authentication Mechanism).
+            </td>
+          </tr>
+          <tr>
+            <td><strong>Authorization</strong></td>
+            <td>
+              The process of granting an authenticated user the right to perform
+              specific operations on specific resources.
+            </td>
+          </tr>
+          <tr>
+            <td>**User**</td>
+            <td>
+              An entity created in a specific database (the **authentication
+              database**, often <span class="str">admin</span>), associated with
+              a username, password, and one or more roles.
+            </td>
+          </tr>
+          <tr>
+            <td>**Role**</td>
+            <td>
+              A set of **privileges** (allowed operations) that are scoped to a
+              specific resource (database, collection, or cluster).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p><span class="cmt">Export to Sheets</span></p>
+
+      <hr />
+
+      <h2>2. Setting up Security with <span class="prop">mongosh</span></h2>
+
+      <p>
+        By default, MongoDB runs **without access control enabled**, meaning
+        anyone can connect to the server and do anything. This must be changed
+        for production environments.
+      </p>
+
+      <h3>Step 2.1: Enable Access Control</h3>
+      <p>
+        You must edit your MongoDB configuration file (<span class="prop"
+          >mongod.conf</span
+        >
+        or similar) and restart the server to enable access control
+        (authorization).
+      </p>
+
+      <div class="code-lang">YAML</div>
+      <pre>
+<span class="prop">security</span><span class="op">:</span>
+  <span class="prop">authorization</span><span class="op">:</span> <span class="str">enabled</span> 
+    </pre>
+      <p><span class="cmt">Export to Sheets</span></p>
+
+      <p>
+        Restart your MongoDB server (<span class="prop"
+          >sudo systemctl restart mongod</span
+        >
+        on Linux, for example). Once restarted, clients can connect, but they
+        must authenticate as a valid user to perform any operations.
+      </p>
+
+      <h3>Step 2.2: Create the User Administrator</h3>
+      <p>
+        Since access control is now enabled, you must create a user with
+        privileges to manage other users. You can only do this because of a
+        temporary **localhost exception** which allows a connection on the
+        loopback interface to create the first user.
+      </p>
+
+      <p>
+        Connect to <span class="prop">mongosh</span> without credentials (only
+        works locally and if no users exist yet):
+      </p>
+      <div class="code-lang">Bash</div>
+      <pre>
+<span class="prop">mongosh</span>
+    </pre>
+
+      <p>Switch to the <span class="str">admin</span> database:</p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="kw">use</span> <span class="str">admin</span>
+    </pre>
+
+      <p>
+        Create the user administrator. The
+        <span class="prop">userAdminAnyDatabase</span> role is crucial as it
+        grants privileges to create other users and roles across all databases.
+      </p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">createUser</span><span class="op">(</span>
+   <span class="op">{</span>
+      <span class="prop">user</span><span class="op">:</span> <span class="str">"adminUser"</span><span class="op">,</span>
+      <span class="prop">pwd</span><span class="op">:</span> <span class="func">passwordPrompt</span><span class="op">(),</span> <span class="cmt">// Prompts for password securely</span>
+      <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span>
+         <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"userAdminAnyDatabase"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"admin"</span> <span class="op">},</span>
+         <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"readWriteAnyDatabase"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"admin"</span> <span class="op">}</span> <span class="cmt">// Optional: For full admin access</span>
+      <span class="op">]</span>
+   <span class="op">}</span>
+<span class="op">)</span>
+    </pre>
+
+      <p>
+        **Note:** After this, the localhost exception is removed. You must now
+        authenticate to do anything, even from the local host.
+      </p>
+
+      <h3>Step 2.3: Create Application-Specific Users</h3>
+      <p>
+        Create users with the **principle of least privilege**, meaning they
+        only get the roles (permissions) necessary for their job.
+      </p>
+
+      <p>
+        Connect and authenticate as your <span class="prop">adminUser</span>:
+      </p>
+      <div class="code-lang">Bash</div>
+      <pre>
+<span class="prop">mongosh</span> <span class="op">-u</span> <span class="str">"adminUser"</span> <span class="op">-p</span> <span class="op">--</span><span class="prop">authenticationDatabase</span> <span class="str">"admin"</span>
+    </pre>
+
+      <p>
+        Switch to your application database (e.g.,
+        <span class="prop">appDB</span>):
+      </p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="kw">use</span> <span class="str">appDB</span>
+    </pre>
+
+      <p>
+        Create a user for your Node.js application that only needs to read and
+        write on <span class="prop">appDB</span>:
+      </p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">createUser</span><span class="op">(</span>
+   <span class="op">{</span>
+      <span class="prop">user</span><span class="op">:</span> <span class="str">"appReadWriteUser"</span><span class="op">,</span>
+      <span class="prop">pwd</span><span class="op">:</span> <span class="func">passwordPrompt</span><span class="op">(),</span>
+      <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span>
+         <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"readWrite"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"appDB"</span> <span class="op">}</span>
+      <span class="op">]</span>
+   <span class="op">}</span>
+<span class="op">)</span>
+    </pre>
+
+      <hr />
+
+      <h2>3. Connecting and Authenticating with the Node.js Driver</h2>
+      <p>
+        The official MongoDB Node.js Driver uses a **Connection URI** that
+        includes authentication details.
+      </p>
+
+      <h3>Connection URI Format</h3>
+      <p>
+        The standard format for authenticating with a username and password is:
+      </p>
+      <pre>
+<span class="str">mongodb://&lt;username&gt;:&lt;password&gt;@&lt;host&gt;:&lt;port&gt;/&lt;database&gt;?authSource=&lt;authDB&gt;</span>
+    </pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>URI Component</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">&lt;username&gt;:&lt;password&gt;</span></td>
+            <td>The user's credentials.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">&lt;host&gt;:&lt;port&gt;</span></td>
+            <td>
+              The server address and port (default is
+              <span class="prop">localhost:27017</span>).
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <span class="op">/</span
+              ><span class="prop">&lt;database&gt;</span>
+            </td>
+            <td>The database the application primarily connects to.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">authSource=&lt;authDB&gt;</span></td>
+            <td>
+              **Crucial:** The database where the user was created (e.g.,
+              <span class="str">admin</span> or
+              <span class="prop">appDB</span>). This defaults to the database in
+              the path.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p><span class="cmt">Export to Sheets</span></p>
+
+      <h3>Node.js Driver Example</h3>
+      <p>
+        You should use environment variables (e.g., in a
+        <span class="prop">.env</span> file) to store credentials, not hardcode
+        them.
+      </p>
+
+      <p>Install the driver: <span class="prop">npm install mongodb</span></p>
+
+      <p>
+        Example Connection (using <span class="prop">appReadWriteUser</span>):
+      </p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="kw">const</span> <span class="op">{</span> <span class="type">MongoClient</span> <span class="op">}</span> <span class="kw"></span><span class="op">=</span> <span class="func">require</span><span class="op">(</span><span class="str">'mongodb'</span><span class="op">)</span><span class="op">;</span>
+
+<span class="cmt">// Replace placeholders with your actual values (use environment variables!)</span>
+<span class="kw">const</span> <span class="prop">username</span> <span class="op">=</span> <span class="str">"appReadWriteUser"</span><span class="op">;</span>
+<span class="kw">const</span> <span class="prop">password</span> <span class="op">=</span> <span class="str">"yourStrongPassword"</span><span class="op">;</span>
+<span class="kw">const</span> <span class="prop">host</span> <span class="op">=</span> <span class="str">"localhost:27017"</span><span class="op">;</span>
+<span class="kw">const</span> <span class="prop">authDb</span> <span class="op">=</span> <span class="str">"appDB"</span><span class="op">;</span> <span class="cmt">// User was created in appDB</span>
+
+<span class="cmt">// Connection URI</span>
+<span class="kw">const</span> <span class="prop">uri</span> <span class="op">=</span> <span class="str">`mongodb://</span><span class="op">$</span><span class="op">{</span><span class="prop">username</span><span class="op">}</span><span class="str">:</span><span class="op">$</span><span class="op">{</span><span class="prop">password</span><span class="op">}</span><span class="str">@</span><span class="op">$</span><span class="op">{</span><span class="prop">host</span><span class="op">}</span><span class="str">/appDB?authSource=</span><span class="op">$</span><span class="op">{</span><span class="prop">authDb</span><span class="op">}</span><span class="str">`</span><span class="op">;</span>
+
+<span class="kw">const</span> <span class="prop">client</span> <span class="op">=</span> <span class="kw">new</span> <span class="type">MongoClient</span><span class="op">(</span><span class="prop">uri</span><span class="op">)</span><span class="op">;</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">run</span><span class="op">()</span> <span class="op">{</span>
+  <span class="kw">try</span> <span class="op">{</span>
+    <span class="cmt">// Connect to the MongoDB cluster</span>
+    <span class="kw">await</span> <span class="prop">client</span><span class="op">.</span><span class="func">connect</span><span class="op">()</span><span class="op">;</span>
+    <span class="func">console</span><span class="op">.</span><span class="func">log</span><span class="op">(</span><span class="str">"Successfully connected and authenticated."</span><span class="op">)</span><span class="op">;</span>
+
+    <span class="kw">const</span> <span class="prop">db</span> <span class="op">=</span> <span class="prop">client</span><span class="op">.</span><span class="func">db</span><span class="op">(</span><span class="str">'appDB'</span><span class="op">)</span><span class="op">;</span>
+    <span class="kw">const</span> <span class="prop">collection</span> <span class="op">=</span> <span class="prop">db</span><span class="op">.</span><span class="func">collection</span><span class="op">(</span><span class="str">'documents'</span><span class="op">)</span><span class="op">;</span>
+
+    <span class="cmt">// This operation will succeed because appReadWriteUser has 'readWrite' role on 'appDB'</span>
+    <span class="kw">const</span> <span class="prop">result</span> <span class="op">=</span> <span class="kw">await</span> <span class="prop">collection</span><span class="op">.</span><span class="func">insertOne</span><span class="op">({</span> <span class="prop">data</span><span class="op">:</span> <span class="str">'secret'</span> <span class="op">})</span><span class="op">;</span>
+    <span class="func">console</span><span class="op">.</span><span class="func">log</span><span class="op">(</span><span class="str">`Document inserted with ID: </span><span class="op">$</span><span class="op">{</span><span class="prop">result</span><span class="op">.</span><span class="prop">insertedId</span><span class="op">}</span><span class="str">`</span><span class="op">)</span><span class="op">;</span>
+
+    <span class="cmt">// If appReadWriteUser tried to run an operation on a different DB (e.g., 'admin'), it would fail with an authorization error.</span>
+
+  <span class="op">}</span> <span class="kw">catch</span> <span class="op">(</span><span class="prop">e</span><span class="op">)</span> <span class="op">{</span>
+    <span class="func">console</span><span class="op">.</span><span class="func">error</span><span class="op">(</span><span class="str">"Connection or operation failed:"</span><span class="op">,</span> <span class="prop">e</span><span class="op">)</span><span class="op">;</span>
+  <span class="op">}</span> <span class="kw">finally</span> <span class="op">{</span>
+    <span class="cmt">// Ensures that the client will close when you finish/error</span>
+    <span class="kw">await</span> <span class="prop">client</span><span class="op">.</span><span class="func">close</span><span class="op">()</span><span class="op">;</span>
+  <span class="op">}</span>
+<span class="op">}</span>
+
+<span class="func">run</span><span class="op">()</span><span class="op">;</span>
+    </pre>
+
+      <hr />
+
+      <h2>4. Role-Based Access Control (RBAC) Details</h2>
+      <p>
+        MongoDB's authorization is handled by the server based on the **roles**
+        assigned to the authenticated user.
+      </p>
+
+      <h3>Built-in Roles</h3>
+      <p>
+        MongoDB provides many built-in roles that grant common sets of
+        privileges. Some key ones include:
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Scope</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">read</span></td>
+            <td>Database</td>
+            <td>
+              Allows read access to data and meta-data on the specified
+              database.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">readWrite</span></td>
+            <td>Database</td>
+            <td>Allows read and write access on the specified database.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">userAdmin</span></td>
+            <td>Database</td>
+            <td>Allows managing users and roles on the specified database.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">userAdminAnyDatabase</span></td>
+            <td>Cluster (on <span class="str">admin</span> DB)</td>
+            <td>Allows managing users and roles on any database.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">dbAdminAnyDatabase</span></td>
+            <td>Cluster (on <span class="str">admin</span> DB)</td>
+            <td>
+              Allows performing administrative operations on any database.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p><span class="cmt">Export to Sheets</span></p>
+
+      <h3>User-Defined Roles</h3>
+      <p>
+        You can also create **custom roles** to define highly granular
+        permissions.
+      </p>
+
+      <p>
+        Create a Custom Role in <span class="prop">mongosh</span> (e.g., on the
+        <span class="prop">appDB</span>):
+      </p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="kw">use</span> <span class="str">appDB</span>
+<span class="prop">db</span><span class="op">.</span><span class="func">createRole</span><span class="op">(</span>
+   <span class="op">{</span>
+      <span class="prop">role</span><span class="op">:</span> <span class="str">"appDBOnlyReadRole"</span><span class="op">,</span>
+      <span class="prop">privileges</span><span class="op">:</span> <span class="op">[</span>
+         <span class="op">{</span> <span class="prop">resource</span><span class="op">:</span> <span class="op">{</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"appDB"</span><span class="op">,</span> <span class="prop">collection</span><span class="op">:</span> <span class="str">"data"</span> <span class="op">}</span><span class="op">,</span> <span class="prop">actions</span><span class="op">:</span> <span class="op">[</span> <span class="str">"find"</span> <span class="op">]</span> <span class="op">}</span>
+      <span class="op">]</span><span class="op">,</span>
+      <span class="prop">roles</span><span class="op">:</span> <span class="op">[]</span>
+   <span class="op">}</span>
+<span class="op">)</span>
+    </pre>
+
+      <p>Create a User with the Custom Role:</p>
+      <div class="code-lang">JavaScript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">createUser</span><span class="op">(</span>
+   <span class="op">{</span>
+      <span class="prop">user</span><span class="op">:</span> <span class="str">"appReadOnlyUser"</span><span class="op">,</span>
+      <span class="prop">pwd</span><span class="op">:</span> <span class="func">passwordPrompt</span><span class="op">(),</span>
+      <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span>
+         <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"appDBOnlyReadRole"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"appDB"</span> <span class="op">}</span>
+      <span class="op">]</span>
+   <span class="op">}</span>
+<span class="op">)</span>
+    </pre>
+      <p>
+        This new user, <span class="prop">appReadOnlyUser</span>, can only
+        perform the <span class="prop">find</span> operation on the
+        <span class="prop">data</span> collection within the
+        <span class="prop">appDB</span> database. Any attempt to write data or
+        read from a different collection will result in an **Authorization
+        Failure**.
+      </p>
+
+      <hr />
+
+      <h2>Starting MongoDB with Authentication</h2>
+      <p>
+        To secure MongoDB by requiring users to authenticate before accessing
+        databases, enable authentication with either:
+      </p>
+
+      <h3>Method 1: <span class="prop">--auth</span> Flag (Terminal-Based)</h3>
+      <p>
+        Run MongoDB daemon with <span class="prop">--auth</span> flag to enforce
+        authentication:
+      </p>
+      <div class="code-lang">bash</div>
+      <pre>
+<span class="prop">mongod</span> <span class="op">--</span><span class="prop">auth</span>
+    </pre>
+      <p>This makes MongoDB require a user login for any database operation.</p>
+
+      <h3>
+        Method 2: Configuration File (<span class="prop">mongod.conf</span>)
+      </h3>
+      <p>
+        Add this under the <span class="prop">security</span> section in the
+        configuration file:
+      </p>
+      <div class="code-lang">text</div>
+      <pre>
+<span class="prop">security</span><span class="op">:</span>
+  <span class="prop">authorization</span><span class="op">:</span> <span class="str">enabled</span>
+    </pre>
+      <p>
+        Then restart MongoDB to apply changes. This is equivalent to the
+        <span class="prop">--auth</span> flag but preferred for persistent
+        setup.
+      </p>
+
+      <hr />
+
+      <h2>
+        Creating the Admin User in <span class="prop">admin</span> Database
+        (Root Privileges)
+      </h2>
+      <p>
+        After authentication is enabled, create an admin user who has full root
+        privileges to manage users and databases:
+      </p>
+
+      <p>Open the MongoDB shell:</p>
+      <div class="code-lang">bash</div>
+      <pre>
+<span class="prop">mongosh</span>
+    </pre>
+
+      <p>
+        Switch to <span class="prop">admin</span> database (special database for
+        admin users):
+      </p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="kw">use</span> <span class="str">admin</span>
+    </pre>
+
+      <p>
+        Create the admin user with <span class="prop">root</span> role (full
+        privileges):
+      </p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">createUser</span><span class="op">(</span><span class="op">{</span>
+  <span class="prop">user</span><span class="op">:</span> <span class="str">"admin"</span><span class="op">,</span>
+  <span class="prop">pwd</span><span class="op">:</span> <span class="str">"admin"</span><span class="op">,</span>
+  <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span><span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"root"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"admin"</span> <span class="op">}</span><span class="op">]</span><span class="op">,</span>
+<span class="op">}</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+      <p>This user manages authentication and authorization.</p>
+
+      <hr />
+
+      <h2>Connecting to MongoDB with Authentication</h2>
+      <p>
+        To access MongoDB once authentication is enabled, users must log in.
+      </p>
+
+      <h3>
+        Method 1: Mongo shell authentication using
+        <span class="prop">db.auth()</span> inside shell:
+      </h3>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">auth</span><span class="op">(</span><span class="str">"username"</span><span class="op">,</span> <span class="str">"password"</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+      <p>or</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">auth</span><span class="op">(</span><span class="op">{</span> <span class="prop">user</span><span class="op">:</span> <span class="str">"username"</span><span class="op">,</span> <span class="prop">pwd</span><span class="op">:</span> <span class="str">"password"</span> <span class="op">}</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+
+      <h3>
+        Method 2: Logging in from terminal when starting
+        <span class="prop">mongosh</span>:
+      </h3>
+      <div class="code-lang">bash</div>
+      <pre>
+<span class="prop">mongosh</span> <span class="op">-u</span> <span class="str">"username"</span> <span class="op">-p</span> <span class="str">"password"</span> <span class="op">--</span><span class="prop">authenticationDatabase</span> <span class="str">"admin"</span>
+    </pre>
+
+      <h3>
+        Method 3: Connection strings for drivers and tools (e.g., Node.js
+        driver, MongoDB Compass):
+      </h3>
+      <div class="code-lang">text</div>
+      <pre>
+<span class="str">mongodb://username:password@host:port/authenticationDatabase</span>
+    </pre>
+      <p>or</p>
+      <div class="code-lang">text</div>
+      <pre>
+<span class="str">mongodb://username:password@host:port/database?authSource=authenticationDatabase</span>
+    </pre>
+      <p>
+        <span class="prop">authenticationDatabase</span> is the database where
+        the user was created (often <span class="str">admin</span>).
+      </p>
+
+      <p>To check logged-in user info:</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">runCommand</span><span class="op">(</span><span class="op">{</span> <span class="prop">connectionStatus</span><span class="op">:</span> <span class="num">1</span> <span class="op">}</span><span class="op">)</span><span class="op">.</span><span class="prop">authInfo</span><span class="op">;</span>
+    </pre>
+
+      <hr />
+
+      <h2>Creating Other Users with Different Roles</h2>
+      <p>
+        Users with roles other than <span class="prop">root</span> can have
+        specific permissions scoped to databases.
+      </p>
+
+      <p>
+        Example: Create a user with <span class="prop">readWrite</span> access
+        on <span class="prop">storageApp</span> database:
+      </p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="kw">use</span> <span class="prop">storageApp</span>
+<span class="prop">db</span><span class="op">.</span><span class="func">createUser</span><span class="op">(</span><span class="op">{</span>
+  <span class="prop">user</span><span class="op">:</span> <span class="str">"anurag"</span><span class="op">,</span>
+  <span class="prop">pwd</span><span class="op">:</span> <span class="str">"anurag"</span><span class="op">,</span>
+  <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span><span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"readWrite"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"storageApp"</span> <span class="op">}</span><span class="op">]</span><span class="op">,</span>
+<span class="op">}</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+
+      <p>
+        Example: Create a database administrator for
+        <span class="prop">storageApp</span>:
+      </p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="kw">use</span> <span class="prop">storageApp</span>
+<span class="prop">db</span><span class="op">.</span><span class="func">createUser</span><span class="op">(</span><span class="op">{</span>
+  <span class="prop">user</span><span class="op">:</span> <span class="str">"dbAdminUser"</span><span class="op">,</span>
+  <span class="prop">pwd</span><span class="op">:</span> <span class="str">"secureDBPass"</span><span class="op">,</span>
+  <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span><span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"dbAdmin"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"storageApp"</span> <span class="op">}</span><span class="op">]</span><span class="op">,</span>
+<span class="op">}</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+      <p>
+        Roles define specific permissions like reading, writing, or
+        administrative tasks on databases.
+      </p>
+
+      <h3>Updating User Roles</h3>
+      <p>
+        To modify a user's roles (for example, to grant additional permissions),
+        use <span class="prop">updateUser()</span>:
+      </p>
+
+      <p>
+        Example: Add <span class="prop">dbAdmin</span> role to user
+        <span class="prop">anurag</span> while keeping existing roles:
+      </p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">updateUser</span><span class="op">(</span><span class="str">"anurag"</span><span class="op">,</span> <span class="op">{</span>
+  <span class="prop">roles</span><span class="op">:</span> <span class="op">[</span>
+    <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"readWrite"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"storageApp"</span> <span class="op">}</span><span class="op">,</span>
+    <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"dbAdmin"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"storageApp"</span> <span class="op">}</span><span class="op">,</span>
+    <span class="op">{</span> <span class="prop">role</span><span class="op">:</span> <span class="str">"readWrite"</span><span class="op">,</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"test"</span> <span class="op">}</span><span class="op">,</span>
+  <span class="op">]</span><span class="op">,</span>
+<span class="op">}</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+
+      <h3>Listing Users</h3>
+      <p>To list all users in the current database:</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">getUsers</span><span class="op">()</span><span class="op">;</span>
+    </pre>
+      <p>To list all users across the entire MongoDB server (all databases):</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="kw">use</span> <span class="str">admin</span>
+<span class="prop">db</span><span class="op">.</span><span class="prop">system</span><span class="op">.</span><span class="prop">users</span><span class="op">.</span><span class="func">find</span><span class="op">()</span><span class="op">;</span>
+    </pre>
+
+      <h3>Testing Authentication for Other Users</h3>
+      <p>
+        To test a normal user's access, log in specifying the correct database
+        and credentials:
+      </p>
+      <div class="code-lang">bash</div>
+      <pre>
+<span class="prop">mongosh</span> <span class="op">-u</span> <span class="str">"Anurag"</span> <span class="op">-p</span> <span class="str">"password123"</span> <span class="op">--</span><span class="prop">authenticationDatabase</span> <span class="str">"storageApp"</span>
+    </pre>
+      <p>Test read and write operations:</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="prop">products</span><span class="op">.</span><span class="func">insertOne</span><span class="op">(</span><span class="op">{</span> <span class="prop">name</span><span class="op">:</span> <span class="str">"Laptop"</span><span class="op">,</span> <span class="prop">price</span><span class="op">:</span> <span class="num">1000</span> <span class="op">}</span><span class="op">)</span><span class="op">;</span>
+<span class="prop">db</span><span class="op">.</span><span class="prop">products</span><span class="op">.</span><span class="func">find</span><span class="op">()</span><span class="op">;</span>
+    </pre>
+      <p>
+        Users with <span class="prop">readWrite</span> role can read/write data
+        but cannot modify database structure (like indexes).
+      </p>
+
+      <h3>Removing a User</h3>
+      <p>To remove a user from the current database:</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">dropUser</span><span class="op">(</span><span class="str">"Anurag"</span><span class="op">)</span><span class="op">;</span>
+    </pre>
+
+      <h3>Logout User</h3>
+      <p>To log out the current session user in the shell:</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">logout</span><span class="op">()</span><span class="op">;</span>
+    </pre>
+
+      <hr />
+
+      <h2>Common MongoDB Roles and Their Meanings</h2>
+      <p>
+        MongoDB provides **Role-Based Access Control (RBAC)**, where users are
+        assigned roles that determine their access level.
+      </p>
+
+      <h3>1. Database User Roles (For interacting with data)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">read</span></td>
+            <td>
+              Allows the user to **only read data** from the assigned database.
+              Cannot write or modify data.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">readWrite</span></td>
+            <td>
+              Allows the user to **read and write** data in the assigned
+              database but cannot perform administrative tasks.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2. Database Administration Roles (For managing databases)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">dbAdmin</span></td>
+            <td>
+              Allows the user to **manage collections, indexes, and validation
+              rules** but cannot read or modify data.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">dbOwner</span></td>
+            <td>
+              Full control over a specific database, including managing users
+              and roles for that database.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">userAdmin</span></td>
+            <td>
+              Allows **managing users and roles for a specific database** but
+              does not grant access to data.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>3. Cluster Administration Roles (For managing MongoDB clusters)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">clusterAdmin</span></td>
+            <td>
+              Grants full control over the cluster, including managing shards,
+              replica sets, and configuration settings.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">clusterManager</span></td>
+            <td>
+              Allows managing the cluster but does not allow administrative
+              tasks like user creation.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">clusterMonitor</span></td>
+            <td>
+              Grants **read-only** access to cluster status and monitoring
+              information.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">hostManager</span></td>
+            <td>
+              Allows managing servers but **not** making database-level changes.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4. Backup and Restore Roles (For managing database backups)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">backup</span></td>
+            <td>
+              Allows the user to **perform backups** but does not allow
+              modifying data.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">restore</span></td>
+            <td>
+              Allows the user to **restore backups** but does not allow
+              modifying collections directly.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5. All-Database Roles (For managing multiple databases)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">readAnyDatabase</span></td>
+            <td>Grants **read access** to all databases on the server.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">readWriteAnyDatabase</span></td>
+            <td>
+              Grants **read and write access** to all databases on the server.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">userAdminAnyDatabase</span></td>
+            <td>Allows creating and managing users **for all databases**.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">dbAdminAnyDatabase</span></td>
+            <td>
+              Grants administrative privileges **for all databases**, including
+              index and validation management.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>6. Superuser Role (For full server access)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">root</span></td>
+            <td>
+              Grants **full access** to all databases, collections, users, and
+              settings. The highest privilege level in MongoDB.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>7. Custom Roles (For specific needs)</h3>
+      <p>MongoDB allows creating **custom roles** with specific privileges:</p>
+      <div class="code-lang">javascript</div>
+      <pre>
+<span class="prop">db</span><span class="op">.</span><span class="func">createRole</span><span class="op">(</span><span class="op">{</span>
+  <span class="prop">role</span><span class="op">:</span> <span class="str">"insertOnly"</span><span class="op">,</span>
+  <span class="prop">privileges</span><span class="op">:</span> <span class="op">[</span><span class="op">{</span> <span class="prop">resource</span><span class="op">:</span> <span class="op">{</span> <span class="prop">db</span><span class="op">:</span> <span class="str">"myDatabase"</span><span class="op">,</span> <span class="prop">collection</span><span class="op">:</span> <span class="str">""</span> <span class="op">}</span><span class="op">,</span> <span class="prop">actions</span><span class="op">:</span> <span class="op">[</span><span class="str">"insert"</span><span class="op">]</span> <span class="op">}</span><span class="op">]</span><span class="op">,</span>
+  <span class="prop">roles</span><span class="op">:</span> <span class="op">[]</span>
+<span class="op">}</span><span class="op">)</span>
+    </pre>
+
+      <h4>Which Roles to Use?</h4>
+      <ul>
+        <li>For developers &rarr; <span class="prop">readWrite</span></li>
+        <li>
+          For database administrators &rarr; <span class="prop">dbAdmin</span>,
+          <span class="prop">userAdmin</span>
+        </li>
+        <li>For monitoring &rarr; <span class="prop">clusterMonitor</span></li>
+        <li>
+          For backups &rarr; <span class="prop">backup</span>,
+          <span class="prop">restore</span>
+        </li>
+        <li>For super admins &rarr; <span class="prop">root</span></li>
+      </ul>
+
+      <hr />
+
+      <h2>Additional MongoDB Roles Not Covered in the Previous List 🚀</h2>
+      <p>
+        MongoDB has several other built-in roles that may be useful in specific
+        use cases. Below is a list of roles that were **not included** in the
+        previous markdown file.
+      </p>
+
+      <h3>1. Internal Roles (Used by MongoDB internally)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">__system</span></td>
+            <td>
+              A special role with **unrestricted access**. This role is **not**
+              meant to be assigned to users.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>2. Roles Related to Specific Operations</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">restore</span></td>
+            <td>
+              Grants the ability to **restore** database backups, but does not
+              allow modifying collections.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">readWriteAnyDatabase</span></td>
+            <td>
+              Provides **readWrite** access to **all** databases on the server.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>
+        3. Internal Replication & Sharding Roles (Used in Replica Sets & Sharded
+        Clusters)
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">readWriteInternal</span></td>
+            <td>
+              Grants read and write privileges to **internal system
+              operations**.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">enableSharding</span></td>
+            <td>Allows enabling **sharding** for databases.</td>
+          </tr>
+          <tr>
+            <td><span class="prop">clusterMonitor</span></td>
+            <td>
+              Provides **read-only access** to cluster status and monitoring
+              tools.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">clusterManager</span></td>
+            <td>
+              Allows **managing** the cluster, but not modifying user
+              permissions.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">hostManager</span></td>
+            <td>
+              Grants permissions to manage servers but does **not** allow
+              modifying database-level settings.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>4. Auditing & Security Roles</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">auditAdmin</span></td>
+            <td>
+              Allows managing **audit configurations** but does not modify user
+              access.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="prop">backup</span></td>
+            <td>Grants permission to **perform backups** of the database.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>5. Special System Roles</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Meaning</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="prop">root</span></td>
+            <td>
+              The **highest-level** role with full access to **all** databases,
+              collections, users, and settings.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4>Which Additional Roles Should You Use?</h4>
+      <ul>
+        <li>
+          For managing replica sets &rarr;
+          <span class="prop">clusterMonitor</span>,
+          <span class="prop">clusterManager</span>
+        </li>
+        <li>
+          For backups and recovery &rarr; <span class="prop">backup</span>,
+          <span class="prop">restore</span>
+        </li>
+        <li>For security audits &rarr; <span class="prop">auditAdmin</span></li>
+        <li>For sharding &rarr; <span class="prop">enableSharding</span></li>
+      </ul>
+      <p>
+        These roles provide additional control in **specialized MongoDB
+        deployments**.
+      </p>
+    </div>
+  </body>
+</html>

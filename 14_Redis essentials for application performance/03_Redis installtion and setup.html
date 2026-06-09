@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis Installation and Basic Setup Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Dark Theme (Blakish) */
+      body {
+        background-color: #1e1e1e; /* VSCode Dark Background */
+        color: #d4d4d4; /* Light Text */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 25px;
+        margin: 0;
+      }
+
+      /* General Content Styling */
+      h1,
+      h2,
+      h3,
+      h4 {
+        color: #569cd6; /* VSCode Blue for headings */
+        border-bottom: 2px solid #569cd650;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+      }
+      h2 {
+        font-size: 1.6em;
+      }
+      h3 {
+        font-size: 1.2em;
+      }
+      p {
+        margin-bottom: 15px;
+      }
+      strong {
+        color: #ce9178;
+      } /* VSCode Orange/Red for emphasis */
+
+      /* Lists */
+      ol,
+      ul {
+        padding-left: 20px;
+      }
+      li {
+        margin-bottom: 10px;
+      }
+      ol li:before {
+        color: #4ec9b0; /* Green/Teal */
+        font-weight: bold;
+        margin-right: 5px;
+      }
+      ul.components li:before {
+        content: '•';
+        color: #ffd700; /* Gold/Yellow */
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Code Block Styling (VSCode Dark Theme) */
+      pre {
+        background-color: #1f1f1f; /* Slightly lighter black for code */
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        border: 1px solid #3c3c3c;
+      }
+
+      /* Syntax Highlighting Mock */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .string {
+        color: #ce9178;
+      } /* Orange/Red */
+      .variable {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .bash-prompt {
+        color: #9cdcfe;
+      } /* Light Blue for prompt */
+      .output {
+        color: #d7ba7d;
+      } /* Output color */
+      .note {
+        color: #ffd700;
+        font-weight: bold;
+        background-color: #333315;
+        padding: 5px;
+        border-radius: 4px;
+        display: inline-block;
+      }
+      .analogy {
+        color: #4ec9b0;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1><span class="variable">⚙️</span> Redis Installation and Basic Setup</h1>
+
+    <section>
+      <h2>1. Redis Components Explained</h2>
+      <p>Think of Redis like a car:</p>
+
+      <ul class="components">
+        <li>
+          <h3><span class="analogy">redis-server</span> (The Engine)</h3>
+          <p>
+            This is the **main application**. It runs in the background, holds
+            the data in **RAM**, and processes requests. If this isn't running,
+            nothing works.
+          </p>
+        </li>
+        <li>
+          <h3>
+            <span class="analogy">redis-cli</span> (The Dashboard/Steering
+            Wheel)
+          </h3>
+          <p>
+            This stands for **Command Line Interface**. It is a terminal tool
+            installed with Redis. You type commands here (like
+            <span class="keyword">SET</span>, <span class="keyword">GET</span>)
+            to talk directly to the <span class="analogy">redis-server</span>.
+          </p>
+        </li>
+        <li>
+          <h3><span class="analogy">redis-client</span> (The Driver)</h3>
+          <p>
+            This refers to the **library used in your code** (Node.js, Python,
+            Java) to talk to the server. For example, the
+            <span class="keyword">npm install redis</span> package in Node.js is
+            a "redis client."
+          </p>
+        </li>
+        <li>
+          <h3>
+            <span class="analogy">Redis Insight</span> (The GPS/Diagnostic
+            Tablet)
+          </h3>
+          <p>
+            This is a separate **GUI** (Graphical User Interface) software you
+            download on your computer. It lets you **visualize your Redis
+            data**, view charts, edit values using a mouse, and debug
+            performance without typing terminal commands.
+          </p>
+        </li>
+      </ul>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>2. How to Install Redis on WSL Ubuntu</h2>
+      <p>
+        The commands below are the correct official commands from Redis to get
+        the latest version. Here is the step-by-step execution:
+      </p>
+
+      <h3>Step 1: Add the GPG Key</h3>
+      <p>This ensures your Linux system trusts the package from Redis.</p>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">curl</span> -fsSL https://packages.redis.io/gpg | <span class="keyword">sudo gpg</span> --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg</pre>
+
+      <h3>Step 2: Add the Repository</h3>
+      <p>This tells your system where to download Redis from.</p>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">echo</span> "<span class="string">deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main</span>" | <span class="keyword">sudo tee</span> /etc/apt/sources.list.d/redis.list</pre>
+
+      <h3>Step 3: Update and Install</h3>
+      <p>Refresh your package list and install the software.</p>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">sudo apt-get update</span>
+<span class="keyword">sudo apt-get install redis</span></pre>
+      <p>
+        <span class="note"
+          >Note: In the official repo, the package is named
+          <strong>redis</strong>.</span
+        >
+      </p>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>3. How to Start Redis as a Background Service</h2>
+      <p>
+        In WSL, you typically use the
+        <span class="keyword">service</span> command (SysVinit) instead of
+        <span class="keyword">systemd</span> (though
+        <span class="keyword">service</span> is more reliable across different
+        WSL configurations).
+      </p>
+
+      <h3>To start Redis in the background (daemon mode):</h3>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">sudo service redis-server start</span></pre>
+      <p>
+        <span class="note"
+          >Note: Even though the package is named <strong>redis</strong>, the
+          service executable is named <strong>redis-server</strong>.</span
+        >
+      </p>
+
+      <h3>To stop Redis:</h3>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">sudo service redis-server stop</span></pre>
+
+      <h3>To restart Redis:</h3>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">sudo service redis-server restart</span></pre>
+    </section>
+
+    <hr />
+
+    <section>
+      <h2>4. How to Check Status</h2>
+
+      <h3>Method A: Check the service status</h3>
+      <p>This tells you if the background process is active.</p>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">sudo service redis-server status</span></pre>
+      <p>
+        <span class="note"
+          >Output should say <strong>active (running)</strong>.</span
+        >
+      </p>
+
+      <h3>Method B: Ping the server (The best test)</h3>
+      <p>
+        Use the <span class="keyword">redis-cli</span> to ping the server. If
+        it's working, it replies **"PONG"**.
+      </p>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">redis-cli ping</span></pre>
+      <pre><span class="output">Output: PONG</span></pre>
+
+      <h3>Method C: Connect to the console</h3>
+      <p>Enter the interactive mode.</p>
+      <pre><span class="bash-prompt">Bash</span>
+<span class="keyword">redis-cli</span></pre>
+      <pre><span class="output">Output: 127.0.0.1:6379> (You are now inside Redis).</span></pre>
+      <a
+        style="color: yellow"
+        href="https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-redis/install-redis-on-windows/"
+        >Learn more about redis installtion and setup</a
+      >
+    </section>
+  </body>
+</html>

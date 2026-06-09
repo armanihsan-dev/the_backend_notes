@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS CloudShell Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h2><span class="icon">🟢</span> What is AWS CloudShell?</h2>
+    <p>
+      <strong class="kw">AWS CloudShell</strong> is a
+      <strong class="str">browser-based Linux terminal</strong> that gives you a
+      pre-authenticated command-line environment in the AWS Console. It allows
+      you to run <strong class="kw">AWS CLI</strong>, scripts, and development
+      tools directly in your browser — with
+      <strong class="str">no local setup required</strong>.
+    </p>
+
+    <h3><span class="icon">🖥️</span> ✅ It’s a Real Linux System</h3>
+    <p>
+      When you launch CloudShell, you are given access to a
+      <strong class="str">Linux virtual machine</strong> running in your chosen
+      AWS region.
+    </p>
+
+    <h4>✅ Linux Environment Details:</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong class="kw">OS</strong></td>
+          <td>Amazon Linux 2 (a CentOS/RHEL-like distro)</td>
+        </tr>
+        <tr>
+          <td><strong class="kw">CPU</strong></td>
+          <td>2 vCPUs (shared)</td>
+        </tr>
+        <tr>
+          <td><strong class="kw">RAM</strong></td>
+          <td>~4 GB</td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Disk Space</strong></td>
+          <td>
+            1 GB of <strong class="prop">persistent storage</strong> at
+            <code class="prop">/home/cloudshell-user</code>
+          </td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Session timeout</strong></td>
+          <td>Inactive sessions are stopped after ~20–30 minutes</td>
+        </tr>
+        <tr>
+          <td><strong class="kw">Session limit</strong></td>
+          <td>Max 20 concurrent sessions (soft quota)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3><span class="icon">🔧</span> How to Check System Configuration</h3>
+    <p>Once inside CloudShell, run these commands:</p>
+    <ul>
+      <li>
+        <strong class="kw">✅ OS and Kernel</strong>
+        <pre><code class="language-bash"><span class="dir">uname -a</span>
+<span class="dir">cat /etc/os-release</span></code></pre>
+      </li>
+      <li>
+        <strong class="kw">✅ CPU Info</strong>
+        <pre><code class="language-bash"><span class="dir">lscpu</span></code></pre>
+      </li>
+      <li>
+        <strong class="kw">✅ Memory Info</strong>
+        <pre><code class="language-bash"><span class="dir">free -h</span></code></pre>
+      </li>
+      <li>
+        <strong class="kw">✅ Disk Space</strong>
+        <pre><code class="language-bash"><span class="dir">df -h</span></code></pre>
+      </li>
+      <li>
+        <strong class="kw">✅ Installed Tools</strong>
+        <pre><code class="language-bash"><span class="dir">aws --version</span>
+<span class="dir">node -v</span>
+<span class="dir">npm -v</span>
+<span class="dir">python3 --version</span>
+<span class="dir">git --version</span></code></pre>
+      </li>
+    </ul>
+    <p>You’ll find tools like:</p>
+    <ul>
+      <li><code class="prop">aws cli</code></li>
+      <li>
+        <code class="prop">git</code>, <code class="prop">zip</code>,
+        <code class="prop">unzip</code>
+      </li>
+      <li>
+        <code class="prop">python3</code>, <code class="prop">node</code>,
+        <code class="prop">npm</code>
+      </li>
+      <li><code class="prop">docker</code> (limited)</li>
+      <li>
+        <code class="prop">bash</code>, <code class="prop">tmux</code>,
+        <code class="prop">vim</code>, <code class="prop">nano</code>, etc.
+      </li>
+    </ul>
+
+    <h3><span class="icon">📦</span> Persistent File Storage</h3>
+    <p>
+      The directory <code class="prop">/home/cloudshell-user</code> is
+      <strong class="str">persisted across sessions</strong>. Max size:
+      <strong class="str">1 GB</strong>. Use it to save scripts, config files,
+      or credentials.
+    </p>
+
+    <h3>
+      <span class="icon">🧑‍💻🔐</span> How AWS CloudShell Is Tied to Each User
+    </h3>
+    <p>CloudShell is user-specific and region-specific.</p>
+    <p>
+      It is automatically provisioned for each
+      <strong class="kw">IAM user</strong> or
+      <strong class="kw">federated identity (SSO/STS)</strong>.
+    </p>
+    <p>
+      The environment is
+      <strong class="str">pre-authenticated with that user's credentials</strong
+      >, so anything you do (e.g., <code class="dir">aws s3 ls</code>) is
+      performed as <strong class="str">you</strong>.
+    </p>
+
+    <h4>✅ So:</h4>
+    <ul>
+      <li>
+        Your CloudShell environment belongs to
+        <strong class="str">you only</strong>.
+      </li>
+      <li>
+        You
+        <strong class="op">cannot access another user's CloudShell</strong> or
+        files.
+      </li>
+      <li>
+        Each AWS <strong class="kw">region</strong> has a
+        <strong class="str">separate CloudShell environment</strong>, including
+        its own 1 GB of storage.
+      </li>
+    </ul>
+
+    <h3><span class="icon">💾</span> What About Storage?</h3>
+    <h4>
+      ✅ Persistent Storage: <code class="prop">/home/cloudshell-user</code>
+    </h4>
+    <ul>
+      <li>
+        You get <strong class="str">1 GB of persistent storage</strong> per
+        region.
+      </li>
+      <li>
+        This storage is
+        <strong class="str">persisted across sessions and reboots</strong>.
+      </li>
+      <li>
+        Your files, scripts, and CLI history remain intact as long as:
+        <ul>
+          <li>Your <strong class="kw">AWS account is active</strong></li>
+          <li>
+            Your
+            <strong class="kw"
+              >IAM user (or federated identity) is not deleted</strong
+            >
+          </li>
+        </ul>
+      </li>
+    </ul>
+    <p>
+      <span class="icon">🔐</span> It acts like a small Linux home directory
+      tied to your IAM identity in that region.
+    </p>
+
+    <h3><span class="icon">🔁</span> When Is It Deleted?</h3>
+    <p>
+      Your CloudShell storage is
+      <strong class="str">retained indefinitely</strong>, unless:
+    </p>
+    <ul>
+      <li>
+        You or your admin
+        <strong class="kw">delete your IAM user or role</strong>.
+      </li>
+      <li>
+        You <strong class="kw">manually delete files</strong> using
+        <code class="dir">rm</code> or similar.
+      </li>
+      <li>
+        You explicitly choose to
+        <strong class="kw">delete CloudShell storage</strong> via the AWS
+        Console.
+      </li>
+    </ul>
+    <p>
+      <strong class="kw">There is no auto-deletion</strong> of CloudShell
+      storage as long as your user exists.
+    </p>
+
+    <h3>✅ When to Use CloudShell</h3>
+    <ul>
+      <li>You don’t want to set up AWS CLI on your local machine</li>
+      <li>
+        You need to <strong class="str">quickly test something</strong> in your
+        account
+      </li>
+      <li>
+        You want to run shell scripts or deploy infrastructure from a browser
+      </li>
+      <li>
+        You're using a <strong class="str">shared/public device</strong> but
+        still need secure access
+      </li>
+    </ul>
+  </body>
+</html>

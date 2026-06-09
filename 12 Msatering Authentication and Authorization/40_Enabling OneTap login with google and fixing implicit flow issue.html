@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Google Identity Services (GSI) Deep Dive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        /* Blackish/Dark Theme Variables */
+        --bg-primary: #1e1e1e; /* VS Code dark background */
+        --bg-secondary: #252526; /* Code block/card background */
+        --text-primary: #d4d4d4; /* Light grey text */
+        --text-secondary: #cccccc; /* Slightly darker text for contrast */
+        --accent-blue: #569cd6; /* VS Code keyword blue */
+        --accent-yellow: #dcdcaa; /* VS Code variable/function yellow */
+        --accent-green: #6a9955; /* VS Code comment green */
+        --accent-orange: #ce9178; /* VS Code string orange */
+        --code-bg: #1f1f1f;
+        --hr-color: #555;
+        --header-color: #8c8c8c;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: auto;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--header-color);
+        border-bottom: 2px solid var(--hr-color);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+        color: var(--text-primary);
+      }
+      h3 {
+        font-size: 1.4em;
+        color: var(--text-secondary);
+      }
+
+      p,
+      li {
+        font-size: 1em;
+        margin-bottom: 10px;
+      }
+
+      .note-block {
+        background-color: var(--bg-secondary);
+        padding: 15px;
+        border-left: 4px solid var(--accent-blue);
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+
+      /* --- Code Block Styling (VS Code Dark Theme) --- */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        line-height: 1.4;
+      }
+
+      .code-line {
+        display: block;
+        white-space: pre;
+      }
+
+      .kw {
+        color: var(--accent-blue);
+      } /* Keyword (const, function, class, new) */
+      .str {
+        color: var(--accent-orange);
+      } /* String */
+      .cmt {
+        color: var(--accent-green);
+      } /* Comment */
+      .var {
+        color: var(--accent-yellow);
+      } /* Variable */
+      .prp {
+        color: #9cdcfe;
+      } /* Property/Method */
+      .num {
+        color: #b5cea8;
+      } /* Number */
+      .tag {
+        color: #569cd6;
+      } /* HTML Tag */
+      .att {
+        color: #9cdcfe;
+      } /* HTML Attribute */
+      .val {
+        color: #ce9178;
+      } /* HTML Value */
+
+      .table-container {
+        overflow-x: auto;
+        margin: 20px 0;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+
+      th,
+      td {
+        padding: 12px;
+        border-bottom: 1px solid var(--hr-color);
+      }
+
+      th {
+        background-color: #383838;
+        color: var(--text-primary);
+      }
+
+      strong {
+        color: #ffd700; /* Gold for emphasis */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Enabling OneTap login with google and fixing implicit flow issue</h1>
+      <h1>Google Sign-In (GSI) Deep Dive Notes</h1>
+      <p>
+        That's a comprehensive set of questions about Google Sign-In (GSI). GSI
+        is now part of the **Google Identity Services (GIS)** platform, which
+        simplifies authentication and authorization.
+      </p>
+      <p>
+        Here is a deep dive into the GSI library, one-tap login, the implicit
+        flow, and the migration to FedCM.
+      </p>
+
+      <hr />
+
+      <h2>🔑 What is Google Sign-In (GSI) / Google Identity Services (GIS)?</h2>
+      <div class="note-block">
+        <p>
+          The **Google Sign-In (GSI)** library is part of the **Google Identity
+          Services (GIS)** platform. It's a suite of tools designed to provide
+          quick and secure user authentication and authorization using a user's
+          existing Google Account.
+        </p>
+        <ul>
+          <li>
+            <strong>Primary Goal:</strong> To offer a streamlined and consistent
+            sign-in experience across third-party websites and applications,
+            significantly reducing sign-up friction for users.
+          </li>
+          <li>
+            <strong>Key Components:</strong> The most well-known features are
+            the "Sign In with Google" Button and the "**Google One Tap**"
+            prompt.
+          </li>
+          <li>
+            <strong>Mechanism:</strong> GSI primarily uses an **ID token** (a
+            JSON Web Token or JWT) which is a signed assertion of the user's
+            identity, containing their basic profile information (name, email,
+            profile picture) with their consent.
+          </li>
+        </ul>
+      </div>
+
+      <hr />
+
+      <h2>👆 Enabling One-Tap Login</h2>
+      <p>
+        **Google One Tap** is a key feature of GSI that enables a **one-tap
+        login** experience for users who are already signed into their Google
+        Account. Instead of a full-page redirect, a subtle, non-intrusive prompt
+        appears on your website.
+      </p>
+
+      <h3>1. Setup (HTML & JavaScript)</h3>
+      <p>
+        Before using One Tap, you must load the GIS client library and
+        initialize it with your <code>client_id</code>.
+      </p>
+      <h4>HTML (Load Script):</h4>
+      <p>This script loads the library asynchronously.</p>
+      <pre><code class="html">
+            <span class="tag">&lt;script</span> <span class="att">src</span>=<span class="val">"https://accounts.google.com/gsi/client"</span> <span class="att">async</span> <span class="att">defer</span><span class="tag">&gt;&lt;/script&gt;</span>
+        </code></pre>
+
+      <h3>2. Implementation with HTML (Declarative Syntax)</h3>
+      <p>
+        The simplest way is to use a dedicated HTML container (<code>div</code>)
+        and data attributes. The library automatically finds this element, reads
+        the attributes, initializes, and displays the prompt.
+      </p>
+      <h4>HTML Syntax:</h4>
+      <pre><code class="html">
+            <span class="tag">&lt;div</span> <span class="att">id</span>=<span class="val">"g_id_onload"</span>
+                 <span class="att">data-client_id</span>=<span class="val">"YOUR_GOOGLE_CLIENT_ID"</span>
+                 <span class="att">data-callback</span>=<span class="val">"handleCredentialResponse"</span>
+                 <span class="att">data-auto_prompt</span>=<span class="val">"true"</span><span class="tag">&gt;&lt;/div&gt;</span>
+        </code></pre>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Attribute</th>
+              <th>Definition</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>data-client_id</code></td>
+              <td>
+                Your application's client ID from the Google Cloud Console.
+              </td>
+            </tr>
+            <tr>
+              <td><code>data-callback</code></td>
+              <td>
+                The name of the JavaScript function (<code
+                  >handleCredentialResponse</code
+                >
+                in this case) that will process the returned ID token.
+              </td>
+            </tr>
+            <tr>
+              <td><code>data-auto_prompt</code></td>
+              <td>
+                If set to true, it triggers the One Tap prompt automatically.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>3. Implementation with JavaScript (Programmatic Syntax)</h3>
+      <p>
+        For more control, you can initialize and call the prompt
+        programmatically in JavaScript.
+      </p>
+      <h4>JavaScript Syntax:</h4>
+      <pre><code>
+            <span class="kw">window</span>.<span class="prp">onload</span> = <span class="kw">function</span> () {
+                <span class="var">google</span>.<span class="prp">accounts</span>.<span class="prp">id</span>.<span class="prp">initialize</span>({
+                    <span class="prp">client_id</span>: <span class="str">"YOUR_GOOGLE_CLIENT_ID"</span>,
+                    <span class="prp">callback</span>: <span class="prp">handleCredentialResponse</span>,
+                    <span class="cmt">// Optional configuration for auto-select/one-tap prompt</span>
+                    <span class="cmt">// auto_select: true </span>
+                });
+
+                <span class="var">google</span>.<span class="prp">accounts</span>.<span class="prp">id</span>.<span class="prp">prompt</span>(); <span class="cmt">// Displays the One Tap prompt</span>
+            }
+
+            <span class="kw">function</span> <span class="prp">handleCredentialResponse</span>(<span class="var">response</span>) {
+                <span class="cmt">// This function receives the credential response object</span>
+                <span class="kw">const</span> <span class="var">id_token</span> = <span class="var">response</span>.<span class="prp">credential</span>;
+                
+                <span class="cmt">// **IMPORTANT:** Send this ID token to your backend for verification.</span>
+                <span class="cmt">// fetch('/api/verify-token', { method: 'POST', body: JSON.stringify({ token: id_token }) });</span>
+            }
+        </code></pre>
+
+      <hr />
+
+      <h2>🔒 GSI and the Implicit Flow Issue (Security)</h2>
+      <p>
+        The **Implicit Flow** is an older OAuth 2.0 flow where the access token
+        is returned directly to the client (browser-side) in the URL fragment.
+        This is generally considered **insecure** for modern Single Page
+        Applications (SPAs) because:
+      </p>
+      <ul>
+        <li>
+          <strong>Token Exposure:</strong> The token is exposed in the browser's
+          URL, which can be vulnerable to leakage through browser history,
+          referrer headers, or third-party JavaScript running on the page.
+        </li>
+        <li>
+          <strong>No Client Authentication:</strong> The client cannot prove its
+          identity when requesting the token.
+        </li>
+      </ul>
+
+      <h3>How GSI Fixes the Implicit Flow Issue Securely</h3>
+      <p>
+        The key to GSI's security is that it **avoids the traditional vulnerable
+        Implicit Flow** by not returning a sensitive **Access Token** to the
+        browser in the URL fragment. Instead, it relies on the **ID Token
+        (JWT)** and a secure delivery mechanism.
+      </p>
+      <ul>
+        <li>
+          **ID Token over Access Token:** GSI focuses on **Authentication**
+          (proving who the user is) using the JWT ID token, not
+          **Authorization** (granting access to APIs) using an OAuth Access
+          Token.
+        </li>
+        <li>
+          **Secure Delivery:** The ID token is **POSTed** directly to a
+          JavaScript callback function (or to your backend endpoint if using the
+          HTML-only flow).
+        </li>
+        <li>
+          **Server-Side Verification:** The most critical step is that you
+          **must** send the received ID token to your **backend server** for
+          verification. This token is a signed JWT. Your server uses Google's
+          public keys to verify the signature, ensuring:
+          <ul>
+            <li>The token is authentic (was issued by Google).</li>
+            <li>The token hasn't been tampered with.</li>
+            <li>
+              The token is meant for your specific application (<code>aud</code>
+              claim matches your <code>client_id</code>).
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <p>
+        By moving the trust boundary to the **server-side verification** of a
+        signed ID token, GSI achieves a secure authentication mechanism that
+        bypasses the security risks associated with exposing tokens client-side
+        in the URL.
+      </p>
+
+      <hr />
+
+      <h2>🌐 GSI's Seamless Migration to FedCM</h2>
+      <p>
+        **FedCM (Federated Credential Management)** is a new browser API
+        designed to enable privacy-preserving identity federation. It is a
+        response to browser changes that limit or remove **third-party
+        cookies**, which federated sign-in methods (like GSI) historically
+        relied upon for silent sign-in and identifying active user sessions.
+      </p>
+
+      <h3>How GSI is Migrating Seamlessly to FedCM</h3>
+      <p>
+        The Google Identity Services (GIS) library is designed to
+        **automatically** adopt the FedCM API when the user's browser supports
+        it and the feature is enabled in your configuration.
+      </p>
+      <ul>
+        <li>
+          <strong>Privacy Protection:</strong> FedCM ensures that the browser
+          (not your website) controls the sign-in prompt and the flow of
+          information. The browser only contacts Google's Identity Provider
+          endpoints **after** the user gives explicit consent via the browser's
+          native UI. This prevents third-party tracking.
+        </li>
+        <li>
+          <strong>Configuration Flag:</strong> You migrate by simply adding a
+          boolean flag (<code>use_fedcm_for_prompt</code>) to your GSI
+          initialization:
+        </li>
+      </ul>
+      <h4>JavaScript Migration:</h4>
+      <pre><code>
+            <span class="var">google</span>.<span class="prp">accounts</span>.<span class="prp">id</span>.<span class="prp">initialize</span>({
+                <span class="prp">client_id</span>: <span class="str">"YOUR_GOOGLE_CLIENT_ID"</span>,
+                <span class="prp">callback</span>: <span class="prp">handleCredentialResponse</span>,
+                <span class="cmt">// New flag to enable FedCM flow</span>
+                <span class="prp">use_fedcm_for_prompt</span>: <span class="kw">true</span> 
+            });
+        </code></pre>
+      <ul>
+        <li>
+          <strong>No Code Change for Callbacks:</strong> Critically, the
+          structure of your application's logic (your
+          <code>handleCredentialResponse</code> function and your backend
+          verification process) generally **does not need to change**. The GIS
+          library handles the underlying switch in how the ID token is fetched,
+          ensuring a seamless transition for the developer and a more private
+          experience for the user.
+        </li>
+      </ul>
+
+      <hr />
+      <h2>Verify id_token for more security</h2>
+      <p>
+        That's a solid and robust approach to handling Google Sign-In on your
+        Node.js server. The provided code correctly implements **server-side
+        verification** of the ID token using the recommended
+        <code>google-auth-library</code>.
+      </p>
+      <p>
+        To make the process clearer and more secure, I'll organize the
+        explanation of the three key components and provide a small necessary
+        correction/refinement to your server-side logic.
+      </p>
+
+      <hr />
+
+      <h2>🔎 ID Token Verification Flow</h2>
+      <p>
+        The process you've implemented is the **most secure method** for GSI
+        authentication, relying on the signed **JSON Web Token (JWT)**, or **ID
+        Token**.
+      </p>
+
+      <h3>
+        1. The <code>verifyingGoogleIDToken</code> Function (The Core Security
+        Step)
+      </h3>
+      <p>
+        This is where the magic (and security) happens. The
+        <code>google-auth-library</code> handles all the complex cryptographic
+        verification automatically.
+      </p>
+      <pre><code>
+            <span class="kw">import</span> { <span class="var">OAuth2Client</span> } <span class="kw">from</span> <span class="str">'google-auth-library'</span>
+
+            <span class="kw">const</span> <span class="var">clientId</span> = <span class="str">'1096232866015-jfcvs9bmms1iedc8mutklj0c7dfjrcms.apps.googleusercontent.com'</span>
+            <span class="kw">const</span> <span class="var">client</span> = <span class="kw">new</span> <span class="var">OAuth2Client</span>(<span class="var">clientId</span>)
+
+            <span class="kw">export</span> <span class="kw">async function</span> <span class="prp">verifyingGoogleIDToken</span>(<span class="var">token</span>) {
+                <span class="kw">try</span> {
+                    <span class="kw">const</span> <span class="var">ticket</span> = <span class="kw">await</span> <span class="var">client</span>.<span class="prp">verifyIdToken</span>({ 
+                        <span class="prp">idToken</span>: <span class="var">token</span>, 
+                        <span class="prp">audience</span>: <span class="var">clientId</span> <span class="cmt">// CRITICAL: Ensures the token was meant for *your* application</span>
+                    })
+                    <span class="kw">const</span> <span class="var">payload</span> = <span class="var">ticket</span>.<span class="prp">getPayload</span>()
+                    <span class="kw">return</span> <span class="var">payload</span>
+                } <span class="kw">catch</span> (<span class="var">error</span>) {
+                    <span class="prp">console</span>.<span class="prp">error</span>(<span class="str">"Error during token verification:"</span>, <span class="var">error</span>);
+                    <span class="cmt">// Important: Re-throw the error or return a specific error state </span>
+                    <span class="cmt">// to handle it in the main route handler (app.post).</span>
+                    <span class="kw">throw new</span> <span class="var">Error</span>(<span class="str">"Invalid Google ID Token"</span>); 
+                }
+            }
+        </code></pre>
+      <h4>How it Works:</h4>
+      <ul>
+        <li>
+          <strong>Instantiate <code>OAuth2Client</code>:</strong> The
+          <code>OAuth2Client</code> is initialized with your
+          <code>clientId</code>.
+        </li>
+        <li>
+          <strong>Fetch Keys:</strong> The library automatically fetches and
+          caches Google's public signing keys.
+        </li>
+        <li>
+          <strong>Verification:</strong> The
+          <code>client.verifyIdToken()</code> method performs several crucial
+          security checks:
+          <ul>
+            <li>
+              <strong>Signature Check:</strong> It verifies the cryptographic
+              signature on the JWT against Google's public keys, ensuring the
+              token hasn't been tampered with and was issued by Google.
+            </li>
+            <li>
+              <strong>Expiration Check (<code>exp</code> claim):</strong> It
+              checks that the token has not expired.
+            </li>
+            <li>
+              <strong>Issuer Check (<code>iss</code> claim):</strong> It
+              verifies that the token was issued by Google (<code
+                >accounts.google.com</code
+              >
+              or <code>https://accounts.google.com</code>).
+            </li>
+            <li>
+              <strong>Audience Check (<code>aud</code> claim):</strong> This is
+              **crucial**. It confirms the token was issued specifically for
+              **your** application by comparing the token's audience claim
+              against the <code>clientId</code> you pass, preventing an attacker
+              from using a token issued for another application.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Payload Return:</strong> If all checks pass, it returns the
+          decoded, verified payload (e.g., <code>sub</code>, <code>email</code>,
+          <code>name</code>, <code>picture</code>).
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>💻 Node.js Server Route (<code>/auth/google</code>)</h2>
+      <p>
+        Your server-side logic handles the received ID token, performs the
+        verification, and manages your user session.
+      </p>
+      <pre><code>
+            <span class="var">app</span>.<span class="prp">post</span>(<span class="str">"/auth/google"</span>, <span class="kw">async</span> (<span class="var">req</span>, <span class="var">res</span>) => {
+                <span class="kw">const</span> { <span class="var">id_token</span> } = <span class="var">req</span>.<span class="prp">body</span>;
+
+                <span class="kw">if</span> (!<span class="var">id_token</span>) {
+                    <span class="cmt">// Handle missing token (this block can be simplified if front-end ensures token)</span>
+                    <span class="kw">const</span> <span class="var">error</span> = <span class="var">req</span>.<span class="prp">query</span>.<span class="prp">error</span> || <span class="str">'no_token_provided'</span>;
+                    <span class="kw">return</span> <span class="var">res</span>.<span class="prp">status</span>(<span class="num">400</span>).<span class="prp">json</span>({ <span class="prp">error</span>: <span class="str">"No ID token received."</span> });
+                }
+
+                <span class="kw">try</span> {
+                    <span class="cmt">// Step 1: Verify Google ID token (throws an error if verification fails)</span>
+                    <span class="kw">const</span> <span class="var">userPayload</span> = <span class="kw">await</span> <span class="prp">verifyingGoogleIDToken</span>(<span class="var">id_token</span>);
+                    <span class="cmt">// Destructure confirmed identity information</span>
+                    <span class="kw">const</span> { <span class="prp">sub</span>: <span class="var">ID</span>, <span class="var">name</span>, <span class="var">email</span>, <span class="var">picture</span> } = <span class="var">userPayload</span>; 
+
+                    <span class="cmt">// Step 2 & 3: Check/Create user and Session Management (Logic is good)</span>
+                    <span class="cmt">// ... (userDB and sessionDB logic as provided) ...</span>
+
+                    <span class="cmt">// Step 4: Set cookie</span>
+                    <span class="var">res</span>.<span class="prp">cookie</span>(<span class="str">"sid"</span>, <span class="var">sessionId</span>, {
+                        <span class="prp">httpOnly</span>: <span class="kw">true</span>,
+                        <span class="prp">secure</span>: <span class="kw">process</span>.<span class="prp">env</span>.<span class="prp">NODE_ENV</span> === <span class="str">'production'</span>, <span class="cmt">// Use 'secure' in production</span>
+                        <span class="prp">sameSite</span>: <span class="str">"lax"</span>, 
+                        <span class="prp">maxAge</span>: <span class="num">7</span> * <span class="num">24</span> * <span class="num">60</span> * <span class="num">60</span> * <span class="num">1000</span>,
+                    });
+
+                    <span class="cmt">// Step 5: Respond (Correction)</span>
+                    <span class="cmt">// You cannot call both res.status().send() and res.redirect() on the same request.</span>
+                    <span class="cmt">// Choose one: If the frontend is handling the redirect (which is typical for GSI AJAX calls),</span>
+                    <span class="cmt">// just respond with a status and the user data.</span>
+                    <span class="var">res</span>.<span class="prp">status</span>(<span class="num">200</span>).<span class="prp">json</span>({ <span class="prp">user</span>: <span class="var">existingUser</span>, <span class="prp">sessionId</span> });
+                    
+                    <span class="cmt">// If you must redirect, you should not send the user data first:</span>
+                    <span class="cmt">// return res.redirect(`http://localhost:5500/callback.html?sid=${sessionId}`);</span>
+
+                } <span class="kw">catch</span> (<span class="var">error</span>) {
+                    <span class="prp">console</span>.<span class="prp">error</span>(<span class="str">"Authentication Error:"</span>, <span class="var">error</span>);
+                    <span class="var">res</span>.<span class="prp">status</span>(<span class="num">401</span>).<span class="prp">json</span>({ <span class="prp">error</span>: <span class="str">"Authentication failed. Invalid token."</span> }); <span class="cmt">// Use 401 for auth errors</span>
+                }
+            });
+        </code></pre>
+      <h4>Key Security Points in the Route:</h4>
+      <ul>
+        <li>
+          <strong>Server-Side Verification:</strong> This is the primary
+          security feature. If verification fails (e.g., modified token, wrong
+          audience), the <code>try...catch</code> block prevents authentication.
+        </li>
+        <li>
+          <strong>Secure Session Cookie:</strong>
+          <ul>
+            <li>
+              <code>httpOnly: true</code>: Prevents client-side JavaScript (XSS
+              attacks) from accessing the session cookie.
+            </li>
+            <li>
+              <code>sameSite: "lax"</code>: Provides protection against certain
+              Cross-Site Request Forgery (CSRF) attacks.
+            </li>
+            <li>
+              <code>secure: true</code> (in production): Ensures the cookie is
+              only sent over HTTPS.
+            </li>
+          </ul>
+        </li>
+        <li>
+          <strong>Error Handling:</strong> By catching the error from
+          <code>verifyingGoogleIDToken</code>, you prevent attackers from
+          gaining access with invalid credentials, responding with a secure
+          **401 Unauthorized** status.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>📄 Client-Side JavaScript (Frontend)</h2>
+      <p>
+        Your frontend code is responsible for initializing GSI, receiving the ID
+        token, and sending it to your secure backend endpoint.
+      </p>
+      <pre><code>
+            <span class="cmt">// ... (initialization code)</span>
+            <span class="kw">window</span>.<span class="prp">onload</span> = <span class="kw">function</span> () {
+                <span class="var">google</span>.<span class="prp">accounts</span>.<span class="prp">id</span>.<span class="prp">initialize</span>({
+                    <span class="prp">client_id</span>: <span class="str">'1096232866015-jfcvs9bmms1iedc8mutklj0c7dfjrcms.apps.googleusercontent.com'</span>,
+                    <span class="prp">callback</span>: <span class="kw">async</span> (<span class="var">Response</span>) => {
+                        <span class="kw">const</span> <span class="var">response</span> = <span class="kw">await</span> <span class="prp">userLoginWithIDToken</span>(<span class="var">Response</span>.<span class="prp">credential</span>)
+                        <span class="prp">console</span>.<span class="prp">log</span>(<span class="var">response</span>);
+                    }
+                });
+                <span class="var">google</span>.<span class="prp">accounts</span>.<span class="prp">id</span>.<span class="prp">renderButton</span>(<span class="kw">document</span>.<span class="prp">getElementById</span>(<span class="str">'google-login'</span>), {})
+                <span class="var">google</span>.<span class="prp">accounts</span>.<span class="prp">id</span>.<span class="prp">prompt</span>();
+            };
+
+            <span class="kw">async function</span> <span class="prp">userLoginWithIDToken</span>(<span class="var">id_token</span>) {
+
+                <span class="kw">const</span> <span class="var">baseURL</span> = <span class="str">'http://localhost:3000'</span>;
+                <span class="kw">const</span> <span class="var">response</span> = <span class="kw">await</span> <span class="prp">fetch</span>(`${<span class="var">baseURL</span>}/auth/google`, {
+                    <span class="prp">credentials</span>: <span class="str">'include'</span>, <span class="cmt">// Ensures the cookie can be set across domains/ports</span>
+                    <span class="prp">method</span>: <span class="str">'POST'</span>,
+                    <span class="prp">headers</span>: {
+                        <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>
+                    },
+                    <span class="prp">body</span>: <span class="prp">JSON</span>.<span class="prp">stringify</span>({ <span class="var">id_token</span> })
+                });
+
+                <span class="kw">const</span> <span class="var">data</span> = <span class="kw">await</span> <span class="var">response</span>.<span class="prp">json</span>()
+                <span class="prp">console</span>.<span class="prp">log</span>(<span class="var">data</span>);
+                <span class="kw">if</span> (<span class="var">response</span>.<span class="prp">status</span> === <span class="num">200</span>) {
+                    <span class="cmt">// Authentication successful, server set the session cookie.</span>
+                    <span class="cmt">// Now, redirect the user to the main app page.</span>
+                    <span class="kw">window</span>.<span class="prp">opener</span>.<span class="prp">postMessage</span>({ <span class="prp">message</span>: <span class="str">'success'</span> })
+                    <span class="prp">location</span>.<span class="prp">href</span> = <span class="str">'/'</span>
+                    <span class="kw">window</span>.<span class="prp">close</span>()
+                } <span class="kw">else</span> {
+                    <span class="cmt">// Handle error (e.g., show a message to the user)</span>
+                    <span class="prp">console</span>.<span class="prp">error</span>(<span class="str">"Login failed:"</span>, <span class="var">data</span>.<span class="prp">error</span>);
+                }
+                <span class="cmt">// No need to call window.opener.postMessage or window.close unless this is in a popup window flow.</span>
+            }
+        </code></pre>
+      <h4>Key Security Points on the Frontend:</h4>
+      <ul>
+        <li>
+          **HTTPS/CORS:** While testing locally, <code>localhost</code> is often
+          exempt from strict Same-Origin Policy. In production, ensure your
+          frontend is served over **HTTPS** and your CORS settings on the
+          Node.js server correctly allow the frontend domain.
+        </li>
+        <li>
+          **Credential Inclusion:** <code>credentials: 'include'</code> is
+          necessary for the browser to send any existing cookies with the
+          request and to accept the new <code>sid</code> cookie set by your
+          Node.js server.
+        </li>
+      </ul>
+      <p>
+        For more documentation visit here:
+        <a
+          href="https://developers.google.com/identity/gsi/web/tools/configurator"
+          >https://developers.google.com/identity/gsi/web/tools/configurator</a
+        >
+        or search on Google "**one tap login google**"
+      </p>
+    </div>
+  </body>
+</html>

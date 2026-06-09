@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CSRF Token Implementation Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Fira+Code:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styles for Blackish Theme (VS Code Dark) */
+      :root {
+        --color-background: #1e1e1e; /* VS Code Dark background */
+        --color-foreground: #d4d4d4; /* Text color */
+        --color-primary: #569cd6; /* Keyword blue */
+        --color-secondary: #c586c0; /* String/Tag color (Purple/Pink) */
+        --color-comment: #6a9955; /* Comment green */
+        --color-number: #b5cea8; /* Number/Boolean green */
+        --color-highlight: #4a4a4a; /* Subtle section background */
+        --color-key-point: #ffeaa7; /* Highlight yellow/orange */
+        --color-header-bg: #252526; /* Slightly darker header/code block frame */
+        --color-border: #333333; /* Subtle border */
+        --font-primary: 'Nunito', sans-serif;
+        --font-code: 'Fira Code', monospace;
+      }
+
+      body {
+        background-color: var(--color-background);
+        color: var(--color-foreground);
+        font-family: var(--font-primary);
+        line-height: 1.6;
+        margin: 0;
+        padding: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+        background-color: var(--color-header-bg); /* Dark container for notes */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: var(--color-primary);
+        font-weight: 700;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2em;
+        border-bottom: 2px solid var(--color-primary);
+        padding-bottom: 10px;
+      }
+
+      h2 {
+        font-size: 1.5em;
+        color: var(--color-foreground);
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      h3 {
+        font-size: 1.2em;
+        color: #ffd700; /* Gold color for section titles */
+      }
+
+      /* Text and Lists */
+      p {
+        margin: 15px 0;
+      }
+
+      strong {
+        color: var(--color-key-point);
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+        background-color: var(--color-highlight);
+        border-radius: 4px;
+        padding: 15px 20px 10px 40px;
+        margin: 15px 0;
+      }
+
+      li {
+        margin-bottom: 8px;
+        position: relative;
+        padding-left: 5px;
+      }
+
+      li::before {
+        content: '•';
+        color: var(--color-primary);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      .note {
+        font-style: italic;
+        color: #9cdcfe; /* Light blue for helpful notes */
+        border-left: 3px solid #9cdcfe;
+        padding-left: 10px;
+        margin: 15px 0;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme Replication) */
+      .code-block {
+        margin: 20px 0;
+        border-radius: 6px;
+        overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      }
+
+      .code-header {
+        background-color: #3e3e42; /* Tab/header color */
+        color: var(--color-foreground);
+        padding: 8px 15px;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+        border-bottom: 1px solid var(--color-border);
+      }
+
+      pre {
+        background-color: #2e2e2e; /* Code area background */
+        padding: 15px;
+        margin: 0;
+        overflow-x: auto;
+        font-family: var(--font-code);
+        font-size: 0.9em;
+        color: var(--color-foreground);
+        white-space: pre-wrap; /* Allows the JavaScript code to wrap */
+      }
+
+      /* Code Syntax Highlighting (Matching VS Code) */
+      .comment {
+        color: var(--color-comment);
+      }
+
+      .keyword {
+        color: var(--color-primary); /* Blue */
+      }
+
+      .string {
+        color: var(--color-secondary); /* Purple/Pink */
+      }
+
+      .number,
+      .boolean {
+        color: var(--color-number); /* Light green */
+      }
+
+      .command {
+        color: #4ec9b0; /* Terminal/Greenish color */
+      }
+
+      .property {
+        color: #9cdcfe; /* Light blue for property names */
+      }
+
+      /* HTML specific colors within code block */
+      .tag {
+        color: #808080;
+      }
+
+      .attr {
+        color: #9cdcfe;
+      }
+
+      /* Inline code styling */
+      code {
+        background-color: #3a3a3a;
+        color: #dcdcaa; /* Yellowish color for filenames/inline variables */
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: var(--font-code);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1><span class="emoji">🔑</span> What is a CSRF Token?</h1>
+      </header>
+
+      <section>
+        <p>
+          A **CSRF Token** (or **Anti-CSRF Token**) is a unique, secret, and
+          unpredictable value generated by the server and included in every
+          sensitive request (like POST, PUT, DELETE) that modifies data.
+        </p>
+        <p>
+          The purpose of a CSRF token is to protect your application when your
+          server must set a cookie with SameSite=None, ensuring secure
+          cross-site requests.
+        </p>
+      </section>
+
+      <section>
+        <h2>How it Prevents CSRF Attacks</h2>
+        <p>The CSRF Token employs the **Synchronizer Token Pattern**.</p>
+        <ul>
+          <li>
+            <strong>Server Generates and Stores:</strong> When the user loads a
+            form page (e.g., <code>/</code>), the server generates a unique
+            token and stores it in the user's **session** (or in a secure,
+            non-HTTP-only cookie).
+          </li>
+          <li>
+            <strong>Form Inclusion:</strong> The token is embedded as a **hidden
+            field** inside the HTML form.
+          </li>
+          <li>
+            <strong>Request Validation:</strong> When the user submits the form,
+            the token is sent in the request body along with the other form
+            data. The server then compares the token in the **request body** to
+            the token stored in the session/cookie.
+          </li>
+          <li>
+            <strong>Rejection:</strong> An attacker, operating from a different
+            domain, **cannot read the legitimate token** embedded in your form
+            due to the browser's **Same-Origin Policy**. Therefore, the forged
+            request they submit will either be missing the token or contain an
+            invalid one, causing the server to reject the transaction.
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h1>
+          <span class="emoji">🛠️</span> Generating and Implementing CSRF Token
+          in Your Express Server
+        </h1>
+        <p>
+          To implement CSRF protection, we'll use a widely adopted solution for
+          Node.js: the **csurf** middleware (which often requires the use of the
+          **express-session** middleware for session management, or a cookie
+          parser for storage).
+        </p>
+        <p>
+          Since your current server uses <code>cookie-parser</code> but not
+          <code>express-session</code>, we'll use a slightly different, common
+          setup that uses a package to generate and validate the token and store
+          the secret **in a cookie**.
+        </p>
+
+        <h3>Step 1: Install Required Packages</h3>
+        <p>
+          You will need the <code>csurf</code> middleware and a library to
+          generate unique IDs, like <code>uid-safe</code>.
+        </p>
+        <div class="code-block language-bash">
+          <div class="code-header">Bash</div>
+          <pre>
+<span class="command">npm install express-session csurf uid-safe</span>
+                </pre>
+        </div>
+        <p class="note">
+          (Note: We'll introduce <code>express-session</code> as it's the
+          standard way to handle the secret, making the solution more robust
+          than just cookie-based secrets.)
+        </p>
+
+        <h3>Step 2: Modify Your Server Code</h3>
+        <p>
+          Here is the updated and corrected server code using the standard
+          <code>express-session</code> and <code>csurf</code> implementation.
+        </p>
+
+        <div class="code-block language-javascript">
+          <div class="code-header">JavaScript</div>
+          <pre>
+<span class="keyword">import</span> express <span class="keyword">from</span> <span class="string">"express"</span>;
+<span class="keyword">import</span> cookieParser <span class="keyword">from</span> <span class="string">"cookie-parser"</span>;
+<span class="keyword">import</span> session <span class="keyword">from</span> <span class="string">"express-session"</span>; <span class="comment">// 1. Import session middleware</span>
+<span class="keyword">import</span> csrf <span class="keyword">from</span> <span class="string">"csurf"</span>; <span class="comment">// 2. Import csurf middleware</span>
+
+<span class="keyword">const</span> app = express();
+<span class="keyword">const</span> PORT = <span class="number">4000</span>;
+<span class="keyword">let</span> amount = <span class="number">10000</span>;
+
+<span class="comment">// Set up middleware</span>
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: <span class="boolean">false</span> })); <span class="comment">// To read POST body data</span>
+
+<span class="comment">// 3. Configure and use session middleware</span>
+<span class="comment">// This is required for csurf to store the secret key server-side.</span>
+app.use(session({
+    <span class="property">secret</span>: <span class="string">'A_LONG_AND_VERY_SECRET_STRING_34890'</span>, <span class="comment">// Use a secure, long secret key</span>
+    <span class="property">resave</span>: <span class="boolean">false</span>,
+    <span class="property">saveUninitialized</span>: <span class="boolean">true</span>,
+    <span class="property">cookie</span>: { 
+        <span class="property">httpOnly</span>: <span class="boolean">true</span>, 
+        <span class="property">sameSite</span>: <span class="string">'lax'</span>,
+        <span class="property">secure</span>: <span class="boolean">true</span> <span class="comment">// Should be true in production (HTTPS)</span>
+    }
+}));
+
+<span class="comment">// 4. Use csurf middleware</span>
+<span class="comment">// This generates the token and stores it in the session and a cookie.</span>
+<span class="keyword">const</span> csrfProtection = csrf({ <span class="property">cookie</span>: <span class="boolean">true</span> });
+app.use(csrfProtection); <span class="comment">// Apply it globally or just to routes that need protection</span>
+
+<span class="comment">// Middleware to set CSP (Your existing middleware)</span>
+app.use((req, res, next) => {
+    <span class="keyword">if</span> (req.headers.accept?.includes(<span class="string">"text/html"</span>)) {
+        res.setHeader(<span class="string">"X-Frame-Options"</span>, <span class="string">"DENY"</span>);
+        res.setHeader(
+            <span class="string">"Content-Security-Policy"</span>,
+            <span class="string">`default-src 'self'; script-src 'self';\
+            frame-ancestors 'none'`</span>
+        );
+    }
+    next();
+});
+
+<span class="comment">// Serve dynamic HTML with the CSRF Token</span>
+app.get(<span class="string">"/"</span>, (req, res) => {
+    <span class="comment">// Check for login (simulated by your sid cookie)</span>
+    <span class="keyword">if</span> (!req.cookies.sid) {
+        <span class="keyword">return</span> res.send(<span class="string">'You are not logged &lt;br&gt; &lt;a href="/login"&gt;Login&lt;/a&gt;'</span>);
+    }
+
+    <span class="comment">// 5. Get the CSRF token generated by the csurf middleware</span>
+    <span class="keyword">const</span> csrfToken = req.csrfToken(); 
+
+    res.send(<span class="string">`
+        &lt;!DOCTYPE html&gt;
+        &lt;html&gt;
+        &lt;head&gt;
+          &lt;title&gt;Secure Bank App&lt;/title&gt;
+          &lt;meta charset="UTF-8" /&gt;
+        &lt;/head&gt;
+        &lt;body&gt;
+          &lt;h1&gt;Amount: ₹&lt;span id="amount"&gt;${amount}&lt;/span&gt;&lt;/h1&gt;
+          &lt;form method="POST" action="/pay"&gt;
+            &lt;input type="hidden" name="_csrf" value="${csrfToken}"&gt;
+            &lt;button type="submit"&gt;Pay&lt;/button&gt;
+          &lt;/form&gt;
+        &lt;/body&gt;
+        &lt;/html&gt;
+    `</span>);
+});
+
+<span class="comment">// Handle payment (This route is automatically protected by the csurf middleware applied globally)</span>
+app.post(<span class="string">"/pay"</span>, (req, res) => {
+    <span class="comment">// csurf has already verified the token before this middleware runs.</span>
+    <span class="keyword">if</span> (!req.cookies.sid) {
+        <span class="keyword">return</span> res.send(<span class="string">"You are not logged."</span>);
+    }
+    
+    <span class="comment">// The request body contains the validated token, e.g., req.body._csrf</span>
+    amount -= <span class="number">1000</span>;
+    console.log(<span class="string">`Amount deducted. New balance: ₹${amount}`</span>);
+    res.redirect(<span class="string">"/"</span>);
+});
+
+app.get(<span class="string">"/login"</span>, (req, res) => {
+    res.cookie(<span class="string">"sid"</span>, <span class="string">"54321"</span>, {
+        <span class="property">httpOnly</span>: <span class="boolean">true</span>,
+        <span class="property">sameSite</span>: <span class="string">'lax'</span>,
+        <span class="property">secure</span>: <span class="boolean">true</span>
+    });
+    res.redirect(<span class="string">"/"</span>);
+});
+
+app.listen(PORT, () => {
+    console.log(<span class="string">`🚀 Visit http://localhost:${PORT}`</span>);
+});
+                </pre>
+        </div>
+
+        <h3>Key Changes Explained</h3>
+        <p>
+          <strong>express-session:</strong> This is used to store the secret key
+          that csurf uses to generate and validate the token.
+        </p>
+        <p>
+          <strong>csrf (from csurf):</strong> We initialize this middleware and
+          apply it using <code>app.use(csrfProtection)</code>. It performs two
+          main tasks:
+        </p>
+        <ul>
+          <li>
+            <strong>GET/Initial Request:</strong> It generates a new token and
+            makes the method <code>req.csrfToken()</code> available. It also
+            sets a **CSRF secret cookie** in the user's browser.
+          </li>
+          <li>
+            <strong>POST/Sensitive Request (/pay):</strong> It automatically
+            checks the token submitted in the form body
+            (<code>req.body._csrf</code>) against the secret stored in the
+            session/cookie. If they don't match, it throws an error and the
+            request is blocked.
+          </li>
+        </ul>
+        <p>
+          <strong>req.csrfToken():</strong> In your <code>/</code> (GET) route,
+          we call this method to retrieve the unique token for the current
+          user's session.
+        </p>
+        <p>
+          <strong>Hidden Input Field:</strong> We embed the retrieved token
+          inside the payment form using a hidden input field named
+          <code>_csrf</code>:
+        </p>
+
+        <div class="code-block language-html-inline">
+          <div class="code-header">HTML</div>
+          <pre>
+&lt;<span class="tag">input</span> <span class="attr">type</span>=<span class="string">"hidden"</span> <span class="attr">name</span>=<span class="string">"_csrf"</span> <span class="attr">value</span>=<span class="string">"${csrfToken}"</span>&gt;
+                </pre>
+        </div>
+        <p>
+          The <code>csurf</code> middleware is configured to look for this
+          specific field name in the POST request body for validation.
+        </p>
+        <p>
+          With these changes, your <code>/pay</code> route is now protected by
+          the CSRF token. Any request coming from an external malicious domain
+          will be rejected because it won't be able to provide the secret,
+          dynamically generated token.
+        </p>
+      </section>
+    </div>
+  </body>
+</html>

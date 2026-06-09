@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redis vs MongoDB Speed Test Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="main-title">Redis vs MongoDB: Node.js Speed Test</h1>
+      <p>
+        Comparing the speed of **Redis** and **MongoDB** using Node.js involves
+        performing identical data operations on both systems and accurately
+        measuring the time taken for each. This comparison typically focuses on
+        basic **CRUD (Create, Read, Update, Delete)** operations.
+      </p>
+      <p>
+        Since **Redis is an in-memory data store** and **MongoDB is primarily
+        disk-based** (though it uses a significant in-memory cache), Redis is
+        generally expected to be **significantly faster** for simple read/write
+        operations, especially when the working dataset fits in memory.
+      </p>
+      <p>
+        Here is a conceptual and clear code structure using Node.js to perform a
+        simple speed test for inserting and reading data.
+      </p>
+
+      <h2 class="section-title">🛠️ Prerequisites</h2>
+      <p>Before running the test, ensure you have:</p>
+      <ul class="list">
+        <li>**Node.js** installed.</li>
+        <li>Running instances of **Redis** and **MongoDB**.</li>
+        <li>
+          The necessary npm packages installed in your project:
+          <ul class="sub-list">
+            <li>`mongoose` (for MongoDB)</li>
+            <li>`redis` (or a modern equivalent like `@redis/client`)</li>
+            <li>`faker-js` (or similar for generating test data)</li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="code-header">Bash</div>
+      <pre class="code-block">
+npm init -y
+npm install mongoose redis @faker-js/faker
+        </pre
+      >
+
+      <h2 class="section-title">⚙️ Project Setup: speed-test.js</h2>
+      <p>
+        This script will perform a batch of operations and measure the elapsed
+        time. We will use a simple object for comparison.
+      </p>
+
+      <h3 class="sub-section-title">1. Imports and Configuration</h3>
+      <div class="code-header">JavaScript</div>
+      <pre class="code-block">
+<span class="comment">// speed-test.js</span>
+<span class="keyword">const</span> <span class="variable">mongoose</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'mongoose'</span>);
+<span class="keyword">const</span> <span class="variable">redis</span> <span class="operator">=</span> <span class="function">require</span>(<span class="string">'redis'</span>);
+<span class="keyword">const</span> { <span class="variable">faker</span> } <span class="operator">=</span> <span class="function">require</span>(<span class="string">'@faker-js/faker'</span>);
+
+<span class="comment">// --- Configuration ---</span>
+<span class="keyword">const</span> <span class="constant">NUM_OPERATIONS</span> <span class="operator">=</span> <span class="number">10000</span>;
+<span class="keyword">const</span> <span class="constant">MONGO_URI</span> <span class="operator">=</span> <span class="string">'mongodb://localhost:27017/speedTestDB'</span>;
+
+<span class="comment">// Simple data object schema for testing</span>
+<span class="keyword">const</span> <span class="variable">TestSchema</span> <span class="operator">=</span> <span class="keyword">new</span> <span class="class">mongoose</span>.<span class="class">Schema</span>({
+    <span class="property">key</span>: { <span class="property">type</span>: <span class="class">String</span>, <span class="property">required</span>: <span class="literal">true</span>, <span class="property">unique</span>: <span class="literal">true</span> },
+    <span class="property">value</span>: { <span class="property">type</span>: <span class="class">String</span>, <span class="property">required</span>: <span class="literal">true</span> },
+    <span class="property">timestamp</span>: { <span class="property">type</span>: <span class="class">Date</span>, <span class="property">default</span>: <span class="function">Date</span>.<span class="property">now</span> }
+});
+<span class="keyword">const</span> <span class="variable">TestModel</span> <span class="operator">=</span> <span class="class">mongoose</span>.<span class="function">model</span>(<span class="string">'Test'</span>, <span class="variable">TestSchema</span>);
+        </pre>
+
+      <h3 class="sub-section-title">2. Connection Functions</h3>
+      <div class="code-header">JavaScript</div>
+      <pre class="code-block">
+<span class="comment">// --- Connection Setup ---</span>
+
+<span class="comment">// MongoDB Connection</span>
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">connectMongoDB</span>() {
+    <span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="function">connect</span>(<span class="constant">MONGO_URI</span>);
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">'MongoDB connected.'</span>);
+    <span class="comment">// Clear collection for a clean test run</span>
+    <span class="keyword">await</span> <span class="variable">TestModel</span>.<span class="function">deleteMany</span>({}); 
+}
+
+<span class="comment">// Redis Connection</span>
+<span class="keyword">const</span> <span class="variable">redisClient</span> <span class="operator">=</span> <span class="variable">redis</span>.<span class="function">createClient</span>();
+<span class="variable">redisClient</span>.<span class="function">on</span>(<span class="string">'error'</span>, (<span class="variable">err</span>) <span class="arrow">=></span> <span class="function">console</span>.<span class="function">log</span>(<span class="string">'Redis Client Error'</span>, <span class="variable">err</span>));
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">connectRedis</span>() {
+    <span class="keyword">await</span> <span class="variable">redisClient</span>.<span class="function">connect</span>();
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">'Redis connected.'</span>);
+    <span class="comment">// Clear all keys for a clean test run</span>
+    <span class="keyword">await</span> <span class="variable">redisClient</span>.<span class="function">flushAll</span>(); 
+}
+        </pre>
+
+      <h3 class="sub-section-title">3. Test Helper Function</h3>
+      <p>
+        This function handles the time measurement for a specific database
+        operation.
+      </p>
+      <div class="code-header">JavaScript</div>
+      <pre class="code-block">
+<span class="comment">// --- Helper Function for Timing ---</span>
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">runTest</span>(<span class="variable">dbName</span>, <span class="variable">operationName</span>, <span class="variable">operationFn</span>) {
+    <span class="keyword">const</span> <span class="variable">startTime</span> <span class="operator">=</span> <span class="function">process</span>.<span class="property">hrtime</span>.<span class="function">bigint</span>();
+    
+    <span class="keyword">try</span> {
+        <span class="keyword">await</span> <span class="function">operationFn</span>();
+        
+        <span class="keyword">const</span> <span class="variable">endTime</span> <span class="operator">=</span> <span class="function">process</span>.<span class="property">hrtime</span>.<span class="function">bigint</span>();
+        <span class="keyword">const</span> <span class="variable">elapsedTime</span> <span class="operator">=</span> <span class="class">Number</span>(<span class="variable">endTime</span> <span class="operator">-</span> <span class="variable">startTime</span>) <span class="operator">/</span> <span class="number">1000000</span>; <span class="comment">// Convert nanoseconds to milliseconds</span>
+        
+        <span class="function">console</span>.<span class="function">log</span>(<span class="string">`\n✅ <span class="variable">${dbName}</span> - <span class="variable">${operationName}</span>:`</span>);
+        <span class="function">console</span>.<span class="function">log</span>(<span class="string">`   - Time taken for <span class="variable">${NUM_OPERATIONS}</span> operations: <span class="variable">${elapsedTime.toFixed(2)}</span> ms`</span>);
+        <span class="function">console</span>.<span class="function">log</span>(<span class="string">`   - Operations per second: <span class="variable">${(NUM_OPERATIONS / (elapsedTime / 1000)).toFixed(2)}</span> ops/sec`</span>);
+        
+    } <span class="keyword">catch</span> (<span class="variable">error</span>) {
+        <span class="function">console</span>.<span class="function">error</span>(<span class="string">`\n❌ <span class="variable">${dbName}</span> - <span class="variable">${operationName}</span> FAILED:`</span>, <span class="variable">error</span>.<span class="property">message</span>);
+    }
+}
+        </pre>
+
+      <h3 class="sub-section-title">4. Operation Functions</h3>
+      <p>
+        We'll define functions for **inserting** and **reading** a set of data.
+        The keys will be stored to ensure we read the exact same data we
+        inserted.
+      </p>
+      <div class="code-header">JavaScript</div>
+      <pre class="code-block">
+<span class="comment">// --- Data Preparation ---</span>
+<span class="keyword">let</span> <span class="variable">testDataKeys</span> <span class="operator">=</span> [];
+<span class="keyword">const</span> <span class="variable">testData</span> <span class="operator">=</span> <span class="class">Array</span>.<span class="function">from</span>({ <span class="property">length</span>: <span class="constant">NUM_OPERATIONS</span> }, (<span class="keyword">_</span>, <span class="variable">i</span>) <span class="arrow">=></span> {
+    <span class="keyword">const</span> <span class="variable">key</span> <span class="operator">=</span> <span class="string">`user:<span class="variable">${i}</span>`</span>;
+    <span class="variable">testDataKeys</span>.<span class="function">push</span>(<span class="variable">key</span>);
+    <span class="keyword">return</span> {
+        <span class="property">key</span>: <span class="variable">key</span>,
+        <span class="property">value</span>: <span class="variable">faker</span>.<span class="property">lorem</span>.<span class="function">sentences</span>(<span class="number">3</span>),
+        <span class="property">timestamp</span>: <span class="keyword">new</span> <span class="class">Date</span>()
+    };
+});
+
+<span class="comment">// --- MongoDB Operations ---</span>
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">mongoInsertTest</span>() {
+    <span class="comment">// Insert documents one by one to simulate individual operations</span>
+    <span class="keyword">const</span> <span class="variable">insertPromises</span> <span class="operator">=</span> <span class="variable">testData</span>.<span class="function">map</span>(<span class="variable">data</span> <span class="arrow">=></span> <span class="variable">TestModel</span>.<span class="function">create</span>(<span class="variable">data</span>));
+    <span class="keyword">await</span> <span class="class">Promise</span>.<span class="function">all</span>(<span class="variable">insertPromises</span>);
+}
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">mongoReadTest</span>() {
+    <span class="comment">// Read documents one by one using the indexed 'key'</span>
+    <span class="keyword">const</span> <span class="variable">readPromises</span> <span class="operator">=</span> <span class="variable">testDataKeys</span>.<span class="function">map</span>(<span class="variable">key</span> <span class="arrow">=></span> <span class="variable">TestModel</span>.<span class="function">findOne</span>({ <span class="property">key</span>: <span class="variable">key</span> }).<span class="function">exec</span>());
+    <span class="keyword">await</span> <span class="class">Promise</span>.<span class="function">all</span>(<span class="variable">readPromises</span>);
+}
+
+<span class="comment">// --- Redis Operations (using HSET for structured data simulation) ---</span>
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">redisInsertTest</span>() {
+    <span class="keyword">const</span> <span class="variable">insertPromises</span> <span class="operator">=</span> <span class="variable">testData</span>.<span class="function">map</span>(<span class="variable">data</span> <span class="arrow">=></span> {
+        <span class="comment">// Use HSET to store the structured data as a Redis Hash</span>
+        <span class="keyword">return</span> <span class="variable">redisClient</span>.<span class="function">hSet</span>(<span class="variable">data</span>.<span class="property">key</span>, {
+            <span class="property">key</span>: <span class="variable">data</span>.<span class="property">key</span>,
+            <span class="property">value</span>: <span class="variable">data</span>.<span class="property">value</span>,
+            <span class="property">timestamp</span>: <span class="variable">data</span>.<span class="property">timestamp</span>.<span class="function">toISOString</span>() <span class="comment">// Convert Date to string for Redis</span>
+        });
+    });
+    <span class="keyword">await</span> <span class="class">Promise</span>.<span class="function">all</span>(<span class="variable">insertPromises</span>);
+}
+
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">redisReadTest</span>() {
+    <span class="comment">// Read documents one by one using the keys</span>
+    <span class="keyword">const</span> <span class="variable">readPromises</span> <span class="operator">=</span> <span class="variable">testDataKeys</span>.<span class="function">map</span>(<span class="variable">key</span> <span class="arrow">=></span> <span class="variable">redisClient</span>.<span class="function">hGetAll</span>(<span class="variable">key</span>));
+    <span class="keyword">await</span> <span class="class">Promise</span>.<span class="function">all</span>(<span class="variable">readPromises</span>);
+}
+        </pre>
+
+      <h3 class="sub-section-title">5. Main Execution Block</h3>
+      <div class="code-header">JavaScript</div>
+      <pre class="code-block">
+<span class="comment">// --- Main Execution ---</span>
+<span class="keyword">async</span> <span class="function">function</span> <span class="function">main</span>() {
+    <span class="keyword">await</span> <span class="function">connectMongoDB</span>();
+    <span class="keyword">await</span> <span class="function">connectRedis</span>();
+
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`\n--- Starting Speed Test with <span class="variable">${NUM_OPERATIONS}</span> operations ---`</span>);
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`Data size per record is: ~<span class="variable">${Buffer.byteLength(JSON.stringify(testData[0]), 'utf8')}</span> bytes.`</span>);
+    
+    <span class="comment">// 1. Write Tests (Insert)</span>
+    <span class="keyword">await</span> <span class="function">runTest</span>(<span class="string">'MongoDB'</span>, <span class="string">'Sequential Inserts'</span>, <span class="variable">mongoInsertTest</span>);
+    <span class="keyword">await</span> <span class="function">runTest</span>(<span class="string">'Redis'</span>, <span class="string">'Sequential Inserts'</span>, <span class="variable">redisInsertTest</span>);
+
+    <span class="comment">// 2. Read Tests (Fetch)</span>
+    <span class="keyword">await</span> <span class="function">runTest</span>(<span class="string">'MongoDB'</span>, <span class="string">'Sequential Reads'</span>, <span class="variable">mongoReadTest</span>);
+    <span class="keyword">await</span> <span class="function">runTest</span>(<span class="string">'Redis'</span>, <span class="string">'Sequential Reads'</span>, <span class="variable">redisReadTest</span>);
+
+    <span class="comment">// Cleanup</span>
+    <span class="keyword">await</span> <span class="variable">mongoose</span>.<span class="function">disconnect</span>();
+    <span class="keyword">await</span> <span class="variable">redisClient</span>.<span class="function">quit</span>();
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">'\n--- Test Complete and Connections Closed ---'</span>);
+}
+
+<span class="function">main</span>().<span class="function">catch</span>(<span class="function">console</span>.<span class="property">error</span>);
+        </pre>
+
+      <h2 class="section-title">📈 Expected Results and Analysis</h2>
+      <p>
+        When you run this code (`node speed-test.js`), you will likely see a
+        significant difference in performance.
+      </p>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Expected Winner</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>**Insert**</td>
+              <td>**Redis**</td>
+              <td>
+                In-memory operations are much faster than disk-based writes,
+                even with MongoDB's journaling.
+              </td>
+            </tr>
+            <tr>
+              <td>**Read**</td>
+              <td>**Redis**</td>
+              <td>
+                Accessing data directly from RAM is inherently faster than
+                retrieving data from MongoDB's memory cache (which still has
+                more overhead for document parsing and structure).
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>**Redis** typically operates at sub-millisecond latency because it:</p>
+      <ul class="list">
+        <li>Is **in-memory-only** (data is in RAM).</li>
+        <li>Is **single-threaded** and uses an efficient event loop model.</li>
+        <li>Performs **simple key-value (or key-hash) lookups**.</li>
+      </ul>
+
+      <p>
+        **MongoDB** offers richer functionality, like flexible document schema
+        and complex querying, which comes with more overhead. However, it's
+        designed for **persistence** and **scaling large datasets** that don't
+        fit in memory.
+      </p>
+
+      <p class="takeaway">
+        The key takeaway is that for **simple, high-speed, high-throughput
+        key-based operations** (like caching or session management), **Redis
+        will almost always be faster**. For persistent storage of **complex
+        documents** and **rich query capabilities**, MongoDB is the better
+        choice.
+      </p>
+    </div>
+  </body>
+</html>

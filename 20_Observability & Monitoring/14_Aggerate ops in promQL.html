@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aggregation Operators in PromQL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-layer-group"></i> AGGREGATION</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Basic Operators</div>
+        <a href="#overview" class="nav-link">Overview</a>
+        <a href="#sum" class="nav-link">sum()</a>
+        <a href="#avg" class="nav-link">avg()</a>
+        <a href="#min" class="nav-link">min()</a>
+        <a href="#max" class="nav-link">max()</a>
+        <a href="#count" class="nav-link">count()</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Grouping</div>
+        <a href="#by" class="nav-link">by() — Keep Labels</a>
+        <a href="#without" class="nav-link">without() — Drop Labels</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Over Time</div>
+        <a href="#over-time" class="nav-link">Across Series vs Time</a>
+        <a href="#sum-over-time" class="nav-link">sum_over_time()</a>
+        <a href="#avg-over-time" class="nav-link">avg_over_time()</a>
+        <a href="#max-over-time" class="nav-link">max_over_time()</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Prometheus</span>
+        <h1>AGGREGATION OPS</h1>
+        <p>PROMQL AGGREGATION OPERATORS — FROM ZERO TO HERO</p>
+      </section>
+
+      <!-- ─── OVERVIEW ───────────────────────────────────────── -->
+      <section id="overview">
+        <h2>WHAT IS AGGREGATION?</h2>
+
+        <p>
+          When Prometheus returns an instant vector, you often get
+          <strong>many time series</strong> — one per unique label combination.
+          Aggregation operators let you <strong>collapse those series</strong>
+          into fewer (or one) by combining their values mathematically.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> The Problem It Solves
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            Without aggregation, <code>http_requests_total</code> returns one
+            row per endpoint, method, and status code — potentially hundreds of
+            series. Aggregation lets you ask:
+          </p>
+          <ul style="color:var(--text-secondary);margin-bottom:0">
+            <li><strong>sum</strong> — "What is the total traffic across all routes?"</li>
+            <li><strong>avg</strong> — "What is the average CPU across all servers?"</li>
+            <li><strong>max</strong> — "Which endpoint is getting the most traffic?"</li>
+            <li><strong>count</strong> — "How many active instances do I have?"</li>
+          </ul>
+        </div>
+
+        <h3>Quick Reference</h3>
+        <table>
+          <thead><tr><th>Operator</th><th>What It Does</th><th>Returns</th></tr></thead>
+          <tbody>
+            <tr><td><code>sum()</code></td><td>Adds all values together</td><td>Total</td></tr>
+            <tr><td><code>avg()</code></td><td>Arithmetic mean of all values</td><td>Average</td></tr>
+            <tr><td><code>min()</code></td><td>Smallest value among series</td><td>Minimum</td></tr>
+            <tr><td><code>max()</code></td><td>Largest value among series</td><td>Maximum</td></tr>
+            <tr><td><code>count()</code></td><td>Number of time series</td><td>Count</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── SUM ────────────────────────────────────────────── -->
+      <section id="sum">
+        <h2>1. sum() — ADD VALUES TOGETHER</h2>
+
+        <p>
+          <code>sum()</code> adds the values of all matching time series into a
+          single number. It's the most commonly used aggregation operator.
+        </p>
+
+        <h3>Syntax</h3>
+        <pre><code class="language-promql">sum(metric_name)</code></pre>
+
+        <h3>Example — Total Requests Across All Routes</h3>
+        <p>Without aggregation you get one row per series:</p>
+        <pre><code class="language-text">http_requests_total{method="GET",  path="/"}      → 1,200
+http_requests_total{method="GET",  path="/fancy"} → 800
+http_requests_total{method="POST", path="/users"} → 300</code></pre>
+
+        <p>With <code>sum()</code> you get one number:</p>
+        <pre><code class="language-promql">sum(http_requests_total)</code></pre>
+        <pre><code class="language-text">→ 2,300</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>sum(http_requests_total)</code></td><td>Total requests ever received</td></tr>
+            <tr><td><code>sum(rate(http_requests_total[1m]))</code></td><td>Total requests per second right now</td></tr>
+            <tr><td><code>sum(node_memory_used_bytes)</code></td><td>Total memory used across all servers</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── AVG ────────────────────────────────────────────── -->
+      <section id="avg">
+        <h2>2. avg() — ARITHMETIC MEAN</h2>
+
+        <p>
+          <code>avg()</code> calculates the average value across all matching
+          time series. Useful when you want a representative single value
+          instead of a total.
+        </p>
+
+        <h3>Example — Average Request Rate Across Routes</h3>
+        <pre><code class="language-promql">avg(rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">rate per series:
+  {path="/"}      → 20 req/s
+  {path="/fancy"} → 13 req/s
+  {path="/users"} → 5  req/s
+
+avg → (20 + 13 + 5) / 3 = 12.67 req/s</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>avg(node_cpu_usage)</code></td><td>Average CPU across all servers</td></tr>
+            <tr><td><code>avg(response_time_seconds)</code></td><td>Average response time across all endpoints</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> avg() vs sum()</span>
+          <p style="margin-bottom:0">
+            Use <code>sum()</code> when you want the <strong>total load</strong>
+            on your system. Use <code>avg()</code> when you want a
+            <strong>typical value</strong> — e.g. average CPU per server, not
+            total CPU across all servers.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── MIN ────────────────────────────────────────────── -->
+      <section id="min">
+        <h2>3. min() — LOWEST VALUE</h2>
+
+        <p>
+          <code>min()</code> returns the smallest value among all matching time
+          series. Useful for finding the least-loaded instance or the fastest
+          endpoint.
+        </p>
+
+        <h3>Example — Lowest RPS Among Routes</h3>
+        <pre><code class="language-promql">min(rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">rate per series:
+  {path="/"}      → 20 req/s
+  {path="/fancy"} → 13 req/s
+  {path="/users"} → 5  req/s
+
+min → 5 req/s  ← /users is least busy</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>min(node_cpu_usage)</code></td><td>Find the least-loaded server</td></tr>
+            <tr><td><code>min(rate(http_requests_total[1m]))</code></td><td>Find the least-used endpoint</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── MAX ────────────────────────────────────────────── -->
+      <section id="max">
+        <h2>4. max() — HIGHEST VALUE</h2>
+
+        <p>
+          <code>max()</code> returns the largest value among all matching time
+          series. Useful for finding the hottest endpoint or the most-loaded
+          server.
+        </p>
+
+        <h3>Example — Highest RPS Route</h3>
+        <pre><code class="language-promql">max(rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">rate per series:
+  {path="/"}      → 20 req/s
+  {path="/fancy"} → 13 req/s
+  {path="/users"} → 5  req/s
+
+max → 20 req/s  ← / is the busiest route</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>max(node_cpu_usage)</code></td><td>Find the most-loaded server</td></tr>
+            <tr><td><code>max(rate(http_requests_total[1m]))</code></td><td>Find the hottest endpoint</td></tr>
+            <tr><td><code>max(node_memory_used_bytes)</code></td><td>Peak memory usage across all servers</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── COUNT ──────────────────────────────────────────── -->
+      <section id="count">
+        <h2>5. count() — NUMBER OF SERIES</h2>
+
+        <p>
+          <code>count()</code> does <strong>not</strong> add up values — it
+          counts <strong>how many time series</strong> match the selector. Each
+          unique label combination is one series.
+        </p>
+
+        <h3>Example — How Many Endpoints Exist</h3>
+        <pre><code class="language-promql">count(http_requests_total)</code></pre>
+        <pre><code class="language-text">Matching series:
+  http_requests_total{method="GET",  path="/"}
+  http_requests_total{method="GET",  path="/fancy"}
+  http_requests_total{method="POST", path="/users"}
+
+count → 3</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Key Distinction
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>count()</code> counts <strong>series</strong>, not requests.
+            If you have 3 endpoints, <code>count(http_requests_total)</code>
+            returns <strong>3</strong> — regardless of how many requests each
+            endpoint received.
+          </p>
+        </div>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>count(up)</code></td><td>How many targets are being scraped</td></tr>
+            <tr><td><code>count(up == 1)</code></td><td>How many targets are currently UP</td></tr>
+            <tr><td><code>count(http_requests_total)</code></td><td>How many unique endpoint/method combinations exist</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── BY ─────────────────────────────────────────────── -->
+      <section id="by">
+        <h2>GROUPING WITH by() — KEEP SPECIFIC LABELS</h2>
+
+        <p>
+          By default, aggregation <strong>drops all labels</strong> and returns
+          one single value. <code>by()</code> tells Prometheus which labels to
+          <strong>preserve</strong> — creating one result per unique value of
+          those labels.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Mental Model
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Think of <code>by(path)</code> like SQL's <code>GROUP BY path</code>.
+            You get one aggregated row per unique value of <code>path</code>.
+          </p>
+        </div>
+
+        <h3>Without by() — One Result</h3>
+        <pre><code class="language-promql">sum(rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">→ 38  (all routes combined)</code></pre>
+
+        <h3>With by(path) — One Result Per Route</h3>
+        <pre><code class="language-promql">sum by (path) (rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">{path="/"}      → 20
+{path="/fancy"} → 13
+{path="/users"} → 5</code></pre>
+
+        <h3>With by(method, status_code) — One Result Per Combination</h3>
+        <pre><code class="language-promql">sum by (method, status_code) (rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">{method="GET",  status_code="200"} → 30
+{method="GET",  status_code="404"} → 2
+{method="POST", status_code="200"} → 5
+{method="POST", status_code="500"} → 1</code></pre>
+
+        <h3>Common Patterns</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>sum by (path) (rate(...))</code></td><td>RPS broken down per route</td></tr>
+            <tr><td><code>sum by (method) (rate(...))</code></td><td>RPS broken down per HTTP method</td></tr>
+            <tr><td><code>avg by (instance) (node_cpu_usage)</code></td><td>Average CPU per server instance</td></tr>
+            <tr><td><code>max by (job) (node_memory_used_bytes)</code></td><td>Peak memory per job</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── WITHOUT ────────────────────────────────────────── -->
+      <section id="without">
+        <h2>GROUPING WITH without() — DROP SPECIFIC LABELS</h2>
+
+        <p>
+          <code>without()</code> is the <strong>opposite of by()</strong>. Instead
+          of listing labels to keep, you list labels to
+          <strong>remove</strong> — everything else is preserved.
+        </p>
+
+        <h3>Example — Drop instance, Keep Everything Else</h3>
+        <pre><code class="language-promql">sum without (instance) (rate(http_requests_total[1m]))</code></pre>
+        <pre><code class="language-text">Before (per instance):
+  {instance="server-1", path="/", method="GET"} → 10
+  {instance="server-2", path="/", method="GET"} → 12
+  {instance="server-3", path="/", method="GET"} → 8
+
+After (instance dropped, path + method kept):
+  {path="/", method="GET"} → 30</code></pre>
+
+        <h3>by() vs without() — When to Use Which</h3>
+        <table>
+          <thead><tr><th>Scenario</th><th>Use</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>You know exactly which labels you want</td>
+              <td><code>by(path, method)</code></td>
+              <td>Explicit — only keep what you name</td>
+            </tr>
+            <tr>
+              <td>You want everything except one noisy label</td>
+              <td><code>without(instance)</code></td>
+              <td>Easier than listing all other labels</td>
+            </tr>
+            <tr>
+              <td>Multi-instance setup, aggregate across instances</td>
+              <td><code>without(instance)</code></td>
+              <td>Most common real-world use case</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Prefer by() in Production</span>
+          <p style="margin-bottom:0">
+            <code>by()</code> is safer because it's explicit — you won't
+            accidentally keep a label you didn't intend to. Use
+            <code>without()</code> when you have many labels and only want to
+            drop one or two.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── OVER TIME ──────────────────────────────────────── -->
+      <section id="over-time">
+        <h2>ACROSS SERIES vs ACROSS TIME</h2>
+
+        <p>There are two completely different dimensions you can aggregate across:</p>
+
+        <table>
+          <thead><tr><th>Type</th><th>Operators</th><th>Collapses</th><th>Input</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>Across series</strong></td>
+              <td><code>sum()</code>, <code>avg()</code>, <code>min()</code>, <code>max()</code></td>
+              <td>Multiple series → fewer series</td>
+              <td>Instant Vector</td>
+            </tr>
+            <tr>
+              <td><strong>Across time</strong></td>
+              <td><code>sum_over_time()</code>, <code>avg_over_time()</code>, <code>max_over_time()</code></td>
+              <td>Multiple timestamps → one value per series</td>
+              <td>Range Vector</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Key Difference
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>sum(metric)</code> adds up values <strong>across different series</strong>
+            at one moment. <code>sum_over_time(metric[5m])</code> adds up values
+            <strong>across time</strong> for each individual series.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── SUM OVER TIME ──────────────────────────────────── -->
+      <section id="sum-over-time">
+        <h2>sum_over_time() — TOTAL OVER A TIME WINDOW</h2>
+
+        <p>
+          Adds up all scraped values of a metric within the time window for
+          each series. Note: this sums the <strong>raw counter values</strong>,
+          not the increases — use <code>increase()</code> if you want growth.
+        </p>
+
+        <h3>Syntax</h3>
+        <pre><code class="language-promql">sum_over_time(metric_name[time_window])</code></pre>
+
+        <h3>Example</h3>
+        <pre><code class="language-promql">sum_over_time(http_requests_total[10s])</code></pre>
+        <pre><code class="language-text">Scraped values in last 10s:
+  t=0s  → 1,000
+  t=5s  → 1,030
+  t=10s → 1,070
+
+sum_over_time → 1,000 + 1,030 + 1,070 = 3,100</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>sum_over_time(errors_total[1h])</code></td><td>Sum of all error counter snapshots in the last hour</td></tr>
+            <tr><td><code>sum_over_time(cpu_usage[5m])</code></td><td>Cumulative CPU readings over 5 minutes</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── AVG OVER TIME ──────────────────────────────────── -->
+      <section id="avg-over-time">
+        <h2>avg_over_time() — AVERAGE OVER A TIME WINDOW</h2>
+
+        <p>
+          Calculates the average of all scraped values within the time window.
+          Great for smoothing out spikes and getting a representative value.
+        </p>
+
+        <h3>Example</h3>
+        <pre><code class="language-promql">avg_over_time(node_cpu_usage[5m])</code></pre>
+        <pre><code class="language-text">Scraped values in last 5m:
+  45, 52, 48, 61, 55, 49
+
+avg_over_time → (45+52+48+61+55+49) / 6 = 51.67</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>avg_over_time(node_cpu_usage[1h])</code></td><td>Average CPU over the last hour (smoothed)</td></tr>
+            <tr><td><code>avg_over_time(response_time_seconds[10m])</code></td><td>Average response time over last 10 minutes</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── MAX OVER TIME ──────────────────────────────────── -->
+      <section id="max-over-time">
+        <h2>max_over_time() — PEAK VALUE IN A TIME WINDOW</h2>
+
+        <p>
+          Returns the highest value seen within the time window for each series.
+          Useful for finding spikes that might have been missed in a dashboard.
+        </p>
+
+        <h3>Example</h3>
+        <pre><code class="language-promql">max_over_time(node_cpu_usage[5m])</code></pre>
+        <pre><code class="language-text">Scraped values in last 5m:
+  45, 52, 48, 61, 55, 49
+
+max_over_time → 61  ← peak CPU in last 5 minutes</code></pre>
+
+        <h3>Use Cases</h3>
+        <table>
+          <thead><tr><th>Query</th><th>Answers</th></tr></thead>
+          <tbody>
+            <tr><td><code>max_over_time(node_cpu_usage[1h])</code></td><td>Peak CPU in the last hour</td></tr>
+            <tr><td><code>max_over_time(response_time_seconds[10m])</code></td><td>Worst response time in last 10 minutes</td></tr>
+            <tr><td><code>max_over_time(error_rate[30m])</code></td><td>Highest error rate spike in last 30 minutes</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:3rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">
+            💡 Golden Rule
+          </span>
+          <p style="color:var(--text-primary);margin-bottom:0.5rem">
+            Remember which dimension you're aggregating across:
+          </p>
+          <pre style="margin:0;background:var(--bg-secondary)"><code class="language-text">sum(metric)              → collapse many series   → one number
+sum by(label)(metric)    → collapse many series   → one per label group
+sum_over_time(metric[t]) → collapse time window   → one per series
+avg_over_time(metric[t]) → average over time      → one per series
+max_over_time(metric[t]) → peak over time         → one per series</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Aggregation Operators in PromQL</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

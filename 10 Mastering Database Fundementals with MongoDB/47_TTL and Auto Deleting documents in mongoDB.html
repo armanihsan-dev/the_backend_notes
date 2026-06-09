@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB TTL Indexes: Blakish Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* CSS is embedded here for a single-file solution */
+      /* BASE STYLES */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1e1e1e; /* Darkest background, similar to VS Code */
+        color: #d4d4d4; /* Light grey text */
+        line-height: 1.6;
+        margin: 0;
+        padding: 40px;
+      }
+
+      /* CONTAINER */
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner container */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      }
+
+      /* HEADINGS */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code blue for primary elements */
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        font-weight: 900;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.5em;
+        color: #b5cea8; /* VS Code light green */
+      }
+
+      /* KEYWORDS AND EMPHASIS */
+      strong {
+        color: #f7a228; /* VS Code orange */
+        font-weight: 700;
+      }
+
+      em {
+        color: #dcdcaa; /* VS Code yellow for variables/keywords */
+        font-style: normal;
+      }
+
+      /* LISTS */
+      ul {
+        list-style: disc;
+        padding-left: 25px;
+      }
+      ul li {
+        margin-bottom: 8px;
+      }
+
+      /* TTL INTRO */
+      .intro-text {
+        font-size: 1.1em;
+        margin-bottom: 20px;
+        color: #c586c0; /* VS Code purple */
+      }
+
+      /* EMOJI STYLES */
+      .emoji {
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+
+      /* CODE BLOCKS (VS Code Dark Theme) */
+      .code-container {
+        background-color: #1e1e1e; /* Deep black code background */
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+        overflow-x: auto;
+        border-left: 4px solid #569cd6;
+      }
+      .code-title {
+        color: #808080; /* Grey title */
+        font-size: 0.9em;
+        margin-bottom: 10px;
+        user-select: none;
+        border-bottom: 1px solid #333;
+        padding-bottom: 5px;
+      }
+      pre {
+        margin: 0;
+        padding: 0;
+        font-family: 'Consolas', 'Courier New', monospace; /* Monospace for code */
+        font-size: 0.95em;
+        white-space: pre-wrap; /* Allows long lines to wrap */
+        word-wrap: break-word;
+      }
+
+      /* Code Syntax Highlighting Simulation */
+      .k {
+        color: #569cd6;
+      } /* keyword (const, require, type, default, etc.) */
+      .s {
+        color: #ce9178;
+      } /* string ('mongodb://...') */
+      .c {
+        color: #6a9955;
+      } /* comment (// ...) */
+      .v {
+        color: #9cdcfe;
+      } /* variable/function (mongoose, Date, Date.now) */
+      .p {
+        color: #d4d4d4;
+      } /* punctuation ({, }, :, ;) */
+      .n {
+        color: #4ec9b0;
+      } /* numbers/boolean (3600, 60, 90000) */
+      .f {
+        color: #dcdcaa;
+      } /* function name (create, findById) */
+      .t {
+        color: #b5cea8;
+      } /* type/class (Schema, String, Boolean) */
+
+      /* IMPORTANT NOTE */
+      .important-note {
+        background-color: #402c00; /* Dark yellow/orange background for warning */
+        border-left: 5px solid #ffcc00;
+        padding: 15px;
+        margin-top: 30px;
+        border-radius: 4px;
+      }
+      .important-note p {
+        margin: 0;
+        color: #ffcc00;
+      }
+      .important-note strong {
+        color: #ffcc00;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>TTL (Time-To-Live) Indexes in MongoDB & Mongoose</h1>
+      <p class="intro-text">
+        TTL (Time-To-Live) indexes are a
+        <strong>powerful and easy way</strong> to automatically delete documents
+        from a MongoDB collection after a specified duration. This is perfect
+        for time-sensitive data like user sessions, log data, or temporary
+        caches.
+      </p>
+
+      <h2><span class="emoji">🕰️</span> TTL Index Definition</h2>
+      <p>
+        A TTL index is a
+        <strong class="v">special, single-field index</strong> in MongoDB that
+        allows you to automatically remove documents from a collection after a
+        certain number of seconds has passed since the document's date field
+        value.
+      </p>
+
+      <ul>
+        <li>
+          <strong>Requirement:</strong> The indexed field
+          <strong class="v">must</strong> be of the
+          <strong class="v">BSON date type</strong> (<em class="t">Date</em> in
+          Mongoose/Node.js).
+        </li>
+        <li>
+          <strong>Mechanism:</strong> It uses the value of the indexed date
+          field in the document plus the configured expiration time (<em
+            class="v"
+            >expireAfterSeconds</em
+          >) to determine the document's "death time."
+        </li>
+      </ul>
+
+      <h2><span class="emoji">💻</span> Mongoose/Node.js Implementation</h2>
+      <p>
+        In Mongoose, you define a TTL index directly in your schema definition
+        using the <em class="v">expires</em> property on a
+        <em class="t">Date</em> type field.
+      </p>
+
+      <h3>Clear Syntax (Mongoose Schema)</h3>
+      <div class="code-container">
+        <div class="code-title">JavaScript</div>
+        <pre>
+<span class="k">const</span> <span class="v">mongoose</span> <span class="p">=</span> <span class="k">require</span><span class="p">(</span><span class="s">'mongoose'</span><span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <span class="v">mySchema</span> <span class="p">=</span> <span class="k">new</span> <span class="v">mongoose</span><span class="p">.</span><span class="t">Schema</span><span class="p">({</span>
+    <span class="c">// The date field that the TTL index will monitor</span>
+    <span class="v">createdAt</span><span class="p">:</span> <span class="p">{</span>
+        <span class="k">type</span><span class="p">:</span> <span class="t">Date</span><span class="p">,</span>
+        <span class="k">default</span><span class="p">:</span> <span class="v">Date</span><span class="p">.</span><span class="v">now</span><span class="p">,</span> <span class="c">// Set the creation time automatically</span>
+        <span class="v">expires</span><span class="p">:</span> <span class="n">3600</span>      <span class="c">// The TTL in seconds (1 hour = 3600 seconds)</span>
+    <span class="p">},</span>
+    <span class="v">data</span><span class="p">:</span> <span class="t">String</span><span class="p">,</span>
+    <span class="c">// other fields...</span>
+<span class="p">}</span><span class="p">)</span><span class="p">;</span>
+<span class="k">const</span> <span class="v">MyModel</span> <span class="p">=</span> <span class="v">mongoose</span><span class="p">.</span><span class="f">model</span><span class="p">(</span><span class="s">'MyModel'</span><span class="p">,</span> <span class="v">mySchema</span><span class="p">)</span><span class="p">;</span>
+            </pre>
+      </div>
+
+      <ul>
+        <li>
+          <em class="v">type: Date</em>: Specifies the field is a date type,
+          which is mandatory for a TTL index.
+        </li>
+        <li>
+          <em class="v">default: Date.now</em>: Ensures the date field is
+          automatically set to the current time when a document is created.
+        </li>
+        <li>
+          <em class="v">expires: &lt;seconds&gt;</em>: This is the
+          Mongoose-specific way to apply the TTL index. It corresponds to the
+          MongoDB index option <em class="v">expireAfterSeconds</em>. The value
+          <strong class="v">must</strong> be the
+          <strong class="v">lifespan of the document in seconds</strong>. You
+          can also use a string like <em class="s">'1h'</em>,
+          <em class="s">'1d'</em>, etc., and Mongoose will convert it to
+          seconds.
+        </li>
+      </ul>
+
+      <h3>Complete Example (Node.js)</h3>
+      <p>
+        Here's a complete, minimal example of using Mongoose in a Node.js
+        environment:
+      </p>
+
+      <div class="code-container">
+        <div class="code-title">JavaScript</div>
+        <pre>
+<span class="k">const</span> <span class="v">mongoose</span> <span class="p">=</span> <span class="k">require</span><span class="p">(</span><span class="s">'mongoose'</span><span class="p">)</span><span class="p">;</span>
+<span class="c">// 1. Define the Schema with the TTL Index</span>
+<span class="k">const</span> <span class="v">SessionSchema</span> <span class="p">=</span> <span class="k">new</span> <span class="v">mongoose</span><span class="p">.</span><span class="t">Schema</span><span class="p">({</span>
+    <span class="c">// TTL is set to 60 seconds for quick testing (1 minute)</span>
+    <span class="c">// The document will be deleted 60 seconds after the time in 'createdAt'</span>
+    <span class="v">createdAt</span><span class="p">:</span> <span class="p">{</span>
+        <span class="k">type</span><span class="p">:</span> <span class="t">Date</span><span class="p">,</span>
+        <span class="k">default</span><span class="p">:</span> <span class="v">Date</span><span class="p">.</span><span class="v">now</span><span class="p">,</span>
+        <span class="v">expires</span><span class="p">:</span> <span class="n">60</span> <span class="c">// 60 seconds</span>
+    <span class="p">},</span>
+    <span class="v">userId</span><span class="p">:</span> <span class="t">String</span><span class="p">,</span>
+    <span class="v">sessionToken</span><span class="p">:</span> <span class="t">String</span><span class="p">,</span>
+<span class="p">},</span> <span class="p">{</span> <span class="v">timestamps</span><span class="p">:</span> <span class="k">false</span> <span class="p">})</span><span class="p">;</span> <span class="c">// timestamps:false to avoid conflict/confusion with the custom createdAt</span>
+
+<span class="k">const</span> <span class="v">Session</span> <span class="p">=</span> <span class="v">mongoose</span><span class="p">.</span><span class="f">model</span><span class="p">(</span><span class="s">'Session'</span><span class="p">,</span> <span class="v">SessionSchema</span><span class="p">)</span><span class="p">;</span>
+
+<span class="c">// 2. MongoDB Connection and Test Function</span>
+<span class="k">async</span> <span class="k">function</span> <span class="f">runTTLTest</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">try</span> <span class="p">{</span>
+        <span class="k">await</span> <span class="v">mongoose</span><span class="p">.</span><span class="f">connect</span><span class="p">(</span><span class="s">'mongodb://localhost:27017/ttlDemoDB'</span><span class="p">)</span><span class="p">;</span>
+        <span class="v">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">'MongoDB connected.'</span><span class="p">)</span><span class="p">;</span>
+
+        <span class="c">// 3. Create a Document</span>
+        <span class="k">const</span> <span class="v">newSession</span> <span class="p">=</span> <span class="k">await</span> <span class="v">Session</span><span class="p">.</span><span class="f">create</span><span class="p">({</span>
+            <span class="v">userId</span><span class="p">:</span> <span class="s">'user123'</span><span class="p">,</span>
+            <span class="v">sessionToken</span><span class="p">:</span> <span class="s">'abcd-efgh-ijkl'</span><span class="p">,</span>
+        <span class="p">})</span><span class="p">;</span>
+        <span class="v">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">`\nDocument inserted: ${newSession._id}`</span><span class="p">)</span><span class="p">;</span>
+        <span class="v">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">'Expiration time is approximately 60 seconds after the current time.'</span><span class="p">)</span><span class="p">;</span>
+
+        <span class="c">// 4. Wait for the TTL to expire (give it a little extra time)</span>
+        <span class="v">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">'Waiting for documents to expire (1.5 minutes)...'</span><span class="p">)</span><span class="p">;</span>
+        <span class="k">await</span> <span class="k">new</span> <span class="t">Promise</span><span class="p">(</span><span class="v">resolve</span> <span class="p">=></span> <span class="v">setTimeout</span><span class="p">(</span><span class="v">resolve</span><span class="p">,</span> <span class="n">90000</span><span class="p">))</span><span class="p">;</span> <span class="c">// Wait 90 seconds (1.5 min)</span>
+
+        <span class="c">// 5. Check if the Document Still Exists</span>
+        <span class="k">const</span> <span class="v">expiredDocument</span> <span class="p">=</span> <span class="k">await</span> <span class="v">Session</span><span class="p">.</span><span class="f">findById</span><span class="p">(</span><span class="v">newSession</span><span class="p">.</span><span class="v">_id</span><span class="p">)</span><span class="p">;</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="p">!</span><span class="v">expiredDocument</span><span class="p">)</span> <span class="p">{</span>
+            <span class="v">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">'\n✅ Success: Document was automatically deleted by the TTL index.'</span><span class="p">)</span><span class="p">;</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="v">console</span><span class="p">.</span><span class="f">log</span><span class="p">(</span><span class="s">'\n❌ Failure: Document still exists. There might be a slight delay.'</span><span class="p">)</span><span class="p">;</span>
+        <span class="p">}</span>
+
+    <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="v">error</span><span class="p">)</span> <span class="p">{</span>
+        <span class="v">console</span><span class="p">.</span><span class="f">error</span><span class="p">(</span><span class="s">'An error occurred:'</span><span class="p">,</span> <span class="v">error</span><span class="p">)</span><span class="p">;</span>
+    <span class="p">}</span> <span class="k">finally</span> <span class="p">{</span>
+        <span class="k">await</span> <span class="v">mongoose</span><span class="p">.</span><span class="f">disconnect</span><span class="p">()</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">// runTTLTest(); // Uncomment to run the test</span>
+            </pre>
+      </div>
+
+      <h2>
+        <span class="emoji">⚙️</span> How TTL Indexes Work Behind the Scenes
+      </h2>
+      <p>
+        The automatic deletion process is managed by a dedicated background
+        thread within the MongoDB server (<em class="v">mongod</em>) process.
+      </p>
+
+      <h3>1. The TTL Monitor Background Thread</h3>
+      <ul>
+        <li>
+          <strong>Periodicity:</strong> A special background thread, called the
+          <strong class="v">TTL Monitor</strong>, runs approximately
+          <strong class="v">every 60 seconds</strong> on the primary replica set
+          member (or standalone server).
+        </li>
+        <li>
+          <strong>Purpose:</strong> The monitor's sole job is to check all
+          collections that have a TTL index for expired documents.
+        </li>
+      </ul>
+
+      <h3>2. Identifying Expired Documents</h3>
+      <ul>
+        <li>
+          The <strong class="v">TTL Monitor</strong> queries the collection's
+          TTL index to find documents whose
+          <strong class="v">indexed date field value</strong> plus the
+          <em class="v">expireAfterSeconds</em> value is
+          <strong class="v">less than the current time</strong>.
+        </li>
+        <li>
+          <strong>Expiration Threshold:</strong>
+          <code
+            ><span class="v">document</span><span class="p">.</span
+            ><span class="v">dateField</span> <span class="p">+</span>
+            <span class="v">expireAfterSeconds</span>
+            <span class="p">&lt;</span> <span class="v">CurrentTime</span></code
+          >
+        </li>
+        <li>
+          Because the TTL index is ordered by the date field, the monitor can
+          efficiently find all candidates for deletion without scanning the
+          entire collection.
+        </li>
+      </ul>
+
+      <h3>3. Deletion Process</h3>
+      <ul>
+        <li>
+          The monitor issues <strong class="v">delete operations</strong> for
+          the expired documents it finds. These deletes are foreground
+          operations, just like a standard
+          <em class="v">db.collection.deleteMany()</em> command.
+        </li>
+        <li>
+          <strong>Throttling:</strong> To prevent the cleanup process from
+          consuming too many resources and impacting the main database workload,
+          the monitor has built-in limits. For each TTL index, it will delete
+          documents until one of these conditions is met:
+          <ul>
+            <li>It has deleted <strong class="n">50,000 documents</strong>.</li>
+            <li>
+              It has spent <strong class="v">one second</strong> deleting
+              documents.
+            </li>
+            <li>All expired documents from that index are deleted.</li>
+          </ul>
+        </li>
+      </ul>
+
+      <div class="important-note">
+        <p>
+          <span class="emoji">⚠️</span>
+          <strong>Important Note on Deletion Timing</strong>
+        </p>
+        <p>
+          The TTL index
+          <strong class="v">does not guarantee immediate deletion</strong> upon
+          expiration. Since the monitor thread only runs
+          <strong class="v">every 60 seconds</strong>, a document that expires
+          might remain in the collection for up to
+          <strong class="n">60 seconds</strong> after its calculated expiration
+          time, until the next time the background thread runs and performs the
+          cleanup.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

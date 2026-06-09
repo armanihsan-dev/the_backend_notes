@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zod Validation Notes</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Zod Validation Notes</h1>
+      </header>
+
+      <p class="intro-text">
+        <strong>Zod</strong> is a powerful
+        <strong
+          >TypeScript-first schema declaration and validation library</strong
+        >
+        that works excellently in both TypeScript and plain JavaScript. It
+        provides a simple, declarative syntax for defining the expected
+        **shape** and **constraints** of data, ensuring data integrity at
+        runtime.
+      </p>
+
+      <section class="notes-section">
+        <h2 class="section-heading">💡 How Zod Works</h2>
+        <p>
+          Zod's core principle is defining a **schema** (a blueprint for your
+          data) and then using that schema to **parse** untrusted input data.
+        </p>
+        <ul>
+          <li>
+            <strong>Schema Definition:</strong> You use Zod's fluent API to
+            define the structure and rules your data must follow. These schemas
+            are built using methods chained onto the main
+            <code class="inline-code">z</code> object (e.g.,
+            <code class="inline-code">z.string()</code>,
+            <code class="inline-code">z.object({})</code>).
+          </li>
+          <li>
+            <strong>Parsing/Validation:</strong> You pass your raw, untrusted
+            data to the schema's <code class="inline-code">.parse()</code> or
+            <code class="inline-code">.safeParse()</code> method.
+            <ul class="sub-list">
+              <li>
+                <code class="inline-code">.parse(data)</code>: If the data is
+                valid, it returns the validated data. If validation fails, it
+                **throws a
+                <code class="inline-code">ZodError</code> exception**.
+              </li>
+              <li>
+                <code class="inline-code">.safeParse(data)</code>: This method
+                is safer for error handling. It never throws. It returns an
+                object with a <code class="inline-code">success</code> boolean.
+                If successful, it contains the validated
+                <code class="inline-code">data</code>; otherwise, it contains
+                the <code class="inline-code">error</code> object.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Type Safety (in TypeScript):</strong> A major feature is
+            that Zod can **automatically infer** the static TypeScript type from
+            the runtime schema, eliminating the need to define types twice.
+          </li>
+        </ul>
+      </section>
+
+      <section class="notes-section">
+        <h2 class="section-heading">📜 Clear Syntax and Basic Examples</h2>
+        <p>
+          To get started, you typically install Zod via
+          <code class="inline-code">npm</code> (<code class="inline-code"
+            >npm install zod</code
+          >) and import the main object.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header">JavaScript</div>
+          <pre><code><span class="keyword">import</span> { <span class="variable">z</span> } <span class="keyword">from</span> <span class="string">"zod"</span>;
+
+<span class="comment">// --- Basic Primitives ---</span>
+<span class="keyword">const</span> <span class="constant">StringSchema</span> <span class="operator">=</span> <span class="variable">z</span>.<span class="function">string</span>();
+<span class="keyword">const</span> <span class="constant">NumberSchema</span> <span class="operator">=</span> <span class="variable">z</span>.<span class="function">number</span>();
+<span class="keyword">const</span> <span class="constant">BooleanSchema</span> <span class="operator">=</span> <span class="variable">z</span>.<span class="function">boolean</span>();
+
+<span class="comment">// --- Validation Examples (using .parse) ---</span>
+<span class="keyword">try</span> {
+    <span class="comment">// 1. Success: Returns the string</span>
+    <span class="keyword">const</span> <span class="variable">validString</span> <span class="operator">=</span> <span class="constant">StringSchema</span>.<span class="function">parse</span>(<span class="string">"hello world"</span>); 
+    <span class="function">console</span>.<span class="function">log</span>(<span class="variable">validString</span>); <span class="comment">// "hello world"</span>
+
+    <span class="comment">// 2. Failure: Throws a ZodError</span>
+    <span class="constant">NumberSchema</span>.<span class="function">parse</span>(<span class="string">"not a number"</span>); 
+} <span class="keyword">catch</span> (<span class="variable">error</span>) {
+    <span class="comment">// Will catch the error from the failed parse</span>
+    <span class="function">console</span>.<span class="function">error</span>(<span class="variable">error</span>.<span class="property">errors</span>);
+}</code></pre>
+        </div>
+
+        <h3 class="sub-heading">Basic Object Schema and Constraints</h3>
+        <p>
+          You use <code class="inline-code">z.object()</code> to define the
+          structure of an object. You can chain methods to add constraints.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header">JavaScript</div>
+          <pre><code><span class="comment">// 📦 Defines an object with a required string (min 3 chars) and a required email</span>
+<span class="keyword">const</span> <span class="constant">UserSchema</span> <span class="operator">=</span> <span class="variable">z</span>.<span class="function">object</span>({
+  <span class="property">name</span>: <span class="variable">z</span>.<span class="function">string</span>().<span class="function">min</span>(<span class="number">3</span>, { <span class="property">message</span>: <span class="string">"Name must be 3 or more characters."</span> }),
+  <span class="property">email</span>: <span class="variable">z</span>.<span class="function">string</span>().<span class="function">email</span>({ <span class="property">message</span>: <span class="string">"Invalid email address."</span> }),
+  <span class="property">age</span>: <span class="variable">z</span>.<span class="function">number</span>().<span class="function">int</span>().<span class="function">positive</span>().<span class="function">optional</span>(), <span class="comment">// optional number, must be positive integer</span>
+});
+
+<span class="comment">// --- Safe Parsing Example (.safeParse) ---</span>
+<span class="keyword">const</span> <span class="variable">invalidUser</span> <span class="operator">=</span> {
+  <span class="property">name</span>: <span class="string">"Jo"</span>, <span class="comment">// too short</span>
+  <span class="property">email</span>: <span class="string">"invalid-email"</span>, <span class="comment">// not an email</span>
+};
+
+<span class="keyword">const</span> <span class="variable">result</span> <span class="operator">=</span> <span class="constant">UserSchema</span>.<span class="function">safeParse</span>(<span class="variable">invalidUser</span>);
+
+<span class="keyword">if</span> (<span class="operator">!</span><span class="variable">result</span>.<span class="property">success</span>) {
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">"Validation Failed:"</span>);
+  <span class="comment">// result.error is a ZodError instance</span>
+  <span class="variable">result</span>.<span class="property">error</span>.<span class="property">issues</span>.<span class="function">forEach</span>(<span class="variable">issue</span> <span class="operator">=></span> {
+    <span class="function">console</span>.<span class="function">log</span>(<span class="string">`- Field: ${issue.path[0]}, Message: ${issue.message}`</span>);
+  });
+  <span class="comment">/* Output:
+  - Field: name, Message: Name must be 3 or more characters.
+  - Field: email, Message: Invalid email address.
+  */</span>
+} <span class="keyword">else</span> {
+  <span class="comment">// result.data contains the validated, type-safe data</span>
+  <span class="function">console</span>.<span class="function">log</span>(<span class="string">"Validation Succeeded:"</span>, <span class="variable">result</span>.<span class="property">data</span>);
+}</code></pre>
+        </div>
+      </section>
+
+      <section class="notes-section">
+        <h2 class="section-heading">🚀 Advanced Zod Schemas and Features</h2>
+
+        <h3 class="sub-heading">1. Complex Types</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Schema Type</th>
+                <th>Syntax</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Array</strong></td>
+                <td><code class="inline-code">z.array(z.string())</code></td>
+                <td>An array of strings.</td>
+              </tr>
+              <tr>
+                <td><strong>Literal</strong></td>
+                <td><code class="inline-code">z.literal("admin")</code></td>
+                <td>Must be the exact value "admin".</td>
+              </tr>
+              <tr>
+                <td><strong>Union</strong></td>
+                <td>
+                  <code class="inline-code">z.string().or(z.number())</code>
+                </td>
+                <td>Can be a string **OR** a number.</td>
+              </tr>
+              <tr>
+                <td><strong>Enum</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >z.enum(["red", "green", "blue"])</code
+                  >
+                </td>
+                <td>Must be one of the specified strings.</td>
+              </tr>
+              <tr>
+                <td><strong>Nullable/Optional</strong></td>
+                <td><code class="inline-code">z.string().nullable()</code></td>
+                <td>
+                  Can be a string or <code class="inline-code">null</code>.
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td><code class="inline-code">z.string().optional()</code></td>
+                <td>
+                  Can be a string or
+                  <code class="inline-code">undefined</code> (or omitted).
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Combined</strong></td>
+                <td>
+                  <code class="inline-code"
+                    >z.string().optional().nullable()</code
+                  >
+                </td>
+                <td>
+                  Can be string, <code class="inline-code">undefined</code>, or
+                  <code class="inline-code">null</code>.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 class="sub-heading">
+          2. Custom Validation with <code class="inline-code">.refine()</code>
+        </h3>
+        <p>
+          The <code class="inline-code">.refine()</code> method is used to add
+          custom, schema-wide or field-specific validation logic that cannot be
+          covered by built-in methods.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header">JavaScript</div>
+          <pre><code><span class="comment">// Validates that password and confirm_password fields match</span>
+<span class="keyword">const</span> <span class="constant">SignupSchema</span> <span class="operator">=</span> <span class="variable">z</span>.<span class="function">object</span>({
+  <span class="property">password</span>: <span class="variable">z</span>.<span class="function">string</span>().<span class="function">min</span>(<span class="number">8</span>),
+  <span class="property">confirmPassword</span>: <span class="variable">z</span>.<span class="function">string</span>().<span class="function">min</span>(<span class="number">8</span>),
+}).<span class="function">refine</span>((<span class="variable">data</span>) <span class="operator">=></span> <span class="variable">data</span>.<span class="property">password</span> <span class="operator">===</span> <span class="variable">data</span>.<span class="property">confirmPassword</span>, {
+  <span class="property">message</span>: <span class="string">"Passwords don't match"</span>,
+  <span class="property">path</span>: [<span class="string">"confirmPassword"</span>], <span class="comment">// Point the error to the confirmPassword field</span>
+});
+
+<span class="constant">SignupSchema</span>.<span class="function">safeParse</span>({ <span class="property">password</span>: <span class="string">"123"</span>, <span class="property">confirmPassword</span>: <span class="string">"456"</span> });
+<span class="comment">// => { success: false, error: ... } with "Passwords don't match" on confirmPassword</span></code></pre>
+        </div>
+
+        <h3 class="sub-heading">
+          3. Data Transformation with
+          <code class="inline-code">.transform()</code>
+        </h3>
+        <p>
+          The <code class="inline-code">.transform()</code> method allows you to
+          convert the data's type or value after it has been successfully
+          validated.
+        </p>
+
+        <div class="code-block">
+          <div class="code-header">JavaScript</div>
+          <pre><code><span class="comment">// Accepts a string, validates it's a number, and transforms it to an actual Date object</span>
+<span class="keyword">const</span> <span class="constant">DateSchema</span> <span class="operator">=</span> <span class="variable">z</span>.<span class="function">string</span>().<span class="function">datetime</span>().<span class="function">transform</span>((<span class="variable">str</span>) <span class="operator">=></span> <span class="keyword">new</span> <span class="class">Date</span>(<span class="variable">str</span>));
+
+<span class="keyword">const</span> <span class="variable">result</span> <span class="operator">=</span> <span class="constant">DateSchema</span>.<span class="function">safeParse</span>(<span class="string">"2025-11-30T10:00:00.000Z"</span>);
+
+<span class="keyword">if</span> (<span class="variable">result</span>.<span class="property">success</span>) {
+  <span class="function">console</span>.<span class="function">log</span>(<span class="variable">result</span>.<span class="property">data</span>); <span class="comment">// Output: A Date object</span>
+  <span class="function">console</span>.<span class="function">log</span>(<span class="keyword">typeof</span> <span class="variable">result</span>.<span class="property">data</span>); <span class="comment">// "object"</span>
+}</code></pre>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Security Policy (CSP) Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1&display=swap" rel="stylesheet">
+    <style>
+        /* CSS code goes here */
+        body {
+            background-color: #1e1e1e; /* VS Code Dark background */
+            color: #d4d4d4; /* Light grey text */
+            font-family: 'Nunito', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #252526; /* Slightly lighter background for the content area */
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        h1, h2, h3, h4 {
+            color: #569cd6; /* VS Code blue for headings */
+            border-bottom: 2px solid #3c3c3c;
+            padding-bottom: 5px;
+            margin-top: 30px;
+        }
+
+        h2 {
+            font-size: 1.8em;
+        }
+
+        h3 {
+            font-size: 1.4em;
+            color: #4ec9b0; /* VS Code teal for sub-headings */
+            margin-top: 20px;
+        }
+
+        p, li {
+            font-size: 1.05em;
+        }
+
+        /* Standard List Styling */
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        ul li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        ul li::before {
+            content: '•';
+            color: #dcdcaa; /* VS Code yellow/gold for list markers */
+            font-weight: bold;
+            display: inline-block;
+            width: 1em;
+            margin-left: -1em;
+        }
+
+        /* Emoji and Special Styling */
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 5px;
+        }
+
+        strong {
+            color: #ce9178; /* VS Code orange for strong emphasis */
+            font-weight: 700;
+        }
+        
+        /* Code Block Styling (VS Code Dark Theme) */
+        pre {
+            background-color: #1f1f1f; /* Dark background for code block */
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 15px 0;
+            border: 1px solid #3c3c3c;
+        }
+
+        code {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.95em;
+            color: #d4d4d4; /* Default text color */
+        }
+        
+        /* Highlighting for Code Syntax */
+        .keyword { color: #569cd6; } /* Blue for keywords (e.g., const, default-src) */
+        .string { color: #ce9178; } /* Orange for strings/values (e.g., 'self', /path) */
+        .comment { color: #6a9955; } /* Green for comments/metadata (e.g., HTTP, HTML) */
+        .attribute { color: #9cdcfe; } /* Light blue for attributes (e.g., http-equiv) */
+        .tag { color: #569cd6; } /* Blue for HTML tags */
+        .directive { color: #dcdcaa; } /* Yellow/gold for CSP directives */
+        .value { color: #ce9178; } /* Orange for directive values */
+        
+        /* Table Styling */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #3c3c3c;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #3c3c3c;
+            color: #dcdcaa;
+            font-weight: 700;
+        }
+
+        tr:nth-child(even) {
+            background-color: #2a2a2a;
+        }
+
+        tr:hover {
+            background-color: #353535;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>Content Security Policy (CSP) Notes</h1>
+
+    <p>A **Content Security Policy (CSP)** is a computer security standard that acts as an added layer of defense against certain types of attacks, primarily **Cross-Site Scripting (XSS)** and **clickjacking**.</p>
+    <p>It works by allowing website administrators to explicitly **define which resources** (like scripts, styles, images, and media) are trusted and allowed to be loaded by a user's browser for a given page. Think of CSP as a **"whitelist" mechanism** for web resources.</p>
+
+    <h2><span class="emoji">🛡️</span> Why is CSP Important?</h2>
+    <p>CSP is a critical security measure because it helps mitigate attacks that exploit the browser's implicit trust in the content it receives from a server.</p>
+
+    <h3>Mitigates Cross-Site Scripting (XSS):</h3>
+    <p>This is the main benefit. XSS attacks occur when an attacker injects malicious scripts into a trusted website. Without CSP, the browser executes this malicious script because it appears to come from the trusted source. A well-configured CSP prevents this by:</p>
+    <ul>
+        <li>**Restricting script sources:** Only allowing scripts to load from explicitly whitelisted domains.</li>
+        <li>**Blocking inline code:** Disabling the execution of inline JavaScript (`<script>...</script>`) and inline CSS (`style="..."`), which are common vectors for XSS.</li>
+        <li>**Blocking eval() and similar functions:** Preventing the execution of dynamic code from strings.</li>
+    </ul>
+
+    <h3>Prevents Clickjacking:</h3>
+    <p>Content Security Policy (CSP) can prevent clickjacking by using the frame-ancestors directive in an HTTP response header. This directive instructs the browser which domains are permitted to embed the web page in a frame (such as an iframe, frame, or object tag), thereby preventing malicious sites from framing the content</p>
+    <ul>
+        <li>How the frame-ancestors directive works</li>
+        <li>Content-Security-Policy: frame-ancestors 'self' https://trusted-site.com</li>
+    </ul>
+    <h3>Enforces Secure Connections (HTTPS):</h3>
+    <p>Directives like **`upgrade-insecure-requests`** can instruct the browser to rewrite all HTTP URLs to HTTPS, enforcing encryption and protecting against man-in-the-middle attacks.</p>
+
+    <h2><span class="emoji">⚙️</span> How Does CSP Work?</h2>
+    <p>A Content Security Policy is delivered to the user's browser, which then enforces the policy's rules.</p>
+
+    <h3>1. Delivery</h3>
+    <p>The policy is primarily delivered using the **`Content-Security-Policy` HTTP response header.**</p>
+    <p class="comment">// Example Header: HTTP</p>
+    <pre><code><span class="keyword">Content-Security-Policy</span>: <span class="directive">default-src</span> <span class="value">'self'</span>; <span class="directive">script-src</span> <span class="value">'self'</span> <span class="string">https://cdn.trusted.com</span>; <span class="directive">img-src</span> <span class="value">'self'</span> <span class="value">data:</span>;</code></pre>
+
+    <p>A less-recommended alternative (which has some limitations) is to use an HTML `<meta>` tag:</p>
+    <p class="comment">// HTML</p>
+    <pre><code><span class="tag">&lt;meta</span> <span class="attribute">http-equiv</span>=<span class="string">"Content-Security-Policy"</span> <span class="attribute">content</span>=<span class="string">"default-src 'self';"</span><span class="tag">&gt;</span></code></pre>
+
+    <h3>2. Directives</h3>
+    <p>✅ A <strong>directive</strong> are some     rule that tells the browser what is allowed and what is blocked.</p>
+    <p>The policy consists of one or more directives, separated by semicolons. Each directive controls a specific resource type or security behavior.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Directive</th>
+                <th>Purpose</th>
+                <th>Example</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">default-src</span></td><td>Fallback for all other resource types if they don't have a specific directive.</td><td><span class="directive">default-src</span> <span class="value">'self'</span></td></tr>
+            <tr><td><span class="directive">script-src</span></td><td>Specifies valid sources for JavaScript files.</td><td><span class="directive">script-src</span> <span class="value">'self'</span> <span class="string">cdn.example.com</span></td></tr>
+            <tr><td><span class="directive">style-src</span></td><td>Specifies valid sources for CSS stylesheets.</td><td><span class="directive">style-src</span> <span class="value">'self'</span> <span class="string">fonts.googleapis.com</span></td></tr>
+            <tr><td><span class="directive">img-src</span></td><td>Specifies valid sources for images.</td><td><span class="directive">img-src</span> <span class="value">*</span> (allows images from any origin)</td></tr>
+            <tr><td><span class="directive">connect-src</span></td><td>Restricts which URLs can be loaded by scripts (e.g., AJAX, WebSockets).</td><td><span class="directive">connect-src</span> <span class="value">'self'</span> <span class="string">api.example.com</span></td></tr>
+            <tr><td><span class="directive">frame-ancestors</span></td><td>Restricts which sites can embed the current page (prevents clickjacking).</td><td><span class="directive">frame-ancestors</span> <span class="value">'none'</span></td></tr>
+        </tbody>
+    </table>
+
+    <h3>3. Source Values</h3>
+    <p>Directives take a value called a **source expression** to define what is allowed. Common source expressions include:</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Value</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="value">'self'</span></td><td>Allows resources from the same origin (protocol, host, and port).</td></tr>
+            <tr><td><span class="string">https://example.com</span></td><td>Explicitly allows resources from that domain (over HTTPS).</td></tr>
+            <tr><td><span class="value">*</span></td><td>Wildcard, allows resources from any source (use with caution).</td></tr>
+            <tr><td><span class="value">'none'</span></td><td>Disallows resources of this type.</td></tr>
+            <tr><td><span class="value">'nonce-*'</span></td><td>Allows an inline script/style tag only if it has a matching cryptographically secure, single-use token (nonce). **Crucial for modern strict CSPs.**</td></tr>
+        </tbody>
+    </table>
+
+    <h3>4. Enforcement</h3>
+    <p>When the browser loads the web page:</p>
+    <ol>
+        <li>It reads the Content-Security-Policy header.</li>
+        <li>For every resource the page tries to load (e.g., an external script, an image, or an inline script), the browser checks the relevant CSP directive.</li>
+        <li>**If the source is allowed** by the policy (it's on the "allowlist"), the browser loads/executes the resource.</li>
+        <li>**If the source violates the policy**, the browser blocks the resource from loading and registers a violation.</li>
+    </ol>
+
+    <h2><span class="emoji">🛠️</span> Policy Modes</h2>
+    <p>CSP can be deployed in two different modes:</p>
+
+    <h3>Enforcement Mode:</h3>
+    <p>The browser actively blocks resources that violate the policy. This is the final, production state.</p>
+    <pre><code><span class="keyword">Header</span>: <span class="keyword">Content-Security-Policy</span>: ...</code></pre>
+
+    <h3>Report-Only Mode:</h3>
+    <p>The browser monitors for violations and sends reports, but **does not block** any content. This is crucial for safely testing a new policy before enforcing it, as it helps identify legitimate resources that might be blocked.</p>
+    <pre><code><span class="keyword">Header</span>: <span class="keyword">Content-Security-Policy-Report-Only</span>: ...</code></pre>
+
+    <h2>Content Security Policy (CSP) Directives Categorized</h2>
+    <p>A comprehensive list of Content Security Policy (CSP) directives, categorized by their purpose.</p>
+
+    <h3><span class="emoji">✅</span> 1. Fetch Directives</h3>
+    <p>These control where different types of resources can be loaded from.</p>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">default-src</span></td><td>Fallback for other resource types unless overridden</td></tr>
+            <tr><td><span class="directive">script-src</span></td><td>Controls JavaScript loading (e.g., &lt;script&gt;)</td></tr>
+            <tr><td><span class="directive">style-src</span></td><td>Controls CSS loading (e.g., &lt;style&gt;, link rel="stylesheet")</td></tr>
+            <tr><td><span class="directive">img-src</span></td><td>Controls image loading (e.g., &lt;img&gt;, CSS url())</td></tr>
+            <tr><td><span class="directive">font-src</span></td><td>Controls font loading (e.g., from @font-face)</td></tr>
+            <tr><td><span class="directive">connect-src</span></td><td>Controls connections (e.g., fetch, XHR, WebSocket)</td></tr>
+            <tr><td><span class="directive">media-src</span></td><td>Controls &lt;audio&gt; and &lt;video&gt; sources</td></tr>
+            <tr><td><span class="directive">object-src</span></td><td>Controls &lt;object&gt;, &lt;embed&gt;, &lt;applet&gt; loading</td></tr>
+            <tr><td><span class="directive">manifest-src</span></td><td>Controls web app manifest file loading</td></tr>
+            <tr><td><span class="directive">child-src</span></td><td>Deprecated, use <span class="directive">frame-src</span> or <span class="directive">worker-src</span></td></tr>
+            <tr><td><span class="directive">frame-src</span></td><td>Controls embedding via &lt;iframe&gt; or &lt;frame&gt;</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 2. Navigation Directives</h3>
+    <p>Control how and where navigation can occur.</p>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">frame-ancestors</span></td><td>Restrict which sources can embed your content via &lt;iframe&gt;</td></tr>
+            <tr><td><span class="directive">form-action</span></td><td>Restrict where forms can submit data to</td></tr>
+            <tr><td><span class="directive">navigate-to</span></td><td>Restrict where anchor tags can redirect (Removed from the spec and not implemented in browsers)</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 3. Other Directives</h3>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">worker-src</span></td><td>Controls loading of Web Workers and Service Workers</td></tr>
+            <tr><td><span class="directive">webrtc</span></td><td>Controls WebRTC communication (not widely supported)</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 4. Reporting Directives</h3>
+    <p>Allow monitoring of policy violations.</p>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">report-uri</span></td><td>(Deprecated) Sends CSP violation reports to this URI</td></tr>
+            <tr><td><span class="directive">report-to</span></td><td>Modern alternative to <span class="directive">report-uri</span> using Reporting API</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 5. Document Directives</h3>
+    <p>Control document behavior and structure.</p>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">sandbox</span></td><td>Applies sandbox restrictions to the page (like &lt;iframe sandbox&gt;)</td></tr>
+            <tr><td><span class="directive">base-uri</span></td><td>Restricts URLs used by &lt;base&gt; element</td></tr>
+            <tr><td><span class="directive">upgrade-insecure-requests</span></td><td>Automatically upgrade HTTP requests to HTTPS</td></tr>
+        </tbody>
+    </table>
+    <p><strong>Tip:</strong> Always start with a restrictive policy like **`default-src 'none';`** and open only what’s required.</p>
+
+    <h2><span class="emoji">✅</span> CSP Directives and Their Possible Values (No Descriptions)</h2>
+    
+    <h3><span class="emoji">✅</span> 1. Fetch Directives</h3>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Possible Values</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">default-src</span></td><td><span class="value">'self'</span>, URLs, <span class="value">'none'</span>, <span class="value">'unsafe-inline'</span>, <span class="value">'unsafe-eval'</span>, data:, blob:, https:</td></tr>
+            <tr><td><span class="directive">script-src</span></td><td><span class="value">'self'</span>, URLs, <span class="value">'unsafe-inline'</span>, <span class="value">'unsafe-eval'</span>, nonces (<span class="value">'nonce-abc123'</span>), hashes</td></tr>
+            <tr><td><span class="directive">style-src</span></td><td><span class="value">'self'</span>, URLs, <span class="value">'unsafe-inline'</span>, nonces, hashes</td></tr>
+            <tr><td><span class="directive">img-src</span></td><td><span class="value">'self'</span>, data:, blob:, URLs, <span class="value">'none'</span></td></tr>
+            <tr><td><span class="directive">font-src</span></td><td><span class="value">'self'</span>, URLs, data:, <span class="value">'none'</span></td></tr>
+            <tr><td><span class="directive">connect-src</span></td><td><span class="value">'self'</span>, URLs, <span class="value">'none'</span>, wss:, ws:, https:, http:</td></tr>
+            <tr><td><span class="directive">media-src</span></td><td><span class="value">'self'</span>, URLs, blob:, <span class="value">'none'</span></td></tr>
+            <tr><td><span class="directive">object-src</span></td><td><span class="value">'self'</span>, <span class="value">'none'</span>, URLs</td></tr>
+            <tr><td><span class="directive">manifest-src</span></td><td><span class="value">'self'</span>, URLs, <span class="value">'none'</span></td></tr>
+            <tr><td><span class="directive">child-src*</span></td><td>Same as <span class="directive">frame-src</span>/<span class="directive">worker-src</span></td></tr>
+            <tr><td><span class="directive">frame-src</span></td><td><span class="value">'self'</span>, URLs, <span class="value">'none'</span></td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 2. Navigation Directives</h3>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Possible Values</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">frame-ancestors</span></td><td><span class="value">'self'</span>, <span class="value">'none'</span>, specific origins</td></tr>
+            <tr><td><span class="directive">form-action</span></td><td><span class="value">'self'</span>, <span class="value">'none'</span>, URLs</td></tr>
+            <tr><td><span class="directive">navigate-to</span></td><td>❌ Removed from spec; not supported in browsers</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 3. Other Directives</h3>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Possible Values</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">worker-src</span></td><td><span class="value">'self'</span>, <span class="value">'none'</span>, URLs</td></tr>
+            <tr><td><span class="directive">webrtc</span></td><td>Not standardized; browser-specific</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 4. Reporting Directives</h3>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Possible Values</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">report-uri</span></td><td>URL (e.g., <span class="string">/csp-violation-report-endpoint</span>)</td></tr>
+            <tr><td><span class="directive">report-to</span></td><td>A reporting group defined in <span class="keyword">Report-To</span> header</td></tr>
+        </tbody>
+    </table>
+
+    <h3><span class="emoji">✅</span> 5. Document Directives</h3>
+    <table>
+        <thead>
+            <tr><th>Directive</th><th>Possible Values</th></tr>
+        </thead>
+        <tbody>
+            <tr><td><span class="directive">sandbox</span></td><td><span class="value">allow-scripts</span>, <span class="value">allow-same-origin</span>, etc.</td></tr>
+            <tr><td><span class="directive">base-uri</span></td><td><span class="value">'self'</span>, <span class="value">'none'</span>, specific URLs</td></tr>
+            <tr><td><span class="directive">upgrade-insecure-requests</span></td><td>No value — just presence enables the behavior</td></tr>
+        </tbody>
+    </table>
+
+    <h2><span class="emoji">6</span> Practically use case : add CSP header before serving public files :</h2>
+    
+    <pre><code><span class="keyword">app</span>.<span class="keyword">use</span>((<span class="keyword">req</span>, <span class="keyword">res</span>, <span class="keyword">next</span>) => {
+<span class="keyword">  if</span> (<span class="keyword">req</span>.headers.<span class="attribute">accept</span>?.includes(<span class="string">'text/html'</span>)) {
+<span class="keyword">    res</span>.<span class="keyword">setHeader</span>(
+<span class="string">      'Content-Security-Policy'</span>,
+<span class="string">      "default-src 'self';\
+<span class="string">        script-src 'self'  https://cdn.tailwindcss.com http://localhost:8000;\
+<span class="string">        img-src 'self' https://images.unsplash.com/;\
+<span class="string">        style-src 'unsafe-inline';\
+<span class="string">        connect-src 'self' http://localhost:8000"</span>
+    )
+  }
+<span class="keyword">  next</span>()
+})
+<span class="keyword">app</span>.<span class="keyword">use</span>(express.<span class="keyword">static</span>(<span class="string">"./public"</span>));
+</code></pre>
+
+</div>
+
+</body>
+</html>

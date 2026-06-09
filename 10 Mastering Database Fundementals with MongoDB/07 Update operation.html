@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Update Operations (Node.js)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styles for the Blakish Theme */
+      :root {
+        /* Blakish Theme Colors */
+        --bg-dark: #1e1e1e; /* Main background, similar to VS Code dark */
+        --bg-card: #252526; /* Card/section background */
+        --text-light: #d4d4d4; /* Primary text color */
+        --text-heading: #569cd6; /* Blue color for headings/keywords */
+        --text-code-comment: #6a9955; /* Green for comments */
+        --text-code-keyword: #c586c0; /* Purple for keywords (const, async, function) */
+        --text-code-string: #ce9178; /* Orange for strings */
+        --text-code-variable: #9cdcfe; /* Light blue for variables */
+        --text-code-number: #b5cea8; /* Greenish for numbers */
+        --border-color: #3e3e42;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-dark);
+        color: var(--text-light);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--bg-card);
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      h2,
+      h3,
+      h4 {
+        color: var(--text-heading);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 5px;
+        margin-top: 25px;
+      }
+
+      p,
+      li {
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+
+      /* VS Code Dark Theme for Code Blocks */
+      .code-container {
+        background-color: #1e1e1e; /* Deeper black for code block */
+        border-radius: 6px;
+        padding: 15px;
+        overflow-x: auto;
+        border: 1px solid var(--border-color);
+        margin-top: 15px;
+      }
+
+      .code-container pre {
+        margin: 0;
+        white-space: pre-wrap; /* Allows line breaks for better readability */
+        font-family: 'Consolas', 'Monaco', monospace; /* Monospaced font for code */
+        font-size: 14px;
+      }
+
+      /* Syntax Highlighting (Emulating VS Code) */
+      .code-comment {
+        color: var(--text-code-comment);
+      }
+      .code-keyword {
+        color: var(--text-code-keyword);
+      } /* const, async, function, await */
+      .code-variable {
+        color: var(--text-code-variable);
+      } /* client, collection, filter, result */
+      .code-string {
+        color: var(--text-code-string);
+      } /* "mongodb://...", "Laptop X" */
+      .code-number {
+        color: var(--text-code-number);
+      } /* 1200, 5, 10 */
+      .code-method {
+        color: #dcdcaa;
+      } /* updateOne, findOneAndUpdate */
+      .code-operator {
+        color: #f8f8f2;
+      } /* =, :, +, { } */
+      .code-dot-notation {
+        color: #9cdcfe;
+      } /* .db, .collection */
+
+      /* Table Styles */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+        color: var(--text-light);
+        background-color: var(--bg-dark);
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--border-color);
+        color: var(--text-heading);
+      }
+
+      /* Inline Code and Update Operator styling */
+      .inline-code {
+        font-family: 'Consolas', monospace;
+        background-color: #333333;
+        color: var(--text-code-variable);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>MongoDB Update Operations in Node.js</h1>
+      <p>
+        A MongoDB update operation in Node.js modifies existing documents in a
+        collection. You'll primarily use the
+        <span class="inline-code">updateOne()</span>,
+        <span class="inline-code">updateMany()</span>, and
+        <span class="inline-code">findOneAndUpdate()</span> methods from the
+        official MongoDB Node.js driver or a tool like Mongoose.
+      </p>
+      <p>
+        All update operations use
+        <span class="inline-code">update operators</span> (like
+        <span class="inline-code">$set</span>,
+        <span class="inline-code">$inc</span>,
+        <span class="inline-code">$unset</span>) to specify the changes.
+      </p>
+
+      <h2 id="prerequisites">1. Prerequisites (Setup)</h2>
+      <p>
+        To run the examples, ensure you have the MongoDB Node.js driver
+        installed and a connection established.
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-comment">// index.js (Setup)</span>
+<span class="code-keyword">const</span> { <span class="code-variable">MongoClient</span> } = <span class="code-method">require</span>(<span class="code-string">'mongodb'</span>);
+
+<span class="code-comment">// Replace with your MongoDB connection string</span>
+<span class="code-keyword">const</span> <span class="code-variable">uri</span> = <span class="code-string">"mongodb://localhost:27017"</span>; 
+<span class="code-keyword">const</span> <span class="code-variable">client</span> = <span class="code-keyword">new</span> <span class="code-variable">MongoClient</span>(<span class="code-variable">uri</span>);
+
+<span class="code-comment">// Sample data to ensure a collection exists for testing</span>
+<span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-method">setupTestData</span>(<span class="code-variable">collection</span>) {
+    <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">deleteMany</span>({});
+    <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">insertMany</span>([
+        { <span class="code-variable">name</span>: <span class="code-string">"Laptop X"</span>, <span class="code-variable">quantity</span>: <span class="code-number">5</span>, <span class="code-variable">price</span>: <span class="code-number">1200</span>, <span class="code-variable">tags</span>: [<span class="code-string">"electronics"</span>, <span class="code-string">"best-seller"</span>] },
+        { <span class="code-variable">name</span>: <span class="code-string">"Laptop Y"</span>, <span class="code-variable">quantity</span>: <span class="code-number">15</span>, <span class="code-variable">price</span>: <span class="code-number">900</span>, <span class="code-variable">tags</span>: [<span class="code-string">"electronics"</span>] },
+        { <span class="code-variable">name</span>: <span class="code-string">"Mouse A"</span>, <span class="code-variable">quantity</span>: <span class="code-number">30</span>, <span class="code-variable">price</span>: <span class="code-number">25</span>, <span class="code-variable">tags</span>: [<span class="code-string">"peripherals"</span>] }
+    ]);
+    <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">"Test data inserted."</span>);
+}
+
+<span class="code-keyword">async</span> <span class="code-keyword">function</span> <span class="code-method">runUpdateOperation</span>(<span class="code-variable">operation</span>) {
+    <span class="code-keyword">try</span> {
+        <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">connect</span>();
+        <span class="code-keyword">const</span> <span class="code-variable">database</span> = <span class="code-variable">client</span>.<span class="code-method">db</span>(<span class="code-string">"inventoryDB"</span>); <span class="code-comment">// Your database name</span>
+        <span class="code-keyword">const</span> <span class="code-variable">collection</span> = <span class="code-variable">database</span>.<span class="code-method">collection</span>(<span class="code-string">"products"</span>); <span class="code-comment">// Your collection name</span>
+        <span class="code-keyword">await</span> <span class="code-method">setupTestData</span>(<span class="code-variable">collection</span>);
+
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`\n--- Running ${</span><span class="code-variable">operation</span>.<span class="code-variable">name</span><span class="code-string">} ---`</span>);
+        <span class="code-keyword">await</span> <span class="code-variable">operation</span>.<span class="code-variable">func</span>(<span class="code-variable">collection</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">"--- Collection after update ---"</span>);
+        <span class="code-keyword">const</span> <span class="code-variable">results</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">find</span>({}).<span class="code-method">toArray</span>();
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-variable">results</span>);
+
+    } <span class="code-keyword">finally</span> {
+        <span class="code-keyword">await</span> <span class="code-variable">client</span>.<span class="code-method">close</span>();
+    }
+}
+</pre>
+      </div>
+
+      <h2 id="update-one">
+        2. Update a Single Document:
+        <span class="inline-code">updateOne()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">updateOne()</span> method updates a
+        **single** document that matches the specified filter. If multiple
+        documents match, only the first one found is updated.
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">updateOne</span>(<span class="code-variable">filter</span>, <span class="code-variable">update</span>, <span class="code-variable">options</span>)</pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">filter</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>A query document that selects the document to update.</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">update</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              A document specifying the modifications to apply using update
+              operators (e.g., <span class="inline-code">$set</span>,
+              <span class="inline-code">$inc</span>).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">options</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              Optional. Can include
+              <span class="inline-code">upsert: true</span> (creates a new
+              document if no match is found).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Example (Using <span class="inline-code">$set</span>)</h3>
+      <p>
+        This example updates the price and adds a status field for the document
+        named "Laptop X".
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">updateOneExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"updateOne"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">name</span>: <span class="code-string">"Laptop X"</span> };
+        <span class="code-keyword">const</span> <span class="code-variable">updateDoc</span> = {
+            <span class="code-variable">$set</span>: {
+                <span class="code-variable">price</span>: <span class="code-number">1250</span>, <span class="code-comment">// Change price</span>
+                <span class="code-variable">status</span>: <span class="code-string">"Updated"</span> <span class="code-comment">// Add new field</span>
+            }
+        };
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">updateOne</span>(<span class="code-variable">filter</span>, <span class="code-variable">updateDoc</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Matched ${</span><span class="code-variable">result</span>.<span class="code-variable">matchedCount</span><span class="code-string">} document(s) and modified ${</span><span class="code-variable">result</span>.<span class="code-variable">modifiedCount</span><span class="code-string">} document(s).`</span>);
+    }
+};
+
+<span class="code-comment">// To run: runUpdateOperation(updateOneExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="update-many">
+        3. Update Multiple Documents:
+        <span class="inline-code">updateMany()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">updateMany()</span> method updates **all**
+        documents that match the specified filter.
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">updateMany</span>(<span class="code-variable">filter</span>, <span class="code-variable">update</span>, <span class="code-variable">options</span>)</pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">filter</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>A query document that selects the documents to update.</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">update</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              A document specifying the modifications to apply using update
+              operators (e.g., <span class="inline-code">$set</span>,
+              <span class="inline-code">$inc</span>).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">options</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              Optional. Can include
+              <span class="inline-code">upsert: true</span>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Example (Using <span class="inline-code">$inc</span>)</h3>
+      <p>
+        This example increases the quantity by
+        <span class="inline-code">10</span> for all products that have a price
+        less than or equal to <span class="inline-code">$1000</span>.
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">updateManyExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"updateMany"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">price</span>: { <span class="code-variable">$lte</span>: <span class="code-number">1000</span> } }; <span class="code-comment">// Price &lt;= 1000</span>
+        <span class="code-keyword">const</span> <span class="code-variable">updateDoc</span> = {
+            <span class="code-variable">$inc</span>: {
+                <span class="code-variable">quantity</span>: <span class="code-number">10</span> <span class="code-comment">// Increment quantity by 10</span>
+            }
+        };
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">updateMany</span>(<span class="code-variable">filter</span>, <span class="code-variable">updateDoc</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Matched ${</span><span class="code-variable">result</span>.<span class="code-variable">matchedCount</span><span class="code-string">} document(s) and modified ${</span><span class="code-variable">result</span>.<span class="code-variable">modifiedCount</span><span class="code-string">} document(s).`</span>);
+    }
+};
+
+<span class="code-comment">// To run: runUpdateOperation(updateManyExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="find-one-and-update">
+        4. Find One and Update:
+        <span class="inline-code">findOneAndUpdate()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">findOneAndUpdate()</span> method is an
+        **atomic operation** that performs the following three actions in a
+        single step:
+      </p>
+      <ol>
+        <li>Finds a single document matching the filter.</li>
+        <li>Applies the update.</li>
+        <li>
+          Returns the document (either the original or the updated one,
+          depending on options).
+        </li>
+      </ol>
+      <p>
+        This is useful when you need to use the document data immediately after
+        the update (e.g., showing a user's updated profile).
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">findOneAndUpdate</span>(<span class="code-variable">filter</span>, <span class="code-variable">update</span>, <span class="code-variable">options</span>)</pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">filter</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>A query document that selects the document to update.</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">update</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              A document specifying the modifications to apply using update
+              operators.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">options</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              Optional. Key options include:
+              <ul>
+                <li>
+                  <span class="inline-code">returnDocument: 'after'</span> to
+                  return the updated document.
+                </li>
+                <li>
+                  <span class="inline-code">returnDocument: 'before'</span>
+                  (default) to return the original document.
+                </li>
+                <li>
+                  <span class="inline-code">upsert: true</span> to insert a new
+                  document if no match is found.
+                </li>
+              </ul>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Example (Return Updated Document)</h3>
+      <p>
+        This example finds "Mouse A", changes its price, and immediately returns
+        the updated document.
+      </p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">findOneAndUpdateExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"findOneAndUpdate"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">name</span>: <span class="code-string">"Mouse A"</span> };
+        <span class="code-keyword">const</span> <span class="code-variable">updateDoc</span> = {
+            <span class="code-variable">$set</span>: { <span class="code-variable">price</span>: <span class="code-number">30</span> }
+        };
+        <span class="code-keyword">const</span> <span class="code-variable">options</span> = {
+            <span class="code-variable">returnDocument</span>: <span class="code-string">'after'</span> <span class="code-comment">// Return the document *after* the update</span>
+        };
+        
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">findOneAndUpdate</span>(<span class="code-variable">filter</span>, <span class="code-variable">updateDoc</span>, <span class="code-variable">options</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">"Updated document returned:"</span>, <span class="code-variable">result</span>.<span class="code-variable">value</span>); <span class="code-comment">// result.value is the updated document</span>
+    }
+};
+
+<span class="code-comment">// To run: runUpdateOperation(findOneAndUpdateExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="replace-one">
+        5. Replacing a Document: <span class="inline-code">replaceOne()</span>
+      </h2>
+
+      <h3>Definition</h3>
+      <p>
+        The <span class="inline-code">replaceOne()</span> method replaces an
+        **entire existing document** that matches the filter with a new
+        replacement document. The replacement document must **not contain any
+        update operators** (like <span class="inline-code">$set</span>), and it
+        will completely overwrite all existing fields (except the
+        <span class="inline-code">_id</span>).
+      </p>
+
+      <h3>Syntax</h3>
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-variable">collection</span>.<span class="code-method">replaceOne</span>(<span class="code-variable">filter</span>, <span class="code-variable">replacement</span>, <span class="code-variable">options</span>)</pre>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">filter</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>A query document that selects the document to replace.</td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">replacement</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              The new document that will completely replace the matched
+              document.
+            </td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">options</span></td>
+            <td><span class="inline-code">Object</span></td>
+            <td>
+              Optional. Can include
+              <span class="inline-code">upsert: true</span>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Practical Example</h3>
+      <p>This example finds "Laptop X" and replaces its structure entirely.</p>
+
+      <h3 class="code-comment">JavaScript</h3>
+      <div class="code-container">
+        <pre><span class="code-keyword">const</span> <span class="code-variable">replaceOneExample</span> = {
+    <span class="code-variable">name</span>: <span class="code-string">"replaceOne"</span>,
+    <span class="code-variable">func</span>: <span class="code-keyword">async</span> (<span class="code-variable">collection</span>) => {
+        <span class="code-keyword">const</span> <span class="code-variable">filter</span> = { <span class="code-variable">name</span>: <span class="code-string">"Laptop X"</span> };
+        <span class="code-keyword">const</span> <span class="code-variable">replacementDoc</span> = {
+            <span class="code-variable">name</span>: <span class="code-string">"Laptop X - V2"</span>,
+            <span class="code-variable">quantity_v2</span>: <span class="code-number">10</span>, <span class="code-comment">// Old fields (quantity, price, tags) are gone</span>
+            <span class="code-variable">retired</span>: <span class="code-keyword">true</span>
+        };
+        <span class="code-keyword">const</span> <span class="code-variable">result</span> = <span class="code-keyword">await</span> <span class="code-variable">collection</span>.<span class="code-method">replaceOne</span>(<span class="code-variable">filter</span>, <span class="code-variable">replacementDoc</span>);
+        <span class="code-variable">console</span>.<span class="code-method">log</span>(<span class="code-string">`Matched ${</span><span class="code-variable">result</span>.<span class="code-variable">matchedCount</span><span class="code-string">} document(s) and modified ${</span><span class="code-variable">result</span>.<span class="code-variable">modifiedCount</span><span class="code-string">} document(s).`</span>);
+    }
+};
+
+<span class="code-comment">// To run: runUpdateOperation(replaceOneExample).catch(console.dir);</span></pre>
+      </div>
+
+      <h2 id="update-operators">Key Concept: Update Operators</h2>
+      <p>
+        In MongoDB, to modify fields within a document without replacing the
+        entire document, you must use update operators.
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Operator</th>
+            <th>Description</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="inline-code">$set</span></td>
+            <td>
+              Sets the value of a field. If the field doesn't exist, it's added.
+            </td>
+            <td><span class="inline-code">{$set: {price: 99.99}}</span></td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">$inc</span></td>
+            <td>Increments the value of a field by the specified amount.</td>
+            <td><span class="inline-code">{$inc: {quantity: 5}}</span></td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">$unset</span></td>
+            <td>Removes the specified field from a document.</td>
+            <td><span class="inline-code">{$unset: {tags: ""}}</span></td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">$push</span></td>
+            <td>Adds an item to an array field.</td>
+            <td><span class="inline-code">{$push: {tags: "new"}}</span></td>
+          </tr>
+          <tr>
+            <td><span class="inline-code">$addToSet</span></td>
+            <td>
+              Adds a value to an array unless the value is already present.
+            </td>
+            <td>
+              <span class="inline-code">{$addToSet: {tags: "unique"}}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>
+        <strong>Note:</strong> Always wrap your modifications inside an update
+        operator (e.g., <span class="inline-code">{$set: ...}</span>) when using
+        <span class="inline-code">updateOne()</span>,
+        <span class="inline-code">updateMany()</span>, or
+        <span class="inline-code">findOneAndUpdate()</span>. The
+        <span class="inline-code">replaceOne()</span> method is the only one
+        that uses a plain document.
+      </p>
+    </div>
+  </body>
+</html>

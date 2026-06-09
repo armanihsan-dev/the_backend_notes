@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deployment Notes: Node.js on AWS EC2</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Deployment: Node.js Backend on AWS EC2</h1>
+    
+    <p>
+      <strong>Deployment</strong> refers to the process of making your Node.js
+      application accessible and running on a live server that users can access
+      over the internet. <strong>AWS EC2</strong> (Elastic Compute Cloud) is a
+      virtual server in the cloud where you can install and run your
+      application.
+    </p>
+
+    <h2>What Happens During Deployment</h2>
+
+    <h3>1. Server Provisioning</h3>
+    <ul>
+      <li>Create an EC2 instance (virtual machine)</li>
+      <li>Choose OS (usually Linux like Ubuntu or Amazon Linux)</li>
+      <li>Configure security groups (firewall rules)</li>
+      <li>Set up SSH access</li>
+    </ul>
+
+    <h3>2. Environment Setup</h3>
+    <pre><code><span class="cmt"># Example setup commands</span>
+<span class="kw">sudo</span> apt update
+<span class="kw">sudo</span> apt install nodejs npm
+<span class="kw">sudo</span> npm install -g <span class="prop">pm2</span> <span class="cmt"># Process manager</span></code></pre>
+
+    <h3>3. Application Transfer</h3>
+    <ul>
+      <li>
+        Copy your code to the server (using Git, SCP, or deployment tools)
+      </li>
+      <li>Install dependencies: <code>npm install</code></li>
+      <li>Set up environment variables</li>
+    </ul>
+
+    <h3>4. Running the Application</h3>
+    <pre><code><span class="cmt"># Start your Node.js app</span>
+<span class="prop">pm2</span> <span class="kw">start</span> server.js
+<span class="prop">pm2</span> <span class="kw">save</span>
+<span class="prop">pm2</span> <span class="kw">startup</span> <span class="cmt"># Auto-start on reboot</span></code></pre>
+
+    <h3>5. Configuration</h3>
+    <ul>
+      <li>Set up Nginx/Apache as reverse proxy</li>
+      <li>Configure SSL certificates (HTTPS)</li>
+      <li>Set up domain name (Route 53)</li>
+      <li>Configure monitoring and logging</li>
+    </ul>
+
+    <h2>Typical Architecture</h2>
+    <div class="architecture-box">
+      User Request → Domain Name → Route 53 → EC2 Instance → Nginx (Port 80/443)
+      → Node.js App (Port 3000)
+    </div>
+
+    <h2>Key Components</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>EC2 Instance</strong></td>
+          <td>Your virtual server</td>
+        </tr>
+        <tr>
+          <td><strong>Security Groups</strong></td>
+          <td>Control inbound/outbound traffic</td>
+        </tr>
+        <tr>
+          <td><strong>Elastic IP</strong></td>
+          <td>Static IP address for your instance</td>
+        </tr>
+        <tr>
+          <td><strong>PM2/Nodemon</strong></td>
+          <td>Process management</td>
+        </tr>
+        <tr>
+          <td><strong>Nginx/Apache</strong></td>
+          <td>Web server and reverse proxy</td>
+        </tr>
+        <tr>
+          <td><strong>RDS/other services</strong></td>
+          <td>Database (optional, can be on EC2 or separate)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Common Deployment Methods</h2>
+    <ul>
+      <li>
+        <strong>Manual Deployment:</strong> SSH into server and manually set up
+      </li>
+      <li><strong>Using Scripts:</strong> Automation with bash scripts</li>
+      <li>
+        <strong>CI/CD Pipeline:</strong> GitHub Actions, Jenkins, AWS CodeDeploy
+      </li>
+      <li><strong>Containerization:</strong> Docker + ECS/EKS</li>
+      <li><strong>Using AMIs:</strong> Create custom machine images</li>
+    </ul>
+
+    <h2>Why Deploy on EC2?</h2>
+    <ul>
+      <li><strong>Full Control:</strong> Complete access to the server</li>
+      <li>
+        <strong>Scalability:</strong> Easy to resize instance or use Auto
+        Scaling
+      </li>
+      <li><strong>Cost-Effective:</strong> Pay only for what you use</li>
+      <li><strong>Integration:</strong> Works with other AWS services</li>
+      <li><strong>Flexibility:</strong> Install any software you need</li>
+    </ul>
+
+    <h2>Basic Flow Example</h2>
+    <pre><code><span class="cmt"># 1. Connect to EC2</span>
+<span class="kw">ssh</span> -i key.pem ubuntu@ec2-public-ip
+
+<span class="cmt"># 2. Clone your code</span>
+<span class="kw">git clone</span> <span class="str">https://github.com/your-repo.git</span>
+
+<span class="cmt"># 3. Install dependencies</span>
+<span class="kw">npm</span> install
+
+<span class="cmt"># 4. Set environment variables</span>
+<span class="kw">export</span> <span class="prop">DATABASE_URL</span>=<span class="str">"your-db-url"</span>
+<span class="kw">export</span> <span class="prop">PORT</span>=<span class="lit">3000</span>
+
+<span class="cmt"># 5. Start application</span>
+<span class="kw">node</span> server.js</code></pre>
+
+    <p>
+      This makes your Node.js backend accessible via the EC2 instance's public
+      IP or domain name, serving API requests from clients (web/mobile apps).
+    </p>
+  </body>
+</html>

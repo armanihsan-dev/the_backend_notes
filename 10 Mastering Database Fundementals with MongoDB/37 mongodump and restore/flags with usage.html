@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Backup & Restore Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Styling & Blackish Theme */
+      body {
+        background-color: #1e1e1e; /* Deep grayish-black, like VS Code's default theme */
+        color: #d4d4d4; /* Light grayish-white text */
+        font-family: 'Nunito', sans-serif;
+        margin: 0;
+        padding: 0;
+        line-height: 1.6;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 30px;
+        background-color: #252526; /* Slightly lighter inner panel color */
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        border-radius: 8px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* A common VS Code blue for primary headings/keywords */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1.command-title {
+        color: #4ec9b0; /* A greenish-cyan for main commands/titles */
+        font-size: 2em;
+        border-bottom: 3px solid #3c3c3c;
+      }
+
+      p {
+        margin-bottom: 20px;
+      }
+
+      strong {
+        color: #c586c0; /* Magenta/Purple for emphasis */
+      }
+
+      /* Code Block Styling (VS Code-like Dark Theme) */
+      .code-block {
+        background-color: #1f1f1f; /* Darker background for code */
+        color: #dcdcaa; /* Yellowish color for command */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Fira Code', monospace; /* Use a monospace font for code */
+        font-size: 0.95em;
+        margin-bottom: 25px;
+        white-space: pre-wrap; /* Allows line wrapping */
+        word-break: break-all;
+      }
+
+      .code-block code {
+        /* Color commands and parameters to mimic syntax highlighting */
+        color: #dcdcaa; /* Command */
+      }
+
+      .code-block code strong {
+        color: #c586c0; /* Parameter/Option */
+      }
+
+      /* Inline code styling for options and defaults */
+      code {
+        background-color: #3b3b3b; /* Subtle dark background for inline code */
+        color: #dcdcaa;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-family: 'Fira Code', monospace;
+      }
+
+      /* Table Styling */
+      .options-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 30px;
+        background-color: #2d2d30; /* Slightly different shade for table background */
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .options-table th,
+      .options-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #3c3c3c; /* Dark gray separator */
+      }
+
+      .options-table th {
+        background-color: #3c3c3c;
+        color: #f8f8f2;
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.9em;
+      }
+
+      .options-table tr:hover {
+        background-color: #333333; /* Hover effect */
+      }
+
+      .options-table td code {
+        background-color: transparent;
+        color: #9cdcfe; /* Light blue for options */
+      }
+
+      hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(
+          to right,
+          rgba(0, 0, 0, 0),
+          #3c3c3c,
+          rgba(0, 0, 0, 0)
+        );
+        margin: 40px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="command-title">mongodump Command</h1>
+      <p>
+        The <strong>mongodump</strong> command is used to create a backup of a
+        MongoDB database. It extracts data from a running MongoDB instance and
+        stores it in a BSON format.
+      </p>
+
+      <h2>Syntax</h2>
+      <pre class="code-block"><code>mongodump [options]</code></pre>
+
+      <h2>Common Options</h2>
+      <table class="options-table">
+        <thead>
+          <tr>
+            <th>Option</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>--host &lt;hostname&gt;</code></td>
+            <td>
+              Specifies the MongoDB server (default: <code>localhost</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><code>--port &lt;port&gt;</code></td>
+            <td>
+              Specifies the port to connect to MongoDB (default:
+              <code>27017</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><code>--db &lt;database&gt;</code></td>
+            <td>Dumps a specific database.</td>
+          </tr>
+          <tr>
+            <td><code>--collection &lt;collection&gt;</code></td>
+            <td>Dumps a specific collection within a database.</td>
+          </tr>
+          <tr>
+            <td><code>--out &lt;path&gt;</code></td>
+            <td>
+              Specifies the output directory for the backup (default:
+              <code>dump/</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><code>--gzip</code></td>
+            <td>Compresses the output with gzip.</td>
+          </tr>
+          <tr>
+            <td><code>--archive=&lt;filename&gt;</code></td>
+            <td>
+              Dumps the data into a single archive file instead of separate BSON
+              files.
+            </td>
+          </tr>
+          <tr>
+            <td><code>--authenticationDatabase &lt;dbname&gt;</code></td>
+            <td>
+              Specifies the authentication database for login credentials.
+            </td>
+          </tr>
+          <tr>
+            <td><code>--username &lt;username&gt;</code></td>
+            <td>Specifies the username for authentication.</td>
+          </tr>
+          <tr>
+            <td><code>--password &lt;password&gt;</code></td>
+            <td>Specifies the password for authentication.</td>
+          </tr>
+          <tr>
+            <td><code>--query &lt;query&gt;</code></td>
+            <td>Dumps documents matching the query (in JSON format).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Examples</h2>
+      <h3>Dump all databases</h3>
+      <pre class="code-block"><code>mongodump --out /backup/mongo/</code></pre>
+
+      <h3>Dump a specific database</h3>
+      <pre
+        class="code-block"
+      ><code>mongodump --db mydatabase --out /backup/mongo/</code></pre>
+
+      <h3>Dump a specific collection</h3>
+      <pre
+        class="code-block"
+      ><code>mongodump --db mydatabase --collection users --out /backup/mongo/</code></pre>
+
+      <h3>Dump with authentication</h3>
+      <pre
+        class="code-block"
+      ><code>mongodump --db mydatabase --username admin --password secret --authenticationDatabase admin --out /backup/mongo/</code></pre>
+
+      <h3>Dump data in gzip format</h3>
+      <pre
+        class="code-block"
+      ><code>mongodump --db mydatabase --gzip --out /backup/mongo/</code></pre>
+
+      <h3>Dump data to a BSON archive file</h3>
+      <pre
+        class="code-block"
+      ><code>mongodump --db mydatabase --archive=/backup/mongo/mongodb_backup.bson</code></pre>
+
+      <h3>Dump data to a gzip archive file</h3>
+      <pre
+        class="code-block"
+      ><code>mongodump --db mydatabase --archive=/backup/mongo/mongodb_backup.gz --gzip</code></pre>
+
+      <hr />
+
+      <h1 class="command-title">mongorestore Command</h1>
+      <p>
+        The <strong>mongorestore</strong> command is used to restore data from a
+        BSON backup created by <strong>mongodump</strong>.
+      </p>
+
+      <h2>Syntax</h2>
+      <pre
+        class="code-block"
+      ><code>mongorestore [options] &lt;path&gt;</code></pre>
+
+      <h2>Common Options</h2>
+      <table class="options-table">
+        <thead>
+          <tr>
+            <th>Option</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>--host &lt;hostname&gt;</code></td>
+            <td>
+              Specifies the MongoDB server (default: <code>localhost</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><code>--port &lt;port&gt;</code></td>
+            <td>
+              Specifies the port to connect to MongoDB (default:
+              <code>27017</code>).
+            </td>
+          </tr>
+          <tr>
+            <td><code>--db &lt;database&gt;</code></td>
+            <td>Restores to a specific database.</td>
+          </tr>
+          <tr>
+            <td><code>--collection &lt;collection&gt;</code></td>
+            <td>Restores a specific collection.</td>
+          </tr>
+          <tr>
+            <td><code>--drop</code></td>
+            <td>Drops existing collections before restoring.</td>
+          </tr>
+          <tr>
+            <td><code>--gzip</code></td>
+            <td>Restores from a gzip-compressed dump.</td>
+          </tr>
+          <tr>
+            <td><code>--archive=&lt;filename&gt;</code></td>
+            <td>Restores from a single archive file.</td>
+          </tr>
+          <tr>
+            <td><code>--authenticationDatabase &lt;dbname&gt;</code></td>
+            <td>
+              Specifies the authentication database for login credentials.
+            </td>
+          </tr>
+          <tr>
+            <td><code>--username &lt;username&gt;</code></td>
+            <td>Specifies the username for authentication.</td>
+          </tr>
+          <tr>
+            <td><code>--password &lt;password&gt;</code></td>
+            <td>Specifies the password for authentication.</td>
+          </tr>
+          <tr>
+            <td><code>--dir &lt;path&gt;</code></td>
+            <td>
+              Specifies the input directory for the backup (default:
+              <code>dump/</code>).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Examples</h2>
+      <h3>Restore all databases from a dump directory</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --dir /backup/mongo/</code></pre>
+
+      <h3>Restore a specific database</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --db mydatabase /backup/mongo/mydatabase/</code></pre>
+
+      <h3>Restore a specific collection</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --db mydatabase --collection users /backup/mongo/mydatabase/users.bson</code></pre>
+
+      <h3>Restore with authentication</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --db mydatabase --username admin --password secret --authenticationDatabase admin /backup/mongo/mydatabase/</code></pre>
+
+      <h3>Restore and drop existing collections before restoring</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --db mydatabase --drop /backup/mongo/mydatabase/</code></pre>
+
+      <h3>Restore from a BSON archive file</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --archive=/backup/mongo/mongodb_backup.bson</code></pre>
+
+      <h3>Restore from a gzip archive</h3>
+      <pre
+        class="code-block"
+      ><code>mongorestore --gzip --archive=/backup/mongo/mongodb_backup.gz</code></pre>
+    </div>
+  </body>
+</html>

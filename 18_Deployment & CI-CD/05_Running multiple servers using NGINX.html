@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NGINX Multiple Servers Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Creating Multiple Servers Using NGINX on Ubuntu</h1>
+
+    <h2>📌 What is NGINX?</h2>
+    <p>
+      <strong>NGINX</strong> is a web server and reverse proxy that can handle
+      multiple websites/domains on a single server. It's like a traffic cop that
+      directs visitors to the right website based on their request.
+    </p>
+
+    <h2>📁 NGINX Directory Structure</h2>
+    <pre><code>/etc/nginx/
+├── <span class="prop">nginx.conf</span>          <span class="cmt"># Main configuration file</span>
+├── <span class="prop">sites-available/</span>    <span class="cmt"># Available server configurations</span>
+├── <span class="prop">sites-enabled/</span>      <span class="cmt"># Enabled server configurations (symlinks)</span>
+└── <span class="prop">conf.d/</span>             <span class="cmt"># Additional configuration files</span></code></pre>
+
+    <h2>🔧 Basic NGINX Server Block Syntax</h2>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> <span class="str">domain1.com www.domain1.com</span>;
+    
+    <span class="dir">root</span> <span class="str">/var/www/domain1.com/html</span>;
+    <span class="dir">index</span> <span class="str">index.html index.htm</span>;
+    
+    <span class="kw">location</span> / {
+        <span class="dir">try_files</span> <span class="prop">$uri $uri/</span> <span class="op">=404</span>;
+    }
+}</code></pre>
+
+    <h3>Directives Explained:</h3>
+    <ul>
+      <li>
+        <strong>listen:</strong> Port to listen on (80 for HTTP, 443 for HTTPS)
+      </li>
+      <li><strong>server_name:</strong> Domain name(s) for this server</li>
+      <li><strong>root:</strong> Directory where website files are stored</li>
+      <li><strong>index:</strong> Default files to serve</li>
+      <li>
+        <strong>location:</strong> Configuration for specific URL patterns
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>🚀 Step-by-Step Guide</h2>
+
+    <h3>Step 1: Install NGINX</h3>
+    <pre><code><span class="kw">sudo</span> apt update
+<span class="kw">sudo</span> apt install nginx
+<span class="kw">sudo</span> systemctl start nginx
+<span class="kw">sudo</span> systemctl enable nginx</code></pre>
+
+    <h3>Step 2: Create Website Directories</h3>
+    <pre><code><span class="cmt"># Create directories for two websites</span>
+<span class="kw">sudo</span> mkdir -p /var/www/example1.com/html
+<span class="kw">sudo</span> mkdir -p /var/www/example2.com/html
+
+<span class="cmt"># Set proper permissions</span>
+<span class="kw">sudo</span> chown -R <span class="prop">$USER</span>:<span class="prop">$USER</span> /var/www/example1.com/html
+<span class="kw">sudo</span> chown -R <span class="prop">$USER</span>:<span class="prop">$USER</span> /var/www/example2.com/html
+<span class="kw">sudo</span> chmod -R <span class="lit">755</span> /var/www</code></pre>
+
+    <h3>Step 3: Create Sample HTML Files</h3>
+    <pre><code><span class="cmt"># Website 1</span>
+<span class="kw">echo</span> <span class="str">"&lt;h1&gt;Welcome to Example1.com!&lt;/h1&gt;&lt;p&gt;This is site 1.&lt;/p&gt;"</span> | <span class="kw">sudo</span> tee /var/www/example1.com/html/index.html
+
+<span class="cmt"># Website 2</span>
+<span class="kw">echo</span> <span class="str">"&lt;h1&gt;Welcome to Example2.com!&lt;/h1&gt;&lt;p&gt;This is site 2.&lt;/p&gt;"</span> | <span class="kw">sudo</span> tee /var/www/example2.com/html/index.html</code></pre>
+
+    <h3>Step 4: Create Server Block Configurations</h3>
+    <p>File 1: <code>/etc/nginx/sites-available/example1.com</code></p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> <span class="str">example1.com www.example1.com</span>;
+    
+    <span class="dir">root</span> <span class="str">/var/www/example1.com/html</span>;
+    <span class="dir">index</span> <span class="str">index.html index.htm</span>;
+    
+    <span class="kw">location</span> / {
+        <span class="dir">try_files</span> <span class="prop">$uri $uri/</span> <span class="op">=404</span>;
+    }
+    
+    <span class="cmt"># Logging</span>
+    <span class="dir">access_log</span> <span class="str">/var/log/nginx/example1_access.log</span>;
+    <span class="dir">error_log</span> <span class="str">/var/log/nginx/example1_error.log</span>;
+}</code></pre>
+
+    <p>File 2: <code>/etc/nginx/sites-available/example2.com</code></p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> <span class="str">example2.com www.example2.com</span>;
+    
+    <span class="dir">root</span> <span class="str">/var/www/example2.com/html</span>;
+    <span class="dir">index</span> <span class="str">index.html index.htm</span>;
+    
+    <span class="kw">location</span> / {
+        <span class="dir">try_files</span> <span class="prop">$uri $uri/</span> <span class="op">=404</span>;
+    }
+    
+    <span class="cmt"># Different logging files</span>
+    <span class="dir">access_log</span> <span class="str">/var/log/nginx/example2_access.log</span>;
+    <span class="dir">error_log</span> <span class="str">/var/log/nginx/example2_error.log</span>;
+}</code></pre>
+
+    <h3>Step 5: Enable the Sites</h3>
+    <pre><code><span class="cmt"># Create symbolic links to enable sites</span>
+<span class="kw">sudo</span> ln -s /etc/nginx/sites-available/example1.com /etc/nginx/sites-enabled/
+<span class="kw">sudo</span> ln -s /etc/nginx/sites-available/example2.com /etc/nginx/sites-enabled/
+
+<span class="cmt"># Test configuration</span>
+<span class="kw">sudo</span> nginx -t
+
+<span class="cmt"># Reload NGINX</span>
+<span class="kw">sudo</span> systemctl reload nginx</code></pre>
+
+    <hr />
+
+    <h2>🌐 How It Works: Request Flow</h2>
+
+    <pre><code><span class="lit">1.</span> User requests <span class="str">"http://example1.com"</span>
+    <span class="op">↓</span>
+<span class="lit">2.</span> Request arrives at server IP on port <span class="lit">80</span>
+    <span class="op">↓</span>
+<span class="lit">3.</span> NGINX checks all enabled server blocks
+    <span class="op">↓</span>
+<span class="lit">4.</span> Finds match in <span class="dir">server_name</span> <span class="str">"example1.com"</span>
+    <span class="op">↓</span>
+<span class="lit">5.</span> Serves files from <span class="str">/var/www/example1.com/html</span>
+    <span class="op">↓</span>
+<span class="lit">6.</span> Returns content to user</code></pre>
+
+    <h2>🔄 NGINX Processing Order</h2>
+    <ul>
+      <li>
+        <strong>Port-based matching:</strong> NGINX first looks at the port (80,
+        443, etc.)
+      </li>
+      <li>
+        <strong>Server_name matching:</strong> Then matches the domain name
+      </li>
+      <li>
+        <strong>Default server:</strong> If no match, uses the first server
+        block as default
+      </li>
+    </ul>
+
+    <h2>📝 Example with IP-Based Virtual Hosting</h2>
+    <pre><code><span class="cmt"># Different sites on different IPs</span>
+<span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">192.168.1.10:80</span>;
+    <span class="dir">server_name</span> _;
+    <span class="dir">root</span> <span class="str">/var/www/site1</span>;
+}
+
+<span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">192.168.1.20:80</span>;
+    <span class="dir">server_name</span> _;
+    <span class="dir">root</span> <span class="str">/var/www/site2</span>;
+}</code></pre>
+
+    <h2>🎯 Example with Port-Based Virtual Hosting</h2>
+    <pre><code><span class="cmt"># Same IP, different ports</span>
+<span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">8080</span>;
+    <span class="dir">server_name</span> <span class="str">example.com</span>;
+    <span class="dir">root</span> <span class="str">/var/www/example8080</span>;
+}
+
+<span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">8081</span>;
+    <span class="dir">server_name</span> <span class="str">example.com</span>;
+    <span class="dir">root</span> <span class="str">/var/www/example8081</span>;
+}</code></pre>
+
+    <h2>🛠️ Common Commands</h2>
+    <pre><code><span class="cmt"># Check configuration syntax</span>
+<span class="kw">sudo</span> nginx -t
+
+<span class="cmt"># Reload NGINX (apply changes without downtime)</span>
+<span class="kw">sudo</span> systemctl reload nginx
+
+<span class="cmt"># Restart NGINX</span>
+<span class="kw">sudo</span> systemctl restart nginx
+
+<span class="cmt"># Check NGINX status</span>
+<span class="kw">sudo</span> systemctl status nginx
+
+<span class="cmt"># View access logs</span>
+<span class="kw">sudo</span> tail -f /var/log/nginx/access.log
+
+<span class="cmt"># Disable a site</span>
+<span class="kw">sudo</span> rm /etc/nginx/sites-enabled/example1.com
+<span class="kw">sudo</span> systemctl reload nginx</code></pre>
+
+    <h2>📊 Default Server Block</h2>
+    <p>To set a default/catch-all server:</p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span> <span class="str">default_server</span>;
+    <span class="dir">server_name</span> _;
+    <span class="kw">return</span> <span class="lit">444</span>;  <span class="cmt"># Close connection without response</span>
+}</code></pre>
+
+    <h2>🚨 Troubleshooting Tips</h2>
+    <ul>
+      <li>
+        <strong>Check for conflicts:</strong>
+        <code>sudo netstat -tulpn | grep :80</code>
+      </li>
+      <li>
+        <strong>Check error logs:</strong>
+        <code>sudo tail -f /var/log/nginx/error.log</code>
+      </li>
+      <li>
+        <strong>Check if sites are enabled:</strong>
+        <code>ls -la /etc/nginx/sites-enabled/</code>
+      </li>
+      <li>
+        <strong>Verify DNS/hosts file:</strong> For local testing, add to
+        <code>/etc/hosts</code>:
+      </li>
+    </ul>
+    <pre><code><span class="lit">127.0.0.1</span> <span class="str">example1.com</span>
+<span class="lit">127.0.0.1</span> <span class="str">example2.com</span></code></pre>
+
+    <h2>🎓 Best Practices</h2>
+    <ul>
+      <li>
+        <strong>One service per server block:</strong> Keep configurations
+        separate
+      </li>
+      <li>
+        <strong>Use descriptive names:</strong> Name config files by domain
+      </li>
+      <li>
+        <strong>Keep logs separate:</strong> Each site should have its own log
+        files
+      </li>
+      <li>
+        <strong>Test before reloading:</strong> Always run <code>nginx -t</code>
+      </li>
+      <li><strong>Backup configurations:</strong> Before making changes</li>
+    </ul>
+
+    <h2>📚 Complete Working Example</h2>
+    <p>Domain 1 - Business Site:</p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> <span class="str">mybusiness.com www.mybusiness.com</span>;
+    
+    <span class="dir">root</span> <span class="str">/var/www/mybusiness/public_html</span>;
+    <span class="dir">index</span> <span class="str">index.html index.php</span>;
+    
+    <span class="kw">location</span> / {
+        <span class="dir">try_files</span> <span class="prop">$uri $uri/</span> <span class="str">/index.php?$args</span>;
+    }
+    
+    <span class="kw">location</span> ~ \.php$ {
+        <span class="kw">include</span> <span class="str">snippets/fastcgi-php.conf</span>;
+        <span class="dir">fastcgi_pass</span> <span class="str">unix:/var/run/php/php8.1-fpm.sock</span>;
+    }
+    
+    <span class="kw">location</span> ~ /\.ht {
+        <span class="dir">deny</span> <span class="kw">all</span>;
+    }
+}</code></pre>
+
+    <p>Domain 2 - Blog:</p>
+    <pre><code><span class="kw">server</span> {
+    <span class="dir">listen</span> <span class="lit">80</span>;
+    <span class="dir">server_name</span> <span class="str">blog.mybusiness.com</span>;
+    
+    <span class="dir">root</span> <span class="str">/var/www/blog</span>;
+    <span class="dir">index</span> <span class="str">index.html</span>;
+    
+    <span class="kw">location</span> / {
+        <span class="dir">try_files</span> <span class="prop">$uri $uri/</span> <span class="op">=404</span>;
+    }
+    
+    <span class="kw">location</span> /images/ {
+        <span class="dir">expires</span> <span class="lit">30d</span>;
+        <span class="dir">add_header</span> <span class="str">Cache-Control "public"</span>;
+    }
+}</code></pre>
+
+    <p
+      style="text-align: center; margin-top: 50px; color: var(--color-primary)"
+    >
+      <em
+        >This setup allows you to host unlimited websites on a single Ubuntu
+        server!</em
+      >
+    </p>
+  </body>
+</html>

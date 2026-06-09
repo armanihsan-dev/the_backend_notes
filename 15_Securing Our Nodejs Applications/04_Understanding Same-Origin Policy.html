@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Same-Origin Policy Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Global Styles for Blackish Theme */
+      :root {
+        --bg-color: #1e1e1e; /* Dark VS Code background */
+        --main-text-color: #d4d4d4; /* Light grey text */
+        --heading-color: #569cd6; /* Blue for headings */
+        --accent-color: #ce9178; /* Orange-red for code/important highlights */
+        --code-bg: #1f1f1f; /* Slightly darker code block background */
+        --border-color: #3f3f3f;
+        --table-header-bg: #333333;
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--main-text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Main content area, slightly lighter than body */
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--heading-color);
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 5px;
+        margin-top: 25px;
+        font-weight: 700;
+      }
+
+      /* Basic Text Styling */
+      p {
+        margin-bottom: 15px;
+      }
+
+      strong {
+        color: #ffd700; /* Gold for strong emphasis */
+      }
+
+      /* List Styling */
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+
+      ul li::before {
+        content: '•';
+        color: var(--accent-color);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #3c3c3c;
+        color: var(--main-text-color);
+      }
+
+      th,
+      td {
+        border: 1px solid var(--border-color);
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: var(--table-header-bg);
+        color: var(--heading-color);
+        font-weight: bold;
+      }
+
+      /* Code Block Styling (VS Code-like Blackish Theme) */
+      .code-container {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 6px;
+        margin: 20px 0;
+        overflow-x: auto;
+        border: 1px solid #007acc; /* VS Code blue border */
+      }
+
+      .code-container pre {
+        margin: 0;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 14px;
+      }
+
+      /* Syntax Highlighting Mimicry */
+      .comment {
+        color: #6a9955;
+      } /* Green */
+      .keyword {
+        color: #569cd6;
+      } /* Blue */
+      .function {
+        color: #dcdcaa;
+      } /* Yellow */
+      .string {
+        color: #ce9178;
+      } /* Orange */
+      .property {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .console {
+        color: #b5cea8;
+      } /* Light Green */
+      .tag {
+        color: #569cd6;
+      } /* Blue */
+      .attribute {
+        color: #9cdcfe;
+      } /* Light Blue */
+      .value {
+        color: #ce9178;
+      } /* Orange */
+      .language-name {
+        color: #c586c0;
+        font-weight: bold;
+      } /* Purple */
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Same-Origin Policy (SOP) Deep Dive</h1>
+
+      <p>
+        The **Same-Origin Policy (SOP)** is a crucial web security mechanism
+        implemented by web browsers. It acts as a **gatekeeper**, restricting
+        how a document or script loaded from one origin can interact with a
+        resource from another origin.
+      </p>
+
+      <h2>🛡️ What is an "Origin"?</h2>
+      <p>
+        Two URLs have the **same origin** if, and only if, all three of the
+        following components match exactly:
+      </p>
+
+      <ul>
+        <li>
+          **Protocol (Scheme):** e.g., <span class="string">http</span> vs.
+          <span class="string">https</span>.
+        </li>
+        <li>
+          **Host (Domain):** e.g., <span class="string">example.com</span> vs.
+          <span class="string">sub.example.com</span> or
+          <span class="string">example.com</span> vs.
+          <span class="string">anothersite.com</span>.
+        </li>
+        <li>
+          **Port (if specified):** e.g., port
+          <span class="property">80</span> (default for HTTP) vs. port
+          <span class="property">8080</span>.
+        </li>
+      </ul>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Current Origin</th>
+            <th>Target URL</th>
+            <th>Same Origin?</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="string">https://a.com:443</span></td>
+            <td><span class="string">https://a.com/page.html</span></td>
+            <td>**Yes**</td>
+            <td>Same protocol, host, and default port (443).</td>
+          </tr>
+          <tr>
+            <td><span class="string">https://a.com:443</span></td>
+            <td><span class="string">http://a.com</span></td>
+            <td>**No**</td>
+            <td>
+              Different **protocol** (<span class="string">https</span> vs.
+              <span class="string">http</span>).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="string">https://a.com:443</span></td>
+            <td><span class="string">https://b.com</span></td>
+            <td>**No**</td>
+            <td>
+              Different **host** (<span class="string">a.com</span> vs.
+              <span class="string">b.com</span>).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="string">https://a.com:443</span></td>
+            <td><span class="string">https://a.com:8080</span></td>
+            <td>**No**</td>
+            <td>
+              Different **port** (<span class="string">443</span> vs.
+              <span class="string">8080</span>).
+            </td>
+          </tr>
+          <tr>
+            <td><span class="string">https://a.com:443</span></td>
+            <td><span class="string">https://sub.a.com</span></td>
+            <td>**No**</td>
+            <td>
+              Different **host** (<span class="string">a.com</span> vs.
+              <span class="string">sub.a.com</span>).
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>💻 How the Same-Origin Policy Works</h2>
+      <p>
+        The SOP primarily restricts **read access** to resources from a
+        different origin using JavaScript.
+      </p>
+      <p>It governs three main types of interactions:</p>
+
+      <h3>Cross-Origin Reads (**Blocked**):</h3>
+      <ul>
+        <li>
+          A script on <span class="string">site-a.com</span> **cannot** use
+          **<span class="keyword">XMLHttpRequest (XHR)</span>** or the **<span
+            class="keyword"
+            >Fetch API</span
+          >** to read data from <span class="string">bank.com</span>, even
+          though the browser sends the request (along with any cookies for
+          <span class="string">bank.com</span>). The browser **blocks the script
+          from reading the response**.
+        </li>
+        <li>
+          A script cannot access the **<span class="keyword"
+            >DOM (Document Object Model)</span
+          >** content of an <span class="tag">iframe</span> loaded from a
+          different origin.
+        </li>
+        <li>
+          Access to data stored in the browser like
+          <span class="property">localStorage</span>,
+          <span class="property">sessionStorage</span>, and most cookies are
+          segmented by origin.
+        </li>
+      </ul>
+
+      <h3>Cross-Origin Writes (Generally Allowed):</h3>
+      <ul>
+        <li>
+          Creating cross-origin links (<span class="tag">&lt;a&gt;</span>),
+          redirects, and form submissions are generally permitted. For example,
+          a form on <span class="string">site-a.com</span> can be submitted to
+          <span class="string">site-b.com</span>. The browser will still send
+          cookies for <span class="string">site-b.com</span> with the request,
+          which is what makes **Cross-Site Request Forgery (CSRF)** possible
+          (though SOP helps limit the damage).
+        </li>
+      </ul>
+
+      <h3>Cross-Origin Embedding (Generally Allowed):</h3>
+      <p>
+        Embedding resources from other origins is typically allowed, as these
+        are passive load operations that don't allow a malicious script to read
+        the content.
+      </p>
+      <p>Examples:</p>
+      <ul>
+        <li>
+          <span class="tag">&lt;script src="..."&gt;</span> to load and execute
+          JavaScript.
+        </li>
+        <li>
+          <span class="tag">&lt;link href="..." rel="stylesheet"&gt;</span> to
+          load CSS.
+        </li>
+        <li>
+          <span class="tag">&lt;img src="..."&gt;</span> to display images.
+        </li>
+        <li>
+          <span class="tag">&lt;iframe src="..."&gt;</span> to embed another
+          page (but **DOM access is blocked**).
+        </li>
+      </ul>
+
+      <h2>💡 Why the SOP was Created and is Beneficial</h2>
+      <p>
+        The Same-Origin Policy was introduced by **Netscape Navigator in 1996**
+        as the internet evolved from static pages to interactive web
+        applications that rely heavily on JavaScript and persistent user
+        sessions (cookies).
+      </p>
+      <p>
+        Its primary purpose is to **isolate documents** and **prevent data
+        theft**, offering a crucial layer of defense against malicious attacks.
+      </p>
+
+      <h3>Key Benefits</h3>
+      <ul>
+        <li>
+          **Prevents Data Theft:** Without SOP, a malicious script on a
+          third-party website (<span class="string">attacker.com</span>) could
+          open an invisible <span class="tag">iframe</span> to your banking site
+          (<span class="string">bank.com</span>), and since your browser
+          automatically sends your authenticated session cookies, the script
+          could then read your account balance or transaction history from the
+          response. **SOP blocks the reading of that response.**
+        </li>
+        <li>
+          **Mitigates Cross-Site Request Forgery (CSRF):** While SOP doesn't
+          prevent the request from being sent (CSRF is a "write" attack), it
+          prevents an attacker from **reading the response**. This means an
+          attacker can't use a successful CSRF attack to steal sensitive
+          information back from the target site.
+        </li>
+        <li>
+          **Defends against Clickjacking:** By preventing cross-origin scripts
+          from accessing the contents of an embedded page, SOP makes it harder
+          for attackers to overlay transparent malicious content over a
+          legitimate site.
+        </li>
+      </ul>
+
+      <h2>🛠️ Practical Example with Two Basic Live Servers</h2>
+      <p>
+        Imagine you are developing two parts of an application: a frontend and
+        an API, running on different ports using a local live server tool (like
+        VS Code's Live Server):
+      </p>
+
+      <h3>The Scenario:</h3>
+      <ul>
+        <li>
+          **Frontend Server (Origin A):**
+          <span class="string">http://localhost:5500/index.html</span>
+          <ul>
+            <li>Protocol: <span class="string">http</span></li>
+            <li>Host: <span class="string">localhost</span></li>
+            <li>Port: <span class="property">5500</span></li>
+          </ul>
+        </li>
+        <li>
+          **API Server (Origin B):**
+          <span class="string">http://localhost:3000/api/data</span>
+          <ul>
+            <li>Protocol: <span class="string">http</span></li>
+            <li>Host: <span class="string">localhost</span></li>
+            <li>Port: <span class="property">3000</span></li>
+          </ul>
+        </li>
+      </ul>
+
+      <h3>The Code:</h3>
+      <p>
+        The script in <span class="string">index.html</span> (Origin A) tries to
+        fetch data from the API (Origin B):
+      </p>
+
+      <div class="code-container">
+        <pre><span class="language-name">JavaScript</span>
+
+<span class="comment">// Running on http://localhost:5500</span>
+<span class="function">fetch</span>(<span class="string">'http://localhost:3000/api/data'</span>)
+  .<span class="property">then</span>(<span class="property">response</span> <span class="keyword">=></span> <span class="property">response</span>.<span class="function">json</span>())
+  .<span class="property">then</span>(<span class="property">data</span> <span class="keyword">=></span> <span class="console">console</span>.<span class="function">log</span>(<span class="string">'Data:'</span>, <span class="property">data</span>))
+  .<span class="property">catch</span>(<span class="property">error</span> <span class="keyword">=></span> <span class="console">console</span>.<span class="function">error</span>(<span class="string">'Error:'</span>, <span class="property">error</span>));</pre>
+      </div>
+
+      <h3>The Result (SOP in Action):</h3>
+      <p>
+        When this script runs, the browser **will send the request** to
+        <span class="string">http://localhost:3000</span>. The API server will
+        likely process it and send a response back.
+      </p>
+      <p>
+        However, the **Same-Origin Policy** in the browser will **block the
+        JavaScript code in Origin A from reading the response** from Origin B.
+      </p>
+      <p>
+        You would see an error in the browser's console, typically related to
+        **CORS (Cross-Origin Resource Sharing)**:
+      </p>
+
+      <div class="code-container">
+        <pre><span class="string">Access to fetch at 'http://localhost:3000/api/data' from origin 'http://localhost:5500' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.</span></pre>
+      </div>
+
+      <h3>The Solution (Relaxing SOP): CORS</h3>
+      <p>
+        The Same-Origin Policy is essential, but modern web development often
+        requires legitimate cross-origin communication (like a frontend talking
+        to a separate API). This is where **CORS** comes in, which is a
+        **controlled relaxation of the SOP**.
+      </p>
+      <p>
+        To allow the frontend to read the data, the **API Server (Origin B)**
+        needs to explicitly grant permission by including the following HTTP
+        response header:
+      </p>
+
+      <div class="code-container">
+        <pre><span class="property">Access-Control-Allow-Origin:</span> <span class="string">http://localhost:5500</span></pre>
+      </div>
+
+      <p>
+        Once the API server includes this header, the browser's SOP check
+        passes, and the script on
+        <span class="string">http://localhost:5500</span> is allowed to read the
+        response data from <span class="string">http://localhost:3000</span>.
+      </p>
+    </div>
+  </body>
+</html>

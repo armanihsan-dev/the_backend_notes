@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GSI Notes - @react-oauth/google</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /*
+ * Nunito Font is imported in index.html
+ */
+
+      /* === General Styles for Dark Theme === */
+      :root {
+        --bg-color: #1e1e1e; /* VS Code Dark background */
+        --text-color: #d4d4d4; /* Light grey text */
+        --primary-color: #569cd6; /* VS Code blue for code */
+        --secondary-color: #ce9178; /* VS Code orange for strings/comments */
+        --header-color: #c586c0; /* VS Code purple for keywords */
+        --code-bg: #1f1f1f; /* Slightly lighter dark for code block */
+        --border-color: #333333; /* Darker border */
+        --highlight-color: #ffd700; /* Yellow for attention/bolding */
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        font-family: 'Nunito', sans-serif;
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .notes-container {
+        width: 100%;
+        max-width: 900px;
+        padding: 30px;
+        background-color: #252526; /* Darker panel background */
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      /* === Typography === */
+      .header h1 {
+        font-weight: 700;
+        color: var(--header-color);
+        display: inline;
+        margin-left: 10px;
+      }
+
+      .icon {
+        font-size: 1.5em;
+        vertical-align: middle;
+      }
+
+      h2 {
+        color: var(--primary-color);
+        font-weight: 700;
+        margin-top: 30px;
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 5px;
+      }
+
+      h3 {
+        color: var(--highlight-color);
+        font-weight: 400;
+        margin-top: 20px;
+        font-style: italic;
+      }
+
+      p {
+        margin: 10px 0;
+      }
+
+      strong {
+        color: var(--highlight-color);
+        font-weight: 700;
+      }
+
+      /* === Lists === */
+      ul {
+        padding-left: 20px;
+        list-style-type: '👉 ';
+        margin: 15px 0;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      /* === Separator === */
+      .separator {
+        border: 0;
+        height: 1px;
+        background-color: var(--border-color);
+        margin: 40px 0;
+      }
+
+      /* === Code Block (VS Code Dark Theme) === */
+      .code-block {
+        background-color: var(--code-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        overflow: hidden;
+        margin: 20px 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .code-header {
+        background-color: #333333; /* Header color */
+        color: var(--text-color);
+        padding: 5px 15px;
+        font-size: 0.9em;
+        font-family: 'Consolas', 'Courier New', monospace;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      pre {
+        margin: 0;
+        padding: 15px;
+        overflow-x: auto;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        color: var(--text-color); /* Default code text */
+      }
+
+      /* Specific Code Syntax Highlighting (Manual) */
+      pre code {
+        /* Keywords: import, const, function, return, if, etc. */
+        color: var(--header-color);
+      }
+
+      pre code::before {
+        /* Mimicing general keywords */
+        content: '';
+      }
+
+      /* Highlighting specific elements within the code (basic mimicry) */
+      pre code span.comment {
+        color: #6a9955; /* Green for comments */
+      }
+      pre code span.string {
+        color: var(--secondary-color); /* Orange for strings */
+      }
+      pre code span.variable {
+        color: var(--primary-color); /* Blue for variables/functions */
+      }
+      pre code span.keyword {
+        color: var(--header-color); /* Purple for keywords */
+      }
+      pre code span.jsx {
+        color: #808080; /* Grey for JSX elements */
+      }
+
+      /* Simple inline code highlighting */
+      code {
+        background-color: #383838;
+        color: var(--highlight-color);
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-family: 'Consolas', 'Courier New', monospace;
+      }
+
+      /* Insight section specific style */
+      .insight-title {
+        color: #ffcc00; /* Yellow bulb color */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="notes-container">
+      <header class="header">
+        <span class="icon">🛠️</span>
+        <h1>Implementation using @react-oauth/google</h1>
+      </header>
+
+      <section class="step">
+        <h2>1. Prerequisites</h2>
+        <p>
+          Before you start coding, you need to set up your Google Cloud Project:
+        </p>
+        <ul>
+          <li>
+            <strong>Get a Google Client ID:</strong> Go to the Google Cloud
+            Console, create or select a project, navigate to
+            <strong>APIs & Services &gt; Credentials</strong>, and create a new
+            OAuth client ID for a Web application.
+          </li>
+          <li>
+            <strong>Configure Origins:</strong> Crucially, add your development
+            server URL (e.g., <code>http://localhost:5173</code>) to the
+            <strong>Authorized JavaScript origins</strong> field.
+          </li>
+          <li><strong>Get Your ID:</strong> Copy the resulting Client ID.</li>
+        </ul>
+      </section>
+
+      <hr class="separator" />
+
+      <section class="step">
+        <h2>2. Installation</h2>
+        <p>
+          Install the main package and, optionally,
+          <strong>jwt-decode</strong> to easily read the user data from the
+          token on the client side (though the token must always be verified on
+          the backend for production apps).
+        </p>
+
+        <div class="code-block bash">
+          <div class="code-header">Bash</div>
+          <pre><code>npm i @react-oauth/google jwt-decode</code></pre>
+        </div>
+      </section>
+
+      <hr class="separator" />
+
+      <section class="step">
+        <h2>3. Configure the Provider (Client ID Setup)</h2>
+        <p>
+          The entire application needs access to the Google OAuth context. This
+          is done by wrapping your main application with the
+          <strong>GoogleOAuthProvider</strong> and supplying your Client ID.
+        </p>
+
+        <h3>src/main.jsx</h3>
+        <div class="code-block javascript">
+          <div class="code-header">JavaScript</div>
+          <pre><code>import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+// 1. Import the provider
+import { GoogleOAuthProvider } from '@react-oauth/google';
+// Load the client ID from environment variables (Vite-specific syntax)
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  &lt;React.StrictMode&gt;
+    {/* 2. Wrap your application with the provider */}
+    &lt;GoogleOAuthProvider clientId={CLIENT_ID}&gt;
+      &lt;App /&gt;
+    &lt;/GoogleOAuthProvider&gt;
+  &lt;/React.StrictMode&gt;,
+);</code></pre>
+        </div>
+
+        <h3>.env File (in your project root)</h3>
+        <div class="code-block bash">
+          <div class="code-header">Plain Text (Environment Variable)</div>
+          <pre><code># Ensure you prefix the variable with VITE_ for Vite to expose it to the client
+VITE_GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID_HERE.apps.googleusercontent.com"</code></pre>
+        </div>
+      </section>
+
+      <hr class="separator" />
+
+      <section class="step">
+        <h2>4. Create the Login Component</h2>
+        <p>
+          Use the <strong>GoogleLogin</strong> component to render the button.
+          It automatically injects the official "Sign in with Google" button and
+          handles the entire authentication flow (popup/redirect).
+        </p>
+
+        <h3>src/components/GoogleAuth.jsx</h3>
+        <div class="code-block javascript">
+          <div class="code-header">JavaScript</div>
+          <pre><code>import React, { useState } from 'react';
+// 1. Import GoogleLogin and jwt_decode
+import { GoogleLogin } from '@react-oauth/google';
+import { jwtDecode } from 'jwt-decode'; // Recommended library
+const GoogleAuth = () => {
+  const [userProfile, setUserProfile] = useState(null);
+
+  // 2. Define the success callback function
+  const onSuccess = (credentialResponse) => {
+    // The credential is a JWT (JSON Web Token)
+    const jwtToken = credentialResponse.credential;
+    
+    // Decode the token to get user info (client-side viewing only)
+    const decodedProfile = jwtDecode(jwtToken);
+    
+    console.log('Login Successful!');
+    console.log('JWT Token (Send to Backend):', jwtToken);
+    console.log('Decoded User Profile:', decodedProfile);
+    
+    setUserProfile(decodedProfile);
+    
+    // 💡 IMPORTANT: You MUST send the `jwtToken` to your **backend**
+    // server for verification before creating a user session.
+    // fetch('/api/auth/google', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ token: jwtToken }),
+    // });
+  };
+
+  // 3. Define the error callback function
+  const onError = () => {
+    console.error('Login Failed');
+  };
+
+  const handleLogout = () => {
+    setUserProfile(null);
+  };
+
+  if (userProfile) {
+    return (
+      &lt;div style={{ padding: '20px', border: '1px solid #ccc', borderRadius: '8px' }}&gt;
+        &lt;h3&gt;Welcome, {userProfile.name}!&lt;/h3&gt;
+        &lt;p&gt;Email: {userProfile.email}&lt;/p&gt;
+        &lt;img src={userProfile.picture} alt="Profile" style={{ width: '50px', borderRadius: '50%' }} /&gt;
+        &lt;p&gt;This data is from the decoded JWT on the frontend.&lt;/p&gt;
+        &lt;button onClick={handleLogout} style={{ marginTop: '10px' }}&gt;
+          Logout
+        &lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+
+  return (
+    &lt;div&gt;
+      &lt;h3&gt;Sign In with Google&lt;/h3&gt;
+      {/* 4. Render the GoogleLogin component with callbacks */}
+      &lt;GoogleLogin
+        onSuccess={onSuccess}
+        onError={onError}
+        // Optional: Customize the button appearance
+        theme="outline"
+        size="large"
+        text="signin_with"
+      /&gt;
+    &lt;/div&gt;
+  );
+};
+export default GoogleAuth;</code></pre>
+        </div>
+      </section>
+
+      <hr class="separator" />
+
+      <section class="step">
+        <h2>5. Use the Component</h2>
+        <p>In your main application component (src/App.jsx):</p>
+        <div class="code-block javascript">
+          <div class="code-header">JavaScript</div>
+          <pre><code>import React from 'react';
+import GoogleAuth from './components/GoogleAuth';
+function App() {
+  return (
+    &lt;div style={{ textAlign: 'center', marginTop: '50px' }}&gt;
+      &lt;h1&gt;React Google OAuth Demo&lt;/h1&gt;
+      &lt;hr style={{ margin: '20px auto', width: '300px' }}/&gt;
+      &lt;GoogleAuth /&gt;
+    &lt;/div&gt;
+  );
+}
+export default App;</code></pre>
+        </div>
+      </section>
+
+      <hr class="separator" />
+
+      <section class="step">
+        <h2 class="insight-title">
+          💡 How it Works Behind the Scenes (JavaScript)
+        </h2>
+        <p>
+          The <strong>@react-oauth/google</strong> library is essentially a
+          React wrapper for the low-level
+          <strong>Google Identity Services (GSI) SDK</strong>.
+        </p>
+        <ul>
+          <li>
+            <strong>The Provider (GoogleOAuthProvider):</strong> This component
+            internally ensures that the official Google GSI JavaScript script
+            (<a href="https://accounts.google.com/gsi/client"
+              >https://accounts.google.com/gsi/client</a
+            >) is loaded into the HTML page, making the global
+            <code>window.google.accounts.id</code> object available. It also
+            uses this object to call the <code>initialize()</code> method,
+            passing your <code>clientId</code> and setting up the basic
+            configuration for all child components.
+          </li>
+          <li>
+            <strong>The Component (GoogleLogin):</strong> When this component
+            mounts, it uses a React <code>useEffect</code> hook to call the GSI
+            SDK's button rendering function:
+            <code
+              >window.google.accounts.id.renderButton(document.getElementById('div-id'),
+              {...})</code
+            >. <br />This function dynamically injects an
+            <strong><code>&lt;iframe&gt;</code></strong> into the target DOM
+            element (the one rendered by the GoogleLogin component). <br />This
+            iframe is hosted on Google's domain, which is a crucial
+            <strong>security feature</strong>. It handles all direct interaction
+            with Google's servers.
+          </li>
+          <li>
+            <strong>Authentication and Callback:</strong>
+            <ul>
+              <li>
+                When a user clicks the button inside the iframe, the GSI library
+                handles the OAuth 2.0 Implicit Flow.
+              </li>
+              <li>
+                Upon successful sign-in, Google issues a
+                <strong>JSON Web Token (JWT)</strong>, called an ID Token.
+              </li>
+              <li>
+                The GSI library then communicates the JWT back to your React
+                application via a safe method (like postMessage or a redirect),
+                triggering the <code>onSuccess</code> function you defined.
+              </li>
+            </ul>
+          </li>
+          <li>
+            <strong>Token Handling (JWT):</strong> The
+            <code>credentialResponse.credential</code> is the JWT.
+            <ul>
+              <li>
+                <strong>Client Side (Frontend):</strong> You can use
+                <code>jwtDecode</code> to <strong>read</strong> the public user
+                data (name, email, picture) for UX purposes.
+              </li>
+              <li>
+                <strong>Server Side (Backend - Required):</strong> For security,
+                the raw JWT must be sent to your backend. The backend must use a
+                library like Google's <code>google-auth-library</code> to
+                <strong>verify</strong> the token's signature against Google's
+                public keys. This ensures the token is genuine and wasn't
+                forged. After verification, a secure session (e.g., using a
+                custom application JWT or cookies) is created for the user.
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+    </div>
+  </body>
+</html>

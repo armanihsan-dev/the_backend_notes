@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Deep Dive into Built-in Error Types in Mongoose</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base Styles for Dark Theme */
+      :root {
+        --bg-primary: #1e1e1e; /* VS Code background black-ish */
+        --bg-secondary: #252526; /* VS Code slightly lighter sidebar/utility */
+        --text-primary: #d4d4d4; /* Light grey text */
+        --text-secondary: #aaaaaa; /* Muted text */
+        --code-bg: #1e1e1e; /* Code background (same as primary for seamless look) */
+        --code-border: #3c3c3c; /* Subtle border for code blocks */
+        --highlight-blue: #569cd6; /* VS Code blue for keywords/types */
+        --highlight-green: #6a9955; /* VS Code green for strings/comments */
+        --highlight-yellow: #dcdcaa; /* VS Code yellow for function names */
+        --highlight-red: #f44747; /* VS Code red for constants/errors */
+        --highlight-orange: #ce9178; /* VS Code orange for object properties */
+        --highlight-purple: #c586c0; /* VS Code purple for definitions/imports */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        background-color: var(--bg-secondary);
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: var(--highlight-blue);
+        border-bottom: 1px solid var(--code-border);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.5em;
+        color: var(--text-primary);
+        border-bottom: 2px solid var(--highlight-blue);
+      }
+
+      h2 {
+        font-size: 1.8em;
+      }
+
+      h3 {
+        font-size: 1.4em;
+        color: var(--highlight-purple);
+        border-bottom: none;
+      }
+
+      p,
+      ul {
+        margin-bottom: 15px;
+        font-size: 1.05em;
+      }
+
+      strong {
+        color: var(--highlight-yellow);
+        font-weight: 700;
+      }
+
+      li strong {
+        color: var(--highlight-red);
+        font-weight: 700;
+      }
+
+      /* Code Block Styling (VS Code Dark Theme) */
+      pre {
+        background-color: var(--code-bg);
+        border: 1px solid var(--code-border);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        margin: 20px 0;
+        white-space: pre-wrap; /* Allows line wrapping for long code snippets */
+      }
+
+      code {
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        color: var(--text-primary);
+      }
+
+      /* Code Syntax Highlighting Classes */
+      .kw {
+        color: var(--highlight-purple);
+      } /* Keyword (const, function, await, try, catch, return, etc.) */
+      .str {
+        color: var(--highlight-orange);
+      } /* String/Text */
+      .cmt {
+        color: var(--highlight-green);
+      } /* Comment */
+      .prop {
+        color: var(--highlight-blue);
+      } /* Object Property (error.name) */
+      .val {
+        color: #b5cea8;
+      } /* Numeric or Boolean Value */
+      .type {
+        color: #4ec9b0;
+      } /* Class or Type (mongoose, User, Schema) */
+      .func {
+        color: var(--highlight-yellow);
+      } /* Function/Method (save, findById, connect) */
+      .err {
+        color: var(--highlight-red);
+      } /* Error Name (ValidationError) */
+      .op {
+        color: #f8f8f2;
+      } /* Operator */
+      .log {
+        color: #808080;
+      } /* Console.log/log content */
+
+      /* Table Styling */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: var(--bg-primary);
+        border: 1px solid var(--code-border);
+      }
+      th,
+      td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid var(--code-border);
+      }
+      th {
+        background-color: var(--bg-secondary);
+        color: var(--highlight-blue);
+        font-weight: 700;
+        text-transform: uppercase;
+        font-size: 0.9em;
+      }
+      tr:hover {
+        background-color: #2a2a2a;
+      }
+      td strong {
+        color: var(--highlight-red);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Deep Dive into Built-in Error Types in Mongoose</h1>
+      <p>
+        Let me teach you everything about Mongoose error types with clear
+        explanations and practical examples.
+      </p>
+
+      <h2>Overview of Mongoose Error Types</h2>
+      <p>
+        Mongoose has several built-in error types that help you identify and
+        handle different kinds of failures in your MongoDB operations. All
+        Mongoose errors inherit from the base <code>Error</code> class.
+      </p>
+
+      <hr />
+
+      <h2>1. ValidationError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when document validation fails. This occurs when you try to save
+        a document that doesn't meet the schema validation rules.
+      </p>
+      <p><strong>Common Causes</strong></p>
+      <ul>
+        <li>Missing required fields</li>
+        <li>Data type mismatches</li>
+        <li>Custom validator failures</li>
+        <li>Enum violations</li>
+        <li>Min/max constraint violations</li>
+      </ul>
+      <p><strong>Syntax & Properties</strong></p>
+      <pre><code><span class="kw">error</span>.<span class="prop">name</span> <span class="cmt">// 'ValidationError'</span>
+<span class="kw">error</span>.<span class="prop">errors</span> <span class="cmt">// Object containing individual field errors</span>
+<span class="kw">error</span>.<span class="prop">message</span> <span class="cmt">// Summary of all validation errors</span></code></pre>
+
+      <hr />
+
+      <h2>2. ValidatorError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Individual field validation error. Multiple
+        <strong>ValidatorErrors</strong> combine into a
+        <strong>ValidationError</strong>.
+      </p>
+      <p><strong>Properties</strong></p>
+      <pre><code><span class="kw">error</span>.<span class="prop">name</span> <span class="cmt">// 'ValidatorError'</span>
+<span class="kw">error</span>.<span class="prop">path</span> <span class="cmt">// Field name that failed</span>
+<span class="kw">error</span>.<span class="prop">value</span> <span class="cmt">// The invalid value</span>
+<span class="kw">error</span>.<span class="prop">kind</span> <span class="cmt">// Type of validation that failed</span>
+<span class="kw">error</span>.<span class="prop">message</span> <span class="cmt">// Error message</span></code></pre>
+
+      <hr />
+
+      <h2>3. CastError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when Mongoose cannot convert a value to the schema's defined
+        type.
+      </p>
+      <p><strong>Common Causes</strong></p>
+      <ul>
+        <li>Invalid <strong>ObjectId</strong> format</li>
+        <li>Wrong data type (string instead of number)</li>
+        <li>Invalid date formats</li>
+      </ul>
+      <p><strong>Properties</strong></p>
+      <pre><code><span class="kw">error</span>.<span class="prop">name</span> <span class="cmt">// 'CastError'</span>
+<span class="kw">error</span>.<span class="prop">path</span> <span class="cmt">// Field that failed casting</span>
+<span class="kw">error</span>.<span class="prop">value</span> <span class="cmt">// The value that couldn't be cast</span>
+<span class="kw">error</span>.<span class="prop">kind</span> <span class="cmt">// The type it was trying to cast to</span></code></pre>
+
+      <hr />
+
+      <h2>4. DocumentNotFoundError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when <code>findOneAndUpdate</code>,
+        <code>findOneAndDelete</code>, or similar methods with
+        <code>{orFail: true}</code> option don't find a document.
+      </p>
+      <p><strong>Properties</strong></p>
+      <pre><code><span class="kw">error</span>.<span class="prop">name</span> <span class="cmt">// 'DocumentNotFoundError'</span>
+<span class="kw">error</span>.<span class="prop">filter</span> <span class="cmt">// The query filter used</span></code></pre>
+
+      <hr />
+
+      <h2>5. MissingSchemaError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when you try to access a model that hasn't been registered.
+      </p>
+
+      <hr />
+
+      <h2>6. VersionError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when saving a document fails due to version conflicts (optimistic
+        locking).
+      </p>
+      <p><strong>Properties</strong></p>
+      <pre><code><span class="kw">error</span>.<span class="prop">name</span> <span class="cmt">// 'VersionError'</span>
+<span class="kw">error</span>.<span class="prop">version</span> <span class="cmt">// Expected version</span></code></pre>
+
+      <hr />
+
+      <h2>7. ParallelSaveError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when you call <code>save()</code> multiple times on the same
+        document in parallel.
+      </p>
+
+      <hr />
+
+      <h2>8. OverwriteModelError</h2>
+      <p>
+        <strong>Definition</strong><br />
+        Thrown when trying to register a model with a name that's already been
+        used.
+      </p>
+
+      <hr />
+
+      <h2>Complete Practical Example</h2>
+      <pre><code><span class="cmt">// Complete Mongoose Error Types Demo</span>
+<span class="cmt">// npm install mongoose</span>
+
+<span class="kw">const</span> <span class="prop">mongoose</span> <span class="op">=</span> <span class="kw">require</span>(<span class="str">'mongoose'</span>);
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// SCHEMA DEFINITION WITH VALIDATION</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">const</span> <span class="prop">userSchema</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">mongoose</span>.<span class="type">Schema</span>({
+  <span class="prop">username</span>: {
+    <span class="prop">type</span>: <span class="type">String</span>,
+    <span class="prop">required</span>: [<span class="kw">true</span>, <span class="str">'Username is required'</span>],
+    <span class="prop">minlength</span>: [<span class="val">3</span>, <span class="str">'Username must be at least 3 characters'</span>],
+    <span class="prop">maxlength</span>: [<span class="val">20</span>, <span class="str">'Username cannot exceed 20 characters'</span>],
+    <span class="prop">unique</span>: <span class="kw">true</span>,
+    <span class="prop">trim</span>: <span class="kw">true</span>
+  },
+  <span class="prop">email</span>: {
+    <span class="prop">type</span>: <span class="type">String</span>,
+    <span class="prop">required</span>: [<span class="kw">true</span>, <span class="str">'Email is required'</span>],
+    <span class="prop">unique</span>: <span class="kw">true</span>,
+    <span class="prop">lowercase</span>: <span class="kw">true</span>,
+    <span class="prop">validate</span>: {
+      <span class="prop">validator</span>: <span class="kw">function</span>(<span class="kw">v</span>) {
+        <span class="kw">return</span> <span class="op">/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/</span>.<span class="func">test</span>(<span class="kw">v</span>);
+      },
+      <span class="prop">message</span>: <span class="kw">props</span> <span class="op">=></span> <span class="str">`</span><span class="op">${</span><span class="kw">props</span>.<span class="prop">value</span><span class="op">}</span><span class="str"> is not a valid email!`</span>
+    }
+  },
+  <span class="prop">age</span>: {
+    <span class="prop">type</span>: <span class="type">Number</span>,
+    <span class="prop">required</span>: <span class="kw">true</span>,
+    <span class="prop">min</span>: [<span class="val">18</span>, <span class="str">'Must be at least 18 years old'</span>],
+    <span class="prop">max</span>: [<span class="val">100</span>, <span class="str">'Age cannot exceed 100'</span>]
+  },
+  <span class="prop">role</span>: {
+    <span class="prop">type</span>: <span class="type">String</span>,
+    <span class="prop">enum</span>: {
+      <span class="prop">values</span>: [<span class="str">'user'</span>, <span class="str">'admin'</span>, <span class="str">'moderator'</span>],
+      <span class="prop">message</span>: <span class="str">'{VALUE} is not a valid role'</span>
+    },
+    <span class="prop">default</span>: <span class="str">'user'</span>
+  },
+  <span class="prop">createdAt</span>: {
+    <span class="prop">type</span>: <span class="type">Date</span>,
+    <span class="prop">default</span>: <span class="type">Date</span>.<span class="func">now</span>
+  }
+}, {
+  <span class="prop">timestamps</span>: <span class="kw">true</span>,
+  <span class="prop">versionKey</span>: <span class="kw">true</span> <span class="cmt">// Enable versioning for VersionError demo</span>
+});
+
+<span class="kw">const</span> <span class="type">User</span> <span class="op">=</span> <span class="prop">mongoose</span>.<span class="func">model</span>(<span class="str">'User'</span>, <span class="prop">userSchema</span>);
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// DATABASE CONNECTION</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">connectDB</span>() {
+  <span class="kw">try</span> {
+    <span class="kw">await</span> <span class="prop">mongoose</span>.<span class="func">connect</span>(<span class="str">'mongodb://localhost:27017/mongoose-errors-demo'</span>, {
+      <span class="prop">useNewUrlParser</span>: <span class="kw">true</span>,
+      <span class="prop">useUnifiedTopology</span>: <span class="kw">true</span>
+    });
+    <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">✅ Connected to MongoDB\n</span>'</span>);
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="prop">console</span>.<span class="func">error</span>(<span class="str">'<span class="log">❌ MongoDB connection error:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    <span class="prop">process</span>.<span class="func">exit</span>(<span class="val">1</span>);
+  }
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 1. VALIDATION ERROR EXAMPLES</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateValidationError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 1. VALIDATION ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">User</span>({
+      <span class="prop">username</span>: <span class="str">'ab'</span>, <span class="cmt">// Too short (minlength: 3)</span>
+      <span class="prop">email</span>: <span class="str">'invalid-email'</span>, <span class="cmt">// Invalid email format</span>
+      <span class="prop">age</span>: <span class="val">15</span>, <span class="cmt">// Below minimum (min: 18)</span>
+      <span class="prop">role</span>: <span class="str">'superuser'</span> <span class="cmt">// Not in enum</span>
+    });
+    
+    <span class="kw">await</span> <span class="prop">user</span>.<span class="func">save</span>();
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'ValidationError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n<span class="log">Individual Field Errors:</span>'</span>);
+      
+      <span class="cmt">// Loop through each validation error</span>
+      <span class="kw">for</span> (<span class="kw">let</span> <span class="prop">field</span> <span class="kw">in</span> <span class="kw">error</span>.<span class="prop">errors</span>) {
+        <span class="kw">const</span> <span class="prop">fieldError</span> <span class="op">=</span> <span class="kw">error</span>.<span class="prop">errors</span>[<span class="prop">field</span>];
+        <span class="prop">console</span>.<span class="func">log</span>(<span class="str">`\n<span class="log">  Field:</span> <span class="op">${</span><span class="prop">field</span><span class="op">}</span>`</span>);
+        <span class="prop">console</span>.<span class="func">log</span>(<span class="str">`<span class="log">  Kind:</span> <span class="op">${</span><span class="prop">fieldError</span>.<span class="prop">kind</span><span class="op">}</span>`</span>);
+        <span class="prop">console</span>.<span class="func">log</span>(<span class="str">`<span class="log">  Value:</span> <span class="op">${</span><span class="prop">fieldError</span>.<span class="prop">value</span><span class="op">}</span>`</span>);
+        <span class="prop">console</span>.<span class="func">log</span>(<span class="str">`<span class="log">  Message:</span> <span class="op">${</span><span class="prop">fieldError</span>.<span class="prop">message</span><span class="op">}</span>`</span>);
+      }
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 2. CAST ERROR EXAMPLES</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateCastError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 2. CAST ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Try to find user with invalid ObjectId format</span>
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="kw">await</span> <span class="type">User</span>.<span class="func">findById</span>(<span class="str">'invalid-id-format'</span>);
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'CastError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Path:</span>'</span>, <span class="kw">error</span>.<span class="prop">path</span>); <span class="cmt">// '_id'</span>
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Value:</span>'</span>, <span class="kw">error</span>.<span class="prop">value</span>); <span class="cmt">// 'invalid-id-format'</span>
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Kind:</span>'</span>, <span class="kw">error</span>.<span class="prop">kind</span>); <span class="cmt">// 'ObjectId'</span>
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    }
+  }
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Try to save with wrong type</span>
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">User</span>({
+      <span class="prop">username</span>: <span class="str">'validuser'</span>,
+      <span class="prop">email</span>: <span class="str">'valid@email.com'</span>,
+      <span class="prop">age</span>: <span class="str">'twenty-five'</span>, <span class="cmt">// String instead of Number</span>
+      <span class="prop">role</span>: <span class="str">'user'</span>
+    });
+    
+    <span class="kw">await</span> <span class="prop">user</span>.<span class="func">save</span>();
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'ValidationError'</span>) {
+      <span class="kw">const</span> <span class="prop">ageError</span> <span class="op">=</span> <span class="kw">error</span>.<span class="prop">errors</span>.<span class="prop">age</span>;
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n<span class="log">Age Field Cast Error:</span>'</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Kind:</span>'</span>, <span class="prop">ageError</span>.<span class="prop">kind</span>); <span class="cmt">// 'Number'</span>
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Value:</span>'</span>, <span class="prop">ageError</span>.<span class="prop">value</span>); <span class="cmt">// 'twenty-five'</span>
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="prop">ageError</span>.<span class="prop">message</span>);
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 3. DOCUMENT NOT FOUND ERROR</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateDocumentNotFoundError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 3. DOCUMENT NOT FOUND ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Use orFail() to throw error if document not found</span>
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="kw">await</span> <span class="type">User</span>.<span class="func">findOneAndUpdate</span>(
+      { <span class="prop">username</span>: <span class="str">'nonexistent-user'</span> },
+      { <span class="prop">age</span>: <span class="val">25</span> }
+    ).<span class="func">orFail</span>();
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'DocumentNotFoundError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Filter:</span>'</span>, <span class="type">JSON</span>.<span class="func">stringify</span>(<span class="kw">error</span>.<span class="prop">filter</span>));
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    }
+  }
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Alternative: findByIdAndUpdate with orFail</span>
+    <span class="kw">const</span> <span class="prop">fakeId</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">mongoose</span>.<span class="type">Types</span>.<span class="type">ObjectId</span>();
+    <span class="kw">await</span> <span class="type">User</span>.<span class="func">findByIdAndUpdate</span>(<span class="prop">fakeId</span>, { <span class="prop">age</span>: <span class="val">30</span> }).<span class="func">orFail</span>();
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'DocumentNotFoundError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n<span class="log">FindByIdAndUpdate Error:</span>'</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 4. VERSION ERROR (Optimistic Locking)</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateVersionError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 4. VERSION ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// First, create a user</span>
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">User</span>({
+      <span class="prop">username</span>: <span class="str">'versiontest'</span>,
+      <span class="prop">email</span>: <span class="str">'version@test.com'</span>,
+      <span class="prop">age</span>: <span class="val">25</span>,
+      <span class="prop">role</span>: <span class="str">'user'</span>
+    });
+    <span class="kw">await</span> <span class="prop">user</span>.<span class="func">save</span>();
+    <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">User created with version:</span>'</span>, <span class="prop">user</span>.<span class="prop">__v</span>);
+    
+    <span class="cmt">// Fetch the same user twice</span>
+    <span class="kw">const</span> <span class="prop">userCopy1</span> <span class="op">=</span> <span class="kw">await</span> <span class="type">User</span>.<span class="func">findById</span>(<span class="prop">user</span>.<span class="prop">_id</span>);
+    <span class="kw">const</span> <span class="prop">userCopy2</span> <span class="op">=</span> <span class="kw">await</span> <span class="type">User</span>.<span class="func">findById</span>(<span class="prop">user</span>.<span class="prop">_id</span>);
+    
+    <span class="cmt">// Modify and save first copy</span>
+    <span class="prop">userCopy1</span>.<span class="prop">age</span> <span class="op">=</span> <span class="val">26</span>;
+    <span class="kw">await</span> <span class="prop">userCopy1</span>.<span class="func">save</span>();
+    <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">First save successful, new version:</span>'</span>, <span class="prop">userCopy1</span>.<span class="prop">__v</span>);
+    
+    <span class="cmt">// Try to save second copy (will fail because version changed)</span>
+    <span class="prop">userCopy2</span>.<span class="prop">age</span> <span class="op">=</span> <span class="val">27</span>;
+    <span class="kw">await</span> <span class="prop">userCopy2</span>.<span class="func">save</span>();
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'VersionError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Expected Version:</span>'</span>, <span class="kw">error</span>.<span class="prop">version</span>);
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 5. PARALLEL SAVE ERROR</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateParallelSaveError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 5. PARALLEL SAVE ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">User</span>({
+      <span class="prop">username</span>: <span class="str">'parallelsave'</span>,
+      <span class="prop">email</span>: <span class="str">'parallel@test.com'</span>,
+      <span class="prop">age</span>: <span class="val">30</span>,
+      <span class="prop">role</span>: <span class="str">'user'</span>
+    });
+    
+    <span class="cmt">// Try to save the same document twice simultaneously</span>
+    <span class="kw">const</span> <span class="prop">savePromise1</span> <span class="op">=</span> <span class="prop">user</span>.<span class="func">save</span>();
+    <span class="kw">const</span> <span class="prop">savePromise2</span> <span class="op">=</span> <span class="prop">user</span>.<span class="func">save</span>(); <span class="cmt">// This will throw error</span>
+    
+    <span class="kw">await</span> <span class="type">Promise</span>.<span class="func">all</span>([<span class="prop">savePromise1</span>, <span class="prop">savePromise2</span>]);
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'ParallelSaveError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 6. MISSING SCHEMA ERROR</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateMissingSchemaError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 6. MISSING SCHEMA ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Try to access a model that doesn't exist</span>
+    <span class="kw">const</span> <span class="type">NonExistentModel</span> <span class="op">=</span> <span class="prop">mongoose</span>.<span class="func">model</span>(<span class="str">'NonExistentModel'</span>);
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'MissingSchemaError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 7. OVERWRITE MODEL ERROR</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateOverwriteModelError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 7. OVERWRITE MODEL ERROR ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Try to register a model with the same name</span>
+    <span class="kw">const</span> <span class="prop">duplicateSchema</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">mongoose</span>.<span class="type">Schema</span>({ <span class="prop">name</span>: <span class="type">String</span> });
+    <span class="prop">mongoose</span>.<span class="func">model</span>(<span class="str">'User'</span>, <span class="prop">duplicateSchema</span>); <span class="cmt">// 'User' already exists</span>
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'OverwriteModelError'</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// 8. DUPLICATE KEY ERROR (MongoDB Error)</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">demonstrateDuplicateKeyError</span>() {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- 8. DUPLICATE KEY ERROR (MongoDB) ---\n</span>'</span>);
+  
+  <span class="kw">try</span> {
+    <span class="cmt">// Create first user</span>
+    <span class="kw">const</span> <span class="prop">user1</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">User</span>({
+      <span class="prop">username</span>: <span class="str">'uniqueuser'</span>,
+      <span class="prop">email</span>: <span class="str">'unique@test.com'</span>,
+      <span class="prop">age</span>: <span class="val">25</span>,
+      <span class="prop">role</span>: <span class="str">'user'</span>
+    });
+    <span class="kw">await</span> <span class="prop">user1</span>.<span class="func">save</span>();
+    <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">First user created successfully</span>'</span>);
+    
+    <span class="cmt">// Try to create another user with same username (unique field)</span>
+    <span class="kw">const</span> <span class="prop">user2</span> <span class="op">=</span> <span class="prop">new</span> <span class="type">User</span>({
+      <span class="prop">username</span>: <span class="str">'uniqueuser'</span>, <span class="cmt">// Duplicate!</span>
+      <span class="prop">email</span>: <span class="str">'another@test.com'</span>,
+      <span class="prop">age</span>: <span class="val">30</span>,
+      <span class="prop">role</span>: <span class="str">'user'</span>
+    });
+    <span class="kw">await</span> <span class="prop">user2</span>.<span class="func">save</span>();
+    
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="cmt">// This is a MongoDB error, not a Mongoose error</span>
+    <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">code</span> <span class="op">===</span> <span class="val">11000</span>) {
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n<span class="log">Error Code:</span>'</span>, <span class="kw">error</span>.<span class="prop">code</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Error Name:</span>'</span>, <span class="kw">error</span>.<span class="prop">name</span>); <span class="cmt">// MongoServerError</span>
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Message:</span>'</span>, <span class="kw">error</span>.<span class="prop">message</span>);
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Duplicate Key:</span>'</span>, <span class="type">JSON</span>.<span class="func">stringify</span>(<span class="kw">error</span>.<span class="prop">keyValue</span>));
+    }
+  }
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'\n'</span>);
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// COMPREHENSIVE ERROR HANDLER</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">function</span> <span class="func">handleMongooseError</span>(<span class="kw">error</span>) {
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">--- HANDLING ERROR ---</span>'</span>);
+  
+  <span class="kw">switch</span> (<span class="kw">error</span>.<span class="prop">name</span>) {
+    <span class="kw">case</span> <span class="str">'ValidationError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Validation failed:</span>'</span>);
+      <span class="kw">const</span> <span class="prop">errors</span> <span class="op">=</span> {};
+      <span class="kw">for</span> (<span class="kw">let</span> <span class="prop">field</span> <span class="kw">in</span> <span class="kw">error</span>.<span class="prop">errors</span>) {
+        <span class="prop">errors</span>[<span class="prop">field</span>] <span class="op">=</span> <span class="kw">error</span>.<span class="prop">errors</span>[<span class="prop">field</span>].<span class="prop">message</span>;
+      }
+      <span class="kw">return</span> { <span class="prop">status</span>: <span class="val">400</span>, <span class="prop">errors</span> };
+      
+    <span class="kw">case</span> <span class="str">'CastError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Invalid data type:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">400</span>,
+        <span class="prop">message</span>: <span class="str">`Invalid </span><span class="op">${</span><span class="kw">error</span>.<span class="prop">kind</span><span class="op">}</span><span class="str"> for field </span><span class="op">${</span><span class="kw">error</span>.<span class="prop">path</span><span class="op">}</span><span class="str">`</span>
+      };
+      
+    <span class="kw">case</span> <span class="str">'DocumentNotFoundError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Document not found:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">404</span>,
+        <span class="prop">message</span>: <span class="str">'Resource not found'</span>
+      };
+      
+    <span class="kw">case</span> <span class="str">'VersionError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Version conflict:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">409</span>,
+        <span class="prop">message</span>: <span class="str">'Document was modified by another process'</span>
+      };
+      
+    <span class="kw">case</span> <span class="str">'ParallelSaveError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Parallel save detected:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">500</span>,
+        <span class="prop">message</span>: <span class="str">'Cannot save document multiple times simultaneously'</span>
+      };
+      
+    <span class="kw">case</span> <span class="str">'MissingSchemaError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Schema not found:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">500</span>,
+        <span class="prop">message</span>: <span class="str">'Internal server error: Schema not registered'</span>
+      };
+      
+    <span class="kw">case</span> <span class="str">'OverwriteModelError'</span>:
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Model already exists:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">500</span>,
+        <span class="prop">message</span>: <span class="str">'Internal server error: Duplicate model registration'</span>
+      };
+      
+    <span class="kw">default</span>:
+      <span class="cmt">// Handle MongoDB errors</span>
+      <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">code</span> <span class="op">===</span> <span class="val">11000</span>) {
+        <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Duplicate key error:</span>'</span>);
+        <span class="kw">return</span> {
+          <span class="prop">status</span>: <span class="val">409</span>,
+          <span class="prop">message</span>: <span class="str">'Duplicate value for unique field'</span>,
+          <span class="prop">field</span>: <span class="type">Object</span>.<span class="func">keys</span>(<span class="kw">error</span>.<span class="prop">keyValue</span>)[<span class="val">0</span>]
+        };
+      }
+      
+      <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">Unknown error:</span>'</span>);
+      <span class="kw">return</span> {
+        <span class="prop">status</span>: <span class="val">500</span>,
+        <span class="prop">message</span>: <span class="str">'An unexpected error occurred'</span>
+      };
+  }
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// EXPRESS ERROR MIDDLEWARE EXAMPLE</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">function</span> <span class="func">expressErrorMiddleware</span>(<span class="kw">error</span>, <span class="kw">req</span>, <span class="kw">res</span>, <span class="kw">next</span>) {
+  <span class="prop">console</span>.<span class="func">error</span>(<span class="str">'<span class="log">Error occurred:</span>'</span>, <span class="kw">error</span>);
+  
+  <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'ValidationError'</span>) {
+    <span class="kw">const</span> <span class="prop">errors</span> <span class="op">=</span> {};
+    <span class="kw">for</span> (<span class="kw">let</span> <span class="prop">field</span> <span class="kw">in</span> <span class="kw">error</span>.<span class="prop">errors</span>) {
+      <span class="prop">errors</span>[<span class="prop">field</span>] <span class="op">=</span> <span class="kw">error</span>.<span class="prop">errors</span>[<span class="prop">field</span>].<span class="prop">message</span>;
+    }
+    <span class="kw">return</span> <span class="prop">res</span>.<span class="func">status</span>(<span class="val">400</span>).<span class="func">json</span>({
+      <span class="prop">success</span>: <span class="kw">false</span>,
+      <span class="prop">message</span>: <span class="str">'Validation failed'</span>,
+      <span class="prop">errors</span>
+    });
+  }
+  
+  <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'CastError'</span>) {
+    <span class="kw">return</span> <span class="prop">res</span>.<span class="func">status</span>(<span class="val">400</span>).<span class="func">json</span>({
+      <span class="prop">success</span>: <span class="kw">false</span>,
+      <span class="prop">message</span>: <span class="str">`Invalid </span><span class="op">${</span><span class="kw">error</span>.<span class="prop">kind</span><span class="op">}</span><span class="str"> for </span><span class="op">${</span><span class="kw">error</span>.<span class="prop">path</span><span class="op">}</span><span class="str">`</span>
+    });
+  }
+  
+  <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'DocumentNotFoundError'</span>) {
+    <span class="kw">return</span> <span class="prop">res</span>.<span class="func">status</span>(<span class="val">404</span>).<span class="func">json</span>({
+      <span class="prop">success</span>: <span class="kw">false</span>,
+      <span class="prop">message</span>: <span class="str">'Resource not found'</span>
+    });
+  }
+  
+  <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">code</span> <span class="op">===</span> <span class="val">11000</span>) {
+    <span class="kw">return</span> <span class="prop">res</span>.<span class="func">status</span>(<span class="val">409</span>).<span class="func">json</span>({
+      <span class="prop">success</span>: <span class="kw">false</span>,
+      <span class="prop">message</span>: <span class="str">'Duplicate key error'</span>,
+      <span class="prop">field</span>: <span class="type">Object</span>.<span class="func">keys</span>(<span class="kw">error</span>.<span class="prop">keyValue</span>)[<span class="val">0</span>]
+    });
+  }
+  
+  <span class="cmt">// Default error</span>
+  <span class="prop">res</span>.<span class="func">status</span>(<span class="val">500</span>).<span class="func">json</span>({
+    <span class="prop">success</span>: <span class="kw">false</span>,
+    <span class="prop">message</span>: <span class="str">'Internal server error'</span>
+  });
+}
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// MAIN EXECUTION</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">async</span> <span class="kw">function</span> <span class="func">main</span>() {
+  <span class="kw">await</span> <span class="func">connectDB</span>();
+  
+  <span class="cmt">// Run all demonstrations</span>
+  <span class="kw">await</span> <span class="func">demonstrateValidationError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateCastError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateDocumentNotFoundError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateVersionError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateParallelSaveError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateMissingSchemaError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateOverwriteModelError</span>();
+  <span class="kw">await</span> <span class="func">demonstrateDuplicateKeyError</span>();
+  
+  <span class="cmt">// Cleanup</span>
+  <span class="kw">await</span> <span class="type">User</span>.<span class="func">deleteMany</span>({});
+  <span class="kw">await</span> <span class="prop">mongoose</span>.<span class="prop">connection</span>.<span class="func">close</span>();
+  <span class="prop">console</span>.<span class="func">log</span>(<span class="str">'<span class="log">✅ Database connection closed</span>'</span>);
+}
+
+<span class="cmt">// Run the demo</span>
+<span class="func">main</span>().<span class="func">catch</span>(<span class="kw">error</span> <span class="op">=></span> {
+  <span class="prop">console</span>.<span class="func">error</span>(<span class="str">'<span class="log">Fatal error:</span>'</span>, <span class="kw">error</span>);
+  <span class="prop">process</span>.<span class="func">exit</span>(<span class="val">1</span>);
+});
+
+<span class="cmt">// ============================================</span>
+<span class="cmt">// EXPORT FOR USE IN YOUR APPLICATION</span>
+<span class="cmt">// ============================================</span>
+
+<span class="kw">module</span>.<span class="prop">exports</span> <span class="op">=</span> {
+  <span class="prop">handleMongooseError</span>,
+  <span class="prop">expressErrorMiddleware</span>
+};</code></pre>
+
+      <hr />
+
+      <h2>Best Practices for Error Handling</h2>
+      <h3>1. Always Use Try-Catch with Async/Await</h3>
+      <pre><code><span class="kw">async</span> <span class="kw">function</span> <span class="func">createUser</span>(<span class="prop">userData</span>) {
+  <span class="kw">try</span> {
+    <span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="kw">new</span> <span class="type">User</span>(<span class="prop">userData</span>);
+    <span class="kw">await</span> <span class="prop">user</span>.<span class="func">save</span>();
+    <span class="kw">return</span> { <span class="prop">success</span>: <span class="kw">true</span>, <span class="prop">user</span> };
+  } <span class="kw">catch</span> (<span class="kw">error</span>) {
+    <span class="kw">return</span> { <span class="prop">success</span>: <span class="kw">false</span>, <span class="prop">error</span>: <span class="func">handleMongooseError</span>(<span class="kw">error</span>) };
+  }
+}</code></pre>
+
+      <h3>2. Use Error Middleware in Express</h3>
+      <pre><code><span class="prop">app</span>.<span class="func">use</span>((<span class="kw">error</span>, <span class="kw">req</span>, <span class="kw">res</span>, <span class="kw">next</span>) <span class="op">=></span> {
+  <span class="kw">if</span> (<span class="kw">error</span>.<span class="prop">name</span> <span class="op">===</span> <span class="str">'ValidationError'</span>) {
+    <span class="cmt">// Handle validation errors</span>
+  }
+  <span class="cmt">// ... other error handling</span>
+});</code></pre>
+
+      <h3>3. Validate Before Saving</h3>
+      <pre><code><span class="kw">const</span> <span class="prop">user</span> <span class="op">=</span> <span class="kw">new</span> <span class="type">User</span>(<span class="prop">userData</span>);
+<span class="kw">const</span> <span class="prop">validationError</span> <span class="op">=</span> <span class="prop">user</span>.<span class="func">validateSync</span>(); <span class="cmt">// Synchronous validation</span>
+<span class="kw">if</span> (<span class="prop">validationError</span>) {
+  <span class="cmt">// Handle errors without saving to DB</span>
+}</code></pre>
+
+      <h3>4. Use Custom Error Messages</h3>
+      <pre><code><span class="kw">const</span> <span class="prop">schema</span> <span class="op">=</span> <span class="kw">new</span> <span class="type">Schema</span>({
+  <span class="prop">email</span>: {
+    <span class="prop">type</span>: <span class="type">String</span>,
+    <span class="prop">required</span>: [<span class="kw">true</span>, <span class="str">'Please provide an email address'</span>],
+    <span class="prop">validate</span>: {
+      <span class="prop">validator</span>: <span class="kw">v</span> <span class="op">=></span> <span class="op">/regex/</span>.<span class="func">test</span>(<span class="kw">v</span>),
+      <span class="prop">message</span>: <span class="str">'Please provide a valid email'</span>
+    }
+  }
+});</code></pre>
+
+      <hr />
+
+      <h2>Common Error Response Patterns</h2>
+      <p><strong>API Response Structure</strong></p>
+      <pre><code><span class="cmt">// Success</span>
+{
+  <span class="prop">success</span>: <span class="kw">true</span>,
+  <span class="prop">data</span>: {...}
+}
+
+<span class="cmt">// Validation Error</span>
+{
+  <span class="prop">success</span>: <span class="kw">false</span>,
+  <span class="prop">message</span>: <span class="str">"Validation failed"</span>,
+  <span class="prop">errors</span>: {
+    <span class="prop">email</span>: <span class="str">"Email is required"</span>,
+    <span class="prop">age</span>: <span class="str">"Must be at least 18"</span>
+  }
+}
+
+<span class="cmt">// Not Found</span>
+{
+  <span class="prop">success</span>: <span class="kw">false</span>,
+  <span class="prop">message</span>: <span class="str">"User not found"</span>
+}
+
+<span class="cmt">// Duplicate Key</span>
+{
+  <span class="prop">success</span>: <span class="kw">false</span>,
+  <span class="prop">message</span>: <span class="str">"Username already exists"</span>
+}</code></pre>
+
+      <hr />
+
+      <h2>Quick Reference Table</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Error Type</th>
+            <th>Common Cause</th>
+            <th>Status Code</th>
+            <th>How to Trigger</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>ValidationError</strong></td>
+            <td>Schema validation fails</td>
+            <td>400</td>
+            <td>Invalid data in <code>save()</code></td>
+          </tr>
+          <tr>
+            <td><strong>CastError</strong></td>
+            <td>Type conversion fails</td>
+            <td>400</td>
+            <td>Invalid ObjectId or type</td>
+          </tr>
+          <tr>
+            <td><strong>DocumentNotFoundError</strong></td>
+            <td>Document doesn't exist</td>
+            <td>404</td>
+            <td><code>findOneAndX().orFail()</code></td>
+          </tr>
+          <tr>
+            <td><strong>VersionError</strong></td>
+            <td>Concurrent updates</td>
+            <td>409</td>
+            <td>Save same doc twice</td>
+          </tr>
+          <tr>
+            <td><strong>ParallelSaveError</strong></td>
+            <td>Multiple saves</td>
+            <td>500</td>
+            <td>call <code>save()</code> in parallel</td>
+          </tr>
+          <tr>
+            <td><strong>Duplicate Key (11000)</strong></td>
+            <td>Unique constraint</td>
+            <td>409</td>
+            <td>Save duplicate unique field</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p
+        class="final-note"
+        style="color: var(--highlight-green); font-style: italic"
+      >
+        The artifact above contains a complete, runnable example demonstrating
+        all Mongoose error types with proper error handling patterns. Run it
+        with MongoDB running locally to see each error type in action!
+      </p>
+    </div>
+  </body>
+</html>

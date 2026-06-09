@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Node.js Hashing Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General Body and Font Styles */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a; /* Very dark grayish-black */
+        color: #d4d4d4; /* Off-white (VSCode text color) */
+        line-height: 1.6;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* Headings */
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VSCode keyword blue */
+        font-weight: 900;
+        border-bottom: 2px solid #333;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 1.5em;
+        color: #f7a900; /* Amber for main section titles */
+      }
+      h2 {
+        font-size: 1.2em;
+        color: #ce9178; /* Orange-brown for sub-sections */
+      }
+
+      /* Highlighting and Strong Text */
+      strong {
+        color: #dcdcdc; /* Lighter white for emphasis */
+        font-weight: 700;
+      }
+
+      /* Tables */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #252526; /* VSCode panel background */
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        padding: 10px 15px;
+        text-align: left;
+        border: 1px solid #3c3c3c;
+      }
+
+      th {
+        background-color: #005f6b; /* Darker teal for table headers */
+        color: #ffffff;
+        font-weight: 700;
+      }
+
+      tr:nth-child(even) {
+        background-color: #333; /* Stripe effect */
+      }
+
+      /* Code Block (VSCode Dark Theme Style) */
+      .code-block {
+        background-color: #1e1e1e; /* VSCode Dark Theme background */
+        color: #d4d4d4; /* Default text color */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 15px 0;
+        font-family: 'Consolas', 'Monaco', monospace;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      }
+
+      .code-keyword {
+        color: #569cd6; /* Blue for keywords (const, function, require) */
+      }
+      .code-string {
+        color: #ce9178; /* Orange-brown for strings */
+      }
+      .code-comment {
+        color: #6a9955; /* Green for comments */
+        white-space: pre; /* Important for preserving comment line breaks */
+      }
+      .code-function {
+        color: #dcdcdc; /* White for function names */
+      }
+      .code-var {
+        color: #9cdcfe; /* Light blue for variable names */
+      }
+      .code-log {
+        color: #b5cea8; /* Light green/mint for logging strings */
+      }
+
+      /* Horizontal Rule */
+      hr {
+        border: 0;
+        height: 1px;
+        background-image: linear-gradient(
+          to right,
+          rgba(0, 0, 0, 0),
+          #569cd6,
+          rgba(0, 0, 0, 0)
+        );
+        margin: 40px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>1. What is Hashing in Node.js?</h1>
+    <p>
+      In Node.js, hashing is handled primarily by the
+      <strong><code>crypto</code> module</strong>. This module provides
+      cryptographic functionality that includes a variety of secure hash
+      functions for creating <strong>message digests</strong>.
+    </p>
+    <p>
+      The core object used for hashing is the
+      <strong><code>Hash</code> class</strong>, which is a readable and writable
+      stream. You write data (the input message) into it, and it provides the
+      fixed-size hash output (the <strong>digest</strong>).
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Term</th>
+          <th>Definition</th>
+          <th>Node.js Implementation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Algorithm</strong></td>
+          <td>The specific hash function used (e.g., SHA-256, SHA3-512).</td>
+          <td>Passed as a string to <code>crypto.createHash()</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>Update</strong></td>
+          <td>
+            The process of feeding the input data (the message) into the hash
+            function.
+          </td>
+          <td>The <code>.update(data, [encoding])</code> method.</td>
+        </tr>
+        <tr>
+          <td><strong>Digest</strong></td>
+          <td>The final fixed-size hash value output.</td>
+          <td>The <code>.digest([encoding])</code> method.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr />
+
+    <h1>2. Practical Example: Hashing Passwords with SHA-256</h1>
+    <p>
+      The most common use case for Node.js hashing is verifying file integrity
+      or, more importantly, securely storing user passwords. Here is a
+      step-by-step example using the <strong>SHA-256</strong> algorithm.
+    </p>
+
+    <h2>A. Basic Hashing Syntax</h2>
+    <div class="code-block">
+      <span class="code-keyword">const</span>
+      <span class="code-var">crypto</span> =
+      <span class="code-keyword">require</span>(<span class="code-string"
+        >'crypto'</span
+      >);<br />
+      <br />
+      <span class="code-comment">// 1. Define the input data (the message)</span
+      ><br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">password</span> =
+      <span class="code-string">'mysecretpassword123'</span>;<br />
+      <br />
+      <span class="code-comment"
+        >// 2. Create the Hash object, specifying the algorithm</span
+      ><br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">hash</span> =
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >createHash</span
+      >(<span class="code-string">'sha256'</span>);<br />
+      <br />
+      <span class="code-comment"
+        >// 3. Update the hash object with the data. 'utf8' is the input
+        encoding.</span
+      ><br />
+      <span class="code-comment"
+        >// Note: You can call update() multiple times with chunks of
+        data.</span
+      ><br />
+      <span class="code-var">hash</span>.<span class="code-function"
+        >update</span
+      >(<span class="code-var">password</span>,
+      <span class="code-string">'utf8'</span>);<br />
+      <br />
+      <span class="code-comment"
+        >// 4. Get the final hash (the digest). 'hex' is the output
+        encoding.</span
+      ><br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">hashedPassword</span> =
+      <span class="code-var">hash</span>.<span class="code-function"
+        >digest</span
+      >(<span class="code-string">'hex'</span>);<br />
+      <br />
+      <span class="code-function">console</span>.<span class="code-function"
+        >log</span
+      >(<span class="code-log">`Original Password: ${password}`</span>);<br />
+      <span class="code-function">console</span>.<span class="code-function"
+        >log</span
+      >(<span class="code-log">`SHA-256 Hash: ${hashedPassword}`</span>);<br />
+      <br />
+      <span class="code-comment">// Output (will be the same every time):</span
+      ><br />
+      <span class="code-comment"
+        >// SHA-256 Hash:
+        52a1d2d3e1d1f0b4d5e6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8</span
+      >
+    </div>
+
+    <h2>B. Hashing with Salt for Password Security</h2>
+    <p>
+      When storing passwords, <strong>salting</strong> is crucial. A salt is a
+      unique, random string added to the password before hashing. This prevents
+      attackers from using pre-computed hash tables (<strong
+        >Rainbow Tables</strong
+      >) to crack passwords.
+    </p>
+    <div class="code-block">
+      <span class="code-keyword">const</span>
+      <span class="code-var">crypto</span> =
+      <span class="code-keyword">require</span>(<span class="code-string"
+        >'crypto'</span
+      >);<br />
+      <br />
+      <span class="code-keyword">function</span>
+      <span class="code-function">hashPassword</span>(<span class="code-var"
+        >password</span
+      >) {<br />
+      <span class="code-comment">
+        // 1. Generate a unique, cryptographically strong random salt (16 bytes
+        = 32 hex chars)</span
+      ><br />
+      <span class="code-keyword"> const</span>
+      <span class="code-var">salt</span> =
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >randomBytes</span
+      >(<span class="code-var">16</span>).<span class="code-function"
+        >toString</span
+      >(<span class="code-string">'hex'</span>);<br />
+      <br />
+      <span class="code-comment">
+        // 2. Hash the password + salt. We use PBKDF2 as it is intentionally
+        slow</span
+      ><br />
+      <span class="code-comment">
+        // (CPU-intensive), making brute-force attacks much harder.</span
+      ><br />
+      <span class="code-comment">
+        // Arguments: password, salt, iterations, key length, hash
+        algorithm</span
+      ><br />
+      <span class="code-keyword"> const</span>
+      <span class="code-var">hashedPassword</span> =
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >pbkdf2Sync</span
+      >(<br />
+      <span class="code-var"> password</span>,<br />
+      <span class="code-var"> salt</span>,<br />
+      <span class="code-var"> 100000</span>,
+      <span class="code-comment"
+        >// Iterations: Higher is more secure, but slower. 100k is a common
+        minimum.</span
+      ><br />
+      <span class="code-var"> 64</span>,
+      <span class="code-comment">// Key length (output hash size in bytes)</span
+      ><br />
+      <span class="code-string"> 'sha512'</span>
+      <span class="code-comment">// Algorithm</span><br />
+      <span class="code-function"> ).toString</span>(<span class="code-string"
+        >'hex'</span
+      >);<br />
+      <br />
+      <span class="code-comment">
+        // 3. Store the hash AND the salt in the database, often
+        concatenated.</span
+      ><br />
+      <span class="code-keyword"> return</span> {<br />
+      <span class="code-var"> hash</span>:
+      <span class="code-var">hashedPassword</span>,<br />
+      <span class="code-var"> salt</span>:
+      <span class="code-var">salt</span>,<br />
+      <span class="code-var"> storageString</span>:
+      <span class="code-log">`${salt}:${hashedPassword}`</span><br />
+      };<br />
+      }<br />
+      <span class="code-comment"
+        >// Function to verify a password against a stored hash and salt</span
+      ><br />
+      <span class="code-keyword">function</span>
+      <span class="code-function">verifyPassword</span>(<span class="code-var"
+        >password</span
+      >, <span class="code-var">storedSalt</span>,
+      <span class="code-var">storedHash</span>) {<br />
+      <span class="code-keyword"> const</span>
+      <span class="code-var">attemptedHash</span> =
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >pbkdf2Sync</span
+      >(<br />
+      <span class="code-var"> password</span>,<br />
+      <span class="code-var"> storedSalt</span>,<br />
+      <span class="code-var"> 100000</span>,<br />
+      <span class="code-var"> 64</span>,<br />
+      <span class="code-string"> 'sha512'</span><br />
+      <span class="code-function"> ).toString</span>(<span class="code-string"
+        >'hex'</span
+      >);<br />
+      <br />
+      <span class="code-comment">
+        // Use a secure comparison function to prevent timing attacks</span
+      ><br />
+      <span class="code-keyword"> return</span>
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >timingSafeEqual</span
+      >(<span class="code-var">Buffer</span>.<span class="code-function"
+        >from</span
+      >(<span class="code-var">attemptedHash</span>,
+      <span class="code-string">'hex'</span>),
+      <span class="code-var">Buffer</span>.<span class="code-function"
+        >from</span
+      >(<span class="code-var">storedHash</span>,
+      <span class="code-string">'hex'</span>));<br />
+      }<br />
+      <br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">result</span> =
+      <span class="code-function">hashPassword</span>(<span class="code-string"
+        >'SuperSecurePwd!'</span
+      >);<br />
+      <span class="code-function">console</span>.<span class="code-function"
+        >log</span
+      >(<span class="code-log">`\nStored String: ${result.storageString}`</span
+      >);<br />
+      <br />
+      <span class="code-comment">// Verification</span><br />
+      <span class="code-keyword">const</span> [<span class="code-var"
+        >storedSalt</span
+      >, <span class="code-var">storedHash</span>] =
+      <span class="code-var">result</span>.<span class="code-var"
+        >storageString</span
+      >.<span class="code-function">split</span>(<span class="code-string"
+        >':'</span
+      >);<br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">isCorrect</span> =
+      <span class="code-function">verifyPassword</span>(<span
+        class="code-string"
+        >'SuperSecurePwd!'</span
+      >, <span class="code-var">storedSalt</span>,
+      <span class="code-var">storedHash</span>);<br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">isIncorrect</span> =
+      <span class="code-function">verifyPassword</span>(<span
+        class="code-string"
+        >'wrongpassword'</span
+      >, <span class="code-var">storedSalt</span>,
+      <span class="code-var">storedHash</span>);<br />
+      <br />
+      <span class="code-function">console</span>.<span class="code-function"
+        >log</span
+      >(<span class="code-log"
+        >`Verification (Correct Password): ${isCorrect}`</span
+      >); <span class="code-comment">// true</span><br />
+      <span class="code-function">console</span>.<span class="code-function"
+        >log</span
+      >(<span class="code-log"
+        >`Verification (Incorrect Password): ${isIncorrect}`</span
+      >); <span class="code-comment">// false</span>
+    </div>
+
+    <hr />
+
+    <h1>3. Recommended Algorithms for Different Use Cases</h1>
+    <p>
+      Node.js supports all common algorithms. The choice depends on the security
+      needs:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Use Case</th>
+          <th>Recommended Algorithm</th>
+          <th>Node.js Method</th>
+          <th>Why?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Password Hashing</strong></td>
+          <td>PBKDF2 (SHA-512), Argon2 (via a library)</td>
+          <td>
+            <code>crypto.pbkdf2Sync()</code> or <code>crypto.scryptSync()</code>
+          </td>
+          <td>
+            These are <strong>key derivation functions (KDFs)</strong>, designed
+            to be slow and resource-intensive to defeat brute-force attacks.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Data Integrity / Checksums</strong></td>
+          <td>SHA-256, SHA3-512</td>
+          <td><code>crypto.createHash('sha256')</code></td>
+          <td>
+            Fast, high collision resistance, standard for file verification.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Cryptocurrency / Blockchain</strong></td>
+          <td>SHA-256</td>
+          <td><code>crypto.createHash('sha256')</code></td>
+          <td>
+            The standard algorithm used in Bitcoin and many other blockchains.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Note on scrypt</h3>
+    <p>
+      Node.js also provides built-in support for the
+      <strong>scrypt KDF</strong>, which is an excellent,
+      <strong>memory-hard</strong> alternative to PBKDF2, often preferred for
+      its resistance to specialized parallel hardware attacks.
+    </p>
+    <div class="code-block">
+      <span class="code-comment"
+        >// Example using scrypt (Node.js built-in)</span
+      ><br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">salt</span> =
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >randomBytes</span
+      >(<span class="code-var">16</span>);<br />
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >scrypt</span
+      >(<span class="code-string">'password'</span>,
+      <span class="code-var">salt</span>, <span class="code-var">64</span>,
+      (<span class="code-var">err</span>,
+      <span class="code-var">derivedKey</span>)
+      <span class="code-keyword">=></span> {<br />
+      <span class="code-keyword"> if</span> (<span class="code-var">err</span>)
+      <span class="code-keyword">throw</span>
+      <span class="code-var">err</span>;<br />
+      <span class="code-function"> console</span>.<span class="code-function"
+        >log</span
+      >(<span class="code-log"
+        >`Scrypt Hash: ${derivedKey.toString('hex')}`</span
+      >);<br />
+      });
+    </div>
+
+    <hr />
+
+    <h1>4. Hashing Large Files (Streaming)</h1>
+    <p>
+      One of the great features of the Node.js <code>crypto</code> module is its
+      <strong>stream-based nature</strong>, which is crucial when dealing with
+      large files (images, videos, etc.) that you don't want to load entirely
+      into memory.
+    </p>
+    <div class="code-block">
+      <span class="code-keyword">const</span>
+      <span class="code-var">crypto</span> =
+      <span class="code-keyword">require</span>(<span class="code-string"
+        >'crypto'</span
+      >);<br />
+      <span class="code-keyword">const</span> <span class="code-var">fs</span> =
+      <span class="code-keyword">require</span>(<span class="code-string"
+        >'fs'</span
+      >);<br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">path</span> =
+      <span class="code-keyword">require</span>(<span class="code-string"
+        >'path'</span
+      >);<br />
+      <br />
+      <span class="code-keyword">function</span>
+      <span class="code-function">hashFile</span>(<span class="code-var"
+        >filePath</span
+      >, <span class="code-var">algorithm</span> =
+      <span class="code-string">'sha256'</span>) {<br />
+      <span class="code-keyword"> return new</span>
+      <span class="code-function">Promise</span>((<span class="code-var"
+        >resolve</span
+      >, <span class="code-var">reject</span>)
+      <span class="code-keyword">=></span> {<br />
+      <span class="code-comment">
+        // 1. Create a readable stream from the file</span
+      ><br />
+      <span class="code-keyword"> const</span>
+      <span class="code-var">fileStream</span> =
+      <span class="code-var">fs</span>.<span class="code-function"
+        >createReadStream</span
+      >(<span class="code-var">filePath</span>);<br />
+      <span class="code-comment"> </span><br />
+      <span class="code-comment"> // 2. Create the hash object</span><br />
+      <span class="code-keyword"> const</span>
+      <span class="code-var">hash</span> =
+      <span class="code-var">crypto</span>.<span class="code-function"
+        >createHash</span
+      >(<span class="code-var">algorithm</span>);<br />
+      <span class="code-comment"> </span><br />
+      <span class="code-comment">
+        // 3. Pipe the file contents to the hash object.</span
+      ><br />
+      <span class="code-comment">
+        // As data chunks flow from the file stream, they are piped into the
+        hash.</span
+      ><br />
+      <span class="code-var"> fileStream</span>.<span class="code-function"
+        >pipe</span
+      >(<span class="code-var">hash</span>);<br />
+      <span class="code-comment"> </span><br />
+      <span class="code-comment"> // 4. Handle stream events</span><br />
+      <span class="code-var"> fileStream</span>.<span class="code-function"
+        >on</span
+      >(<span class="code-string">'error'</span>, (<span class="code-var"
+        >err</span
+      >) <span class="code-keyword">=></span>
+      <span class="code-function">reject</span>(<span class="code-var">err</span
+      >));<br />
+      <span class="code-comment"> </span><br />
+      <span class="code-comment">
+        // 5. The 'end' event on the hash stream is when all data has been
+        written.</span
+      ><br />
+      <span class="code-comment"> // We extract the digest here.</span><br />
+      <span class="code-var"> hash</span>.<span class="code-function">on</span
+      >(<span class="code-string">'end'</span>, ()
+      <span class="code-keyword">=></span> {<br />
+      <span class="code-keyword"> const</span>
+      <span class="code-var">digest</span> =
+      <span class="code-var">hash</span>.<span class="code-function"
+        >digest</span
+      >(<span class="code-string">'hex'</span>);<br />
+      <span class="code-function"> resolve</span>(<span class="code-var"
+        >digest</span
+      >);<br />
+      });<br />
+      });<br />
+      }<br />
+      <br />
+      <span class="code-comment"
+        >// Example usage (replace 'big_file.zip' with a real file path)</span
+      ><br />
+      <span class="code-keyword">const</span>
+      <span class="code-var">bigFilePath</span> =
+      <span class="code-var">path</span>.<span class="code-function">join</span
+      >(<span class="code-var">__dirname</span>,
+      <span class="code-string">'big_file.zip'</span>);<br />
+      <br />
+      <span class="code-comment"
+        >// A placeholder for file creation, in a real scenario this file would
+        exist:</span
+      ><br />
+      <span class="code-comment"
+        >// fs.writeFileSync(bigFilePath, 'This is a test file for
+        hashing.');</span
+      ><br />
+      <br />
+      <span class="code-comment">// hashFile(bigFilePath, 'sha512')</span><br />
+      <span class="code-comment"
+        >// .then(hashValue => console.log(`\nFile SHA-512 Hash:
+        ${hashValue}`))</span
+      ><br />
+      <span class="code-comment"
+        >// .catch(err => console.error(`Error hashing file:
+        ${err.message}`));</span
+      >
+    </div>
+  </body>
+</html>

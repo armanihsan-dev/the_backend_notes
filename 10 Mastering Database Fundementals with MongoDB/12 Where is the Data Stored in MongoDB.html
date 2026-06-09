@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MongoDB Storage Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --color-bg: #1e1e1e;
+        --color-text: #f0f0f0;
+        --color-heading: #00bcd4; /* Cyan for headings */
+        --color-highlight: #ffeb3b; /* Yellow for highlights */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--color-bg);
+        color: var(--color-text);
+        margin: 0;
+        padding: 20px;
+        line-height: 1.6;
+      }
+
+      .note-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px;
+        border-radius: 10px;
+        background-color: #252526; /* Slightly lighter black for the card */
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      }
+
+      h1 {
+        color: var(--color-heading);
+        font-weight: 900;
+        border-bottom: 3px solid var(--color-heading);
+        padding-bottom: 10px;
+        margin-bottom: 25px;
+        font-size: 2em;
+      }
+
+      h2 {
+        color: var(--color-highlight);
+        font-weight: 700;
+        margin-top: 30px;
+        margin-bottom: 15px;
+        font-size: 1.5em;
+      }
+
+      p,
+      ul {
+        margin-bottom: 15px;
+        font-weight: 400;
+      }
+
+      strong {
+        color: var(--color-highlight);
+        font-weight: 700;
+      }
+
+      ul {
+        list-style-type: none;
+        padding-left: 20px;
+      }
+
+      ul li:before {
+        content: '◆';
+        color: var(--color-heading);
+        font-weight: bold;
+        display: inline-block;
+        width: 1em;
+        margin-left: -1em;
+      }
+
+      .highlight-box {
+        background-color: #333;
+        padding: 15px;
+        border-left: 5px solid var(--color-heading);
+        margin: 20px 0;
+      }
+
+      .code-path {
+        font-family: 'Courier New', monospace;
+        background-color: #3a3a3a;
+        padding: 2px 5px;
+        border-radius: 3px;
+        color: var(--color-highlight);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="note-container">
+      <h1>MongoDB Storage Overview</h1>
+
+      <p>
+        MongoDB stores its data in **documents** (in **BSON** format, a binary
+        form of JSON) which are organized into **collections**. Physically,
+        these are stored in **data files** on the filesystem of the server where
+        the `mongod` process is running. (Query successful)
+      </p>
+
+      <h2>Physical Storage Location</h2>
+      <p>
+        The physical location on the disk where MongoDB stores its data files is
+        determined by the **dbPath** setting.
+      </p>
+
+      <div class="highlight-box">
+        <p><strong>Default Location:</strong></p>
+        <ul>
+          <li>**Linux/macOS:** <span class="code-path">/data/db</span></li>
+          <li>
+            **Windows:** <span class="code-path">\data\db</span> on the drive
+            from which the <span class="code-path">mongod</span> process is
+            started.
+          </li>
+        </ul>
+      </div>
+
+      <p>
+        <strong>Custom Location:</strong> You can specify a different storage
+        directory by:
+      </p>
+      <ul>
+        <li>
+          Using the **<span class="code-path">--dbpath</span>** option when
+          starting the <span class="code-path">mongod</span> server (e.g.,
+          <span class="code-path">mongod --dbpath /srv/mongodb</span>).
+        </li>
+        <li>
+          Setting the **<span class="code-path">storage.dbPath</span>**
+          configuration in the MongoDB configuration file (e.g.,
+          <span class="code-path">/etc/mongod.conf</span> on Linux).
+        </li>
+      </ul>
+
+      <p>The directory contains various files, including:</p>
+      <ul>
+        <li>
+          **Data Files:** These hold the collections and indexes (often with a
+          <span class="code-path">.wt</span> extension for the default
+          WiredTiger storage engine).
+        </li>
+        <li>
+          **Journal Files:** These ensure data durability and recoverability in
+          case of a crash.
+        </li>
+      </ul>
+
+      <hr />
+
+      <h2>Internal Storage Structure</h2>
+      <p>
+        Within the data files, MongoDB stores its data using a specific
+        structure:
+      </p>
+      <ul>
+        <li>
+          **Document:** This is the **basic unit of data**, similar to a row in
+          a relational database, but with a **flexible schema**.
+        </li>
+        <li>
+          **BSON (Binary JSON):** Documents are stored using BSON, a
+          **binary-encoded serialization format** that is lighter, faster to
+          traverse, and includes more data types than JSON.
+        </li>
+        <li>
+          **Collection:** A **group of documents**, similar to a table in a
+          relational database.
+        </li>
+        <li>
+          **WiredTiger Storage Engine:** Since MongoDB version 3.2, WiredTiger
+          is the **default storage engine**. It manages data on disk and in
+          memory, supporting features like **compression** and an **internal
+          cache** to reduce disk I/O.
+        </li>
+        <li>
+          **Memory/Cache:** The storage engine maintains an **in-memory cache**
+          for frequently accessed data. MongoDB relies on the operating system
+          to manage much of the overall memory-mapped file usage, but WiredTiger
+          manages its own internal cache to speed up operations.
+        </li>
+      </ul>
+    </div>
+  </body>
+</html>

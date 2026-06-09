@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS Lambda | Serverless Computing Guide</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <!-- Syntax Highlighting (PrismJS Theme: Tomorrow Night) -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+
+    <!-- Shared Stylesheet -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="logo">
+        <i class="fa-brands fa-aws"></i> AWS LAMBDA
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Fundamentals</div>
+        <a href="#what-is-lambda" class="nav-link">What is AWS Lambda?</a>
+        <a href="#lambda-function" class="nav-link">Lambda Function</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Todo API Project</div>
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#step1-dynamodb" class="nav-link">Step 1 — DynamoDB Table</a>
+        <a href="#step2-permissions" class="nav-link">Step 2 — IAM Permissions</a>
+        <a href="#step3-sdk" class="nav-link">Step 3 — AWS SDK Setup</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Lambda Code</div>
+        <a href="#handler-code" class="nav-link">Full Handler Code</a>
+        <a href="#get-todos" class="nav-link">GET All Todos</a>
+        <a href="#create-todo" class="nav-link">CREATE Todo</a>
+        <a href="#delete-todo" class="nav-link">DELETE Todo</a>
+        <a href="#main-handler" class="nav-link">Main Handler</a>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Serverless Computing</span>
+        <h1>AWS LAMBDA</h1>
+        <p>TODO API WITH DYNAMODB — COMPLETE GUIDE</p>
+      </section>
+
+      <section id="what-is-lambda">
+        <h2>WHAT IS AWS LAMBDA?</h2>
+        <p>
+          A <strong>serverless computing service</strong> that runs your code in
+          response to events and automatically manages the underlying compute
+          resources.
+        </p>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-circle-info"></i> Key Concept
+          </span>
+          <p>
+            With Lambda, you don't provision or manage servers. You only pay for
+            the compute time you consume — there is no charge when your code is
+            not running.
+          </p>
+        </div>
+      </section>
+
+      <section id="lambda-function">
+        <h2>LAMBDA FUNCTION</h2>
+        <p>
+          A self-contained piece of code (written in <code>Node.js</code>,
+          <code>Python</code>, etc.) that:
+        </p>
+        <ul>
+          <li>Performs a <strong>specific task</strong></li>
+          <li>Runs in a <strong>stateless container</strong></li>
+          <li>
+            Is triggered by <strong>events</strong> (HTTP requests, file
+            uploads, etc.)
+          </li>
+          <li>
+            <strong>Scales automatically</strong> based on demand
+          </li>
+        </ul>
+      </section>
+
+      <section id="architecture">
+        <h2>PROJECT ARCHITECTURE</h2>
+
+        <h3>🏗 Production Serverless Backend</h3>
+        <pre><code class="language-text">Frontend / Postman
+      ↓
+API Gateway
+      ↓
+Lambda (Node.js)
+      ↓
+DynamoDB (database)</code></pre>
+
+        <h3>Project Structure</h3>
+        <pre><code class="language-text">todo-lambda-api/
+├── index.js          # Main Lambda function
+├── package.json      # Dependencies</code></pre>
+
+        <p>Lambda will:</p>
+        <ul>
+          <li>Read todos from DynamoDB</li>
+          <li>Insert todo</li>
+          <li>Delete todo</li>
+        </ul>
+
+        <div class="note-box warning">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Important
+          </span>
+          <p>
+            Lambda's filesystem is <strong>read-only</strong> except for
+            <code>/tmp</code>. Data in <code>/tmp</code> disappears when the
+            container stops. For production, always use
+            <strong>DynamoDB</strong> — NO filesystem, NO <code>/tmp</code>.
+          </p>
+        </div>
+      </section>
+
+      <section id="step1-dynamodb">
+        <h2>STEP 1 — CREATE DYNAMODB TABLE</h2>
+
+        <h3>🧱 Setup Instructions</h3>
+        <ol>
+          <li>Go to <strong>AWS Console</strong> → search <code>DynamoDB</code></li>
+          <li>Click <strong>Create table</strong></li>
+          <li>
+            Fill in:
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Table name</td>
+                  <td><code>todos-table</code></td>
+                </tr>
+                <tr>
+                  <td>Primary key</td>
+                  <td><code>id</code> → type: <strong>String</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </li>
+          <li>Keep everything <strong>default</strong></li>
+          <li>Click <strong>Create table</strong></li>
+        </ol>
+
+        <h3>🧠 Why is a Primary Key Needed?</h3>
+        <p>
+          DynamoDB is a <strong>key-value database</strong>. Every item
+          <strong>MUST</strong> have a unique <code>id</code>.
+        </p>
+        <h4>Example Item:</h4>
+        <pre><code class="language-json">{
+  "id": "123",
+  "title": "Learn AWS",
+  "completed": false
+}</code></pre>
+      </section>
+
+      <section id="step2-permissions">
+        <h2>STEP 2 — IAM PERMISSIONS</h2>
+
+        <h3>🪪 Give Lambda Access to DynamoDB</h3>
+
+        <div class="note-box danger">
+          <span class="note-title">
+            <i class="fa-solid fa-skull-crossbones"></i> Common Failure Point
+          </span>
+          <p>Most people fail here. Without proper IAM permissions, Lambda cannot access DynamoDB.</p>
+        </div>
+
+        <ol>
+          <li>Go to <strong>Lambda</strong> → your function → <strong>Configuration</strong> → <strong>Permissions</strong></li>
+          <li>Click the <strong>IAM role</strong></li>
+          <li>Attach policy: <code>AmazonDynamoDBFullAccess</code></li>
+          <li>Save</li>
+        </ol>
+        <p>Now Lambda can access the database.</p>
+      </section>
+
+      <section id="step3-sdk">
+        <h2>STEP 3 — AWS SDK SETUP</h2>
+
+        <h3>🧰 Install Dependencies</h3>
+
+        <div class="note-box">
+          <span class="note-title">
+            <i class="fa-solid fa-circle-info"></i> Note
+          </span>
+          <p>
+            If using <strong>Lambda console</strong> — SDK is already installed.
+            Only needed for <strong>local development</strong>.
+          </p>
+        </div>
+
+        <pre><code class="language-bash">npm install @aws-sdk/client-dynamodb
+npm install @aws-sdk/lib-dynamodb</code></pre>
+
+        <h4>Import & Initialize:</h4>
+        <pre><code class="language-javascript">import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  PutCommand,
+  ScanCommand,
+  DeleteCommand
+} from "@aws-sdk/lib-dynamodb";
+import crypto from "crypto";
+
+const client = new DynamoDBClient({});
+const db = DynamoDBDocumentClient.from(client);
+
+const TABLE = "todos-table";</code></pre>
+      </section>
+
+      <section id="handler-code">
+        <h2>LAMBDA HANDLER CODE</h2>
+
+        <h3 id="get-todos">📥 GET All Todos</h3>
+        <pre><code class="language-javascript">async function getTodos() {
+    const data = await db.send(new ScanCommand({
+        TableName: TABLE
+    }));
+
+    return {
+        statusCode: 200,
+        body: JSON.stringify(data.Items || [])
+    };
+}</code></pre>
+
+        <h3 id="create-todo">📝 CREATE Todo</h3>
+        <pre><code class="language-javascript">async function createTodo(body) {
+    const parsed = JSON.parse(body);
+
+    const newTodo = {
+        id: crypto.randomUUID(),
+        title: parsed.title || "Untitled",
+        completed: false,
+        createdAt: new Date().toISOString()
+    };
+
+    await db.send(new PutCommand({
+        TableName: TABLE,
+        Item: newTodo
+    }));
+
+    return {
+        statusCode: 201,
+        body: JSON.stringify(newTodo)
+    };
+}</code></pre>
+
+        <h3 id="delete-todo">🗑️ DELETE Todo</h3>
+        <pre><code class="language-javascript">async function deleteTodo(id) {
+    await db.send(new DeleteCommand({
+        TableName: TABLE,
+        Key: { id }
+    }));
+
+    return {
+        statusCode: 200,
+        body: JSON.stringify({ message: "Deleted", id })
+    };
+}</code></pre>
+
+        <h3 id="main-handler">⚡ Main Handler (Router)</h3>
+        <pre><code class="language-javascript">export const handler = async (event) => {
+    try {
+        const method = event.requestContext?.http?.method;
+        const path = event.rawPath;
+
+        if (method === "GET" && path === "/todos") {
+            return await getTodos();
+        }
+
+        if (method === "POST" && path === "/todos") {
+            return await createTodo(event.body);
+        }
+
+        if (method === "DELETE" && path.startsWith("/todos/")) {
+            const id = path.split("/")[2];
+            return await deleteTodo(id);
+        }
+
+        return {
+            statusCode: 404,
+            body: JSON.stringify({ message: "Route not found" })
+        };
+
+    } catch (err) {
+        console.error(err);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: err.message })
+        };
+    }
+};</code></pre>
+
+        <h3>API Routes Summary</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>GET</code></td>
+              <td><code>/todos</code></td>
+              <td>Fetch all todos from DynamoDB</td>
+            </tr>
+            <tr>
+              <td><code>POST</code></td>
+              <td><code>/todos</code></td>
+              <td>Create a new todo</td>
+            </tr>
+            <tr>
+              <td><code>DELETE</code></td>
+              <td><code>/todos/:id</code></td>
+              <td>Delete a todo by ID</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <footer>
+        <p>AWS Lambda Serverless Guide</p>
+        <p>Generated for <strong>Node.js Serverless Computing</strong></p>
+        <p>Built with 💝</p>
+      </footer>
+    </main>
+
+    <!-- Syntax Highlight Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  </body>
+</html>
+

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Soft-Delete in RBAC Notes</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+      :root {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --primary-color: #ffc107; /* Yellow/Gold for highlights */
+        --secondary-color: #00bcd4; /* Cyan/Teal for code language/tags */
+        --code-bg: #1e1e1e; /* VSCode Dark+ background */
+        --code-text: #d4d4d4;
+        --keyword-color: #569cd6; /* Blue for keywords (const, function) */
+        --string-color: #ce9178; /* Orange for strings/messages */
+        --method-color: #dcdcaa; /* Yellow for functions/methods */
+        --comment-color: #6a9955; /* Green for comments */
+        --number-color: #b5cea8; /* Light Green for numbers */
+        --operator-color: #c5c5c5; /* Light Gray for operators */
+      }
+
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #1f1f1f;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2 {
+        color: var(--primary-color);
+        border-bottom: 2px solid var(--primary-color);
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h2 {
+        font-size: 1.8em;
+        color: var(--secondary-color);
+        border-bottom: 1px solid var(--secondary-color);
+      }
+
+      p {
+        margin-bottom: 15px;
+      }
+
+      .highlight-text {
+        color: var(--primary-color);
+        font-weight: 700;
+      }
+
+      .list-item-main {
+        font-weight: 600;
+        color: var(--secondary-color);
+      }
+
+      /* --- Code Styling (VSCode Dark+ Theme) --- */
+      pre {
+        background-color: var(--code-bg);
+        padding: 15px;
+        border-radius: 4px;
+        overflow-x: auto;
+        font-size: 0.9em;
+        margin-bottom: 20px;
+        border-left: 5px solid var(--secondary-color);
+      }
+
+      code {
+        font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+        color: var(--code-text);
+      }
+
+      .code-keyword {
+        color: var(--keyword-color);
+      }
+      .code-string {
+        color: var(--string-color);
+      }
+      .code-method {
+        color: var(--method-color);
+      }
+      .code-comment {
+        color: var(--comment-color);
+      }
+      .code-operator {
+        color: var(--operator-color);
+      }
+      .code-tag {
+        color: #808080;
+      }
+      .code-number {
+        color: var(--number-color);
+      }
+      .code-type {
+        color: #4ec9b0;
+      } /* Teal/Cyan for Types */
+      .code-variable {
+        color: #9cdcfe;
+      } /* Light Blue for variables */
+      .code-constant {
+        color: #569cd6;
+      } /* Blue for special constants/methods */
+      .code-prop {
+        color: #c586c0;
+      } /* Magenta for object properties */
+      .code-regex {
+        color: #d16969;
+      } /* Reddish for Regex */
+
+      /* --- Table Styling --- */
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #2d2d2d;
+        color: var(--code-text);
+        font-size: 0.9em;
+      }
+
+      th,
+      td {
+        border: 1px solid #444444;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #3c3c3c;
+        color: var(--primary-color);
+        font-weight: 700;
+      }
+
+      td:first-child {
+        font-weight: 600;
+        color: var(--secondary-color);
+      }
+
+      .emoji-fire {
+        color: var(--primary-color);
+        font-size: 1.2em;
+        margin-right: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 id="what-is-soft-delete">
+        <span class="emoji-fire">🔥</span> 1. What is Soft-Delete?
+      </h1>
+
+      <p><span class="highlight-text">Soft-delete</span> means:</p>
+      <ul>
+        <li>
+          Instead of actually
+          <span class="highlight-text">deleting a record</span> from the
+          database, you <span class="highlight-text">mark it as deleted</span>.
+        </li>
+        <li>
+          Usually by adding fields like:
+          <pre><code><span class="code-prop">deleted</span>: <span class="code-constant">true</span>,
+<span class="code-prop">deletedAt</span>: <span class="code-type">Date</span>,
+<span class="code-prop">deletedBy</span>: <span class="code-type">ObjectId</span></code></pre>
+        </li>
+        <li>
+          This means the data still exists in the database, but the application
+          <span class="highlight-text">treats it as if it is deleted</span>.
+        </li>
+      </ul>
+
+      <h2 id="why-soft-delete-is-common-in-rbac">
+        <span class="code-tag">🎯</span> Why Soft-Delete Is Common in RBAC?
+      </h2>
+
+      <p>
+        In systems with
+        <span class="highlight-text">Role-Based Access Control (RBAC)</span>,
+        users and permissions are sensitive.
+      </p>
+      <p>You don't want to permanently destroy anything, because:</p>
+      <ul>
+        <li>
+          <span class="list-item-main"
+            >✔ Logs & audits require historical data</span
+          ><br />
+          You must show that “Admin X deleted User Y at time Z”.
+        </li>
+        <li>
+          <span class="list-item-main">✔ Prevent accidental deletion</span
+          ><br />
+          If someone deletes a user, you can recover the account later.
+        </li>
+        <li>
+          <span class="list-item-main">✔ Relationships stay intact</span><br />
+          Deleting a user permanently might break:
+          <ul>
+            <li>files</li>
+            <li>directories</li>
+            <li>activity logs</li>
+            <li>notifications</li>
+            <li>references in other collections</li>
+          </ul>
+          Soft-delete avoids all those problems.
+        </li>
+      </ul>
+
+      <h1 id="soft-delete-vs-hard-delete">
+        <span class="code-tag">🧠</span> 2. Soft Delete vs Hard Delete
+      </h1>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Soft Delete</th>
+            <th>Hard Delete</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Record removed?</td>
+            <td><span class="highlight-text">❌ No</span></td>
+            <td><span class="highlight-text">✔ Yes</span></td>
+          </tr>
+          <tr>
+            <td>Reversible?</td>
+            <td><span class="highlight-text">✔ Yes</span></td>
+            <td><span class="highlight-text">❌ No</span></td>
+          </tr>
+          <tr>
+            <td>Safer?</td>
+            <td><span class="highlight-text">✔ Yes</span></td>
+            <td><span class="highlight-text">❌ No</span></td>
+          </tr>
+          <tr>
+            <td>DB size grows?</td>
+            <td><span class="highlight-text">✔ Slightly</span></td>
+            <td><span class="highlight-text">❌ No</span></td>
+          </tr>
+          <tr>
+            <td>Best for RBAC?</td>
+            <td><span class="highlight-text">✔ Yes</span></td>
+            <td><span class="highlight-text">❌ No</span></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h1 id="what-soft-delete-looks-like-schema">
+        <span class="code-tag">🔒</span> 3. What Soft Delete Looks Like (Schema)
+      </h1>
+
+      <p>Here is a clean, scalable soft-delete structure:</p>
+
+      <pre><code><span class="code-keyword">const</span> <span class="code-variable">userSchema</span> = <span class="code-keyword">new</span> <span class="code-constant">mongoose</span>.<span class="code-type">Schema</span>({
+  <span class="code-prop">name</span>: <span class="code-type">String</span>,
+  <span class="code-prop">email</span>: <span class="code-type">String</span>,
+  <span class="code-prop">role</span>: <span class="code-type">String</span>,
+
+  <span class="code-prop">deleted</span>: { <span class="code-prop">type</span>: <span class="code-type">Boolean</span>, <span class="code-prop">default</span>: <span class="code-constant">false</span> },
+  <span class="code-prop">deletedAt</span>: { <span class="code-prop">type</span>: <span class="code-type">Date</span> },
+  <span class="code-prop">deletedBy</span>: { <span class="code-prop">type</span>: <span class="code-constant">mongoose</span>.<span class="code-type">Schema</span>.<span class="code-type">Types</span>.<span class="code-type">ObjectId</span>, <span class="code-prop">ref</span>: <span class="code-string">"User"</span> }
+});</code></pre>
+
+      <h1 id="how-to-implement-soft-delete-in-express-mongoose">
+        <span class="code-tag">🚀</span> 4. How To Implement Soft Delete in
+        Express + Mongoose
+      </h1>
+
+      <h2 id="soft-delete-handler-instead-of-hard-delete">
+        4.1 Soft Delete Handler (Instead of Hard Delete)
+      </h2>
+
+      <pre><code><span class="code-variable">router</span>.<span class="code-method">delete</span>(<span class="code-string">'/deleteuser/:userid'</span>, <span class="code-variable">checkAuth</span>, <span class="code-keyword">async</span> (<span class="code-variable">req</span>, <span class="code-variable">res</span>) => {
+  <span class="code-keyword">try</span> {
+    <span class="code-keyword">const</span> { <span class="code-variable">userid</span> } = <span class="code-variable">req</span>.<span class="code-prop">params</span>;
+
+    <span class="code-keyword">const</span> <span class="code-variable">user</span> = <span class="code-keyword">await</span> <span class="code-constant">User</span>.<span class="code-method">findById</span>(<span class="code-variable">userid</span>);
+    <span class="code-keyword">if</span> (!<span class="code-variable">user</span>) <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">status</span>(<span class="code-number">404</span>).<span class="code-method">json</span>({ <span class="code-prop">message</span>: <span class="code-string">"User not found"</span> });
+
+    <span class="code-keyword">if</span> (<span class="code-variable">user</span>.<span class="code-prop">_id</span>.<span class="code-method">toString</span>() <span class="code-operator">===</span> <span class="code-variable">req</span>.<span class="code-variable">user</span>.<span class="code-prop">_id</span>.<span class="code-method">toString</span>()) {
+      <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">status</span>(<span class="code-number">403</span>).<span class="code-method">json</span>({ <span class="code-prop">message</span>: <span class="code-string">"You cannot delete yourself"</span> });
+    }
+
+    <span class="code-keyword">await</span> <span class="code-constant">User</span>.<span class="code-method">findByIdAndUpdate</span>(
+      <span class="code-variable">userid</span>,
+      {
+        <span class="code-prop">deleted</span>: <span class="code-constant">true</span>,
+        <span class="code-prop">deletedAt</span>: <span class="code-keyword">new</span> <span class="code-type">Date</span>(),
+        <span class="code-prop">deletedBy</span>: <span class="code-variable">req</span>.<span class="code-variable">user</span>.<span class="code-prop">_id</span>
+      }
+    );
+
+    <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">json</span>({ <span class="code-prop">message</span>: <span class="code-string">"User soft-deleted successfully"</span> });
+
+  } <span class="code-keyword">catch</span> (<span class="code-variable">err</span>) {
+    <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">status</span>(<span class="code-number">500</span>).<span class="code-method">json</span>({ <span class="code-prop">error</span>: <span class="code-variable">err</span>.<span class="code-prop">message</span> });
+  }
+});</code></pre>
+
+      <h1 id="always-exclude-deleted-users-automatically">
+        <span class="code-tag">🔍</span> 5. Always Exclude Deleted Users
+        Automatically
+      </h1>
+
+      <p>
+        Instead of adding
+        <code
+          ><span class="code-prop">deleted</span>:
+          <span class="code-constant">false</span></code
+        >
+        manually every time…
+      </p>
+
+      <p>
+        <span class="highlight-text"
+          >⭐ Use Query Middleware (Best Practice)</span
+        >
+      </p>
+
+      <pre><code><span class="code-variable">userSchema</span>.<span class="code-method">pre</span>(<span class="code-regex">/^find/</span>, <span class="code-keyword">function</span>(<span class="code-variable">next</span>) {
+  <span class="code-keyword">this</span>.<span class="code-method">where</span>({ <span class="code-prop">deleted</span>: { <span class="code-prop">$ne</span>: <span class="code-constant">true</span> } });
+  <span class="code-method">next</span>();
+});</code></pre>
+
+      <p>Now these queries:</p>
+      <ul>
+        <li>
+          <code
+            ><span class="code-constant">User</span>.<span class="code-method"
+              >find</span
+            >()</code
+          >
+        </li>
+        <li>
+          <code
+            ><span class="code-constant">User</span>.<span class="code-method"
+              >findById</span
+            >(<span class="code-variable">id</span>)</code
+          >
+        </li>
+        <li>
+          <code
+            ><span class="code-constant">User</span>.<span class="code-method"
+              >findOne</span
+            >()</code
+          >
+        </li>
+        <li>
+          <code
+            ><span class="code-constant">User</span>.<span class="code-method"
+              >countDocuments</span
+            >()</code
+          >
+        </li>
+      </ul>
+
+      <p>
+        WILL
+        <span class="highlight-text">AUTOMATICALLY exclude deleted users</span
+        >.<br />
+        No need to manually filter them every time.
+        <span class="emoji-fire">🔥</span>
+      </p>
+
+      <h1 id="restore-user-undo-soft-delete">
+        <span class="code-tag">🔄</span> 6. Restore User (Undo Soft Delete)
+      </h1>
+
+      <pre><code><span class="code-variable">router</span>.<span class="code-method">patch</span>(<span class="code-string">"/restore/:userid"</span>, <span class="code-variable">checkAuth</span>, <span class="code-keyword">async</span> (<span class="code-variable">req</span>, <span class="code-variable">res</span>) => {
+  <span class="code-keyword">const</span> { <span class="code-variable">userid</span> } = <span class="code-variable">req</span>.<span class="code-prop">params</span>;
+
+  <span class="code-keyword">await</span> <span class="code-constant">User</span>.<span class="code-method">findByIdAndUpdate</span>(<span class="code-variable">userid</span>, {
+    <span class="code-prop">deleted</span>: <span class="code-constant">false</span>,
+    <span class="code-prop">deletedAt</span>: <span class="code-constant">null</span>,
+    <span class="code-prop">deletedBy</span>: <span class="code-constant">null</span>
+  });
+
+  <span class="code-keyword">return</span> <span class="code-variable">res</span>.<span class="code-method">json</span>({ <span class="code-prop">message</span>: <span class="code-string">"User restored successfully"</span> });
+});</code></pre>
+
+      <h1 id="optional-auto-hard-delete-after-x-days-ttl-index">
+        <span class="code-tag">🧹</span> 7. Optional: Auto-Hard-Delete After X
+        Days (TTL Index)
+      </h1>
+
+      <p>
+        If you want soft-deleted data to be removed from DB after (say) 30 days:
+      </p>
+
+      <pre><code><span class="code-variable">userSchema</span>.<span class="code-method">index</span>(
+  { <span class="code-prop">deletedAt</span>: <span class="code-number">1</span> },
+  { <span class="code-prop">expireAfterSeconds</span>: <span class="code-number">30</span> <span class="code-operator">*</span> <span class="code-number">24</span> <span class="code-operator">*</span> <span class="code-number">60</span> <span class="code-operator">*</span> <span class="code-number">60</span> }
+);</code></pre>
+
+      <p>
+        This automatically removes soft-deleted users after
+        <span class="highlight-text">30 days</span>.
+      </p>
+
+      <h1 id="should-related-data-also-be-soft-deleted">
+        <span class="code-tag">🧱</span> 8. Should Related Data Also Be
+        Soft-Deleted?
+      </h1>
+
+      <p>In RBAC systems, <span class="highlight-text">yes</span>.</p>
+      <p>Example: When deleting a user, you may want to soft-delete:</p>
+      <ul>
+        <li>their files</li>
+        <li>directories</li>
+        <li>sessions</li>
+        <li>logs</li>
+      </ul>
+      <p>Using:</p>
+
+      <pre><code><span class="code-constant">File</span>.<span class="code-method">updateMany</span>({ <span class="code-prop">userId</span> }, { <span class="code-prop">deleted</span>: <span class="code-constant">true</span>, <span class="code-prop">deletedAt</span>: <span class="code-keyword">new</span> <span class="code-type">Date</span>() })</code></pre>
+
+      <p>
+        You can do this inside a
+        <span class="highlight-text">transaction</span> so it's atomic.
+      </p>
+    </div>
+  </body>
+</html>

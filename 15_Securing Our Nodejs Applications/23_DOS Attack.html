@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DoS Attack Deep Dive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="Code.css" />
+  </head>
+  <body>
+    <h1 class="emoji">🚨 Denial-of-Service (DoS) Attack Deep Dive 💥</h1>
+
+    <p>
+      A <strong>Denial-of-Service (DoS) attack</strong> is a cyberattack aimed
+      at making a machine or network resource unavailable to its legitimate
+      users. This is typically achieved by overwhelming the target system with a
+      flood of traffic or resource requests, causing it to slow down or crash.
+    </p>
+
+    <hr />
+
+    <h2 class="emoji">🛠️ Purpose of a DoS Attack</h2>
+    <p>
+      The primary goal of a DoS attack is to cause
+      <strong>disruption</strong> and
+      <strong>unavailability of services</strong>. The motivations behind this
+      disruption can vary:
+    </p>
+    <ul>
+      <li>
+        <strong>Extortion:</strong> Attackers may demand a ransom (known as
+        <strong>RDoS</strong> or Ransom DoS) to stop the attack.
+      </li>
+      <li>
+        <strong>Vandalism/Activism (Hacktivism):</strong> Disrupting the
+        operations of a target organization (like a government agency or
+        corporation) to protest or make a statement.
+      </li>
+      <li>
+        <strong>Malicious Competition:</strong> Sabotaging a competitor's online
+        services, especially during peak sales periods, to gain an unfair
+        advantage.
+      </li>
+      <li>
+        <strong>Distraction:</strong> Launching a DoS attack to preoccupy
+        security teams while a more insidious attack, like data exfiltration or
+        ransomware deployment, occurs unnoticed.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2 class="emoji">⚡ How It Works</h2>
+    <p>
+      A DoS attack generally exploits the <strong>finite capacity</strong> of a
+      system (its bandwidth, memory, CPU, or number of available connections).
+    </p>
+
+    <h3>Single-Source vs. Distributed</h3>
+    <ul>
+      <li>
+        <strong>Denial-of-Service (DoS) Attack:</strong> The attack traffic
+        originates from a <strong>single source/machine</strong>. These are
+        generally easier to detect and block.
+      </li>
+      <li>
+        <strong>Distributed Denial-of-Service (DDoS) Attack:</strong> The attack
+        traffic comes from <strong>multiple, distributed sources</strong> (often
+        thousands of compromised devices, known as a <strong>botnet</strong>).
+        This is far more powerful and much harder to defend against, as the
+        malicious traffic is disguised among many sources.
+      </li>
+    </ul>
+
+    <h3>Common Attack Techniques</h3>
+    <ul>
+      <li>
+        <strong>Volumetric Attacks (Flooding):</strong> Aims to consume all
+        available <strong>bandwidth</strong> between the target and the
+        internet.
+        <p style="margin-top: 5px">
+          Example: Sending a massive volume of
+          <code class="prop">ICMP (Ping)</code> or
+          <code class="prop">UDP</code> packets to the target.
+        </p>
+      </li>
+      <li>
+        <strong>Protocol Attacks:</strong> Exploits weaknesses in the network
+        protocols (like TCP/IP) to consume server resources.
+        <p style="margin-top: 5px">
+          Example: <strong>SYN Flood</strong>. An attacker sends a flood of
+          <code class="prop">TCP connection requests (SYN packets)</code> but
+          never completes the "three-way handshake." This leaves the server's
+          connection ports open and waiting for a response that never comes,
+          exhausting the server's connection table.
+        </p>
+      </li>
+      <li>
+        <strong>Application Layer Attacks (Layer 7):</strong> Targets the layer
+        where the application or website runs, focusing on resource-intensive
+        processes.
+        <p style="margin-top: 5px">
+          Example: <strong>HTTP Flood</strong>. The attacker sends a high volume
+          of seemingly legitimate HTTP requests (like continuously refreshing a
+          webpage or querying a database endpoint) that forces the server to
+          expend significant CPU and memory resources to process them.
+        </p>
+        <p style="margin-top: 5px">
+          Example: <strong>Slowloris</strong>. The attacker sends legitimate
+          requests but does so slowly and fragmented, keeping connections open
+          for a long time and tying up the server's limited concurrent
+          connections.
+        </p>
+      </li>
+    </ul>
+
+    <h3 class="emoji">✅ Prevention Techniques</h3>
+    <ul>
+      <li>
+        <strong>Rate limiting:</strong> Restrict the number of requests per
+        client/IP.
+      </li>
+      <li>
+        <strong>Firewalls & WAFs:</strong> Block suspicious traffic patterns.
+      </li>
+      <li><strong>Timeouts:</strong> Close idle connections quickly.</li>
+      <li><strong>Monitoring:</strong> Detect traffic spikes early.</li>
+    </ul>
+
+    <h3 class="emoji">⚠️ Limitation</h3>
+    <p class="note">
+      A DoS attack comes from a <strong>single source</strong>, so it’s usually
+      <strong>easier to detect and block</strong> compared to DDoS (Distributed
+      Denial of Service) attacks.
+    </p>
+
+    <hr />
+
+    <h2 class="emoji">🏢 Real-Life Analogy</h2>
+    <p>
+      A DoS or DDoS attack is like a huge crowd of people trying to enter a
+      small store at the same time.
+    </p>
+    <ul>
+      <li>The <strong>store</strong> is the target server.</li>
+      <li>
+        The <strong>legitimate customers</strong> are the normal users trying to
+        access the service.
+      </li>
+      <li>
+        The <strong>crowd</strong> (or bots in a DDoS attack) are the attackers
+        flooding the system with superfluous requests.
+      </li>
+      <li>
+        The <strong>purpose</strong> of the attack is not to steal anything, but
+        simply to <strong>block the entrance</strong> so the legitimate
+        customers cannot get in, shutting down the store's business.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2 class="emoji">💻 Practical Example in Express.js</h2>
+    <p>
+      This approach will allow you to understand the vulnerability and, more
+      importantly, how to defend against it. The demonstration includes:
+    </p>
+    <ul>
+      <li>
+        A Simple, <strong>Vulnerable Express.js Server</strong> that
+        demonstrates the potential for a DoS condition due to an intentional,
+        heavy, blocking operation.
+      </li>
+      <li>
+        A <strong>Benign Node.js Script</strong> that simulates a flood of
+        requests against the server to demonstrate the effect of a DoS attack
+        (server slowdown/unavailability) and to test the mitigation.
+      </li>
+      <li>
+        The <strong>Necessary Mitigation</strong> (Rate Limiting) to protect the
+        server.
+      </li>
+    </ul>
+
+    <h3>
+      1️⃣ The Vulnerable Express.js Server (<code class="prop">Server.js</code>)
+      🚨
+    </h3>
+    <p>
+      This server has a route (<code class="dir">/heavy</code>) that
+      deliberately performs a CPU-intensive, blocking calculation to simulate a
+      poor-performing resource. Since Node.js is single-threaded, this will
+      block the entire event loop, causing a temporary DoS for all other users.
+    </p>
+
+    <pre><code><span class="cmt">// server.js</span>
+<span class="kw">const</span> <span class="prop">express</span> <span class="kw">=</span> <span class="dir">require</span>(<span class="str">'express'</span>);
+<span class="kw">const</span> <span class="prop">app</span> <span class="kw">=</span> <span class="dir">express</span>();
+<span class="kw">const</span> <span class="prop">PORT</span> <span class="kw">=</span> <span class="lit">3000</span>;
+
+<span class="cmt">// Function to perform a CPU-intensive, synchronous calculation (intentional vulnerability for demonstration)</span>
+<span class="kw">function</span> <span class="dir">calculateFactorial</span>(<span class="prop">n</span>) {
+    <span class="kw">if</span> (<span class="prop">n</span> <span class="kw">===</span> <span class="lit">0</span>) {
+        <span class="kw">return</span> <span class="lit">1</span>;
+    }
+    <span class="cmt">// This loop is synchronous and blocking.</span>
+    <span class="kw">let</span> <span class="prop">result</span> <span class="kw">=</span> <span class="lit">1</span>;
+    <span class="kw">for</span> (<span class="kw">let</span> <span class="prop">i</span> <span class="kw">=</span> <span class="prop">n</span>; <span class="prop">i</span> <span class="kw">></span> <span class="lit">0</span>; <span class="prop">i</span><span class="op">--</span>) {
+        <span class="prop">result</span> <span class="op">*=</span> <span class="prop">i</span>;
+    }
+    <span class="kw">return</span> <span class="prop">result</span>;
+}
+
+<span class="cmt">// ⚠️ VULNERABLE ENDPOINT: This endpoint is easily exploited by a DoS attack.</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">'/heavy'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) <span class="kw">=></span> {
+    <span class="cmt">// A large number forces a long, blocking calculation</span>
+    <span class="kw">const</span> <span class="prop">result</span> <span class="kw">=</span> <span class="dir">calculateFactorial</span>(<span class="lit">50000</span>); 
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Heavy request processed. Result length: </span><span class="str">${</span><span class="dir">String</span>(<span class="prop">result</span>).<span class="prop">length</span><span class="str">}</span><span class="str">`</span>);
+    <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">200</span>).<span class="dir">send</span>(<span class="str">`Factorial calculated. Result length: </span><span class="str">${</span><span class="dir">String</span>(<span class="prop">result</span>).<span class="prop">length</span><span class="str">}</span><span class="str">`</span>);
+});
+
+<span class="cmt">// SAFE ENDPOINT: A simple, non-blocking endpoint to test availability</span>
+<span class="prop">app</span>.<span class="dir">get</span>(<span class="str">'/light'</span>, (<span class="prop">req</span>, <span class="prop">res</span>) <span class="kw">=></span> {
+    <span class="kw">const</span> <span class="prop">timestamp</span> <span class="kw">=</span> <span class="kw">new</span> <span class="type">Date</span>().<span class="dir">toISOString</span>();
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Light request processed at </span><span class="str">${</span><span class="prop">timestamp</span><span class="str">}</span><span class="str">`</span>);
+    <span class="prop">res</span>.<span class="dir">status</span>(<span class="lit">200</span>).<span class="dir">send</span>(<span class="str">`Light response at </span><span class="str">${</span><span class="prop">timestamp</span><span class="str">}</span><span class="str">`</span>);
+});
+
+<span class="prop">app</span>.<span class="dir">listen</span>(<span class="prop">PORT</span>, () <span class="kw">=></span> {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`Server running on </span><span class="mono">http://localhost:</span><span class="str">${</span><span class="prop">PORT</span><span class="str">}</span><span class="str">`</span>);
+});</code></pre>
+    <p>
+      To Run: Save as <code>server.js</code> and run
+      <code class="dir">npm install express</code> then
+      <code class="dir">node server.js</code>.
+    </p>
+
+    <h3>2️⃣ The Benign Attacker (<code class="prop">Flooder.js</code>) 🚀</h3>
+    <p>
+      This script uses the <code class="prop">axios</code> library to simulate
+      <strong>50 simultaneous users</strong> repeatedly hitting the vulnerable
+      <code class="dir">/heavy</code> endpoint. This is how you demonstrate the
+      <strong>effect</strong> of a DoS attack.
+    </p>
+
+    <pre><code><span class="cmt">// flooder.js (Benign Test Script)</span>
+<span class="kw">const</span> <span class="prop">axios</span> <span class="kw">=</span> <span class="dir">require</span>(<span class="str">'axios'</span>);
+
+<span class="kw">const</span> <span class="prop">URL</span> <span class="kw">=</span> <span class="str">'http://localhost:3000/heavy'</span>;
+<span class="kw">const</span> <span class="prop">LIGHT_URL</span> <span class="kw">=</span> <span class="str">'http://localhost:3000/light'</span>;
+<span class="kw">const</span> <span class="prop">CONCURRENCY</span> <span class="kw">=</span> <span class="lit">50</span>; <span class="cmt">// Number of simultaneous requests</span>
+
+<span class="cmt">// Function to make a single request and measure time</span>
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">makeRequest</span>(<span class="prop">url</span>, <span class="prop">id</span>) {
+    <span class="kw">const</span> <span class="prop">startTime</span> <span class="kw">=</span> <span class="type">Date</span>.<span class="dir">now</span>();
+    <span class="kw">try</span> {
+        <span class="kw">await</span> <span class="prop">axios</span>.<span class="dir">get</span>(<span class="prop">url</span>, { <span class="prop">timeout</span>: <span class="lit">10000</span> }); <span class="cmt">// 10 second timeout</span>
+        <span class="kw">const</span> <span class="prop">duration</span> <span class="kw">=</span> <span class="type">Date</span>.<span class="dir">now</span>() <span class="op">-</span> <span class="prop">startTime</span>;
+        <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`[</span><span class="str">${</span><span class="prop">id</span><span class="str">}</span><span class="str">] Success. Response Time: </span><span class="str">${</span><span class="prop">duration</span><span class="str">}</span><span class="str">ms`</span>);
+    } <span class="kw">catch</span> (<span class="prop">error</span>) {
+        <span class="kw">if</span> (<span class="prop">error</span>.<span class="prop">code</span> <span class="kw">===</span> <span class="str">'ECONNABORTED'</span> <span class="op">||</span> <span class="prop">error</span>.<span class="prop">code</span> <span class="kw">===</span> <span class="str">'ETIMEDOUT'</span>) {
+            <span class="dir">console</span>.<span class="dir">error</span>(<span class="str">`[</span><span class="str">${</span><span class="prop">id</span><span class="str">}</span><span class="str">] Timed out or Aborted. Server is overloaded.`</span>);
+        } <span class="kw">else</span> {
+            <span class="cmt">// console.error(`[${id}] Error: ${error.message}`);</span>
+        }
+    }
+}
+
+<span class="cmt">// Main function to launch concurrent requests</span>
+<span class="kw">async</span> <span class="kw">function</span> <span class="dir">launchFloodTest</span>() {
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`--- Launching </span><span class="str">${</span><span class="prop">CONCURRENCY</span><span class="str">}</span><span class="str"> simultaneous requests against </span><span class="str">${</span><span class="prop">URL</span><span class="str">}</span><span class="str"> ---`</span>);
+    <span class="kw">const</span> <span class="prop">heavyPromises</span> <span class="kw">=</span> [];
+    <span class="kw">for</span> (<span class="kw">let</span> <span class="prop">i</span> <span class="kw">=</span> <span class="lit">1</span>; <span class="prop">i</span> <span class="kw"><=</span> <span class="prop">CONCURRENCY</span>; <span class="prop">i</span><span class="op">++</span>) {
+        <span class="prop">heavyPromises</span>.<span class="dir">push</span>(<span class="dir">makeRequest</span>(<span class="prop">URL</span>, <span class="str">`Heavy-</span><span class="str">${</span><span class="prop">i</span><span class="str">}</span><span class="str">`</span>));
+    }
+    <span class="kw">await</span> <span class="type">Promise</span>.<span class="dir">allSettled</span>(<span class="prop">heavyPromises</span>);
+    <span class="dir">console</span>.<span class="dir">log</span>(<span class="str">`\n--- Heavy load finished. Testing 'light' endpoint availability ---`</span>);
+
+    <span class="cmt">// Test the /light endpoint after the heavy load has started/finished</span>
+    <span class="kw">await</span> <span class="dir">makeRequest</span>(<span class="prop">LIGHT_URL</span>, <span class="str">'Light Test 1'</span>);
+    <span class="kw">await</span> <span class="dir">makeRequest</span>(<span class="prop">LIGHT_URL</span>, <span class="str">'Light Test 2'</span>);
+}
+
+<span class="dir">launchFloodTest</span>();</code></pre>
+    <p>
+      To Run: Save as <code>flooder.js</code> and run
+      <code class="dir">npm install axios</code> then
+      <code class="dir">node flooder.js</code>.
+    </p>
+    <div class="note">
+      <strong>Observation:</strong> When you run
+      <code class="prop">flooder.js</code>, you'll see the response times for
+      both the <code class="dir">/heavy</code> and even the simple
+      <code class="dir">/light</code> endpoint dramatically increase (or
+      timeout). This proves the entire server is blocked, illustrating the DoS.
+    </div>
+  </body>
+</html>

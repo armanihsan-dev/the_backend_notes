@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mongoose Query Middleware Deep Dive</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Base styles for a blackish theme */
+      body {
+        font-family: 'Nunito', sans-serif;
+        background-color: #1a1a1a; /* Very dark background */
+        color: #d4d4d4; /* Light grey text */
+        line-height: 1.6;
+        padding: 20px;
+        margin: 0;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        background-color: #252526; /* Darker body panel, similar to VS Code dark theme */
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #569cd6; /* VS Code blue for headings */
+        border-bottom: 2px solid #3c3c3c;
+        padding-bottom: 5px;
+        margin-top: 30px;
+      }
+
+      h1 {
+        font-size: 2.2em;
+      }
+      h2 {
+        font-size: 1.8em;
+      }
+      h3 {
+        font-size: 1.4em;
+        color: #4ec9b0;
+      } /* VS Code green-teal for sub-headings */
+
+      p,
+      li {
+        font-size: 1.05em;
+      }
+
+      strong {
+        color: #ce9178; /* VS Code orange-red for strong emphasis */
+        font-weight: 700;
+      }
+
+      /* Code Block Styling - VS Code Dark Theme */
+      .code-container {
+        background-color: #1e1e1e; /* VS Code Editor background */
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 20px 0;
+        border: 1px solid #3c3c3c;
+      }
+
+      pre {
+        margin: 0;
+        font-family: 'Consolas', 'Courier New', monospace;
+        font-size: 0.95em;
+        color: #d4d4d4; /* Default text in code block */
+      }
+
+      /* Syntax Highlighting Imitation */
+      .keyword {
+        color: #569cd6;
+      } /* blue */
+      .comment {
+        color: #6a9955;
+      } /* green */
+      .string {
+        color: #ce9178;
+      } /* orange-red */
+      .function {
+        color: #dcdcaa;
+      } /* yellow-green */
+      .method {
+        color: #4ec9b0;
+      } /* teal */
+      .property {
+        color: #9cdcfe;
+      } /* light blue */
+      .number {
+        color: #b5cea8;
+      } /* light green */
+      .variable {
+        color: #9cdcfe;
+      } /* light blue */
+      .constant {
+        color: #c586c0;
+      } /* purple */
+      .regex {
+        color: #b8d7a3;
+      } /* light olive */
+
+      ul {
+        padding-left: 25px;
+      }
+
+      li {
+        margin-bottom: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 20px 0;
+      }
+
+      th,
+      td {
+        border: 1px solid #3c3c3c;
+        padding: 10px;
+        text-align: left;
+      }
+
+      th {
+        background-color: #333333;
+        color: #d4d4d4;
+      }
+
+      td {
+        background-color: #2d2d2d;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Mongoose Query Middleware Deep Dive 🪝</h1>
+
+      <p>
+        Mongoose <strong>Query Middleware</strong>, also known as
+        <strong>hooks</strong>, are functions that are executed automatically
+        <strong>before</strong> (pre) or <strong>after</strong> (post) specific
+        <strong>query operations</strong> on your Mongoose models. They allow
+        you to add custom logic to the data lifecycle in a centralized and
+        reusable way, preventing repetitive code.
+      </p>
+
+      <hr />
+
+      <h2>Definition and How It Works</h2>
+
+      <h3>Definition</h3>
+      <p>
+        Query middleware intercepts methods that operate on the
+        <strong>query object</strong>, primarily affecting multiple documents or
+        the structure of the query itself. This is distinct from
+        <strong>Document Middleware</strong>, which runs on individual document
+        instances (e.g., <code>doc.save()</code>).
+      </p>
+
+      <h3>How It Works</h3>
+      <ul>
+        <li>
+          <strong>Attachment:</strong> You define the middleware on your
+          Mongoose Schema using <span class="method">.pre()</span> or
+          <span class="method">.post()</span>.
+        </li>
+        <li>
+          <strong>Trigger:</strong> When a corresponding query method is called
+          (e.g., <span class="property">Model.find()</span>,
+          <span class="property">Model.updateOne()</span>,
+          <span class="property">Model.deleteMany()</span>), the middleware
+          functions are executed.
+        </li>
+        <li>
+          <strong><span class="keyword">this</span> Context:</strong> Inside a
+          query middleware function, the keyword
+          <span class="keyword">this</span> refers to the
+          <strong>Mongoose Query object</strong>. This is the key difference
+          from document middleware, where
+          <span class="keyword">this</span> refers to the document. Accessing
+          the query object allows you to inspect or modify the query's
+          parameters.
+        </li>
+        <li>
+          <strong>Flow Control (Pre-Hooks):</strong> In pre middleware, you must
+          call the <span class="method">next()</span> function to pass control
+          to the next middleware in the chain or to execute the actual query. If
+          you pass an error to
+          <span class="method">next(<span class="variable">err</span>)</span>,
+          the operation stops, and the error is passed up.
+        </li>
+        <li>
+          <strong>Execution (Post-Hooks):</strong> Post middleware runs
+          <strong>after</strong> the query has finished. The result of the query
+          is often passed as an argument to the post-hook function.
+        </li>
+      </ul>
+
+      <h3>Methods that Trigger Query Middleware</h3>
+      <p>
+        Query middleware is supported for methods that return a Query object,
+        including:
+      </p>
+      <ul>
+        <li>
+          <span class="method">count</span>,
+          <span class="method">countDocuments</span>
+        </li>
+        <li>
+          <span class="method">find</span>, <span class="method">findOne</span>,
+          <span class="method">findById</span>
+        </li>
+        <li>
+          <span class="method">update</span>,
+          <span class="method">updateOne</span>,
+          <span class="method">updateMany</span>
+        </li>
+        <li>
+          <span class="method">deleteMany</span>,
+          <span class="method">deleteOne</span> (when called directly on the
+          model, e.g., <span class="property">Model.deleteMany()</span>)
+        </li>
+      </ul>
+      <p>
+        <strong>Important Note:</strong> Methods like
+        <span class="property">Model.findOneAndUpdate()</span>,
+        <span class="property">Model.updateOne()</span>, and
+        <span class="property">Model.deleteOne()</span> (when called on the
+        model) trigger <strong>query middleware</strong>, even though they may
+        seem like document operations. Mongoose handles them as query operations
+        by default.
+      </p>
+
+      <hr />
+
+      <h2>Clear Syntax</h2>
+      <p>You define query middleware on the Mongoose Schema.</p>
+
+      <h3>Pre-Query Middleware Syntax</h3>
+      <span class="keyword">JavaScript</span>
+      <div class="code-container">
+        <pre>
+<span class="comment">// userSchema is your Mongoose Schema instance</span>
+
+<span class="variable">userSchema</span>.<span class="method">pre</span>(<span class="string">'find'</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+    <span class="comment">// 'this' is the Query object</span>
+    <span class="variable">console</span>.<span class="method">log</span>(<span class="string">'Running a find query!'</span>);
+
+    <span class="comment">// You can modify the query here, for example, adding a filter</span>
+    <span class="keyword">this</span>.<span class="method">where</span>({ <span class="property">isActive</span>: <span class="keyword">true</span> }); 
+    
+    <span class="comment">// Must call next() to proceed</span>
+    <span class="variable">next</span>(); 
+});
+
+<span class="comment">// Using a regex to apply to all 'find' operations (find, findOne, findById)</span>
+<span class="variable">userSchema</span>.<span class="method">pre</span>(<span class="regex">/^find/</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+    <span class="comment">// this logic runs before find, findOne, findById, etc.</span>
+    <span class="keyword">this</span>.<span class="method">select</span>(<span class="string">'-password'</span>); <span class="comment">// Always exclude the password field</span>
+    <span class="variable">next</span>();
+});</pre>
+      </div>
+      <ul>
+        <li>
+          <span class="string">'find'</span> is the hook name (Mongoose method).
+        </li>
+        <li>
+          The function receives a <span class="variable">next</span> callback.
+        </li>
+        <li>
+          <span class="keyword">this</span> is the Query object, giving you
+          access to methods like <span class="method">where()</span>,
+          <span class="method">select()</span>,
+          <span class="method">sort()</span>, and
+          <span class="method">getQuery()</span>.
+        </li>
+      </ul>
+
+      <h3>Post-Query Middleware Syntax</h3>
+      <span class="keyword">JavaScript</span>
+      <div class="code-container">
+        <pre>
+<span class="variable">userSchema</span>.<span class="method">post</span>(<span class="string">'find'</span>, <span class="keyword">function</span>(<span class="variable">docs</span>, <span class="variable">next</span>) {
+    <span class="comment">// 'docs' is the array of documents returned by the find query</span>
+    <span class="variable">console</span>.<span class="method">log</span>(<span class="string">`Found ${docs.<span class="property">length</span>} documents.`</span>);
+    
+    <span class="comment">// You can modify the results here (less common, but possible)</span>
+    <span class="variable">docs</span>.<span class="method">forEach</span>(<span class="variable">doc</span> => {
+        <span class="variable">doc</span>.<span class="property">isProcessed</span> = <span class="keyword">true</span>;
+    });
+
+    <span class="comment">// Only call next() if the function is asynchronous and takes next as a parameter</span>
+    <span class="comment">// For synchronous post hooks or those returning a Promise, next() is optional/not needed.</span>
+    <span class="variable">next</span>(); 
+});</pre>
+      </div>
+      <p>
+        The post-hook receives the <strong>result of the query</strong> (e.g.,
+        <span class="variable">docs</span> for a find,
+        <span class="variable">result</span> for an update) and a
+        <span class="variable">next</span> callback (if defined with 2
+        arguments).
+      </p>
+
+      <hr />
+
+      <h2>Real-World Use Cases 💡</h2>
+      <p>
+        Query middleware is exceptionally powerful for enforcing
+        <strong>global and consistent business logic</strong> across all
+        relevant database reads or writes.
+      </p>
+
+      <h3>1. Implementing "Soft Delete" (Pre-Find/Read)</h3>
+      <p>
+        This is the most common use case. Instead of permanently deleting
+        records, you mark them as deleted (<span class="property">deleted</span
+        >: <span class="keyword">true</span>). You then use pre-query middleware
+        to ensure that <strong>all read operations</strong> automatically
+        exclude these soft-deleted records.
+      </p>
+      <span class="keyword">JavaScript</span>
+      <div class="code-container">
+        <pre>
+<span class="comment">// On your Schema:</span>
+<span class="variable">userSchema</span>.<span class="method">pre</span>(<span class="regex">/^find/</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+    <span class="comment">// Only show documents where the 'deleted' field is NOT true</span>
+    <span class="comment">// This runs for find(), findOne(), findById(), etc.</span>
+    <span class="keyword">this</span>.<span class="method">where</span>({ <span class="property">deleted</span>: { <span class="constant">$ne</span>: <span class="keyword">true</span> } }); 
+    <span class="variable">next</span>();
+});
+<span class="comment">// Now, when you call:</span>
+<span class="comment">// await User.find({}); // It automatically runs as User.find({ deleted: { $ne: true } })</span></pre>
+      </div>
+      <p>
+        This single hook makes your entire application respect the soft-delete
+        policy without having to manually add
+        <span class="property">{ deleted: { $ne: true } }</span> to every single
+        query.
+      </p>
+
+      <h3>2. Automatic Field Selection/Projection (Pre-Find/Read)</h3>
+      <p>
+        For security or performance, you might want to ensure sensitive fields
+        are <strong>never</strong> accidentally included in query results unless
+        explicitly requested.
+      </p>
+      <span class="keyword">JavaScript</span>
+      <div class="code-container">
+        <pre>
+<span class="variable">userSchema</span>.<span class="method">pre</span>(<span class="regex">/^find/</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+    <span class="comment">// Exclude 'ssn' (Social Security Number) and 'password' from all read queries</span>
+    <span class="keyword">this</span>.<span class="method">select</span>(<span class="string">'-ssn -password'</span>); 
+    <span class="variable">next</span>();
+});</pre>
+      </div>
+
+      <h3>3. Timestamp Management for Updates (Pre-Update)</h3>
+      <p>
+        While Mongoose's built-in
+        <span class="property">timestamps: true</span> handles
+        <span class="property">createdAt</span> and
+        <span class="property">updatedAt</span> for
+        <span class="method">save()</span>/<span class="method">create()</span>,
+        it doesn't automatically update a timestamp for update queries like
+        <span class="property">Model.updateOne()</span>. You can enforce this
+        with query middleware.
+      </p>
+      <span class="keyword">JavaScript</span>
+      <div class="code-container">
+        <pre>
+<span class="variable">userSchema</span>.<span class="method">pre</span>(<span class="string">'updateOne'</span>, <span class="keyword">function</span>(<span class="variable">next</span>) {
+    <span class="comment">// 'this.getUpdate()' returns the update object (e.g., {$set: {field: 'value'}})</span>
+    <span class="comment">// We add the 'updatedAt' field to the $set operator</span>
+    <span class="keyword">this</span>.<span class="method">set</span>({ <span class="property">updatedAt</span>: <span class="keyword">new</span> <span class="function">Date</span>() });
+    <span class="variable">next</span>();
+});</pre>
+      </div>
+
+      <h3>4. Logging and Auditing (Post-Query)</h3>
+      <p>You can log the outcome of a query for auditing purposes.</p>
+      <span class="keyword">JavaScript</span>
+      <div class="code-container">
+        <pre>
+<span class="variable">userSchema</span>.<span class="method">post</span>(<span class="regex">/^find/</span>, <span class="keyword">function</span>(<span class="variable">docs</span>) {
+    <span class="comment">// 'docs' is the result of the query</span>
+    <span class="variable">console</span>.<span class="method">log</span>(<span class="string">`Query ran successfully. Returned ${docs.<span class="property">length</span>} documents.`</span>);
+    <span class="comment">// Or log to a dedicated audit file/service</span>
+    <span class="comment">// auditService.logQuery({ method: 'find', resultsCount: docs.length });</span>
+});</pre>
+      </div>
+
+      <p>
+        Query Middleware allows for extremely flexible and global control over
+        your database interactions, making your code <strong>DRY</strong> (Don't
+        Repeat Yourself) and your data handling consistent.
+      </p>
+
+      <hr />
+
+      <h2>Defining a Single Global Query Middleware ❓</h2>
+      <p>
+        <strong>Question:</strong> How can we define one single query middleware
+        that runs for every query middleware, even we can use regex like
+        <span class="regex">/^find/</span>?
+      </p>
+
+      <p>
+        That's an excellent question that highlights a common desire for
+        <strong>global query logic</strong>!
+      </p>
+
+      <p>
+        The short answer is you <strong>cannot</strong> define a single
+        middleware hook that runs for <strong>all</strong> query middleware
+        operations (like find, update, delete, count, etc.) with a single regex
+        pattern.
+      </p>
+
+      <p>
+        Mongoose's middleware system is structured around specific method names.
+        The regex pattern <span class="regex">(/^find/)</span> only works for
+        query methods that start with <span class="method">find</span> (<span
+          class="method"
+          >find</span
+        >, <span class="method">findOne</span>,
+        <span class="method">findById</span>,
+        <span class="method">findOneAndDelete</span>, etc.).
+      </p>
+
+      <p>
+        However, there is a **Mongoose Plugin** approach that gives you a
+        centralized way to apply logic across multiple query hooks without
+        having to define them all manually on every schema.
+      </p>
+
+      <h3>Why a Single Regex Hook Won't Work</h3>
+      <p>
+        Mongoose defines query hooks based on the name of the underlying query
+        function.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Query Method</th>
+            <th>Hook Name</th>
+            <th>Type of Operation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="property">User.find()</span></td>
+            <td><span class="string">'find'</span></td>
+            <td>Read</td>
+          </tr>
+          <tr>
+            <td><span class="property">User.updateMany()</span></td>
+            <td><span class="string">'updateMany'</span></td>
+            <td>Write</td>
+          </tr>
+          <tr>
+            <td><span class="property">User.deleteOne()</span></td>
+            <td><span class="string">'deleteOne'</span></td>
+            <td>Write</td>
+          </tr>
+          <tr>
+            <td><span class="property">User.countDocuments()</span></td>
+            <td><span class="string">'countDocuments'</span></td>
+            <td>Read</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        The regex <span class="variable">userSchema</span>.<span class="method"
+          >pre</span
+        >(<span class="regex">/^find/</span>, <span class="comment">...</span>)
+        captures all read operations that start with "find," but it
+        <strong>fails to capture</strong> non-read operations like
+        <span class="method">updateMany</span>,
+        <span class="method">deleteOne</span>,
+        <span class="method">countDocuments</span>, or
+        <span class="method">bulkWrite</span>. To cover all query operations,
+        you would need to specify each one.
+      </p>
+    </div>
+  </body>
+</html>

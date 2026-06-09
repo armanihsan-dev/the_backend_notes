@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS S3 Commands - Blackish Theme Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>🪣 AWS S3 Bucket Commands</h1>
+    <p>
+      These commands manage the S3 buckets themselves, which are the top-level
+      containers for storing objects.
+    </p>
+
+    <hr />
+    <h2>1. ListBucketsCommand</h2>
+    <p>
+      <strong>Definition:</strong> Retrieves a list of all buckets owned by the
+      authenticated sender of the request.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">ListBucketsCommand</span>(<span class="prop">input</span>: <span class="type">ListBucketsCommandInput</span>)</code></pre>
+    <p>
+      The <span class="prop">input</span> object is typically empty (<code
+        class="lit"
+        >{}</code
+      >) since this command operates on the account level, not a specific
+      bucket.
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">ListBucketsCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="kw">const</span> <span class="prop">s3Client</span> = <span class="kw">new</span> <span class="prop">S3Client</span>();
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">ListBucketsCommand</span>(<span class="lit">{}</span>); <span class="cmt">// No parameters needed</span>
+<span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="prop">response</span>.<span class="prop">Buckets</span>); <span class="cmt">// Logs an array of bucket objects: [{ Name: '...', CreationDate: '...' }, ...]</span></code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The <span class="prop">client</span> sends
+      the command to the S3 service. S3 responds with a list of buckets, which
+      is stored in the <code class="prop">response.Buckets</code> array.
+    </p>
+
+    <hr />
+    <h2>2. CreateBucketCommand</h2>
+    <p>
+      <strong>Definition:</strong> Creates a new S3 bucket in a specified AWS
+      Region. Bucket names must be globally unique.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">CreateBucketCommand</span>(<span class="prop">input</span>: <span class="type">CreateBucketCommandInput</span>)</code></pre>
+    <p>
+      The required <span class="prop">input</span> is the
+      <code class="prop">Bucket</code> name. You can also specify the bucket's
+      region (e.g., <code class="prop">CreateBucketConfiguration</code>).
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">CreateBucketCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="kw">const</span> <span class="prop">s3Client</span> = <span class="kw">new</span> <span class="prop">S3Client</span>();
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">CreateBucketCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>, <span class="cmt">// The unique name for the new bucket</span>
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>); <span class="cmt">// The command is executed</span>
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Bucket created'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The
+      <span class="prop">command</span> instructs S3 to provision a new bucket
+      with the provided name. If the name is taken or invalid, the request will
+      fail with an <span class="op">error</span>.
+    </p>
+
+    <hr />
+    <h2>3. Unblock Public Access (Managing Public Access Block)</h2>
+    <p>
+      This section covers two methods for removing or modifying the
+      <strong>Public Access Block</strong> configuration, which is a security
+      feature that prevents a bucket from becoming publicly accessible.
+    </p>
+
+    <h3>A. DeletePublicAccessBlockCommand (Unblock Public Access)</h3>
+    <p>
+      <strong>Definition:</strong> Deletes the existing public access block
+      configuration for a specific bucket, effectively resetting it to its
+      default (unblocked) state, which <span class="op">allows</span> you to
+      make the bucket or objects public via other means (ACLs or policies).
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">DeletePublicAccessBlockCommand</span>(<span class="prop">input</span>: <span class="type">DeletePublicAccessBlockCommandInput</span>)</code></pre>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">DeletePublicAccessBlockCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">DeletePublicAccessBlockCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>, <span class="cmt">// The target bucket</span>
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'✅ Public access block configuration deleted.'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> This
+      <span class="prop">command</span> removes the overarching
+      <span class="prop">Public Access Block</span> settings that AWS applies by
+      default for security, permitting subsequent actions (like setting a public
+      bucket policy) to take effect.
+    </p>
+
+    <h3>B. PutPublicAccessBlockCommand (Explicitly Set to Unblock)</h3>
+    <p>
+      <strong>Definition:</strong> Explicitly sets the public access block
+      configuration for a bucket. Setting all boolean values to
+      <code class="lit">false</code> is the most restrictive form of
+      "unblocking."
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">PutPublicAccessBlockCommand</span>(<span class="prop">input</span>: <span class="type">PutPublicAccessBlockCommandInput</span>)</code></pre>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">PutPublicAccessBlockCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">PutPublicAccessBlockCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">PublicAccessBlockConfiguration</span>: {
+    <span class="prop">BlockPublicAcls</span>: <span class="lit">false</span>, <span class="cmt">// Allows public ACLs</span>
+    <span class="prop">IgnorePublicAcls</span>: <span class="lit">false</span>, <span class="cmt">// Does not ignore public ACLs</span>
+    <span class="prop">BlockPublicPolicy</span>: <span class="lit">false</span>, <span class="cmt">// Allows public bucket policies</span>
+    <span class="prop">RestrictPublicBuckets</span>: <span class="lit">false</span>, <span class="cmt">// Does not restrict access to only S3 policies</span>
+  },
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Unblocked public access'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> This explicitly configures S3 to
+      <span class="op">not</span> block public access, ensuring that policies or
+      ACLs that grant public access will be enforced.
+    </p>
+
+    <hr />
+    <h2>4. PutBucketPolicyCommand (Make Bucket Public)</h2>
+    <p>
+      <strong>Definition:</strong> Applies an AWS Identity and Access Management
+      (IAM) policy to a specified bucket. This policy defines who can access the
+      objects in the bucket and what actions they can perform.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">PutBucketPolicyCommand</span>(<span class="prop">input</span>: <span class="type">PutBucketPolicyCommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code> and a
+      <code class="prop">Policy</code> <span class="prop">string</span> (<span
+        class="op"
+        >JSON</span
+      >).
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">PutBucketPolicyCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">policy</span> = {
+  <span class="json-key">Version</span>: <span class="str">'2012-10-17'</span>,
+  <span class="json-key">Statement</span>: [
+    {
+      <span class="json-key">Sid</span>: <span class="str">'PublicReadGetObject'</span>,
+      <span class="json-key">Effect</span>: <span class="str">'Allow'</span>,
+      <span class="json-key">Principal</span>: <span class="str">'*'</span>,
+      <span class="json-key">Action</span>: <span class="str">'s3:GetObject'</span>,
+      <span class="json-key">Resource</span>: <span class="str">'arn:aws:s3:::procodrr-nodejs-bucket/*'</span>,
+    },
+  ],
+};
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">PutBucketPolicyCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">Policy</span>: <span class="dir">JSON</span>.<span class="dir">stringify</span>(<span class="prop">policy</span>), <span class="cmt">// Policy must be a stringified JSON document</span>
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Bucket policy updated to public'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The provided
+      <span class="prop">policy</span> grants public (<span class="op"
+        >anonymous</span
+      >) read-only access (<code class="str">"Principal": "*"</code> and
+      <code class="str">"Action": "s3:GetObject"</code>) to
+      <span class="op">all objects</span> (<code class="str"
+        >"Resource": "arn:aws:s3:::procodrr-nodejs-bucket/*"</code
+      >) in the bucket. The <span class="prop">command</span> overwrites any
+      existing bucket policy.
+    </p>
+
+    <hr />
+    <h2>5. DeleteBucketCommand</h2>
+    <p>
+      <strong>Definition:</strong> Deletes the specified bucket. The bucket must
+      be <span class="op">empty</span> before it can be deleted.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">DeleteBucketCommand</span>(<span class="prop">input</span>: <span class="type">DeleteBucketCommandInput</span>)</code></pre>
+    <p>
+      The required <span class="prop">input</span> is the
+      <code class="prop">Bucket</code> name.
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">DeleteBucketCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">DeleteBucketCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>, <span class="cmt">// The bucket to delete</span>
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Bucket deleted'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The <span class="prop">client</span> sends
+      the request to S3. If the bucket is empty and the user has permission, the
+      bucket is permanently removed.
+    </p>
+
+    <br />
+
+    <h1>📁 AWS S3 Object Commands</h1>
+    <p>These commands manage the objects (files) stored within an S3 bucket.</p>
+
+    <hr />
+    <h2>1. ListObjectsV2Command</h2>
+    <p>
+      <strong>Definition:</strong> Retrieves some or all of the objects in a
+      bucket. It's the most common and current way to list objects, replacing
+      the older <code class="dir">ListObjectsCommand</code>.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">ListObjectsV2Command</span>(<span class="prop">input</span>: <span class="type">ListObjectsV2CommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code>. Optional parameters include
+      <code class="prop">Prefix</code> (to filter by object key start),
+      <code class="prop">Delimiter</code> (to group keys, simulating
+      directories), and <code class="prop">MaxKeys</code> (limit results).
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">ListObjectsV2Command</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">ListObjectsV2Command</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">Prefix</span>: <span class="str">'optional/path/'</span>, <span class="cmt">// Filters objects that start with this string (e.g., 'optional/path/file.txt')</span>
+});
+<span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="prop">response</span>.<span class="prop">Contents</span>); <span class="cmt">// Logs an array of object metadata: [{ Key: '...', LastModified: '...', Size: '...' }, ...]</span></code></pre>
+
+    <p>
+      <strong>How it Works:</strong> S3 scans the bucket and returns up to
+      <code class="lit">1,000</code> objects (by default) matching the criteria.
+      The primary data is in the
+      <code class="prop">response.Contents</code> array.
+    </p>
+
+    <hr />
+    <h2>2. HeadObjectCommand (Get Metadata)</h2>
+    <p>
+      <strong>Definition:</strong> Retrieves metadata about an object without
+      actually returning the object's content (<span class="prop">body</span>).
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">HeadObjectCommand</span>(<span class="prop">input</span>: <span class="type">HeadObjectCommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code> and
+      <code class="prop">Key</code> (the object's name/path).
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">HeadObjectCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">HeadObjectCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">Key</span>: <span class="str">'file.txt'</span>, <span class="cmt">// The specific object key</span>
+});
+<span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="prop">response</span>); <span class="cmt">// Metadata like ContentType, ContentLength, ETag, etc.</span></code></pre>
+
+    <p>
+      <strong>How it Works:</strong> This is a performance-efficient way to
+      check if an object exists, get its size (<code class="prop"
+        >ContentLength</code
+      >), or its type (<code class="prop">ContentType</code>) before deciding
+      whether to download it.
+    </p>
+
+    <hr />
+    <h2>3. GetObjectCommand (Download)</h2>
+    <p>
+      <strong>Definition:</strong> Retrieves an object from S3. The object's
+      data is returned as a <span class="prop">stream</span> in the
+      <span class="prop">response body</span>.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">GetObjectCommand</span>(<span class="prop">input</span>: <span class="type">GetObjectCommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code> and
+      <code class="prop">Key</code>.
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">GetObjectCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="kw">import</span> { <span class="prop">pipeline</span> } <span class="kw">from</span> <span class="str">'stream/promises'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">GetObjectCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">Key</span>: <span class="str">'file.txt'</span>,
+});
+<span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="cmt">// Uses Node.js stream pipeline to efficiently pipe the object data</span>
+<span class="kw">await</span> <span class="dir">pipeline</span>(<span class="prop">response</span>.<span class="prop">Body</span>, <span class="dir">process</span>.<span class="dir">stdout</span>); <span class="cmt">// Pipes the content directly to the console output</span></code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The <span class="prop">command</span> sends
+      an HTTP <span class="dir">GET</span> request to S3. S3 returns the file
+      content as a <span class="prop">stream</span> in
+      <code class="prop">response.Body</code>, which is then processed (in this
+      case, written to the console).
+    </p>
+
+    <hr />
+    <h2>4. PutObjectCommand (Upload)</h2>
+    <p>
+      <strong>Definition:</strong> Adds an object to a bucket. This is the
+      command used for basic file uploads.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">PutObjectCommand</span>(<span class="prop">input</span>: <span class="type">PutObjectCommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code>,
+      <code class="prop">Key</code> (the desired name in S3), and
+      <code class="prop">Body</code> (the data to upload).
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">PutObjectCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="kw">import</span> { <span class="dir">createReadStream</span> } <span class="kw">from</span> <span class="str">'fs/promises'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">readStream</span> = <span class="kw">await</span> <span class="dir">createReadStream</span>(<span class="str">'./local-file.txt'</span>); <span class="cmt">// Reads data from a local file</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">PutObjectCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">Key</span>: <span class="str">'upload/file.txt'</span>, <span class="cmt">// The path/name for the file in S3</span>
+  <span class="prop">Body</span>: <span class="prop">readStream</span>, <span class="cmt">// The file content (stream, buffer, or string)</span>
+  <span class="prop">ContentType</span>: <span class="str">'text/plain'</span>, <span class="cmt">// Important: specifies the MIME type</span>
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'File uploaded'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The
+      <span class="prop">command</span> streams the data from the local file
+      (<code class="prop">readStream</code>) to S3, storing it under the
+      specified <code class="prop">Key</code> within the
+      <code class="prop">Bucket</code>.
+    </p>
+
+    <hr />
+    <h2>5. DeleteObjectCommand</h2>
+    <p><strong>Definition:</strong> Deletes a single object from a bucket.</p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">DeleteObjectCommand</span>(<span class="prop">input</span>: <span class="type">DeleteObjectCommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code> and
+      <code class="prop">Key</code>.
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">DeleteObjectCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">DeleteObjectCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'procodrr-nodejs-bucket'</span>,
+  <span class="prop">Key</span>: <span class="str">'upload/file.txt'</span>, <span class="cmt">// The specific object to delete</span>
+});
+<span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'File deleted'</span>);</code></pre>
+
+    <p>
+      <strong>How it Works:</strong> The <span class="prop">command</span> sends
+      a request to S3 to permanently remove the object with the matching key.
+    </p>
+
+    <hr />
+    <h2>6. DeleteObjectsCommand</h2>
+    <p>
+      <strong>Definition:</strong> Deletes multiple objects from a bucket in a
+      single request, which is much more efficient than sending individual
+      <code class="dir">DeleteObjectCommand</code> requests.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">new</span> <span class="dir">DeleteObjectsCommand</span>(<span class="prop">input</span>: <span class="type">DeleteObjectsCommandInput</span>)</code></pre>
+    <p>
+      Requires <code class="prop">Bucket</code> and a
+      <code class="prop">Delete</code> object containing an array of object
+      <code class="prop">Key</code>s.
+    </p>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">import</span> { <span class="prop">S3Client</span>, <span class="prop">DeleteObjectsCommand</span> } <span class="kw">from</span> <span class="str">'@aws-sdk/client-s3'</span>;
+<span class="cmt">// ...</span>
+<span class="kw">const</span> <span class="prop">command</span> = <span class="kw">new</span> <span class="prop">DeleteObjectsCommand</span>({
+  <span class="prop">Bucket</span>: <span class="str">'your-bucket-name'</span>,
+  <span class="prop">Delete</span>: {
+    <span class="prop">Objects</span>: [
+      { <span class="prop">Key</span>: <span class="str">'uploads/file1.jpg'</span> }, <span class="cmt">// Key object</span>
+      { <span class="prop">Key</span>: <span class="str">'uploads/file2.jpg'</span> },
+      { <span class="prop">Key</span>: <span class="str">'uploads/file3.jpg'</span> },
+    ],
+    <span class="prop">Quiet</span>: <span class="lit">false</span>, <span class="cmt">// Requests a response for each object's deletion status</span>
+  },
+});
+<span class="kw">const</span> <span class="prop">response</span> = <span class="kw">await</span> <span class="prop">s3Client</span>.<span class="dir">send</span>(<span class="prop">command</span>);
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Deleted:'</span>, <span class="prop">response</span>.<span class="prop">Deleted</span>); <span class="cmt">// Logs an array of successfully deleted objects</span>
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="str">'Errors:'</span>, <span class="prop">response</span>.<span class="prop">Errors</span>); <span class="cmt">// Logs any errors encountered during the batch operation</span></code></pre>
+
+    <p>
+      <strong>How it Works:</strong> S3 processes the batch delete. The
+      <span class="prop">response</span> contains lists of successfully deleted
+      objects and any objects that failed to delete, making it easy to handle
+      <span class="op">exceptions</span>.
+    </p>
+
+    <br />
+
+    <h1>🌐 Public URL Helper</h1>
+    <hr />
+    <h2>getPublicUrl</h2>
+    <p>
+      <strong>Definition:</strong> A utility
+      <span class="prop">function</span> (not an S3 SDK command) to construct
+      the standard, virtual-hosted-style <span class="prop">URL</span> for a
+      publicly accessible S3 object.
+    </p>
+
+    <h3>Syntax:</h3>
+    <pre><code class="typescript"><span class="kw">const</span> <span class="dir">getPublicUrl</span> = (<span class="prop">bucket</span>: <span class="type">string</span>, <span class="prop">key</span>: <span class="type">string</span>) => { <span class="cmt">/* ... */</span> };</code></pre>
+
+    <h3>Practical Example & How It Works:</h3>
+    <pre><code class="javascript"><span class="kw">const</span> <span class="dir">getPublicUrl</span> = (<span class="prop">bucket</span>, <span class="prop">key</span>) => {
+  <span class="kw">return</span> <span class="str">`https://<span class="prop">${bucket}</span>.s3.amazonaws.com/<span class="prop">${key}</span>`</span>;
+};
+<span class="dir">console</span>.<span class="dir">log</span>(<span class="dir">getPublicUrl</span>(<span class="str">'procodrr-nodejs-bucket'</span>, <span class="str">'upload/file.txt'</span>));
+<span class="cmt">// Output: https://procodrr-nodejs-bucket.s3.amazonaws.com/upload/file.txt</span></code></pre>
+
+    <p>
+      <strong>How it Works:</strong> This <span class="prop">URL</span> format
+      is a common pattern for accessing public S3 objects directly via a browser
+      or HTTP <span class="prop">client</span>, assuming the bucket's
+      <span class="prop">Public Access Block</span> is removed (or set to
+      <code class="lit">false</code>) and a public bucket
+      <span class="prop">policy</span> (like the one in command 4) is in place.
+    </p>
+  </body>
+</html>

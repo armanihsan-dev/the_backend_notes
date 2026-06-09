@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AWS IAM Deep Dive Notes</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1 style="border-bottom-color: #333">
+      <span role="img" aria-label="Lock Emoji">🔒</span> What is AWS IAM?
+    </h1>
+
+    <p>
+      AWS Identity and Access Management (<strong class="prop">IAM</strong>) is
+      a <strong class="prop">web service</strong> that helps you securely
+      control access to AWS resources.
+    </p>
+    <p>
+      IAM allows you to manage who is
+      <strong class="prop">authenticated</strong> (signed in) and
+      <strong class="prop">authorized</strong> (has permissions) to use
+      resources. Think of it as the <strong class="prop">gatekeeper</strong> and
+      the <strong class="prop">permission manager</strong> for your entire AWS
+      account.
+    </p>
+
+    <h2>
+      <span role="img" aria-label="Building Blocks Emoji">🏗️</span> Key Building
+      Blocks of IAM
+    </h2>
+
+    <p>IAM uses four primary components to manage access:</p>
+
+    <ol>
+      <li>
+        <h3>Users</h3>
+        <p>
+          <strong>What they are:</strong> An entity in IAM that represents the
+          person or service that interacts with AWS.
+        </p>
+        <p>
+          <strong>How they authenticate:</strong> They can have a
+          <strong class="prop">password</strong> for the AWS Management Console
+          and/or <strong class="prop">access keys</strong> (an access key ID and
+          a secret access key) for programmatic access (CLI, SDKs).
+        </p>
+      </li>
+      <li>
+        <h3>Groups</h3>
+        <p>
+          <strong>What they are:</strong> A collection of IAM users. Groups are
+          a convenient way to specify permissions for multiple users at once.
+        </p>
+        <p>
+          <strong>Key point:</strong> Groups can only contain users; they cannot
+          contain other groups. A user can belong to multiple groups.
+        </p>
+      </li>
+      <li>
+        <h3>Policies</h3>
+        <p>
+          <strong>What they are:</strong> Documents that formally define the
+          permissions and are attached to a User, Group, or Role.
+        </p>
+        <p>
+          <strong>Structure:</strong> They are written in
+          <strong class="prop">JSON</strong> (JavaScript Object Notation).
+        </p>
+        <p><strong>The core components of a policy statement:</strong></p>
+        <ul>
+          <li>
+            <strong class="prop">Effect:</strong> Either
+            <code class="str">Allow</code> or <code class="str">Deny</code>.
+          </li>
+          <li>
+            <strong class="prop">Action:</strong> The specific AWS service API
+            calls (e.g., <code class="str">s3:GetObject</code>,
+            <code class="str">ec2:RunInstances</code>).
+          </li>
+          <li>
+            <strong class="prop">Resource:</strong> The specific AWS resources
+            the action can be performed on (e.g., a specific S3 bucket or EC2
+            instance).
+          </li>
+        </ul>
+      </li>
+      <li>
+        <h3>Roles</h3>
+        <p>
+          <strong>What they are:</strong> An IAM identity that you can create
+          with specific permission policies. They are designed to be
+          <strong class="prop">assumed</strong> by trusted entities (like an AWS
+          service, an application, or another AWS account) who need temporary
+          access.
+        </p>
+        <p>
+          <strong>Key difference from Users:</strong> Roles do not have standard
+          long-term credentials (password or access keys) associated with them.
+          The entity that assumes the role receives temporary security
+          credentials.
+        </p>
+      </li>
+    </ol>
+
+    <h2>
+      <span role="img" aria-label="Target Emoji">🎯</span> What You Can Do with
+      IAM
+    </h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Manage Access</strong></td>
+          <td>
+            Create and manage IAM users, groups, and roles to grant access to
+            your AWS account and resources.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Fine-Grained Control</strong></td>
+          <td>
+            Control who can do what with which AWS resource (e.g., allow a
+            developer to only read files from one specific S3 bucket).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Shared Access</strong></td>
+          <td>
+            Grant other AWS accounts or users access to your resources without
+            sharing your security credentials.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Authentication</strong></td>
+          <td>
+            Provide different authentication mechanisms (password, access keys,
+            multi-factor authentication (MFA)).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Federation</strong></td>
+          <td>
+            Integrate with corporate directories (like Active Directory) so
+            employees can use their existing credentials to access AWS.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>
+      <span role="img" aria-label="Key Emoji">🔑</span> Why IAM is Important
+    </h2>
+
+    <p>IAM is critical for security and compliance for several key reasons:</p>
+    <ul>
+      <li>
+        <strong class="prop">Security:</strong> It enforces the
+        <strong class="prop">Principle of Least Privilege (PoLP)</strong>,
+        meaning a user, application, or service should only be granted the
+        minimum permissions necessary to perform its job. This drastically
+        limits the damage a compromised or malicious entity can do.
+      </li>
+      <li>
+        <strong class="prop">Auditability:</strong> IAM integrates with AWS
+        CloudTrail, allowing you to track and log every action taken by an IAM
+        entity, which is vital for security auditing and compliance.
+      </li>
+      <li>
+        <strong class="prop">Cost Management:</strong> By limiting access, you
+        prevent accidental or unauthorized changes (like deleting a core
+        database or creating expensive resources), which helps manage costs.
+      </li>
+    </ul>
+
+    <h2>
+      <span role="img" aria-label="Lightbulb Emoji">💡</span> Simple Analogy: A
+      Corporate Office
+    </h2>
+
+    <p>Imagine your AWS account is a large corporate office building:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>IAM Component</th>
+          <th>Office Analogy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>AWS Account</strong></td>
+          <td>The entire <strong>Office Building</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>IAM User</strong></td>
+          <td>
+            An <strong>Employee</strong> (e.g.,
+            <code class="str">"Jane Smith"</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>IAM Group</strong></td>
+          <td>
+            A <strong>Department</strong> (e.g.,
+            <code class="str">"Accounting Team"</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>IAM Policy</strong></td>
+          <td>
+            A <strong>Keycard Access Level</strong> (e.g., Level 1: access to
+            the lobby; Level 5: access to the server room).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>IAM Role</strong></td>
+          <td>
+            A <strong>Visitor's Pass/Temporary Badge</strong>. It's only valid
+            for a specific purpose and a limited time (e.g., a technician needs
+            temporary access to the electrical room).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>AWS Resource</strong></td>
+          <td>
+            A <strong>Physical Asset</strong> in the office (e.g., a locked
+            filing cabinet, the main server, or a company car).
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>
+      <span role="img" aria-label="Laptop Emoji">💻</span> Creating IAM Users
+      from the AWS CLI
+    </h2>
+
+    <p>
+      The AWS Command Line Interface (<strong class="prop">CLI</strong>) is a
+      powerful tool for interacting with AWS services. Here's how you can create
+      an IAM user, add them to a group, and generate their access keys.
+    </p>
+
+    <h3>Prerequisites</h3>
+    <ul>
+      <li>
+        You <strong class="prop">must have the AWS CLI installed</strong> on
+        your machine.
+      </li>
+      <li>
+        You
+        <strong class="prop"
+          >must have your own administrator or power user credentials
+          configured</strong
+        >
+        for the CLI.
+      </li>
+    </ul>
+
+    <h3>Step 1: Create the IAM User</h3>
+    <p>
+      Use the <code class="dir">create-user</code> command. It's best practice
+      to give the user a meaningful name.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-user</code>
+            <code class="prop">--user-name</code>
+            <code class="type">&lt;username&gt;</code>
+          </td>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-user</code>
+            <code class="prop">--user-name</code>
+            <code class="str">john.doe</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>
+      Step 2: Create a Group and Attach a Policy (Optional but Recommended)
+    </h3>
+    <p>
+      Instead of attaching policies directly to the user, it is a best practice
+      to use <strong class="prop">Groups</strong>.
+    </p>
+
+    <h4>A. Create the Group (e.g., <code class="str">DevTeam</code>)</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-group</code>
+            <code class="prop">--group-name</code>
+            <code class="type">&lt;groupname&gt;</code>
+          </td>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-group</code>
+            <code class="prop">--group-name</code>
+            <code class="str">DevTeam</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>
+      B. Attach a Policy to the Group (e.g.,
+      <code class="str">AmazonS3ReadOnlyAccess</code>)
+    </h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam attach-group-policy</code>
+            <code class="prop">--group-name</code>
+            <code class="type">&lt;groupname&gt;</code>
+            <code class="prop">--policy-arn</code>
+            <code class="type">&lt;policy-arn&gt;</code>
+          </td>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam attach-group-policy</code>
+            <code class="prop">--group-name</code>
+            <code class="str">DevTeam</code>
+            <code class="prop">--policy-arn</code>
+            <code class="str"
+              >arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess</code
+            >
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <strong class="op">Note:</strong> Managed policies like
+      <code class="str">AmazonS3ReadOnlyAccess</code> have a predefined
+      <strong class="prop">Amazon Resource Name (ARN)</strong>.
+    </p>
+
+    <h4>C. Add the User to the Group</h4>
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam add-user-to-group</code>
+            <code class="prop">--user-name</code>
+            <code class="type">&lt;username&gt;</code>
+            <code class="prop">--group-name</code>
+            <code class="type">&lt;groupname&gt;</code>
+          </td>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam add-user-to-group</code>
+            <code class="prop">--user-name</code>
+            <code class="str">john.doe</code>
+            <code class="prop">--group-name</code>
+            <code class="str">DevTeam</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Step 3: Create Access Keys for Programmatic Access</h3>
+    <p>
+      This step is necessary if the user needs to interact with AWS using the
+      CLI, SDKs, or API.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-access-key</code>
+            <code class="prop">--user-name</code>
+            <code class="type">&lt;username&gt;</code>
+          </td>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-access-key</code>
+            <code class="prop">--user-name</code>
+            <code class="str">john.doe</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>Output of Step 3:</h4>
+    <pre><code class="json-block">
+{
+    <span class="json-key">"AccessKey"</span>: {
+        <span class="json-key">"UserName"</span>: <span class="json-val">"john.doe"</span>,
+        <span class="json-key">"Status"</span>: <span class="json-val">"Active"</span>,
+        <span class="json-key">"CreateDate"</span>: <span class="json-val">"2025-12-14T18:47:07Z"</span>,
+        <span class="json-key">"SecretAccessKey"</span>: <span class="json-val">"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"</span>,
+        <span class="json-key">"AccessKeyId"</span>: <span class="json-val">"AKIAIOSFODNN7EXAMPLE"</span>
+    }
+}
+    </code></pre>
+    <p>
+      <strong class="op">CRITICAL:</strong> The
+      <code class="prop">SecretAccessKey</code> is only displayed once. You must
+      <strong class="prop">securely store and share these credentials</strong>
+      with the user, as they cannot be retrieved again!
+    </p>
+
+    <h3>Step 4: Create a Login Profile (for Console Access)</h3>
+    <p>
+      If the user needs to sign in to the AWS Management Console, you must set a
+      password.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Syntax</th>
+          <th>Example</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-login-profile</code>
+            <code class="prop">--user-name</code>
+            <code class="type">&lt;username&gt;</code>
+            <code class="prop">--password</code>
+            <code class="type">&lt;password&gt;</code>
+            <code class="prop">--password-reset-required</code>
+          </td>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-login-profile</code>
+            <code class="prop">--user-name</code>
+            <code class="str">john.doe</code>
+            <code class="prop">--password</code>
+            <code class="str">P@sswOrd1234</code>
+            <code class="prop">--password-reset-required</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      <strong class="op">Note:</strong> The
+      <code class="prop">--password-reset-required</code> flag forces the user
+      to choose a new password on their first login, which is a good security
+      practice.
+    </p>
+
+    <h1 style="border-bottom-color: #333">
+      Creating a Custom JSON Policy for S3 Read Access
+    </h1>
+
+    <p>
+      The following details the process of creating a custom JSON policy that
+      grants permission to <strong class="prop">only read files</strong> from
+      <strong class="prop">one specific S3 bucket</strong>.
+    </p>
+
+    <h2>
+      <span role="img" aria-label="Document Emoji">📄</span> Custom IAM Policy
+      for S3 Read-Only Access
+    </h2>
+    <p>
+      The goal of this policy is to allow the IAM entity (User, Group, or Role)
+      to perform two actions:
+    </p>
+    <ol>
+      <li>List the objects inside a specific bucket.</li>
+      <li>Retrieve (read) the data of objects inside that bucket.</li>
+    </ol>
+
+    <h3>1. The JSON Policy Document</h3>
+    <p>
+      This document, often saved as
+      <code class="str">s3-read-policy.json</code>, defines the precise
+      permissions.
+    </p>
+    <pre><code class="json-block">
+{
+    <span class="json-key">"Version"</span>: <span class="json-val">"2012-10-17"</span>,
+    <span class="json-key">"Statement"</span>: [
+        {
+            <span class="json-key">"Sid"</span>: <span class="json-val">"AllowListBucket"</span>,
+            <span class="json-key">"Effect"</span>: <span class="json-val">"Allow"</span>,
+            <span class="json-key">"Action"</span>: [
+                <span class="json-val">"s3:ListBucket"</span>
+            ],
+            <span class="json-key">"Resource"</span>: <span class="json-val">"arn:aws:s3:::my-unique-data-bucket"</span>
+        },
+        {
+            <span class="json-key">"Sid"</span>: <span class="json-val">"AllowGetObject"</span>,
+            <span class="json-key">"Effect"</span>: <span class="json-val">"Allow"</span>,
+            <span class="json-key">"Action"</span>: [
+                <span class="json-val">"s3:GetObject"</span>
+            ],
+            <span class="json-key">"Resource"</span>: <span class="json-val">"arn:aws:s3:::my-unique-data-bucket/*"</span>
+        }
+    ]
+}
+    </code></pre>
+
+    <h3>Breakdown of the Policy</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Key Component</th>
+          <th>Value</th>
+          <th>Explanation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Version</strong></td>
+          <td><code class="str">"2012-10-17"</code></td>
+          <td>The standard version for all IAM policies.</td>
+        </tr>
+        <tr>
+          <td><strong>Statement</strong></td>
+          <td><code class="type">[]</code></td>
+          <td>A list of individual permission statements.</td>
+        </tr>
+        <tr>
+          <td><strong>Sid</strong></td>
+          <td><code class="str">"AllowListBucket"</code></td>
+          <td>
+            A unique identifier for the statement (optional, but helpful for
+            logging/auditing).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Effect</strong></td>
+          <td><code class="str">"Allow"</code></td>
+          <td>
+            The action is permitted (the opposite is
+            <code class="str">"Deny"</code>).
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Action</strong></td>
+          <td><code class="str">"s3:ListBucket"</code></td>
+          <td>
+            The permission to view the list of objects in the bucket. This
+            action <strong class="prop">must</strong> be applied to the
+            <strong class="prop">bucket ARN</strong>.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Resource</strong></td>
+          <td><code class="mono">arn:aws:s3:::my-unique-data-bucket</code></td>
+          <td>
+            Specifies the resource this action applies to:
+            <strong class="prop">the S3 bucket itself</strong>.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Action</strong></td>
+          <td><code class="str">"s3:GetObject"</code></td>
+          <td>
+            The permission to download (read) the contents of an object. This
+            action <strong class="prop">must</strong> be applied to the
+            <strong class="prop">objects inside the bucket</strong>.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Resource</strong></td>
+          <td>
+            <code class="mono">arn:aws:s3:::my-unique-data-bucket/*</code>
+          </td>
+          <td>
+            Specifies the resources this action applies to:
+            <strong class="prop">all objects</strong> (<code class="op">/*</code
+            >) within the bucket.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>
+      <span role="img" aria-label="Tools Emoji">🛠️</span> Step-by-Step CLI
+      Execution
+    </h2>
+    <p>
+      Once you have your JSON file (<code class="str">s3-read-policy.json</code
+      >) ready, you can create and attach the policy using the AWS CLI. We will
+      assume you already have an IAM Group named
+      <code class="str">S3Readers</code>.
+    </p>
+
+    <h3>Step 1: Create the Custom Policy</h3>
+    <p>
+      You use the <code class="dir">create-policy</code> command and reference
+      your JSON file.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>CLI Command</th>
+          <th>Explanation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam create-policy</code>
+            <code class="prop">--policy-name</code>
+            <code class="str">S3BucketReadPolicy</code>
+            <code class="prop">--policy-document</code>
+            <code class="str">file://s3-read-policy.json</code>
+          </td>
+          <td>
+            Creates the policy in IAM and names it
+            <code class="str">S3BucketReadPolicy</code>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h4>Successful Output:</h4>
+    <p>
+      This command returns the newly created policy's
+      <strong class="prop">ARN</strong>, which you will need for the next step.
+    </p>
+    <pre><code class="json-block">
+{
+    <span class="json-key">"Policy"</span>: {
+        <span class="json-key">"PolicyName"</span>: <span class="json-val">"S3BucketReadPolicy"</span>,
+        <span class="json-key">"PolicyId"</span>: <span class="json-val">"ANPAI...EXAMPLE"</span>,
+        <span class="json-key">"Arn"</span>: <span class="json-val">"arn:aws:iam::123456789012:policy/S3BucketReadPolicy"</span>,
+        <span class="json-key">"CreateDate"</span>: <span class="json-val">"2025-12-14T19:00:00Z"</span>,
+        <span class="json-key">"IsAttachable"</span>: <span class="kw">true</span>
+    }
+}
+    </code></pre>
+
+    <h3>Step 2: Attach the Policy to an IAM Group</h3>
+    <p>
+      Now, attach the newly created policy to the group that contains the users
+      who need this access (e.g., <code class="str">S3Readers</code>).
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>CLI Command</th>
+          <th>Explanation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <code class="kw">aws</code>
+            <code class="dir">iam attach-group-policy</code>
+            <code class="prop">--group-name</code>
+            <code class="str">S3Readers</code>
+            <code class="prop">--policy-arn</code>
+            <code class="str"
+              >arn:aws:iam::123456789012:policy/S3BucketReadPolicy</code
+            >
+          </td>
+          <td>
+            Attaches the policy to the <code class="str">S3Readers</code> group.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Result</h3>
+    <p>
+      Every user in the <code class="str">S3Readers</code> group is now
+      <strong class="prop">authorized</strong> to list the contents and download
+      files from <code class="str">my-unique-data-bucket</code>, and
+      <strong class="prop">nothing else</strong> (they cannot write, delete, or
+      access any other bucket).
+    </p>
+  </body>
+</html>
