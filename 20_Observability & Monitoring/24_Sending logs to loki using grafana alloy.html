@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grafana Alloy | Sending Logs to Loki</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-boxes-stacked"></i> ALLOY GUIDE</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-alloy" class="nav-link">What is Grafana Alloy?</a>
+        <a href="#comparison" class="nav-link">pino-loki vs Alloy</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Components</div>
+        <a href="#what-is-component" class="nav-link">What is a Component?</a>
+        <a href="#source-file" class="nav-link">loki.source.file</a>
+        <a href="#process" class="nav-link">loki.process</a>
+        <a href="#write" class="nav-link">loki.write</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Wiring</div>
+        <a href="#wiring" class="nav-link">How Components Connect</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Config</div>
+        <a href="#full-config" class="nav-link">Complete Alloy Config</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability & Logs</span>
+        <h1>GRAFANA ALLOY</h1>
+        <p>SENDING LOGS TO LOKI USING GRAFANA ALLOY — THE COMPLETE GUIDE</p>
+      </section>
+
+      <!-- ─── WHAT IS ALLOY ─────────────────────────────────── -->
+      <section id="what-is-alloy">
+        <h2>WHAT IS GRAFANA ALLOY?</h2>
+        <p>
+          Grafana Alloy is an <strong>OpenTelemetry-native telemetry collector</strong>. Think of it
+          as a dedicated pipeline agent that sits between your app and your observability backends
+          (Loki, Prometheus, Tempo, etc.)
+        </p>
+
+        <pre><code class="language-text">Your App → [writes logs] → app.log → [Alloy reads & processes] → Loki</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Key Idea
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Alloy is the evolution of the older Grafana Agent. It's not just for logs — it collects
+            <strong>logs, metrics, and traces</strong> all in one place.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── COMPARISON ────────────────────────────────────── -->
+      <section id="comparison">
+        <h2>PINO-LOKI TRANSPORT VS. GRAFANA ALLOY</h2>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ❌ pino-loki Transport Approach
+            </p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.8rem"><code class="language-text">Your App (Node.js)
+    ↓
+pino logger
+    ↓
+pino-loki transport  ← app does extra work
+    ↓
+Loki</code></pre>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ✅ Grafana Alloy Approach
+            </p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.8rem"><code class="language-text">Your App (Node.js)
+    ↓
+pino logger
+    ↓
+app.log (file on disk)  ← app just writes
+    ↓
+Alloy (separate process)  ← heavy lifting
+    ↓
+Loki</code></pre>
+          </div>
+        </div>
+
+        <h3>Problems with pino-loki Transport</h3>
+        <ul>
+          <li>Your Node.js process handles formatting logs <strong>AND</strong> shipping them to Loki</li>
+          <li>If Loki is down, your app might slow down or lose logs</li>
+          <li>If your app crashes, buffered logs in memory are <strong>lost forever</strong></li>
+          <li>Hard to change log destination without redeploying your app</li>
+          <li>Every service in your stack needs its own transport configured</li>
+        </ul>
+
+        <h3>Benefits of Grafana Alloy</h3>
+        <ul>
+          <li>App and log shipping are <strong>completely decoupled</strong></li>
+          <li>If Loki goes down, Alloy buffers and retries — zero log loss</li>
+          <li>If your app crashes, logs are already safely on disk</li>
+          <li>Change log destination without touching or redeploying your app</li>
+          <li>One Alloy instance can collect logs from <strong>multiple apps</strong> at once</li>
+          <li>Alloy also collects metrics and traces — single agent for everything</li>
+        </ul>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-layer-group"></i> Separation of Concerns
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Your app shouldn't care about <em>where</em> logs go. Alloy enforces this principle —
+            your app writes to a file, and Alloy handles the rest.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── WHAT IS A COMPONENT ───────────────────────────── -->
+      <section id="what-is-component">
+        <h2>WHAT IS A "COMPONENT" IN ALLOY CONFIG?</h2>
+        <p>
+          This is the most important concept. In Alloy, <strong>everything is a component</strong>.
+          A component is a named, reusable building block with:
+        </p>
+        <ul>
+          <li>A <strong>type</strong> — what it does</li>
+          <li>A <strong>name</strong> — your label for it</li>
+          <li><strong>inputs</strong> — arguments/config</li>
+          <li><strong>outputs</strong> — receivers it can forward data to</li>
+        </ul>
+
+        <p>The syntax is always:</p>
+        <pre><code class="language-go">component_type "name" {
+  // config
+}</code></pre>
+
+        <p>Looking at the config, there are <strong>3 components</strong>:</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Type</th>
+              <th>Job</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>loki.source.file "app_log"</code></td>
+              <td>Source</td>
+              <td>Tails a log file and forwards lines downstream</td>
+            </tr>
+            <tr>
+              <td><code>loki.process "pino_pipeline"</code></td>
+              <td>Processor</td>
+              <td>Transforms raw log lines through multiple stages</td>
+            </tr>
+            <tr>
+              <td><code>loki.write "local_loki"</code></td>
+              <td>Writer</td>
+              <td>Pushes processed logs to Loki's HTTP API</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── SOURCE FILE ───────────────────────────────────── -->
+      <section id="source-file">
+        <h3>Component 1 — loki.source.file "app_log"</h3>
+        <pre><code class="language-go">loki.source.file "app_log" {
+  targets    = [{ __path__ = "...app.log", app = "express-app" }]
+  forward_to = [loki.process.pino_pipeline.receiver]
+}</code></pre>
+        <ul>
+          <li><strong>Type:</strong> <code>loki.source.file</code> — knows how to tail a log file (like <code>tail -f</code>)</li>
+          <li><strong>Name:</strong> <code>"app_log"</code> — your label, could be anything</li>
+          <li><strong>Job:</strong> watches the file, reads new lines, forwards them downstream</li>
+          <li><strong>forward_to</strong> — this is how components are wired together</li>
+        </ul>
+      </section>
+
+      <!-- ─── PROCESS ───────────────────────────────────────── -->
+      <section id="process">
+        <h3>Component 2 — loki.process "pino_pipeline"</h3>
+        <pre><code class="language-go">loki.process "pino_pipeline" {
+  stage.json      { ... }   // parse JSON
+  stage.timestamp { ... }   // extract timestamp
+  stage.template  { ... }   // convert numeric level → text
+  stage.labels    { ... }   // attach labels
+  stage.label_drop{ ... }   // remove unwanted labels
+  forward_to = [loki.write.local_loki.receiver]
+}</code></pre>
+        <ul>
+          <li><strong>Type:</strong> <code>loki.process</code> — a processing pipeline</li>
+          <li><strong>Name:</strong> <code>"pino_pipeline"</code></li>
+          <li><strong>Job:</strong> transforms raw log lines through multiple stages before sending</li>
+          <li>Each <code>stage.*</code> is a mini-step inside the pipeline</li>
+        </ul>
+
+        <h3>Why Processing is Needed</h3>
+        <p>Your raw pino log looks like this:</p>
+        <pre><code class="language-json">{"level":30,"time":1781089708733,"msg":"Incoming request"}</code></pre>
+        <p>Loki doesn't understand <code>"level":30</code>. The pipeline converts it so Loki gets:</p>
+        <pre><code class="language-text">label: level=info
+timestamp: 2025-01-01T...  (converted from UnixMs)</code></pre>
+      </section>
+
+      <!-- ─── WRITE ─────────────────────────────────────────── -->
+      <section id="write">
+        <h3>Component 3 — loki.write "local_loki"</h3>
+        <pre><code class="language-go">loki.write "local_loki" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}</code></pre>
+        <ul>
+          <li><strong>Type:</strong> <code>loki.write</code> — knows how to push logs to Loki's HTTP API</li>
+          <li><strong>Name:</strong> <code>"local_loki"</code></li>
+          <li><strong>Job:</strong> takes processed log entries and sends them to Loki</li>
+        </ul>
+      </section>
+
+      <!-- ─── WIRING ────────────────────────────────────────── -->
+      <section id="wiring">
+        <h2>HOW COMPONENTS ARE WIRED TOGETHER</h2>
+        <p>
+          Components talk to each other via <strong>receivers</strong>. The pattern
+          <code>component_type.name.receiver</code> is how you reference another component's input.
+        </p>
+
+        <pre><code class="language-text">loki.source.file "app_log"
+        │
+        │  forward_to = [loki.process.pino_pipeline.receiver]
+        ▼
+loki.process "pino_pipeline"
+        │
+        │  forward_to = [loki.write.local_loki.receiver]
+        ▼
+loki.write "local_loki"
+        │
+        ▼
+      Loki</code></pre>
+
+        <p>
+          So <code>loki.process.pino_pipeline.receiver</code> means:
+        </p>
+        <ul>
+          <li>component type: <code>loki.process</code></li>
+          <li>name: <code>pino_pipeline</code></li>
+          <li><code>.receiver</code> = its input endpoint</li>
+        </ul>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-diagram-project"></i> Visual Graph UI
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            This is why the Alloy UI at <code>http://localhost:12345</code> shows a visual graph —
+            the config literally describes a <strong>data flow graph</strong> between components.
+            Think of it like connecting lego blocks.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── FULL CONFIG ───────────────────────────────────── -->
+      <section id="full-config">
+        <h2>COMPLETE GRAFANA ALLOY CONFIG</h2>
+        <pre><code class="language-go">// Read log lines from a specific file on disk.
+loki.source.file "app_log" {
+  targets = [
+    {
+      __path__ = "F:/learningsWebDevelopment/Node.js/section_21 O11y/07_Sending express logs to loki/logs/app.log",
+      app      = "express-app",
+    },
+  ]
+
+  tail_from_end = false
+  forward_to    = [loki.process.pino_pipeline.receiver]
+}
+
+// Process each log line before sending it to Loki.
+loki.process "pino_pipeline" {
+  stage.json {
+    expressions = {
+      level = "",
+      time  = "",
+    }
+  }
+
+  stage.timestamp {
+    source = "time"
+    format = "UnixMs"
+  }
+
+  stage.template {
+    source   = "level"
+    template = "{{ if eq .Value \"10\" }}trace{{ else if eq .Value \"20\" }}debug{{ else if eq .Value \"30\" }}info{{ else if eq .Value \"40\" }}warn{{ else if eq .Value \"50\" }}error{{ else if eq .Value \"60\" }}fatal{{ else }}unknown{{ end }}"
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  stage.label_drop {
+    values = ["filename"]
+  }
+
+  forward_to = [loki.write.local_loki.receiver]
+}
+
+// Send the final processed logs to Loki.
+loki.write "local_loki" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}
+
+// Alloy's own internal logging.
+logging {
+  level  = "debug"
+  format = "logfmt"
+}</code></pre>
+      </section>
+
+      <!-- ─── SUMMARY ───────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>pino-loki transport</th>
+              <th>Grafana Alloy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Who ships logs</td>
+              <td style="color: var(--danger)">Your app</td>
+              <td style="color: var(--accent)">Separate agent</td>
+            </tr>
+            <tr>
+              <td>If Loki goes down</td>
+              <td style="color: var(--danger)">Logs may be lost</td>
+              <td style="color: var(--accent)">Alloy buffers &amp; retries</td>
+            </tr>
+            <tr>
+              <td>If app crashes</td>
+              <td style="color: var(--danger)">Buffered logs lost</td>
+              <td style="color: var(--accent)">Logs safe on disk</td>
+            </tr>
+            <tr>
+              <td>Change destination</td>
+              <td style="color: var(--danger)">Redeploy app</td>
+              <td style="color: var(--accent)">Edit Alloy config</td>
+            </tr>
+            <tr>
+              <td>Multi-app support</td>
+              <td style="color: var(--danger)">Each app configured separately</td>
+              <td style="color: var(--accent)">One Alloy for all apps</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">💡 Quick Summary</span>
+          <pre style="margin: 0.75rem 0 0; background: var(--bg-secondary)"><code class="language-text">ALLOY IN ONE LINE:
+  A separate agent that reads your log files and ships them to Loki.
+
+3 COMPONENTS:
+  loki.source.file  →  loki.process  →  loki.write
+
+WHY USE IT:
+  Decouples your app from log shipping. Loki down? Alloy retries.
+  App crashes? Logs are already safely on disk.
+
+ALLOY UI:
+  http://localhost:12345  →  visual graph of your pipeline</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Grafana Alloy Guide</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Log Rotation & Retention | Complete Guide</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-rotate"></i> LOG ROTATION</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Core Concepts</div>
+        <a href="#what-is-rotation" class="nav-link">What is Log Rotation?</a>
+        <a href="#why-rotation" class="nav-link">Why Rotation Matters</a>
+        <a href="#two-methods" class="nav-link">Two Rotation Methods</a>
+        <a href="#what-is-retention" class="nav-link">What is Log Retention?</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. pino-roll</div>
+        <a href="#why-pino-roll" class="nav-link">Why pino-roll?</a>
+        <a href="#project-setup" class="nav-link">Project Setup</a>
+        <a href="#logger-js" class="nav-link">logger.js</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Retention Service</div>
+        <a href="#retention-js" class="nav-link">retentionCleanup.js</a>
+        <a href="#key-params" class="nav-link">Key Parameters</a>
+        <a href="#timeline" class="nav-link">Visual Timeline</a>
+        <a href="#run-service" class="nav-link">Run the Service</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Integration</div>
+        <a href="#app-js" class="nav-link">app.js</a>
+        <a href="#alloy-config" class="nav-link">Loki + Alloy Config</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Node.js & Observability</span>
+        <h1>LOG ROTATION & RETENTION</h1>
+        <p>DEEP DIVE INTO MANAGING LOG FILES IN PRODUCTION</p>
+      </section>
+
+      <!-- ─── WHAT IS ROTATION ──────────────────────────────── -->
+      <section id="what-is-rotation">
+        <h2>WHAT IS LOG ROTATION?</h2>
+        <p>
+          Log rotation is the process of splitting a log file when it reaches a
+          certain size or age, creating a new file for new logs and archiving
+          the old one.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ❌ Without Rotation
+            </p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.85rem"><code class="language-text">app.log → grows forever
+       → 10GB
+       → disk full 💥</code></pre>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ✅ With Rotation
+            </p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.85rem"><code class="language-text">app.log (current, 100MB)
+  → rename to app.log.1
+  → create new app.log ✅</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── WHY ROTATION MATTERS ─────────────────────────── -->
+      <section id="why-rotation">
+        <h2>WHY ROTATION MATTERS</h2>
+        <p>At any point, three processes work on a log file simultaneously:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Process</th>
+              <th>Role</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Appender</strong></td>
+              <td>Writes logs</td>
+              <td>Your Node.js application (pino)</td>
+            </tr>
+            <tr>
+              <td><strong>Tailer</strong></td>
+              <td>Reads logs</td>
+              <td>Promtail / Grafana Alloy</td>
+            </tr>
+            <tr>
+              <td><strong>Log Rotator</strong></td>
+              <td>Rotates the file</td>
+              <td>pino-roll / logrotate</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Risk</span>
+          <p style="margin-bottom:0">
+            Without proper rotation coordination, you can
+            <strong>lose logs</strong> or have your log collector read
+            <strong>corrupted data</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── TWO METHODS ──────────────────────────────────── -->
+      <section id="two-methods">
+        <h2>TWO ROTATION METHODS</h2>
+
+        <h3>Method 1: Copy and Truncate</h3>
+        <pre><code class="language-text">1. Copy  app.log → app.log.1
+2. Truncate app.log (clear it)
+3. Appender continues writing to same file descriptor</code></pre>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">PROS</p>
+            <p style="color:var(--text-secondary);margin:0;font-size:0.9rem">Appender never needs to reopen file</p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">CONS</p>
+            <p style="color:var(--text-secondary);margin:0;font-size:0.9rem">Risk of log loss — tailer may miss logs between copy and truncate</p>
+          </div>
+        </div>
+
+        <h3>Method 2: Rename and Create <span style="color:var(--accent);font-size:0.85rem">(RECOMMENDED)</span></h3>
+        <pre><code class="language-text">1. Rename app.log → app.log.1
+2. Create new app.log
+3. Appender must reopen new file</code></pre>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">PROS</p>
+            <p style="color:var(--text-secondary);margin:0;font-size:0.9rem">No log loss — tailer keeps reading app.log.1 until done</p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">CONS</p>
+            <p style="color:var(--text-secondary);margin:0;font-size:0.9rem">Appender must support log file reopening</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── WHAT IS RETENTION ────────────────────────────── -->
+      <section id="what-is-retention">
+        <h2>WHAT IS LOG RETENTION?</h2>
+        <p>
+          Log retention is the process of automatically
+          <strong>deleting old logs</strong> after they exceed a specified age.
+          Unlike rotation (which creates new files), retention
+          <strong>permanently removes data</strong>.
+        </p>
+
+        <h3>Why Retention Matters</h3>
+        <p>Without retention, logs accumulate forever:</p>
+        <ul>
+          <li>Storage costs increase linearly with time</li>
+          <li>Query performance degrades as more data is scanned</li>
+          <li>Compliance requirements may mandate deletion after certain periods</li>
+        </ul>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> Key Distinction</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <strong>Rotation</strong> = manages the <em>current</em> log file (splits it when too big)<br/>
+            <strong>Retention</strong> = manages <em>old</em> log files (deletes them after they expire)
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── WHY PINO-ROLL ────────────────────────────────── -->
+      <section id="why-pino-roll">
+        <h2>WHY PINO-ROLL?</h2>
+        <p>
+          When pino writes to a file, it opens a
+          <strong>file descriptor</strong> — a direct OS-level handle to that
+          file. If you manually rename that file, pino doesn't know — it keeps
+          writing to the renamed file via the same descriptor.
+        </p>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-circle-info"></i> pino-roll solves this by managing the file internally</span>
+          <ul style="color:var(--text-primary);margin-bottom:0">
+            <li>Watches the file size as it writes</li>
+            <li>When the limit hits, closes the current file and opens a new one</li>
+            <li>Numbers them: <code>app.1.log</code> → <code>app.2.log</code> → <code>app.3.log</code></li>
+            <li>Auto-deletes old files beyond your <code>limit.count</code></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ─── PROJECT SETUP ────────────────────────────────── -->
+      <section id="project-setup">
+        <h2>PROJECT SETUP</h2>
+
+        <h3>Installation</h3>
+        <pre><code class="language-bash">npm install pino pino-pretty pino-roll express</code></pre>
+
+        <h3>Folder Structure</h3>
+        <pre><code class="language-text">08_Log Rotation and Retention/
+├── logs/
+│   ├── app.1.log       ← active log
+│   ├── app.2.log       ← older
+│   └── app.3.log       ← oldest (auto-deleted when limit hit)
+├── services/
+│   └── retention.js
+├── app.js
+├── retentionCleanup.js
+├── logger.js
+└── package.json</code></pre>
+      </section>
+
+      <!-- ─── LOGGER JS ─────────────────────────────────────── -->
+      <section id="logger-js">
+        <h2>STEP 1 — logger.js (The Heart of Everything)</h2>
+        <p>Two targets: <strong>pino-roll</strong> for file rotation, <strong>pino-pretty</strong> for console.</p>
+
+        <pre><code class="language-javascript">import pino from 'pino';
+
+export const logger = pino({
+    level: process.env.LOG_LEVEL || 'info',
+    transport: {
+        targets: [
+            // TARGET 1: pino-roll — writes logs to rotating files
+            // WHY: pino alone writes to one file forever. pino-roll monitors
+            //      the file size internally and handles opening/closing files
+            //      safely — no stale file descriptor problem.
+            {
+                target: 'pino-roll',
+                level: 'info',         // only info and above go to file
+                options: {
+                    file: './logs/app.log',
+
+                    // SIZE-BASED ROTATION
+                    // WHY: Once app.1.log hits 5KB, pino-roll closes it and
+                    //      creates app.2.log. New logs go into app.2.log.
+                    //      (Use '1m' for 1MB in production)
+                    size: '5k',
+
+                    // RETENTION — how many rotated files to keep
+                    // WHY: Without this, old files pile up forever.
+                    //      count: 3 means only 3 rotated files are kept.
+                    //      When app.4.log would be created, app.1.log is deleted.
+                    limit: { count: 3 },
+
+                    // mkdir: true — auto-creates the logs/ folder if it doesn't exist
+                    mkdir: true
+                }
+            },
+            // TARGET 2: pino-pretty — colorized console output for development
+            // WHY: Raw pino logs are JSON. During development you want
+            //      human-readable colored output in the terminal.
+            {
+                target: 'pino-pretty',
+                level: 'debug',        // show everything including debug in console
+                options: {
+                    colorize: true,
+                    translateTime: 'SYS:standard',
+                    destination: 1     // 1 = stdout (your terminal)
+                }
+            }
+        ]
+    }
+});</code></pre>
+      </section>
+
+      <!-- ─── RETENTION JS ──────────────────────────────────── -->
+      <section id="retention-js">
+        <h2>STEP 2 — retentionCleanup.js (Time-Based Auto-Delete)</h2>
+        <p>
+          This is <strong>separate from pino-roll</strong>. pino-roll handles
+          size-based rotation. For deleting files older than N days, you need
+          this:
+        </p>
+
+        <pre><code class="language-javascript">import fs from 'fs';
+import path from 'path';
+
+const LOG_DIR = './logs';
+const RETENTION_MINUTES = 1; // TESTING: delete files older than 1 minute
+
+// WHY THIS FILE EXISTS:
+// pino-roll handles size-based rotation (app.1.log, app.2.log...)
+// and keeps a max COUNT of files. But it doesn't know about TIME.
+// If you want to delete files older than 1 minute (testing) or 7 days (production),
+// you need this separate time-based cleanup.
+
+function deleteOldLogs() {
+    if (!fs.existsSync(LOG_DIR)) {
+        console.log(`[${new Date().toISOString()}] Log directory does not exist: ${LOG_DIR}`);
+        return;
+    }
+
+    const files = fs.readdirSync(LOG_DIR);
+    const now = Date.now();
+    const maxAgeMs = RETENTION_MINUTES * 60 * 1000;
+
+    console.log(`[${new Date().toISOString()}] Checking ${files.length} files (max age: ${RETENTION_MINUTES} minute(s))`);
+
+    let deletedCount = 0;
+
+    files.forEach(file => {
+        const filePath = path.join(LOG_DIR, file);
+        const stats = fs.statSync(filePath);
+        if (!stats.isFile()) return;
+
+        const ageMs = now - stats.mtimeMs; // mtime = last modified time
+        const ageMinutes = Math.floor(ageMs / 60000);
+        const ageSeconds = Math.floor((ageMs % 60000) / 1000);
+
+        if (ageMs > maxAgeMs) {
+            fs.unlinkSync(filePath);
+            deletedCount++;
+            console.log(`DELETED: ${file} (age: ${ageMinutes}m ${ageSeconds}s)`);
+        } else {
+            console.log(`KEPT:    ${file} (age: ${ageMinutes}m ${ageSeconds}s)`);
+        }
+    });
+
+    if (deletedCount === 0) {
+        console.log(`No files deleted. All files within retention period.`);
+    } else {
+        console.log(`Deleted ${deletedCount} file(s).`);
+    }
+}
+
+export function startRetentionCleanup() {
+    console.log(`Starting retention cleanup — period: ${RETENTION_MINUTES} minute(s)`);
+
+    deleteOldLogs(); // run immediately on startup
+
+    // TESTING: Run every 10 seconds
+    // In production, change to: 24 * 60 * 60 * 1000 (24 hours)
+    const CHECK_INTERVAL_MS = 10 * 1000;
+    setInterval(deleteOldLogs, CHECK_INTERVAL_MS);
+}
+
+// With stop control (useful for graceful shutdown)
+let cleanupInterval = null;
+
+export function startRetentionCleanupWithControl() {
+    if (cleanupInterval) clearInterval(cleanupInterval);
+    deleteOldLogs();
+    cleanupInterval = setInterval(deleteOldLogs, 10 * 1000);
+
+    return () => {
+        if (cleanupInterval) {
+            clearInterval(cleanupInterval);
+            cleanupInterval = null;
+            console.log(`Retention cleanup stopped`);
+        }
+    };
+}</code></pre>
+      </section>
+
+      <!-- ─── KEY PARAMS ────────────────────────────────────── -->
+      <section id="key-params">
+        <h2>UNDERSTANDING THE KEY PARAMETERS</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Testing Value</th>
+              <th>Production Value</th>
+              <th>Explanation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>RETENTION_MINUTES</code></td>
+              <td><code>1</code></td>
+              <td><code>10080</code> (7 days)</td>
+              <td>How old a file must be before deletion</td>
+            </tr>
+            <tr>
+              <td><code>maxAgeMs</code></td>
+              <td><code>60,000ms</code></td>
+              <td><code>604,800,000ms</code></td>
+              <td>Age threshold in milliseconds</td>
+            </tr>
+            <tr>
+              <td><code>CHECK_INTERVAL_MS</code></td>
+              <td><code>10,000ms</code> (10s)</td>
+              <td><code>86,400,000ms</code> (24h)</td>
+              <td>How often to check for old files</td>
+            </tr>
+            <tr>
+              <td><code>stats.mtimeMs</code></td>
+              <td>Last modified time</td>
+              <td>Same</td>
+              <td>Uses file's modification timestamp</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── VISUAL TIMELINE ───────────────────────────────── -->
+      <section id="timeline">
+        <h2>VISUAL TIMELINE OF TESTING</h2>
+
+        <pre><code class="language-text">Time 0s:   App starts, files created
+           - fresh.log    (0 min old)  → KEPT
+           - one_min.log  (1 min old)  → KEPT (equal to limit)
+           - two_min.log  (2 min old)  → will be DELETED
+           - five_min.log (5 min old)  → will be DELETED
+
+Time 10s:  First cleanup check
+           - fresh.log    (0.16 min old) → KEPT
+           - one_min.log  (1.16 min old) → DELETE ❌ (older than 1 minute!)
+           - two_min.log  (2.16 min old) → DELETE ❌
+           - five_min.log (5.16 min old) → DELETE ❌
+
+Time 20s:  Second cleanup check
+           - fresh.log    (0.33 min old) → KEPT ✅ (still fresh)
+
+Time 60s:  Third cleanup check
+           - fresh.log    (1.0 min old)  → DELETE ❌ (now 1 minute old)</code></pre>
+      </section>
+
+      <!-- ─── RUN SERVICE ──────────────────────────────────── -->
+      <section id="run-service">
+        <h2>RUN THE RETENTION SERVICE</h2>
+
+        <h3>services/retention.js</h3>
+        <pre><code class="language-javascript">import { startRetentionCleanup } from './retentionCleanup.js';
+
+console.log('Starting retention test...');
+console.log('Files older than 1 minute will be deleted');
+console.log('Check runs every 10 seconds');
+console.log('Press Ctrl+C to stop\n');
+
+const stop = startRetentionCleanup();
+
+process.on('SIGINT', () => {
+    console.log('\nShutting down...');
+    if (stop) stop();
+    process.exit();
+});</code></pre>
+
+        <pre><code class="language-bash">node services/retention.js</code></pre>
+      </section>
+
+      <!-- ─── APP JS ───────────────────────────────────────── -->
+      <section id="app-js">
+        <h2>STEP 3 — app.js (Wire Everything Together)</h2>
+
+        <pre><code class="language-javascript">import express from 'express';
+import { logger } from './logger.js';
+import './retentionService.js'; // auto-starts retention cleanup
+
+const app = express();
+const PORT = 1000;
+
+app.use((req, res, next) => {
+    logger.info({ method: req.method, url: req.url, ip: req.ip }, 'Incoming request');
+    next();
+});
+
+app.get('/', (req, res) => {
+    logger.info('Home page accessed');
+    res.send('Hello World!');
+});
+
+app.get('/users', (req, res) => {
+    logger.info({ endpoint: '/users' }, 'Fetching users');
+    res.json([{ id: 1, name: 'John' }]);
+});
+
+app.get('/error', (req, res) => {
+    logger.error('Something went wrong!');
+    res.status(500).send('Error!');
+});
+
+app.listen(PORT, () => {
+    logger.info(`Server running on http://localhost:${PORT}`);
+});</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> Testing</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Hit <code>http://localhost:1000/users</code> several times and watch
+            <code>app.1.log</code> → <code>app.2.log</code> → <code>app.3.log</code>
+            get created as each file hits 5KB.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── ALLOY CONFIG ──────────────────────────────────── -->
+      <section id="alloy-config">
+        <h2>LOKI + ALLOY INTEGRATION</h2>
+        <p>
+          Alloy is Grafana's log collector. It tails your log files and ships
+          them to Loki. The key is the <code>app.*.log</code> glob pattern —
+          Alloy automatically picks up every numbered file pino-roll creates.
+        </p>
+
+        <h3>alloy/config.alloy</h3>
+        <pre><code class="language-text">// WHY: We use a glob pattern logs/app.*.log so Alloy
+// automatically picks up app.1.log, app.2.log, app.3.log etc.
+// When pino-roll creates a new file, Alloy starts tailing it automatically.
+
+loki.source.file "app_logs" {
+  targets = [
+    {
+      __path__ = "F:/your-project/logs/app.*.log",
+      job      = "node-app",
+      env      = "development",
+    },
+  ]
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://localhost:3100/loki/api/v1/push"
+  }
+}</code></pre>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-circle-info"></i> After Config Change</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Restart the Alloy background service and Loki, then query with
+            <code>{job="node-app"}</code> in Grafana Explore.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── SUMMARY ──────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY — WHAT EACH PIECE DOES</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Piece</th>
+              <th>Responsibility</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>pino</code></td>
+              <td>Writes structured JSON logs</td>
+            </tr>
+            <tr>
+              <td><code>pino-roll</code></td>
+              <td>Rotates files by size, keeps max N files</td>
+            </tr>
+            <tr>
+              <td><code>retentionCleanup.js</code></td>
+              <td>Deletes files older than N days (time-based)</td>
+            </tr>
+            <tr>
+              <td><code>pino-pretty</code></td>
+              <td>Human-readable console logs (dev only)</td>
+            </tr>
+            <tr>
+              <td><code>Grafana Alloy</code></td>
+              <td>Tails all rotated files and ships to Loki</td>
+            </tr>
+            <tr>
+              <td><code>app.*.log</code> glob</td>
+              <td>Alloy auto-discovers new rotated files</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:2rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">💡 The Full Flow</span>
+          <pre style="margin:0.75rem 0 0;background:var(--bg-secondary)"><code class="language-text">pino writes JSON
+  → pino-roll rotates at 5KB → app.1.log, app.2.log, app.3.log
+  → retentionCleanup.js deletes files older than 7 days
+  → Alloy tails app.*.log automatically
+  → Loki stores logs
+  → Grafana visualizes them</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Log Rotation & Retention Guide</p>
+        <p>Generated for <strong>Node.js Engineering</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
