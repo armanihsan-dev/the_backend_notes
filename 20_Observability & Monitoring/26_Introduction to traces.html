@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Introduction to Traces | Complete Guide</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-route"></i> TRACES GUIDE</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Basics</div>
+        <a href="#what-are-traces" class="nav-link">What are Traces?</a>
+        <a href="#three-pillars" class="nav-link">The Third Pillar</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Where & When</div>
+        <a href="#monolith" class="nav-link">Monolithic Apps</a>
+        <a href="#distributed" class="nav-link">Distributed Systems</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Comparison</div>
+        <a href="#comparison" class="nav-link">Traces vs Logs vs Metrics</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Spans</div>
+        <a href="#spans" class="nav-link">What is a Span?</a>
+        <a href="#span-structure" class="nav-link">Span Structure</a>
+        <a href="#parent-child" class="nav-link">Parent-Child Tree</a>
+        <a href="#id-system" class="nav-link">The ID System</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">V. Pipeline</div>
+        <a href="#pipeline" class="nav-link">Transport Pipeline</a>
+        <a href="#otlp" class="nav-link">OTLP Protocol</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">VI. Instrumentation</div>
+        <a href="#auto-instrumentation" class="nav-link">Auto-Instrumentation</a>
+        <a href="#manual-instrumentation" class="nav-link">Manual Instrumentation</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">VII. Tempo & Grafana</div>
+        <a href="#tempo" class="nav-link">Grafana Tempo</a>
+        <a href="#real-world" class="nav-link">Real-World Example</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability & Traces</span>
+        <h1>DISTRIBUTED TRACING</h1>
+        <p>A COMPLETE GUIDE TO TRACES, SPANS, AND HOW TO INSTRUMENT YOUR APPLICATION</p>
+      </section>
+
+      <!-- ─── WHAT ARE TRACES ───────────────────────────────── -->
+      <section id="what-are-traces">
+        <h2>PART 1: WHAT ARE TRACES?</h2>
+        <p>
+          A <strong>trace</strong> is a complete record of a single operation's journey through your
+          system from start to finish. It captures every step, how long each step took, and how
+          steps relate to each other.
+        </p>
+
+        <h3>Simple Analogy</h3>
+        <p>Think of a trace like <strong>GPS tracking for a package delivery</strong>:</p>
+        <pre><code class="language-text">Package delivery trace:
+08:00 - Package picked up from warehouse (start)
+08:15 - Arrived at sorting facility
+08:30 - Loaded onto delivery truck
+09:00 - Out for delivery
+10:30 - Delivered to customer (end)
+
+Total time: 2 hours 30 minutes</code></pre>
+
+        <p>Similarly, a trace for an API request might look like:</p>
+        <pre><code class="language-text">GET /api/users request trace:
+  0ms - Request received by API Gateway
+  5ms - Authentication check started
+ 15ms - Authentication completed
+ 20ms - Database query started
+120ms - Database query completed
+125ms - Response formatted
+130ms - Response sent to client
+
+Total time: 130ms</code></pre>
+      </section>
+
+      <!-- ─── THREE PILLARS ─────────────────────────────────── -->
+      <section id="three-pillars">
+        <h3>Why Tracing is the Third Pillar</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Pillar</th>
+              <th>Question It Answers</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Metrics</td>
+              <td>"What happened?"</td>
+              <td>"Error rate increased to 10%"</td>
+            </tr>
+            <tr>
+              <td>Logs</td>
+              <td>"Why did it happen?"</td>
+              <td>"Database connection timeout error"</td>
+            </tr>
+            <tr>
+              <td>Traces</td>
+              <td style="color: var(--accent)">"Where did the time go?"</td>
+              <td>"450ms spent in database query, 50ms in API"</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Key Insight
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Metrics tell you <strong>something is wrong</strong>. Logs tell you
+            <strong>what the error message was</strong>. Traces tell you
+            <strong>exactly which step caused the problem</strong>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── MONOLITH ───────────────────────────────────────── -->
+      <section id="monolith">
+        <h2>PART 2: WHERE TRACING IS MOST USEFUL</h2>
+        <h3>Monolithic Application (Tracing is still useful)</h3>
+        <pre><code class="language-text">Single application with everything inside:
+┌─────────────────────────────────┐
+│         Your App                │
+│  Request → API → DB → Response  │
+└─────────────────────────────────┘
+
+What tracing shows you:
+- Which API endpoint is slow
+- Which database query is the bottleneck
+- Where time is spent inside your code</code></pre>
+      </section>
+
+      <!-- ─── DISTRIBUTED ───────────────────────────────────── -->
+      <section id="distributed">
+        <h3>Distributed System (Tracing becomes essential)</h3>
+        <pre><code class="language-text">Multiple services talking to each other:
+┌──────────┐    ┌──────────┐    ┌──────────┐
+│   API    │───→│   Auth   │───→│   User   │
+│ Gateway  │    │ Service  │    │ Service  │
+└──────────┘    └──────────┘    └──────────┘
+                                    │
+                                    ↓
+                              ┌──────────┐
+                              │ Payment  │
+                              │ Service  │
+                              └──────────┘</code></pre>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ❌ Without Tracing (The Nightmare)
+            </p>
+            <ul style="color:var(--text-secondary);font-size:0.9rem;margin:0;padding-left:1.25rem">
+              <li>Service A logs: "Request received"</li>
+              <li>Service B logs: "Auth passed" (different machine)</li>
+              <li>Service C logs: "Database error" (third machine)</li>
+              <li style="color:var(--danger)">No way to connect these events</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ✅ With Tracing (The Solution)
+            </p>
+            <pre style="margin:0;background:var(--bg-tertiary);font-size:0.8rem"><code class="language-text">One trace showing everything:
+API Gateway:    0ms - Received request
+Auth Service:   5ms - Auth started
+Auth Service:  12ms - Auth completed
+User Service:  20ms - Fetching user
+User Service:  80ms - User fetched (60ms DB)
+Payment:       90ms - Processing
+Payment:      150ms - Processed
+API Gateway:  155ms - Response sent
+
+Bottleneck: User Service DB (60ms)</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── COMPARISON ─────────────────────────────────────── -->
+      <section id="comparison">
+        <h2>PART 3: TRACES VS LOGS VS METRICS</h2>
+
+        <h3>Logs — What happened</h3>
+        <pre><code class="language-text">2024-01-15 10:30:00 INFO  Auth service: User 123 login attempt
+2024-01-15 10:30:02 INFO  User service: Fetching user 123
+2024-01-15 10:30:05 ERROR Payment service: Payment failed
+2024-01-15 10:30:05 INFO  API Gateway: Returning error to client</code></pre>
+        <p style="color: var(--danger)">Problem: You see events, but don't see that they're connected.</p>
+
+        <h3>Metrics — System health</h3>
+        <pre><code class="language-text">- Request rate: 100 req/sec
+- Error rate: 5%
+- Average latency: 150ms
+- CPU usage: 70%</code></pre>
+        <p style="color: var(--danger)">Problem: You know something is wrong, but not where.</p>
+
+        <h3>Traces — The connected journey</h3>
+        <pre><code class="language-text">Trace ID: abc-123 (User login request)
+├── API Gateway: 0-150ms
+    ├── Auth Service: 5-50ms
+    │   ├── Database: 10-45ms
+    │   └── Token generation: 45-50ms
+    ├── User Service: 55-100ms
+    │   └── Database: 60-95ms
+    └── Payment Service: 105-145ms (ERROR here!)
+        └── External API: 110-140ms (timeout)</code></pre>
+        <p style="color: var(--accent)">Solution: You see the exact path, timing, and failure point.</p>
+      </section>
+
+      <!-- ─── SPANS ──────────────────────────────────────────── -->
+      <section id="spans">
+        <h2>PART 4: SPANS — THE BUILDING BLOCKS</h2>
+        <p>
+          A <strong>span</strong> represents a single unit of work or operation within a trace. Each
+          trace is made up of multiple spans connected in a hierarchy.
+        </p>
+      </section>
+
+      <!-- ─── SPAN STRUCTURE ────────────────────────────────── -->
+      <section id="span-structure">
+        <h3>Span Structure</h3>
+        <pre><code class="language-javascript">{
+    traceId:      "abc-123",                       // Which trace this belongs to
+    spanId:       "span-456",                      // This span's unique ID
+    parentSpanId: "span-123",                      // Who called this (null for root)
+    name:         "GET /api/users",                // What operation this is
+    startTime:    "2024-01-15T10:30:00.000Z",
+    endTime:      "2024-01-15T10:30:00.130Z",
+    duration:     "130ms",                         // Calculated from start-end
+    attributes: {                                  // Additional context
+        "http.method":      "GET",
+        "http.status_code": 200,
+        "user.id":          "123"
+    },
+    events: [                                      // Important moments during span
+        { name: "DB query started",   timestamp: "..." },
+        { name: "DB query completed", timestamp: "..." }
+    ],
+    status: "ok"                                   // ok, error, or unset
+}</code></pre>
+      </section>
+
+      <!-- ─── PARENT CHILD ──────────────────────────────────── -->
+      <section id="parent-child">
+        <h3>Parent-Child Relationship (The Tree Structure)</h3>
+        <pre><code class="language-text">Trace ID: trace-123 (Complete request)
+
+Root Span (Parent)
+├── GET /api/users (duration: 130ms)
+    │
+    ├── Child Span 1
+    │   └── Authentication middleware (duration: 15ms)
+    │       │
+    │       └── Grandchild Span
+    │           └── Token validation (duration: 5ms)
+    │
+    ├── Child Span 2
+    │   └── Database query (duration: 80ms)
+    │
+    └── Child Span 3
+        └── Response formatting (duration: 20ms)</code></pre>
+      </section>
+
+      <!-- ─── ID SYSTEM ─────────────────────────────────────── -->
+      <section id="id-system">
+        <h3>How Spans Connect (The ID System)</h3>
+        <pre><code class="language-javascript">// Root span (no parent)
+{
+    traceId:      "trace-123",
+    spanId:       "span-root",
+    parentSpanId: null,          // This is the root!
+    name:         "GET /api/users"
+}
+
+// Child span (parent is root)
+{
+    traceId:      "trace-123",   // Same trace ID
+    spanId:       "span-auth",
+    parentSpanId: "span-root",   // Links to root!
+    name:         "Authentication"
+}
+
+// Grandchild span
+{
+    traceId:      "trace-123",   // Same trace ID
+    spanId:       "span-db",
+    parentSpanId: "span-auth",   // Links to auth span!
+    name:         "Database query"
+}</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-circle-info"></i> How it works
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Even though each span is generated independently, they all share the same
+            <code>traceId</code> and know their parent via <code>parentSpanId</code>. This allows
+            tracing systems to reconstruct the entire tree.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── COMPLETE EXAMPLE ──────────────────────────────── -->
+      <section id="complete-example">
+        <h2>PART 5: COMPLETE EXAMPLE — TRACES IN ACTION</h2>
+        <h3>Scenario: User logs into an e-commerce site</h3>
+        <pre><code class="language-javascript">// Without tracing (can't see the problem)
+User clicks login → 2 seconds later → "Login failed"
+
+// With tracing (see exactly what happened)
+Trace ID: login-trace-789
+Duration: 2,150ms (too slow!)
+
+Span 1 (Root): POST /api/login [0ms - 2,150ms]
+    │
+    ├─ Span 2: Authentication Service [10ms - 50ms]
+    │   ├─ Check credentials  [15ms - 30ms]
+    │   └─ Generate JWT token [32ms - 48ms]
+    │
+    ├─ Span 3: User Service [55ms - 2,100ms]  ← PROBLEM!
+    │   ├─ Fetch user profile [60ms - 2,000ms] ← BOTTLENECK!
+    │   │   └─ Database query [60ms - 2,000ms] ← SLOW QUERY
+    │   └─ Update last login  [2,005ms - 2,095ms]
+    │
+    └─ Span 4: Session Service [2,105ms - 2,145ms]
+        └─ Create session [2,108ms - 2,140ms]
+
+Solution identified: Database query in User Service took 1,940ms!</code></pre>
+      </section>
+
+      <!-- ─── PIPELINE ──────────────────────────────────────── -->
+      <section id="pipeline">
+        <h2>PART 6: HOW TRACES ARE TRANSPORTED</h2>
+        <pre><code class="language-text">Your Application
+       │
+       │ 1. Generate spans using OpenTelemetry SDK
+       ↓
+   OpenTelemetry SDK
+       │
+       │ 2. Export spans using OTLP protocol
+       ↓
+   OTLP Exporter (HTTP/gRPC)
+       │
+       │ 3. Send to collector (optional but recommended)
+       ↓
+   Grafana Alloy / Collector
+       │
+       │ 4. Process, batch, and forward spans
+       ↓
+   Grafana Tempo (Backend)
+       │
+       │ 5. Store and index spans
+       ↓
+   Grafana (Visualization)
+       │
+       │ 6. Query and display traces
+       ↓
+   Developer sees trace visualization</code></pre>
+      </section>
+
+      <!-- ─── OTLP ───────────────────────────────────────────── -->
+      <section id="otlp">
+        <h3>Protocol: OTLP (OpenTelemetry Protocol)</h3>
+        <p>
+          OTLP is the <strong>standard way to send telemetry data</strong> (traces, metrics, logs).
+        </p>
+        <pre><code class="language-javascript">// POST http://localhost:4318/v1/traces
+{
+  "resourceSpans": [{
+    "resource": {
+      "attributes": [
+        { "key": "service.name", "value": { "stringValue": "my-api" } }
+      ]
+    },
+    "scopeSpans": [{
+      "spans": [{
+        "traceId":            "abc123",
+        "spanId":             "def456",
+        "name":               "GET /users",
+        "startTimeUnixNano":  "1705315200000000000",
+        "endTimeUnixNano":    "1705315200130000000"
+      }]
+    }]
+  }]
+}</code></pre>
+      </section>
+
+      <!-- ─── AUTO INSTRUMENTATION ──────────────────────────── -->
+      <section id="auto-instrumentation">
+        <h2>PART 7: INSTRUMENTATION</h2>
+        <h3>Method 1: Auto-Instrumentation (No code changes)</h3>
+        <pre><code class="language-javascript">import { NodeSDK } from '@opentelemetry/sdk-node';
+import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+
+const sdk = new NodeSDK({
+    instrumentations: [
+        new ExpressInstrumentation(),  // Auto-trace Express routes
+        new HttpInstrumentation()      // Auto-trace HTTP calls
+    ]
+});
+
+sdk.start();
+
+// Your normal Express code — everything is now traced automatically!
+app.get('/users', (req, res) => {
+    // Spans created automatically for:
+    // - HTTP request
+    // - Express route handler
+    // - Any database calls (if instrumented)
+    res.json(users);
+});</code></pre>
+      </section>
+
+      <!-- ─── MANUAL INSTRUMENTATION ────────────────────────── -->
+      <section id="manual-instrumentation">
+        <h3>Method 2: Manual Instrumentation (Custom spans)</h3>
+        <pre><code class="language-javascript">import { trace } from '@opentelemetry/api';
+
+app.post('/api/process-order', async (req, res) => {
+    const tracer = trace.getTracer('my-app');
+
+    await tracer.startActiveSpan('process-order', async (span) => {
+        span.setAttribute('order.id', req.body.orderId);
+        span.setAttribute('user.id', req.user.id);
+
+        // Step 1: Validate order
+        await tracer.startActiveSpan('validate-order', async (validateSpan) => {
+            const isValid = await validateOrder(req.body);
+            validateSpan.setAttribute('order.valid', isValid);
+            validateSpan.end();
+        });
+
+        // Step 2: Process payment
+        await tracer.startActiveSpan('process-payment', async (paymentSpan) => {
+            const result = await processPayment(req.body.amount);
+            paymentSpan.setAttribute('payment.success', result.success);
+            paymentSpan.end();
+        });
+
+        // Step 3: Update inventory
+        await tracer.startActiveSpan('update-inventory', async (inventorySpan) => {
+            await updateStock(req.body.items);
+            inventorySpan.end();
+        });
+
+        span.end();
+    });
+
+    res.json({ success: true });
+});</code></pre>
+      </section>
+
+      <!-- ─── TEMPO ──────────────────────────────────────────── -->
+      <section id="tempo">
+        <h2>PART 8: BACKEND SYSTEM — GRAFANA TEMPO</h2>
+        <pre><code class="language-text">Tempo receives spans → groups by traceId → reconstructs traces → stores them → serves queries
+
+Input: Individual spans (sent from your app)
+    ↓
+Process: Groups spans with same traceId together
+    ↓
+Output: Complete trace tree ready for visualization</code></pre>
+
+        <h3>Querying Tempo</h3>
+        <pre><code class="language-bash"># Find a trace by ID
+curl http://localhost:3200/api/traces/trace-123
+
+# Find traces by tags
+curl http://localhost:3200/api/search?tags=service.name=my-api&limit=20
+
+# Find traces within time range
+curl http://localhost:3200/api/search?start=2024-01-15T10:00:00Z&end=2024-01-15T11:00:00Z</code></pre>
+      </section>
+
+      <!-- ─── REAL WORLD ─────────────────────────────────────── -->
+      <section id="real-world">
+        <h2>PART 9: REAL-WORLD EXAMPLE — COMPLETE SETUP</h2>
+        <h3>Express App with Tracing</h3>
+        <pre><code class="language-javascript">import express from 'express';
+import { trace } from '@opentelemetry/api';
+
+const app = express();
+
+// Middleware: creates a span for every request
+app.use((req, res, next) => {
+    const tracer = trace.getTracer('express-api');
+
+    tracer.startActiveSpan(`${req.method} ${req.path}`, (span) => {
+        span.setAttribute('http.method', req.method);
+        span.setAttribute('http.url', req.url);
+        span.setAttribute('http.user_agent', req.headers['user-agent']);
+
+        const startTime = Date.now();
+
+        res.on('finish', () => {
+            span.setAttribute('http.status_code', res.statusCode);
+            span.setAttribute('http.duration_ms', Date.now() - startTime);
+            span.end();
+        });
+
+        next();
+    });
+});
+
+// Route — automatically part of the trace!
+app.get('/api/users/:id', async (req, res) => {
+    const tracer = trace.getTracer('user-service');
+
+    const user = await tracer.startActiveSpan('db-fetch-user', async (span) => {
+        span.setAttribute('user.id', req.params.id);
+        const user = await db.users.findById(req.params.id);
+        span.setAttribute('db.rows_fetched', user ? 1 : 0);
+        span.end();
+        return user;
+    });
+
+    res.json(user);
+});</code></pre>
+
+        <h3>Visualizing the Trace in Grafana</h3>
+        <pre><code class="language-text">Trace: GET /api/users/123 (Duration: 245ms)
+
+Timeline visualization:
+  0ms  ┌────────────────────────────────────────┐
+       │ GET /api/users/123 (Express middleware) │
+       └────────────────────────────────────────┘
+       │
+ 10ms  ├─────────────────┐
+       │ db-fetch-user   │ (Database call)
+       └─────────────────┘
+       │                 │
+ 15ms  │                 ├─────┐
+       │                 │ DB  │ (Actual query execution)
+       │                 │ op  │
+       │                 └─────┘
+       │                 │
+120ms  ├─────────────────┘
+       │
+130ms  └────────────────────────────────────────┐
+       │ Response formatting                     │
+       └────────────────────────────────────────┘
+245ms  End
+
+Click any span to see its attributes:
+- db-fetch-user: user.id=123, rows_fetched=1
+- Database op:   query="SELECT * FROM users WHERE id=123"</code></pre>
+      </section>
+
+      <!-- ─── SUMMARY ───────────────────────────────────────── -->
+      <section id="summary">
+        <h2>PART 10: SUMMARY</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Concept</th>
+              <th>Definition</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Trace</code></td>
+              <td>Complete record of one operation's journey</td>
+              <td>A user login request across API Gateway, Auth, User, Payment services</td>
+            </tr>
+            <tr>
+              <td><code>Span</code></td>
+              <td>Single step within a trace</td>
+              <td>Database query, HTTP call, authentication check</td>
+            </tr>
+            <tr>
+              <td><code>traceId</code></td>
+              <td>Unique ID for the entire trace</td>
+              <td>"abc-123-def-456" — all spans share this</td>
+            </tr>
+            <tr>
+              <td><code>spanId</code></td>
+              <td>Unique ID for a single span</td>
+              <td>"span-789"</td>
+            </tr>
+            <tr>
+              <td><code>parentSpanId</code></td>
+              <td>Links a span to its parent</td>
+              <td>Points to the span that called this one</td>
+            </tr>
+            <tr>
+              <td><code>OTLP</code></td>
+              <td>Protocol for sending trace data</td>
+              <td>HTTP/gRPC endpoint: <code>/v1/traces</code></td>
+            </tr>
+            <tr>
+              <td><code>Tempo</code></td>
+              <td>Backend that stores traces</td>
+              <td>Receives spans, reconstructs traces</td>
+            </tr>
+            <tr>
+              <td><code>Instrumentation</code></td>
+              <td>Code that generates spans</td>
+              <td>Auto-instrumentation or manual span creation</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">💡 One-Line Summary</span>
+          <pre style="margin: 0.75rem 0 0; background: var(--bg-secondary)"><code class="language-text">A trace is a complete, hierarchical timeline of an operation (like an API
+request), made up of connected spans that show every step, how long each
+step took, and how steps relate to each other.
+
+KEY QUESTION IT ANSWERS:
+  "Where did the time go?" — across your entire system.
+
+CORE COMPONENTS:
+  Trace → made of Spans → connected by traceId + parentSpanId
+
+TOOLCHAIN:
+  App → OpenTelemetry SDK → OTLP → Alloy → Tempo → Grafana</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Introduction to Traces Guide</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

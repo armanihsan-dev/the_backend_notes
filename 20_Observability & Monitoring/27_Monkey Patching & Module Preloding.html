@@ -1,0 +1,788 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Monkey Patching | Complete Guide</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-puzzle-piece"></i> MONKEY PATCHING</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Fundamentals</div>
+        <a href="#definition" class="nav-link">Definition</a>
+        <a href="#how-it-works" class="nav-link">How It Works</a>
+        <a href="#syntax" class="nav-link">Syntax Explained</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Examples</div>
+        <a href="#ex-object" class="nav-link">Patching an Object</a>
+        <a href="#ex-class" class="nav-link">Patching a Class</a>
+        <a href="#ex-builtin" class="nav-link">Patching Built-ins</a>
+        <a href="#ex-module" class="nav-link">Patching a Module</a>
+        <a href="#ex-wrap" class="nav-link">Wrapping (Safe Pattern)</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Real-World Use</div>
+        <a href="#observability" class="nav-link">In Observability</a>
+        <a href="#testing" class="nav-link">In Testing</a>
+        <a href="#preloading" class="nav-link">Preloading</a>
+        <a href="#preload-otel" class="nav-link">Preload + OpenTelemetry</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Pros & Cons</div>
+        <a href="#pros-cons" class="nav-link">When to Use It</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">JavaScript & Node.js</span>
+        <h1>MONKEY PATCHING</h1>
+        <p>COMPLETE GUIDE — DEFINITION, SYNTAX, EXAMPLES, AND REAL-WORLD USE CASES</p>
+      </section>
+
+      <!-- ─── DEFINITION ────────────────────────────────────── -->
+      <section id="definition">
+        <h2>PART 1: WHAT IS MONKEY PATCHING?</h2>
+        <p>
+          <strong>Monkey patching</strong> is the technique of dynamically modifying or replacing
+          properties, methods, or behavior of an existing object, class, or module
+          <strong>at runtime</strong> — without changing the original source code.
+        </p>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Simple Definition
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            You take something that already exists — an object, a class, a built-in function — and
+            you <strong>swap out or wrap one of its parts</strong> while the program is running,
+            without touching the original file or library.
+          </p>
+        </div>
+
+        <h3>Real-World Analogy</h3>
+        <p>
+          Imagine a coffee machine that brews plain coffee. Monkey patching is like taping a new
+          button on the side that secretly intercepts the "brew" press, adds a shot of espresso,
+          <em>then</em> lets the original brew happen — all without opening the machine or reading
+          its manual.
+        </p>
+
+        <pre><code class="language-text">Original machine:  brew() → plain coffee
+After patching:    brew() → [add espresso] → plain coffee → espresso coffee</code></pre>
+      </section>
+
+      <!-- ─── HOW IT WORKS ──────────────────────────────────── -->
+      <section id="how-it-works">
+        <h2>HOW IT WORKS IN JAVASCRIPT</h2>
+        <p>
+          JavaScript objects are just collections of key-value pairs. Properties (including
+          methods) can be <strong>reassigned at any time</strong>. Monkey patching exploits this
+          — you simply overwrite a property with your own function.
+        </p>
+
+        <pre><code class="language-javascript">// Original object
+const obj = {
+    greet() {
+        return 'Hello';
+    }
+};
+
+console.log(obj.greet()); // "Hello"
+
+// Monkey patch — replace the method
+obj.greet = function () {
+    return 'Hello, World!';
+};
+
+console.log(obj.greet()); // "Hello, World!"</code></pre>
+
+        <p>
+          The original <code>greet</code> function is gone — replaced entirely. This is the
+          simplest form of monkey patching.
+        </p>
+      </section>
+
+      <!-- ─── SYNTAX EXPLAINED ──────────────────────────────── -->
+      <section id="syntax">
+        <h2>SYNTAX EXPLAINED</h2>
+        <p>There are three common syntactic patterns. Each does something slightly different.</p>
+
+        <h3>Pattern 1: Simple Replacement</h3>
+        <p>Completely replaces the original method. The old behavior is lost.</p>
+        <pre><code class="language-javascript">target.methodName = function (...args) {
+    // your new implementation
+};</code></pre>
+
+        <h3>Pattern 2: Wrap & Call Original (Most Common)</h3>
+        <p>
+          Saves a reference to the original, runs your code before/after, then calls the
+          original. The old behavior is <strong>preserved</strong>.
+        </p>
+        <pre><code class="language-javascript">const original = target.methodName;           // 1. save the original
+
+target.methodName = function (...args) {      // 2. replace with wrapper
+    // --- your code BEFORE ---
+    console.log('called with', args);
+
+    const result = original.apply(this, args); // 3. call the original
+
+    // --- your code AFTER ---
+    console.log('returned', result);
+
+    return result;                             // 4. return the original result
+};</code></pre>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Part</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>original</code></td>
+              <td>Holds a reference to the function being replaced so it isn't lost</td>
+            </tr>
+            <tr>
+              <td><code>...args</code></td>
+              <td>Captures all arguments so they can be passed to the original unchanged</td>
+            </tr>
+            <tr>
+              <td><code>original.apply(this, args)</code></td>
+              <td>Calls the original with the correct <code>this</code> context and arguments</td>
+            </tr>
+            <tr>
+              <td><code>return result</code></td>
+              <td>Ensures callers still get the original return value</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Pattern 3: Using a Proxy (Modern)</h3>
+        <p>
+          ES6 <code>Proxy</code> wraps an entire object and intercepts any operation on it —
+          cleaner and more powerful than manual patching.
+        </p>
+        <pre><code class="language-javascript">const proxy = new Proxy(target, {
+    get(obj, prop) {
+        const value = obj[prop];
+        if (typeof value === 'function') {
+            return function (...args) {
+                console.log(`${prop} called`);
+                return value.apply(obj, args);
+            };
+        }
+        return value;
+    }
+});</code></pre>
+      </section>
+
+      <!-- ─── EXAMPLE: OBJECT ───────────────────────────────── -->
+      <section id="ex-object">
+        <h2>PART 2: EXAMPLES</h2>
+        <h3>Example 1 — Patching a Plain Object</h3>
+        <p>Add logging to a single method on an existing object.</p>
+        <pre><code class="language-javascript">const calculator = {
+    add(a, b) {
+        return a + b;
+    }
+};
+
+// Monkey patch: wrap add() with logging
+const _originalAdd = calculator.add;
+
+calculator.add = function (a, b) {
+    console.log(`add called with: ${a}, ${b}`);
+    const result = _originalAdd.apply(this, [a, b]);
+    console.log(`add returned: ${result}`);
+    return result;
+};
+
+calculator.add(2, 3);
+// add called with: 2, 3
+// add returned: 5</code></pre>
+      </section>
+
+      <!-- ─── EXAMPLE: CLASS ────────────────────────────────── -->
+      <section id="ex-class">
+        <h3>Example 2 — Patching a Class Prototype</h3>
+        <p>
+          Patching the <strong>prototype</strong> affects <em>all</em> instances of the class —
+          past, present, and future.
+        </p>
+        <pre><code class="language-javascript">class User {
+    constructor(name) {
+        this.name = name;
+    }
+
+    greet() {
+        return `Hi, I'm ${this.name}`;
+    }
+}
+
+// Patch the prototype — affects ALL instances
+const _originalGreet = User.prototype.greet;
+
+User.prototype.greet = function () {
+    const result = _originalGreet.call(this);
+    return result + ' 👋';
+};
+
+const alice = new User('Alice');
+const bob   = new User('Bob');
+
+console.log(alice.greet()); // "Hi, I'm Alice 👋"
+console.log(bob.greet());   // "Hi, I'm Bob 👋"</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title">
+            <i class="fa-solid fa-triangle-exclamation"></i> Important
+          </span>
+          <p style="margin-bottom: 0">
+            Prototype patches affect <strong>every instance</strong> of that class, including
+            instances created in third-party libraries you don't control. Use with care.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── EXAMPLE: BUILT-IN ─────────────────────────────── -->
+      <section id="ex-builtin">
+        <h3>Example 3 — Patching a Built-in (console.log)</h3>
+        <p>
+          A classic example: intercepting <code>console.log</code> to add timestamps or send logs
+          somewhere else.
+        </p>
+        <pre><code class="language-javascript">const _originalLog = console.log;
+
+console.log = function (...args) {
+    const timestamp = new Date().toISOString();
+    _originalLog.apply(console, [`[${timestamp}]`, ...args]);
+};
+
+console.log('Server started');
+// [2025-01-15T10:30:00.000Z] Server started
+
+console.log('User logged in', { id: 42 });
+// [2025-01-15T10:30:01.000Z] User logged in { id: 42 }</code></pre>
+      </section>
+
+      <!-- ─── EXAMPLE: MODULE ───────────────────────────────── -->
+      <section id="ex-module">
+        <h3>Example 4 — Patching a Node.js Module</h3>
+        <p>
+          In Node.js, <code>require()</code> returns a cached module object. You can patch its
+          exports just like any other object.
+        </p>
+        <pre><code class="language-javascript">// fs-patch.js — patch fs.readFile to add logging
+const fs = require('fs');
+
+const _originalReadFile = fs.readFile;
+
+fs.readFile = function (path, options, callback) {
+    console.log(`[fs] Reading file: ${path}`);
+
+    const start = Date.now();
+
+    // Handle optional `options` argument
+    const done = typeof options === 'function' ? options : callback;
+
+    _originalReadFile.call(fs, path, options, function (err, data) {
+        console.log(`[fs] Read ${path} in ${Date.now() - start}ms`);
+        done(err, data);
+    });
+};
+
+// Now any code that uses fs.readFile gets automatic logging
+const fs2 = require('fs'); // same cached instance — already patched!
+fs2.readFile('./data.txt', 'utf8', (err, data) => {
+    console.log(data);
+});
+// [fs] Reading file: ./data.txt
+// [fs] Read ./data.txt in 3ms
+// (file contents)</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-circle-info"></i> Why This Works in Node.js
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Node.js caches modules after the first <code>require()</code>. Every subsequent
+            <code>require('fs')</code> returns the <strong>same object</strong>, so patching it
+            once affects all consumers automatically.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── EXAMPLE: WRAP ─────────────────────────────────── -->
+      <section id="ex-wrap">
+        <h3>Example 5 — The Safe Wrap Helper (Reusable Pattern)</h3>
+        <p>
+          Instead of repeating the save-original + replace dance everywhere, extract it into a
+          reusable helper.
+        </p>
+        <pre><code class="language-javascript">// A generic wrap utility
+function wrap(obj, methodName, wrapper) {
+    const original = obj[methodName];
+    obj[methodName] = function (...args) {
+        return wrapper(original.bind(this), ...args);
+    };
+}
+
+// Usage — wrap fetch to add timing
+wrap(globalThis, 'fetch', async function (original, ...args) {
+    const start = Date.now();
+    console.log(`[fetch] → ${args[0]}`);
+
+    const response = await original(...args);
+
+    console.log(`[fetch] ← ${args[0]} (${Date.now() - start}ms) ${response.status}`);
+    return response;
+});
+
+// All calls to fetch() now have automatic timing logs
+fetch('https://api.example.com/users');
+// [fetch] → https://api.example.com/users
+// [fetch] ← https://api.example.com/users (120ms) 200</code></pre>
+      </section>
+
+      <!-- ─── OBSERVABILITY ─────────────────────────────────── -->
+      <section id="observability">
+        <h2>PART 3: MONKEY PATCHING IN OBSERVABILITY</h2>
+        <p>
+          This is the most important real-world use case in the context of this course.
+          <strong>Auto-instrumentation in OpenTelemetry works entirely via monkey patching.</strong>
+        </p>
+
+        <pre><code class="language-text">You write:
+  import { NodeSDK } from '@opentelemetry/sdk-node';
+  new NodeSDK({ instrumentations: [new HttpInstrumentation()] }).start();
+
+What OpenTelemetry actually does internally:
+  const _original = http.request;
+
+  http.request = function (...args) {
+      const span = tracer.startSpan('HTTP GET');       // start a span
+      const result = _original.apply(this, args);      // call original
+      result.on('response', (res) => {
+          span.setAttribute('http.status_code', res.statusCode);
+          span.end();                                   // end the span
+      });
+      return result;
+  };</code></pre>
+
+        <p>
+          You never wrote that code — OpenTelemetry's instrumentation library patched
+          <code>http.request</code> for you at startup. Every HTTP call your app makes is now
+          automatically traced.
+        </p>
+
+        <h3>What Gets Patched by Auto-Instrumentation</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Library</th>
+              <th>What is patched</th>
+              <th>What you get</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>http / https</code></td>
+              <td><code>http.request</code></td>
+              <td>Span for every outgoing HTTP call</td>
+            </tr>
+            <tr>
+              <td><code>express</code></td>
+              <td>Router middleware chain</td>
+              <td>Span for every incoming route handler</td>
+            </tr>
+            <tr>
+              <td><code>pg</code> (PostgreSQL)</td>
+              <td><code>Client.prototype.query</code></td>
+              <td>Span for every SQL query with statement text</td>
+            </tr>
+            <tr>
+              <td><code>mongoose</code></td>
+              <td>Model method prototypes</td>
+              <td>Span for every DB operation</td>
+            </tr>
+            <tr>
+              <td><code>redis</code></td>
+              <td>Command send internals</td>
+              <td>Span for every cache get/set</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── TESTING ───────────────────────────────────────── -->
+      <section id="testing">
+        <h2>MONKEY PATCHING IN TESTING</h2>
+        <p>
+          Testing libraries use monkey patching to replace real dependencies (like HTTP calls or
+          database connections) with controlled fakes.
+        </p>
+
+        <pre><code class="language-javascript">// production code
+import { sendEmail } from './emailService.js';
+
+export async function registerUser(user) {
+    await db.save(user);
+    await sendEmail(user.email, 'Welcome!');
+    return { success: true };
+}
+
+// test — monkey patch sendEmail so no real email is sent
+import * as emailService from './emailService.js';
+
+test('registerUser sends a welcome email', async () => {
+    let sentTo = null;
+
+    // Patch sendEmail with a spy
+    const _original = emailService.sendEmail;
+    emailService.sendEmail = async (to, subject) => {
+        sentTo = to; // capture the call
+    };
+
+    await registerUser({ email: 'user@example.com' });
+
+    console.assert(sentTo === 'user@example.com', 'Email was not sent');
+
+    emailService.sendEmail = _original; // always restore!
+});</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-rotate-left"></i> Always Restore
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            When patching for tests, <strong>always restore the original</strong> after the test
+            runs. Leaving a patch in place leaks state into other tests and causes hard-to-debug
+            failures.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── PRELOADING ────────────────────────────────────── -->
+      <section id="preloading">
+        <h2>PRELOADING — PATCHING BEFORE YOUR APP STARTS</h2>
+        <p>
+          Preloading is the technique of loading and executing a script
+          <strong>before your application's own code runs</strong>. In Node.js this is done with
+          the <code>--require</code> (CommonJS) or <code>--import</code> (ESM) CLI flags.
+        </p>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> Why It Matters for Monkey Patching
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            For a monkey patch to intercept <em>every</em> call, it must run
+            <strong>before</strong> any other module loads. If your patch runs after
+            <code>express</code> or <code>http</code> has already been imported, some code may
+            already hold a direct reference to the original function — and your patch misses it.
+            Preloading solves this by guaranteeing the patch is applied first.
+          </p>
+        </div>
+
+        <h3>The Problem Without Preloading</h3>
+        <pre><code class="language-javascript">// app.js
+import http from 'http';                  // ← http loaded here
+import './my-patch.js';                   // ← patch runs AFTER
+
+// my-patch.js arrives too late!
+// http is already in memory, other modules may already
+// hold a reference to the original http.request</code></pre>
+
+        <h3>The Solution: --require Flag (CommonJS)</h3>
+        <p>
+          The <code>--require</code> flag tells Node.js to execute a file
+          <strong>before loading the entry point</strong>. Your patch is applied before any
+          application module can run.
+        </p>
+        <pre><code class="language-bash">node --require ./patch.js app.js
+
+# With npm scripts in package.json:
+# "start": "node --require ./patch.js app.js"</code></pre>
+
+        <p>Execution order with <code>--require</code>:</p>
+        <pre><code class="language-text">1. Node.js starts
+2. patch.js runs  ← patches http.request, pg.query, etc.
+3. app.js starts  ← all modules loaded AFTER the patch is in place
+4. Every call to http.request is now intercepted ✅</code></pre>
+
+        <h3>The Solution: --import Flag (ESM)</h3>
+        <p>
+          For ES module projects (<code>"type": "module"</code> in package.json), use
+          <code>--import</code> instead:
+        </p>
+        <pre><code class="language-bash">node --import ./patch.js app.js</code></pre>
+
+        <h3>A Minimal Preload Patch File</h3>
+        <pre><code class="language-javascript">// patch.js — loaded via --require before anything else
+const http = require('http');
+
+const _original = http.request;
+
+http.request = function (...args) {
+    console.log('[patch] http.request intercepted');
+    return _original.apply(this, args);
+};
+
+console.log('[patch] http.request patched ✅');</code></pre>
+
+        <pre><code class="language-bash"># Run your app with the patch preloaded
+node --require ./patch.js server.js
+
+# Output:
+# [patch] http.request patched ✅
+# Server listening on port 3000
+# [patch] http.request intercepted   ← fires on every outgoing request</code></pre>
+
+        <h3>Preloading vs Importing Inside the App</h3>
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Import inside app.js</th>
+              <th>Preload via --require</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>When it runs</td>
+              <td>Wherever the import statement sits</td>
+              <td style="color: var(--accent)">Before any app code runs</td>
+            </tr>
+            <tr>
+              <td>Risk of missing calls</td>
+              <td style="color: var(--danger)">Yes — modules loaded before it are unpatched</td>
+              <td style="color: var(--accent)">No — guaranteed first</td>
+            </tr>
+            <tr>
+              <td>App code change needed</td>
+              <td style="color: var(--danger)">Yes</td>
+              <td style="color: var(--accent)">No — zero app code change</td>
+            </tr>
+            <tr>
+              <td>Use case</td>
+              <td>Simple, single-file patches</td>
+              <td>Instrumentation, global patches</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── PRELOAD + OTEL ────────────────────────────────── -->
+      <section id="preload-otel">
+        <h3>Preloading in OpenTelemetry (The Real-World Example)</h3>
+        <p>
+          This is exactly how OpenTelemetry auto-instrumentation is meant to be used. The SDK
+          must be initialized and all patches applied <strong>before</strong> your app imports
+          <code>express</code>, <code>http</code>, <code>pg</code>, etc.
+        </p>
+
+        <pre><code class="language-javascript">// instrumentation.js — the preload file
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
+import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+
+const sdk = new NodeSDK({
+    traceExporter: new OTLPTraceExporter({ url: 'http://localhost:4318/v1/traces' }),
+    instrumentations: [
+        new HttpInstrumentation(),     // patches http.request
+        new ExpressInstrumentation(),  // patches express router
+    ],
+});
+
+sdk.start(); // ← patches are applied RIGHT HERE, before app.js runs</code></pre>
+
+        <pre><code class="language-bash"># Run with preload — instrumentation applies before app code
+node --import ./instrumentation.js app.js
+
+# Or in package.json:
+# "start": "node --import ./instrumentation.js app.js"</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-diagram-project"></i> Full Flow
+          </span>
+          <pre style="margin: 0.75rem 0 0; background: var(--bg-secondary)"><code class="language-text">node --import ./instrumentation.js app.js
+    │
+    ├─ 1. instrumentation.js runs
+    │       sdk.start() patches:
+    │         http.request        ← wrapped
+    │         express router      ← wrapped
+    │
+    ├─ 2. app.js runs
+    │       import express        ← already patched version
+    │       import http           ← already patched version
+    │
+    └─ 3. Every request/response
+              automatically creates spans → sent to Tempo via OTLP</code></pre>
+        </div>
+      </section>
+
+      <!-- ─── PROS & CONS ───────────────────────────────────── -->
+      <section id="pros-cons">
+        <h2>PART 4: WHEN TO USE IT</h2>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ✅ Good Uses
+            </p>
+            <ul style="color:var(--text-secondary);font-size:0.9rem;margin:0;padding-left:1.25rem">
+              <li>Auto-instrumentation (OpenTelemetry)</li>
+              <li>Mocking dependencies in tests</li>
+              <li>Polyfilling missing browser/Node APIs</li>
+              <li>Adding logging/timing to third-party code you can't edit</li>
+              <li>Hot-fixing a library bug while waiting for upstream fix</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              ❌ Bad Uses
+            </p>
+            <ul style="color:var(--text-secondary);font-size:0.9rem;margin:0;padding-left:1.25rem">
+              <li>Patching production code that you could just edit directly</li>
+              <li>Patching built-in prototypes (<code>Array.prototype</code>, <code>Object.prototype</code>)</li>
+              <li>Patching without restoring (leaks state)</li>
+              <li>Using it as a shortcut to avoid refactoring</li>
+              <li>Patching shared singletons in multi-tenant systems</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── SUMMARY ───────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Concept</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Monkey patching</td>
+              <td>Replacing or wrapping a method/property on an existing object at runtime</td>
+            </tr>
+            <tr>
+              <td>Simple replacement</td>
+              <td>Overwrite a method entirely — old behavior is lost</td>
+            </tr>
+            <tr>
+              <td>Wrap pattern</td>
+              <td>Save original → replace with wrapper → call original inside wrapper</td>
+            </tr>
+            <tr>
+              <td><code>apply(this, args)</code></td>
+              <td>Preserves the correct <code>this</code> context when calling the original</td>
+            </tr>
+            <tr>
+              <td>Prototype patch</td>
+              <td>Affects all instances of a class — past and future</td>
+            </tr>
+            <tr>
+              <td>Module patch</td>
+              <td>Works in Node.js because modules are cached singletons</td>
+            </tr>
+            <tr>
+              <td>Auto-instrumentation</td>
+              <td>OpenTelemetry patches <code>http</code>, <code>express</code>, DB drivers for you</td>
+            </tr>
+            <tr>
+              <td>Preloading</td>
+              <td>Running a patch file before the app via <code>--require</code> / <code>--import</code> so it applies before any module loads</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">💡 One-Line Summary</span>
+          <pre style="margin: 0.75rem 0 0; background: var(--bg-secondary)"><code class="language-text">Monkey patching = replacing a function on a live object at runtime,
+usually by saving the original and wrapping it with new behavior.
+
+THE GOLDEN RULE:
+  Always save the original. Always call it. Always restore in tests.
+
+THE WRAP PATTERN:
+  const orig = obj.method;
+  obj.method = function (...args) {
+      // before
+      const result = orig.apply(this, args);
+      // after
+      return result;
+  };
+
+WHERE YOU SEE IT:
+  OpenTelemetry auto-instrumentation, Jest mocks, polyfills, hot-fixes.
+
+PRELOADING:
+  node --require ./patch.js app.js
+  node --import  ./patch.js app.js   (ESM)
+  Guarantees the patch runs before any app module loads.</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Monkey Patching Guide</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
