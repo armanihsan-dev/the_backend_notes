@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adding Traces in Express.js using OpenTelemetry</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-diagram-project"></i> OTEL TRACES</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-tracing" class="nav-link">What is Tracing?</a>
+        <a href="#what-is-otel" class="nav-link">What is OpenTelemetry?</a>
+        <a href="#why-otel" class="nav-link">Why OpenTelemetry?</a>
+        <a href="#trace-anatomy" class="nav-link">Trace Anatomy</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Setup Files</div>
+        <a href="#installation" class="nav-link">Installation</a>
+        <a href="#otel-loader" class="nav-link">otel-loader.js</a>
+        <a href="#instrumentation" class="nav-link">instrumentation.js</a>
+        <a href="#launch-json" class="nav-link">.vscode/launch.json</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Implementation</div>
+        <a href="#app-js" class="nav-link">app.js</a>
+        <a href="#custom-spans" class="nav-link">Custom Spans</a>
+        <a href="#viewing-traces" class="nav-link">Viewing Traces</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Deep Dive</div>
+        <a href="#why-loader" class="nav-link">Why otel-loader.js Exists</a>
+        <a href="#how-auto-instr" class="nav-link">How Auto-Instrumentation Works</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Node.js & Observability</span>
+        <h1>ADDING TRACES IN EXPRESS.JS USING OTEL</h1>
+        <p>COMPLETE GUIDE TO DISTRIBUTED TRACING WITH OPENTELEMETRY</p>
+      </section>
+
+      <!-- ─── WHAT IS TRACING ───────────────────────────────── -->
+      <section id="what-is-tracing">
+        <h2>WHAT IS TRACING?</h2>
+        <p>
+          Tracing is the third pillar of observability (alongside metrics and logs).
+          A <strong>trace</strong> records the full journey of a single request as it
+          travels through your system — every function call, database query, and
+          external API call, all linked together.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.25rem;text-align:center">
+            <p style="color:#3b82f6;font-size:1.5rem;margin-bottom:0.5rem"><i class="fa-solid fa-chart-line"></i></p>
+            <p style="color:var(--text-primary);font-weight:700;margin-bottom:0.25rem">Metrics</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0">What is happening?</p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:1.25rem;text-align:center">
+            <p style="color:#f59e0b;font-size:1.5rem;margin-bottom:0.5rem"><i class="fa-solid fa-list-check"></i></p>
+            <p style="color:var(--text-primary);font-weight:700;margin-bottom:0.25rem">Logs</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0">Why did it happen?</p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem;text-align:center">
+            <p style="color:var(--accent);font-size:1.5rem;margin-bottom:0.5rem"><i class="fa-solid fa-diagram-project"></i></p>
+            <p style="color:var(--text-primary);font-weight:700;margin-bottom:0.25rem">Traces</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0">Where did it happen?</p>
+          </div>
+        </div>
+
+        <h3>Without Tracing vs With Tracing</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">❌ Without Tracing</p>
+            <ul style="color:var(--text-secondary);font-size:0.9rem;margin:0;padding-left:1.25rem">
+              <li>Request took 2 seconds — but where?</li>
+              <li>Was it the DB? The auth service? The cache?</li>
+              <li>You have logs but they are disconnected</li>
+              <li>No way to see the full request path</li>
+            </ul>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">✅ With Tracing</p>
+            <ul style="color:var(--text-secondary);font-size:0.9rem;margin:0;padding-left:1.25rem">
+              <li>See every step of the request as a timeline</li>
+              <li>Instantly see DB query took 1.8s of the 2s</li>
+              <li>All logs linked to the same trace ID</li>
+              <li>Full request path visualized in Grafana</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── WHAT IS OTEL ──────────────────────────────────── -->
+      <section id="what-is-otel">
+        <h2>WHAT IS OPENTELEMETRY?</h2>
+        <p>
+          OpenTelemetry (OTEL) is an open-source observability framework that provides
+          a <strong>single standard</strong> for collecting traces, metrics, and logs
+          from your application — regardless of which backend you send them to.
+        </p>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> One Line</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            OTEL is the <strong>collector</strong>. Grafana Tempo / Jaeger / Zipkin are the <strong>viewers</strong>.
+            You instrument once with OTEL, then switch backends freely.
+          </p>
+        </div>
+
+        <table>
+          <thead><tr><th>Component</th><th>Role</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SDK</strong></td><td>Instruments your code</td><td><code>@opentelemetry/sdk-node</code></td></tr>
+            <tr><td><strong>API</strong></td><td>Creates spans manually</td><td><code>@opentelemetry/api</code></td></tr>
+            <tr><td><strong>Auto Instrumentation</strong></td><td>Auto-traces Express, HTTP, DB</td><td><code>@opentelemetry/auto-instrumentations-node</code></td></tr>
+            <tr><td><strong>Exporter</strong></td><td>Sends traces to a backend</td><td>OTLP, Jaeger, Zipkin</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── WHY OTEL ──────────────────────────────────────── -->
+      <section id="why-otel">
+        <h2>WHY OPENTELEMETRY?</h2>
+
+        <table>
+          <thead><tr><th>Problem Before OTEL</th><th>OTEL Solution</th></tr></thead>
+          <tbody>
+            <tr><td>Every vendor had its own SDK</td><td>One SDK works with all backends</td></tr>
+            <tr><td>Switching backends required rewriting code</td><td>Change exporter config, keep instrumentation</td></tr>
+            <tr><td>No standard for trace context propagation</td><td>W3C TraceContext standard built-in</td></tr>
+            <tr><td>Manual instrumentation for every library</td><td>Auto-instrumentation for 100+ libraries</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── TRACE ANATOMY ─────────────────────────────────── -->
+      <section id="trace-anatomy">
+        <h2>TRACE ANATOMY</h2>
+
+        <pre><code class="language-text">TRACE ID: abc-123 (one per request)
+│
+├── SPAN: HTTP GET /users              [0ms ──────────────── 250ms]
+│     traceId: abc-123
+│     spanId:  span-1
+│     attributes: { http.method: GET, http.url: /users }
+│
+│   ├── SPAN: middleware auth          [5ms ──── 20ms]
+│   │     parentSpanId: span-1
+│   │
+│   ├── SPAN: db.query SELECT users    [25ms ───────────── 200ms]
+│   │     parentSpanId: span-1
+│   │     attributes: { db.statement: "SELECT * FROM users" }
+│   │
+│   └── SPAN: serialize response       [205ms ── 245ms]
+│         parentSpanId: span-1</code></pre>
+
+        <table>
+          <thead><tr><th>Term</th><th>What It Is</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Trace</strong></td><td>The full journey of one request — a collection of spans</td></tr>
+            <tr><td><strong>Span</strong></td><td>A single unit of work with start time, end time, and attributes</td></tr>
+            <tr><td><strong>Trace ID</strong></td><td>Unique ID shared by all spans in one request</td></tr>
+            <tr><td><strong>Span ID</strong></td><td>Unique ID for one specific span</td></tr>
+            <tr><td><strong>Parent Span ID</strong></td><td>Links child spans to parent — builds the tree</td></tr>
+            <tr><td><strong>Attributes</strong></td><td>Key-value metadata on a span (URL, DB query, user ID)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── INSTALLATION ──────────────────────────────────── -->
+      <section id="installation">
+        <h2>INSTALLATION</h2>
+
+        <pre><code class="language-bash">npm install \
+  @opentelemetry/sdk-node \
+  @opentelemetry/api \
+  @opentelemetry/auto-instrumentations-node \
+  @opentelemetry/exporter-trace-otlp-http \
+  @opentelemetry/resources \
+  @opentelemetry/semantic-conventions</code></pre>
+
+        <h3>Project Structure</h3>
+        <pre><code class="language-text">project/
+├── .vscode/
+│   └── launch.json          ← VS Code debugger config
+├── otel-loader.js            ← Registers OTEL hook for ESM
+├── instrumentation.js        ← Configures SDK, exporters, spans
+├── app.js                    ← Your Express app
+└── package.json</code></pre>
+      </section>
+
+      <!-- ─── OTEL LOADER ───────────────────────────────────── -->
+      <section id="otel-loader">
+        <h2>otel-loader.js</h2>
+
+        <pre><code class="language-javascript">import { register } from "node:module";
+import { pathToFileURL } from "node:url";
+
+register("@opentelemetry/instrumentation/hook.mjs", pathToFileURL("./"));</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-circle-question"></i> Why Does This File Exist?</span>
+          <p style="color:var(--text-primary);margin-bottom:0.75rem">
+            Node.js ESM (ES Modules) uses a <strong>module loader hook</strong> system.
+            When you use <code>import</code> statements, Node loads modules through its
+            own ESM loader. OTEL needs to <strong>intercept that loading process</strong>
+            to patch libraries like Express, HTTP, and pg before your code uses them.
+          </p>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>register()</code> tells Node: <em>"before you load any module, run
+            OTEL's hook so it can monkey-patch it for instrumentation."</em>
+            Without this file, auto-instrumentation silently does nothing in ESM projects.
+          </p>
+        </div>
+
+        <table>
+          <thead><tr><th>Without otel-loader.js</th><th>With otel-loader.js</th></tr></thead>
+          <tbody>
+            <tr><td>OTEL SDK starts after modules are already loaded</td><td>OTEL hook runs before any module loads</td></tr>
+            <tr><td>Auto-instrumentation patches arrive too late</td><td>Express, HTTP, DB libs are patched at import time</td></tr>
+            <tr><td>No spans generated automatically</td><td>Every request, DB call, outgoing HTTP is traced</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── INSTRUMENTATION ───────────────────────────────── -->
+      <section id="instrumentation">
+        <h2>instrumentation.js</h2>
+        <p>This file configures the OTEL SDK — what to trace, where to send traces.</p>
+
+        <pre><code class="language-javascript">import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { Resource } from '@opentelemetry/resources';
+import { SEMRESATTRS_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+
+const exporter = new OTLPTraceExporter({
+    // Grafana Tempo default OTLP endpoint
+    url: 'http://localhost:4318/v1/traces',
+});
+
+const sdk = new NodeSDK({
+    // Name your service — shows up in Grafana
+    resource: new Resource({
+        [SEMRESATTRS_SERVICE_NAME]: 'my-express-app',
+    }),
+
+    traceExporter: exporter,
+
+    // Auto-instruments: Express, HTTP, fetch, pg, mongodb, redis, etc.
+    instrumentations: [
+        getNodeAutoInstrumentations({
+            '@opentelemetry/instrumentation-fs': { enabled: false }, // too noisy
+        }),
+    ],
+});
+
+sdk.start();
+
+// Graceful shutdown — flushes remaining spans before process exits
+process.on('SIGTERM', () => sdk.shutdown());
+process.on('SIGINT',  () => sdk.shutdown());</code></pre>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-circle-info"></i> What getNodeAutoInstrumentations() Does</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            It automatically instruments <strong>100+ popular Node.js libraries</strong> —
+            Express routes, incoming/outgoing HTTP, fetch, pg, mysql, mongodb, redis,
+            grpc, and more. Every call to these libraries generates a span automatically
+            with zero code changes in your app.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── LAUNCH JSON ───────────────────────────────────── -->
+      <section id="launch-json">
+        <h2>.vscode/launch.json</h2>
+        <p>
+          This tells VS Code how to start your app with OTEL loaded
+          <strong>before</strong> your application code runs.
+        </p>
+
+        <pre><code class="language-javascript">{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Program",
+      "skipFiles": ["&lt;node_internals&gt;/**"],
+      "runtimeArgs": [
+        "--import=./otel-loader.js",
+        "--import=./instrumentation.js"
+      ],
+      "program": "${workspaceFolder}\\app.js"
+    }
+  ]
+}</code></pre>
+
+        <h3>Why --import and Not --require?</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">--require (CJS only)</p>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin:0">Works for CommonJS. Fails with ESM <code>import</code> statements.</p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">--import (ESM ✅)</p>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin:0">Works with ES Modules. Runs the file before anything else loads.</p>
+          </div>
+        </div>
+
+        <h3>Load Order When App Starts</h3>
+        <pre><code class="language-text">1. --import=./otel-loader.js     → registers ESM module hook
+2. --import=./instrumentation.js → starts OTEL SDK, patches libraries
+3. app.js                         → your Express app starts
+                                    (Express is already patched — spans flow!)</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Order Matters</span>
+          <p style="margin-bottom:0">
+            <code>otel-loader.js</code> must come <strong>before</strong>
+            <code>instrumentation.js</code> in <code>runtimeArgs</code>.
+            The loader registers the hook, then instrumentation uses that hook to patch libs.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── APP JS ───────────────────────────────────────── -->
+      <section id="app-js">
+        <h2>app.js — Your Express App</h2>
+        <p>
+          Your app code stays <strong>completely clean</strong> — no OTEL imports needed.
+          Auto-instrumentation handles everything automatically.
+        </p>
+
+        <pre><code class="language-javascript">import express from 'express';
+
+const app = express();
+app.use(express.json());
+
+app.get('/users', async (req, res) => {
+    // This entire route is automatically traced:
+    // - The incoming HTTP span is created by OTEL
+    // - Any DB calls inside will be child spans
+    const users = [{ id: 1, name: 'John' }, { id: 2, name: 'Jane' }];
+    res.json(users);
+});
+
+app.get('/users/:id', async (req, res) => {
+    // OTEL auto-traces this route too
+    // http.method, http.url, http.status_code all captured automatically
+    res.json({ id: req.params.id, name: 'John' });
+});
+
+app.listen(3000, () => {
+    console.log('Server running on http://localhost:3000');
+});</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-check"></i> What Gets Traced Automatically</span>
+          <ul style="color:var(--text-primary);margin-bottom:0">
+            <li>Every incoming HTTP request → span with method, URL, status code, duration</li>
+            <li>Every outgoing HTTP/fetch call → child span</li>
+            <li>Every database query (pg, mysql, mongo) → child span with query text</li>
+            <li>Every Redis command → child span</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ─── CUSTOM SPANS ──────────────────────────────────── -->
+      <section id="custom-spans">
+        <h2>CUSTOM SPANS — MANUAL INSTRUMENTATION</h2>
+        <p>
+          Auto-instrumentation covers libraries. For your own business logic,
+          add custom spans manually:
+        </p>
+
+        <pre><code class="language-javascript">import { trace, SpanStatusCode } from '@opentelemetry/api';
+
+const tracer = trace.getTracer('my-express-app');
+
+app.post('/orders', async (req, res) => {
+    // Create a custom span for the full order flow
+    const span = tracer.startSpan('process-order');
+
+    try {
+        span.setAttributes({
+            'order.userId': req.body.userId,
+            'order.itemCount': req.body.items.length,
+            'order.totalAmount': req.body.total,
+        });
+
+        // Nested custom span for payment
+        const paymentSpan = tracer.startSpan('validate-payment', {
+            parent: span,
+        });
+        await validatePayment(req.body.payment);
+        paymentSpan.end();
+
+        // Nested span for inventory
+        const inventorySpan = tracer.startSpan('update-inventory', {
+            parent: span,
+        });
+        await updateInventory(req.body.items);
+        inventorySpan.end();
+
+        span.setStatus({ code: SpanStatusCode.OK });
+        res.json({ success: true });
+
+    } catch (err) {
+        span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+        span.recordException(err);
+        res.status(500).json({ error: err.message });
+    } finally {
+        span.end(); // Always end the span
+    }
+});</code></pre>
+
+        <h3>Adding Span Events (Like Log Entries Inside a Span)</h3>
+        <pre><code class="language-javascript">span.addEvent('cache miss — fetching from DB', {
+    'cache.key': 'user:123',
+    'timestamp': Date.now(),
+});
+
+span.addEvent('DB query complete', {
+    'db.rows_returned': 42,
+});</code></pre>
+      </section>
+
+      <!-- ─── VIEWING TRACES ─────────────────────────────────── -->
+      <section id="viewing-traces">
+        <h2>VIEWING TRACES IN GRAFANA TEMPO</h2>
+
+        <h3>Run Tempo with Docker</h3>
+        <pre><code class="language-bash">docker run -d --name tempo \
+  -p 4318:4318 \
+  -p 3200:3200 \
+  grafana/tempo:latest \
+  -config.file=/etc/tempo.yaml</code></pre>
+
+        <h3>Add Tempo as Data Source in Grafana</h3>
+        <ol>
+          <li>Open Grafana → Configuration → Data Sources</li>
+          <li>Add <strong>Tempo</strong></li>
+          <li>URL: <code>http://localhost:3200</code></li>
+          <li>Save & Test</li>
+        </ol>
+
+        <h3>Query Traces</h3>
+        <pre><code class="language-text">Grafana → Explore → Select Tempo data source
+→ Search by: Service Name = "my-express-app"
+→ See all traces as a timeline
+→ Click any trace → see the full span tree</code></pre>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-link"></i> Linking Traces to Logs</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Add <code>traceId</code> and <code>spanId</code> to your pino logs so you can jump
+            from a log entry directly to the trace in Grafana:
+          </p>
+          <pre style="margin:0.75rem 0 0;background:var(--bg-tertiary)"><code class="language-javascript">import { trace } from '@opentelemetry/api';
+
+app.use((req, res, next) => {
+    const span = trace.getActiveSpan();
+    const ctx = span?.spanContext();
+    req.log = logger.child({
+        traceId: ctx?.traceId,
+        spanId:  ctx?.spanId,
+    });
+    next();
+});</code></pre>
+        </div>
+      </section>
+
+      <!-- ─── WHY LOADER ────────────────────────────────────── -->
+      <section id="why-loader">
+        <h2>WHY otel-loader.js EXISTS — DEEP DIVE</h2>
+
+        <p>
+          Node.js ESM loads modules asynchronously using a <strong>loader hook chain</strong>.
+          When you write <code>import express from 'express'</code>, Node resolves,
+          loads, and evaluates the module. OTEL needs to intercept the
+          <strong>load step</strong> to wrap exported functions with tracing code.
+        </p>
+
+        <pre><code class="language-text">Normal ESM load:
+  Node resolves 'express' → loads express/index.js → your code uses it
+
+With otel-loader.js:
+  Node resolves 'express' → OTEL hook intercepts → wraps Router methods
+                          → loads express/index.js → your code uses patched version
+                                                       ↑ spans generated here</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> The Key Insight</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <code>otel-loader.js</code> is a <strong>one-time registration</strong> that
+            tells Node's module system to use OTEL's loader hook for every subsequent
+            <code>import</code>. It must run before everything else — that is exactly
+            what <code>--import=./otel-loader.js</code> in <code>launch.json</code> guarantees.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── HOW AUTO INSTR ────────────────────────────────── -->
+      <section id="how-auto-instr">
+        <h2>HOW AUTO-INSTRUMENTATION WORKS</h2>
+
+        <table>
+          <thead><tr><th>Library</th><th>What OTEL Patches</th><th>Span Created</th></tr></thead>
+          <tbody>
+            <tr><td><code>express</code></td><td>Router.handle, middleware chain</td><td><code>GET /users</code> with status, duration</td></tr>
+            <tr><td><code>http/https</code></td><td>http.request, http.get</td><td>Outgoing HTTP calls with URL, method, status</td></tr>
+            <tr><td><code>pg</code></td><td>Client.query</td><td>DB span with SQL query text</td></tr>
+            <tr><td><code>mongodb</code></td><td>Collection methods</td><td>DB span with collection, operation</td></tr>
+            <tr><td><code>redis</code></td><td>Command execution</td><td>Redis span with command name</td></tr>
+            <tr><td><code>fetch</code></td><td>globalThis.fetch</td><td>Outgoing fetch with URL, method</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── SUMMARY ──────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <table>
+          <thead><tr><th>File</th><th>Purpose</th><th>Required?</th></tr></thead>
+          <tbody>
+            <tr><td><code>otel-loader.js</code></td><td>Registers ESM module hook so OTEL can patch libraries at import time</td><td style="color:var(--accent)">✅ Yes (ESM)</td></tr>
+            <tr><td><code>instrumentation.js</code></td><td>Starts OTEL SDK, configures exporter and auto-instrumentations</td><td style="color:var(--accent)">✅ Yes</td></tr>
+            <tr><td><code>.vscode/launch.json</code></td><td>Loads both files via <code>--import</code> before app.js starts</td><td style="color:var(--accent)">✅ For VS Code</td></tr>
+            <tr><td><code>app.js</code></td><td>Your Express app — no OTEL imports needed</td><td style="color:var(--accent)">✅ Yes</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:2rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">💡 The Full Flow</span>
+          <pre style="margin:0.75rem 0 0;background:var(--bg-secondary)"><code class="language-text">VS Code starts app
+  → --import otel-loader.js   (registers ESM hook)
+  → --import instrumentation.js  (starts SDK, patches all libs)
+  → app.js loads Express (already patched)
+  → Request hits GET /users
+  → OTEL auto-creates span: { method: GET, url: /users, status: 200, duration: 45ms }
+  → Span exported via OTLP to Tempo on localhost:4318
+  → Open Grafana → Explore → Tempo → see the trace</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>OpenTelemetry Tracing Guide</p>
+        <p>Generated for <strong>Node.js & Observability</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a href="https://www.linkedin.com/in/arman-khan-5a790430a/" target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
