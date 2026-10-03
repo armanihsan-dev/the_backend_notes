@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Linking Logs & Traces | Complete Guide</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-link"></i> LOGS ↔ TRACES</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Overview</div>
+        <a href="#concept" class="nav-link">Core Concept</a>
+        <a href="#prerequisite" class="nav-link">Prerequisite</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Logs → Traces</div>
+        <a href="#loki-config" class="nav-link">Configure Loki Source</a>
+        <a href="#derived-fields" class="nav-link">Derived Fields</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Traces → Logs</div>
+        <a href="#tempo-config" class="nav-link">Configure Tempo Source</a>
+        <a href="#trace-to-logs-setup" class="nav-link">Step-by-Step Setup</a>
+        <a href="#how-it-works" class="nav-link">How It Works</a>
+        <a href="#query-examples" class="nav-link">Query Examples</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">IV. Result</div>
+        <a href="#final-result" class="nav-link">Final Result</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability & Grafana</span>
+        <h1>LINKING LOGS & TRACES</h1>
+        <p>CONNECTING LOKI LOGS TO TEMPO TRACES — AND TRACES BACK TO LOGS — IN GRAFANA</p>
+      </section>
+
+      <!-- ─── CORE CONCEPT ──────────────────────────────────── -->
+      <section id="concept">
+        <h2>PART 1: CORE CONCEPT</h2>
+        <p>
+          Linking logs to traces in Grafana creates a <strong>seamless two-way navigation</strong>
+          between your application logs and the distributed traces they belong to. This is done
+          through configuration between your <strong>Loki</strong> (logs) and
+          <strong>Tempo</strong> (traces) data sources.
+        </p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              <i class="fa-solid fa-arrow-right"></i> Logs → Traces
+            </p>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin:0">
+              You're reading a log line in Loki. Grafana detects the
+              <code>trace_id</code> field inside it and renders it as a clickable link that
+              opens the full trace in Tempo.
+            </p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.75rem;font-size:0.85rem;text-transform:uppercase">
+              <i class="fa-solid fa-arrow-left"></i> Traces → Logs
+            </p>
+            <p style="color:var(--text-secondary);font-size:0.9rem;margin:0">
+              You're inspecting a span in Tempo. Grafana uses the span's trace ID, service
+              name, and time range to automatically query Loki and show the matching logs
+              alongside the trace.
+            </p>
+          </div>
+        </div>
+
+        <pre><code class="language-text">Loki Log View                        Tempo Trace View
+──────────────────                   ──────────────────
+Log line with trace_id  ──────────►  Full trace + all spans
+                         click link
+                        ◄──────────  Click span → matching logs
+                         "View logs"</code></pre>
+      </section>
+
+      <!-- ─── PREREQUISITE ──────────────────────────────────── -->
+      <section id="prerequisite">
+        <h3>Prerequisite — Your Logs Must Contain Trace IDs</h3>
+        <p>
+          The most important prerequisite is that your application
+          <strong>injects the trace ID into its log lines</strong>. OpenTelemetry instrumentation
+          does this automatically. Your logs should contain a field like
+          <code>trace_id="..."</code>:
+        </p>
+        <pre><code class="language-text">time="2026-06-15T12:00:00Z" level=info msg="User order placed" trace_id="a1b2c3d4e5f6"</code></pre>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-circle-info"></i> OpenTelemetry does this for you
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            When you use OpenTelemetry's logging bridge (e.g. with <code>pino</code> +
+            <code>@opentelemetry/winston-transport</code> or similar), the active
+            <code>traceId</code> and <code>spanId</code> are automatically injected into every
+            log line emitted during an active span.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── LOKI CONFIG ───────────────────────────────────── -->
+      <section id="loki-config">
+        <h2>PART 2: LOGS → TRACES (CONFIGURE LOKI)</h2>
+        <p>
+          This is where you create the link <strong>from a log line to its trace</strong>. Grafana
+          calls this a <strong>Derived Field</strong> — it scans each log line with a regex,
+          extracts the trace ID, and renders it as a clickable link to Tempo.
+        </p>
+
+        <h3>Navigation</h3>
+        <pre><code class="language-text">Grafana → Connections → Data sources → [Your Loki source] → Derived fields</code></pre>
+      </section>
+
+      <!-- ─── DERIVED FIELDS ────────────────────────────────── -->
+      <section id="derived-fields">
+        <h3>Derived Fields Configuration</h3>
+        <p>Click <strong>Add</strong> and fill in the following fields:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Value</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Name</td>
+              <td><code>TraceID</code></td>
+              <td>Any descriptive label</td>
+            </tr>
+            <tr>
+              <td>Type</td>
+              <td><code>Regex</code></td>
+              <td>Extracts a value from the raw log message</td>
+            </tr>
+            <tr>
+              <td>Regex (logfmt)</td>
+              <td><code>trace_id=(\w+)</code></td>
+              <td>Capture group <code>(\w+)</code> extracts the ID</td>
+            </tr>
+            <tr>
+              <td>Regex (quoted)</td>
+              <td><code>trace_id="(\w+)"</code></td>
+              <td>Use this if your log wraps the value in quotes</td>
+            </tr>
+            <tr>
+              <td>Internal link</td>
+              <td>✅ Enabled</td>
+              <td>Turns the extracted value into a clickable link</td>
+            </tr>
+            <tr>
+              <td>Data source</td>
+              <td>Your Tempo data source</td>
+              <td>The link will open traces in this backend</td>
+            </tr>
+            <tr>
+              <td>Query</td>
+              <td><code>${__value.raw}</code></td>
+              <td>Passes the extracted trace ID directly to Tempo</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p>Click <strong>Save &amp; test</strong> when done.</p>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-lightbulb"></i> How <code>${__value.raw}</code> works
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            <code>${__value.raw}</code> is a Grafana variable that holds the value captured by
+            the regex capture group. So if your log contains <code>trace_id="a1b2c3"</code>,
+            Grafana passes <code>a1b2c3</code> directly to Tempo's trace lookup API.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── TEMPO CONFIG ──────────────────────────────────── -->
+      <section id="tempo-config">
+        <h2>PART 3: TRACES → LOGS (CONFIGURE TEMPO)</h2>
+        <p>
+          This configures the <strong>reverse direction</strong>: when you're inspecting a trace
+          in Tempo, you can click a span and jump directly to the logs from that service and time
+          window in Loki.
+        </p>
+
+        <h3>Navigation</h3>
+        <pre><code class="language-text">Grafana → Connections → Data sources → [Your Tempo source] → Trace to logs</code></pre>
+      </section>
+
+      <!-- ─── TRACE TO LOGS SETUP ───────────────────────────── -->
+      <section id="trace-to-logs-setup">
+        <h3>Step-by-Step Setup</h3>
+
+        <h3>Step 1 — Fill in the 4 Core Fields</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Value</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Data source</td>
+              <td>Loki</td>
+              <td>Tells Tempo where to send the log query</td>
+            </tr>
+            <tr>
+              <td>Span start time shift</td>
+              <td><code>-1m</code></td>
+              <td>Fetch logs starting 1 min before the span started</td>
+            </tr>
+            <tr>
+              <td>Span end time shift</td>
+              <td><code>1m</code></td>
+              <td>Fetch logs ending 1 min after the span ended</td>
+            </tr>
+            <tr>
+              <td>Filter by trace ID</td>
+              <td><code>${__trace.traceId}</code></td>
+              <td>Always scopes logs to this specific trace</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Step 2 — Map Tags (Optional but Recommended)</h3>
+        <p>
+          Tags map span attributes to Loki labels so Grafana can narrow the log query to the
+          exact service and host instead of fetching all logs in the time window.
+        </p>
+        <pre><code class="language-yaml">service.name  →  service_name    # filters logs to the right service
+host.name     →  host            # filters logs to the right pod/machine</code></pre>
+
+        <h3>Step 3 — Save &amp; Test</h3>
+        <p>Click <strong>Save &amp; test</strong>. Grafana will verify the connection to Loki is healthy.</p>
+      </section>
+
+      <!-- ─── HOW IT WORKS ──────────────────────────────────── -->
+      <section id="how-it-works">
+        <h3>How It Works Internally</h3>
+        <p>When you click "View logs" on a span in Tempo, Grafana runs this sequence:</p>
+        <pre><code class="language-text">Trace View: Click on "User Service" span
+    │
+    ▼
+Grafana automatically:
+    1. Takes trace_id from the span
+    2. Takes service name from the span
+    3. Takes start/end time from the span (+ your configured shifts)
+    4. Builds and runs a Loki query:
+       {service_name="user-service", trace_id="abc123"}
+    5. Shows you the matching logs inline</code></pre>
+      </section>
+
+      <!-- ─── QUERY EXAMPLES ────────────────────────────────── -->
+      <section id="query-examples">
+        <h3>Complete LogQL Query Examples</h3>
+        <pre><code class="language-javascript">// Minimal — just filter by trace ID
+{trace_id="${__trace.traceId}"}
+
+// With service filter (most common)
+{service_name="${service.name}", trace_id="${__trace.traceId}"}
+
+// With JSON parsing (if logs are JSON-structured)
+{service_name="${service.name}"} | json | trace_id="${__trace.traceId}"</code></pre>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>What it contains</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>${__trace.traceId}</code></td>
+              <td>The trace ID of the trace currently being viewed</td>
+            </tr>
+            <tr>
+              <td><code>${service.name}</code></td>
+              <td>The <code>service.name</code> attribute from the clicked span</td>
+            </tr>
+            <tr>
+              <td><code>${__value.raw}</code></td>
+              <td>The value captured by the Derived Field regex in Loki</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── FINAL RESULT ──────────────────────────────────── -->
+      <section id="final-result">
+        <h2>FINAL RESULT</h2>
+        <p>Once both data sources are configured, you get full two-way navigation:</p>
+
+        <pre><code class="language-text">┌──────────────────────────────────────────────────────────┐
+│  LOKI (Logs View)                                        │
+│                                                          │
+│  time=12:00:00 level=info msg="Order placed"             │
+│  trace_id="a1b2c3d4"  ◄── clickable link to Tempo       │
+└──────────────────────────────────────────────────────────┘
+                │  click trace_id
+                ▼
+┌──────────────────────────────────────────────────────────┐
+│  TEMPO (Trace View)                                      │
+│                                                          │
+│  Trace: a1b2c3d4  (Duration: 155ms)                      │
+│  ├── API Gateway   0ms  - 10ms                           │
+│  ├── User Service  10ms - 80ms   ◄── click "View logs"   │
+│  └── Payment       80ms - 155ms                          │
+└──────────────────────────────────────────────────────────┘
+                │  click "View logs"
+                ▼
+┌──────────────────────────────────────────────────────────┐
+│  LOKI (Filtered Logs for that span)                      │
+│                                                          │
+│  {service_name="user-service", trace_id="a1b2c3d4"}      │
+│  12:00:00.010 Fetching user from DB                      │
+│  12:00:00.045 Cache miss, querying postgres              │
+│  12:00:00.079 User fetched successfully                  │
+└──────────────────────────────────────────────────────────┘</code></pre>
+      </section>
+
+      <!-- ─── SUMMARY ───────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Direction</th>
+              <th>Configured In</th>
+              <th>Mechanism</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Logs → Traces</td>
+              <td>Loki data source</td>
+              <td>Derived field with regex + internal link to Tempo</td>
+              <td>Click <code>trace_id</code> in a log line → open trace in Tempo</td>
+            </tr>
+            <tr>
+              <td>Traces → Logs</td>
+              <td>Tempo data source</td>
+              <td>Trace to logs config with time shifts + tag mapping</td>
+              <td>Click a span → see matching logs from Loki inline</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background: var(--accent-dim); border-left: 4px solid var(--accent)">
+          <span class="note-title" style="color: var(--accent); font-size: 1rem">💡 One-Line Summary</span>
+          <pre style="margin: 0.75rem 0 0; background: var(--bg-secondary)"><code class="language-text">LOGS → TRACES:
+  Loki derived field  →  regex extracts trace_id  →  link opens Tempo.
+
+TRACES → LOGS:
+  Tempo "Trace to logs"  →  span's trace_id + service + time range
+  →  auto-queries Loki  →  shows matching logs.
+
+PREREQUISITE:
+  Your app must inject trace_id into every log line.
+  OpenTelemetry does this automatically.</code></pre>
+        </div>
+      </section>
+
+      <footer>
+        <p>Linking Logs &amp; Traces Guide</p>
+        <p>Generated for <strong>DevOps &amp; SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity='0.8'"
+            onmouseout="this.style.opacity='1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Download, Configure and Run Tempo on Windows 11</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-wave-square"></i> TEMPO</div>
+
+      <div class="nav-section">
+        <div class="nav-title">Setup</div>
+        <a href="#download" class="nav-link">Step 1 — Download</a>
+        <a href="#install" class="nav-link">Step 2 — Install</a>
+        <a href="#config" class="nav-link">Step 3 — Config File</a>
+        <a href="#service" class="nav-link">Step 4 — Windows Service</a>
+        <a href="#verify" class="nav-link">Step 5 — Start & Verify</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">Troubleshooting</div>
+        <a href="#port-conflict" class="nav-link">Port 9095 Conflict</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">Wrap Up</div>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Node.js & Observability</span>
+        <h1>DOWNLOAD, CONFIGURE &amp; RUN TEMPO</h1>
+        <p>
+          A complete step-by-step guide to running Grafana Tempo natively on
+          Windows 11.
+        </p>
+      </section>
+
+      <!-- ─── STEP 1 ─────────────────────────────────────────── -->
+      <section id="download">
+        <h2>STEP 1 — DOWNLOAD TEMPO FOR WINDOWS</h2>
+        <ol>
+          <li>
+            Go to the <strong>Grafana Tempo Releases</strong> page on GitHub.
+          </li>
+          <li>
+            Find the latest stable release <strong>(not a pre-release)</strong>.
+          </li>
+          <li>Expand the <strong>"Assets"</strong> section.</li>
+          <li>
+            Look for the Windows binary file, typically named:
+            <ul>
+              <li><code>tempo_X.X.X_windows_amd64.zip</code></li>
+              <li><code>tempo_X.X.X_windows_amd64.tar.gz</code></li>
+            </ul>
+          </li>
+          <li>Download this file to your computer.</li>
+        </ol>
+      </section>
+
+      <!-- ─── STEP 2 ─────────────────────────────────────────── -->
+      <section id="install">
+        <h2>STEP 2 — INSTALL AND SET UP TEMPO</h2>
+        <ol>
+          <li>Create a dedicated folder for Tempo: <code>C:\tempo</code></li>
+          <li>
+            Extract the downloaded archive into this folder. You should see an
+            executable named <code>tempo.exe</code>.
+          </li>
+          <li>
+            Create the following folders inside <code>C:\tempo</code>:
+            <ul>
+              <li><code>data</code></li>
+              <li><code>wal</code></li>
+              <li><code>blocks</code></li>
+            </ul>
+          </li>
+        </ol>
+      </section>
+
+      <!-- ─── STEP 3 ─────────────────────────────────────────── -->
+      <section id="config">
+        <h2>STEP 3 — CREATE THE CONFIGURATION FILE</h2>
+        <p>
+          In the <code>C:\tempo</code> folder, create a file named
+          <code>config.yaml</code> and paste the following configuration:
+        </p>
+
+        <pre><code class="language-yaml"># C:\tempo\config.yaml
+
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: C:/tempo/data/wal
+    local:
+      path: C:/tempo/data/blocks
+
+usage_report:
+  reporting_enabled: false</code></pre>
+      </section>
+
+      <!-- ─── STEP 4 ─────────────────────────────────────────── -->
+
+            <section id="service">
+        <h2>Start the tempo</h2>
+        <p>
+          Running Tempo as a service ensures it starts automatically with
+          Windows.
+        </p>
+        <ol>
+          <li>Open <strong>PowerShell as Administrator</strong>.</li>
+          <li>Run the following command to create the service:</li>
+        </ol>
+
+        <pre><code class="language-bash">cd C:\tempo
+.\tempo.exe -config.file=tempo.yaml</code></pre>
+      </section>
+
+      <section id="service">
+        <h2>STEP 4 — CONFIGURE TEMPO AS A WINDOWS SERVICE</h2>
+        <p>
+          Running Tempo as a service ensures it starts automatically with
+          Windows.
+        </p>
+        <ol>
+          <li>Open <strong>PowerShell as Administrator</strong>.</li>
+          <li>Run the following command to create the service:</li>
+        </ol>
+
+        <pre><code class="language-bash">New-Service -Name "Tempo" -BinaryPathName "C:\tempo\tempo.exe -config.file=C:\tempo\config.yaml" -DisplayName "Grafana Tempo" -StartupType Automatic</code></pre>
+      </section>
+
+      <!-- ─── STEP 5 ─────────────────────────────────────────── -->
+      <section id="verify">
+        <h2>STEP 5 — START TEMPO AND VERIFY</h2>
+
+        <h3>A. Start the Service</h3>
+        <pre><code class="language-bash">Start-Service -Name Tempo</code></pre>
+
+        <h3>B. Verify the Service</h3>
+        <pre><code class="language-bash">Get-Service -Name Tempo</code></pre>
+        <p>Verify that the <strong>Status</strong> is <code>Running</code>.</p>
+
+        <h3>C. Check the API Endpoints</h3>
+        <p>Confirm Tempo is running correctly by checking its API:</p>
+
+        <pre><code class="language-bash">Invoke-RestMethod -Uri http://localhost:3200/ready</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title"
+            ><i class="fa-solid fa-triangle-exclamation"></i> Heads Up</span
+          >
+          <p>
+            Immediately checking the <code>/ready</code> endpoint can return:
+            <br /><strong
+              >"Ingester not ready: ingester check ready failed: waiting for 15s
+              after being ready"</strong
+            >
+            <br />Wait 15 seconds — it will then respond with only
+            <code>ready</code>.
+          </p>
+        </div>
+
+        <pre><code class="language-bash">Invoke-RestMethod -Uri http://localhost:3200/status</code></pre>
+        <p>
+          If everything is set up correctly, both commands should return
+          <code>ready</code>.
+        </p>
+      </section>
+
+      <!-- ─── PORT CONFLICT ──────────────────────────────────── -->
+      <section id="port-conflict">
+        <h2>TROUBLESHOOTING — PORT 9095 CONFLICT</h2>
+        <p>When you run Tempo with the command below, you may see this error:</p>
+
+        <pre><code class="language-bash">tempo.exe -config.file=tempo.yaml</code></pre>
+
+        <pre><code class="language-text">level=info  msg="Starting Tempo" version="(version=2.10.7, branch=HEAD, revision=8100f5a7b)" target=all
+level=info  msg="caches available to storage backend" parquet-footer=false bloom=false ...
+level=error msg="error running Tempo" err="failed to init module services: error initialising module:
+  server: failed to create server: listen tcp :9095: bind: Only one usage of each socket
+  address (protocol/network address/port) is normally permitted."</code></pre>
+
+        <h3>The Problem</h3>
+        <pre><code class="language-text">listen tcp :9095: bind: Only one usage of each socket address</code></pre>
+
+        <p>Both <strong>Loki</strong> and <strong>Tempo</strong> try to use port <strong>9095</strong> by default:</p>
+
+        <table>
+          <thead><tr><th>Service</th><th>Default gRPC Port</th><th>HTTP Port</th></tr></thead>
+          <tbody>
+            <tr><td>Loki</td><td><strong>9095</strong></td><td>3100</td></tr>
+            <tr><td>Tempo</td><td><strong>9095</strong> ← conflict!</td><td>3200</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Why This Happens</span>
+          <p style="margin-bottom:0">
+            Both services default to port <code>9095</code> for internal gRPC communication.
+            If Loki is already running when you start Tempo, Tempo cannot bind to the same port and crashes immediately.
+          </p>
+        </div>
+
+        <h3>Quick Fix — Change Tempo's gRPC Port</h3>
+        <p>Edit your <code>tempo.yaml</code> and add <code>grpc_listen_port: 9096</code> under the <code>server</code> section:</p>
+
+        <pre><code class="language-yaml">server:
+  http_listen_port: 3200
+  grpc_listen_port: 9096  # ← change this (default 9095 conflicts with Loki)
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+# Rest of your config remains the same...</code></pre>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-check"></i> After the Fix</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            Save the file and restart Tempo. It will now bind to port <code>9096</code> for gRPC
+            and no longer conflict with Loki on <code>9095</code>.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── SUMMARY ───────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Step</th>
+              <th>What You Did</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>1</strong></td>
+              <td>Downloaded Tempo binary for Windows</td>
+              <td><code>tempo.exe</code> in <code>C:\tempo</code></td>
+            </tr>
+            <tr>
+              <td><strong>2</strong></td>
+              <td>Created folder structure</td>
+              <td>
+                <code>data/</code>, <code>wal/</code>, <code>blocks/</code>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>3</strong></td>
+              <td>Created <code>config.yaml</code></td>
+              <td>
+                OTLP on <code>:4317</code> / <code>:4318</code>, API on
+                <code>:3200</code>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>4</strong></td>
+              <td>Registered as a Windows Service</td>
+              <td>Auto-starts with Windows</td>
+            </tr>
+            <tr>
+              <td><strong>5</strong></td>
+              <td>Started and verified</td>
+              <td><code>/ready</code> returns <code>ready</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div
+          class="note-box"
+          style="
+            background: var(--accent-dim);
+            border-left: 4px solid var(--accent);
+          "
+        >
+          <span class="note-title" style="color: var(--accent)">
+            <i class="fa-solid fa-circle-check"></i> Next Steps
+          </span>
+          <p style="color: var(--text-primary); margin-bottom: 0">
+            Configure your OpenTelemetry SDK (in your Express app) to export
+            traces to
+            <code>http://localhost:4318/v1/traces</code>. Then add Tempo as a
+            data source in Grafana to visualize your traces.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>Grafana Tempo Setup Guide</p>
+        <p>Generated for <strong>Node.js & Observability</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top: 1rem">
+          <a
+            href="https://www.linkedin.com/in/arman-khan-5a790430a/"
+            target="_blank"
+            style="
+              color: var(--accent);
+              text-decoration: none;
+              display: inline-flex;
+              align-items: center;
+              gap: 0.5rem;
+              transition: opacity 0.2s;
+            "
+            onmouseover="this.style.opacity = '0.8'"
+            onmouseout="this.style.opacity = '1'"
+          >
+            <i class="fab fa-linkedin" style="font-size: 1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>What is SLA | Complete Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="sidebar">
+      <div class="logo"><i class="fa-solid fa-file-contract"></i> SLA GUIDE</div>
+
+      <div class="nav-section">
+        <div class="nav-title">I. Concepts</div>
+        <a href="#what-is-sla" class="nav-link">What is SLA?</a>
+        <a href="#metrics-breakdown" class="nav-link">SLA Metrics Breakdown</a>
+        <a href="#slo-sla-sli" class="nav-link">SLO vs SLA vs SLI</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">II. Why It Matters</div>
+        <a href="#why-o11y" class="nav-link">Why SLA Relates to O11y</a>
+        <a href="#real-example" class="nav-link">Real Example — E-Commerce</a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">III. Implementation</div>
+        <a href="#grafana-dashboard" class="nav-link">SLA Dashboard in Grafana</a>
+        <a href="#prometheus-calc" class="nav-link">Prometheus Calculations</a>
+        <a href="#best-practices" class="nav-link">Best Practices</a>
+        <a href="#summary" class="nav-link">Summary</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <section id="header">
+        <span class="badge">Observability & Reliability</span>
+        <h1>WHAT IS SLA?</h1>
+        <p>AND WHY IS IT DIRECTLY RELATED TO OBSERVABILITY (O11Y)?</p>
+      </section>
+
+      <!-- ─── WHAT IS SLA ────────────────────────────────────── -->
+      <section id="what-is-sla">
+        <h2>WHAT IS SLA?</h2>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-book"></i> Definition</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            <strong>SLA (Service Level Agreement)</strong> is a formal contract between a
+            service provider and a customer that defines the expected level of service,
+            including performance metrics, availability guarantees, and penalties for
+            non-compliance.
+          </p>
+        </div>
+
+        <h3>Simple Analogy</h3>
+        <p>Think of SLA like a promise you make to your customers:</p>
+        <pre><code class="language-text">Restaurant SLA Example:
+  - Food will be served within 20 minutes of ordering  (Latency)
+  - 99.9% of orders will be correct                    (Accuracy)
+  - Restaurant will be open 24/7/365                   (Availability)
+  - If we fail, your meal is free                      (Penalty)</code></pre>
+
+        <h3>SLA in Software Terms</h3>
+        <table>
+          <thead><tr><th>SLA Component</th><th>Example</th><th>What It Means</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Availability</strong></td><td>99.9% uptime</td><td>API can be down for max 43.2 minutes per month</td></tr>
+            <tr><td><strong>Latency</strong></td><td>P95 &lt; 200ms</td><td>95% of requests must respond within 200ms</td></tr>
+            <tr><td><strong>Error Rate</strong></td><td>Error rate &lt; 0.1%</td><td>Less than 1 in 1000 requests can fail</td></tr>
+            <tr><td><strong>Throughput</strong></td><td>10,000 req/sec</td><td>System must handle 10K requests per second</td></tr>
+            <tr><td><strong>Recovery Time</strong></td><td>RTO &lt; 1 hour</td><td>System must recover from failure within 1 hour</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── METRICS BREAKDOWN ─────────────────────────────── -->
+      <section id="metrics-breakdown">
+        <h2>THE SLA METRICS BREAKDOWN</h2>
+
+        <h3>Availability (Uptime)</h3>
+        <table>
+          <thead><tr><th>SLA Level</th><th>Downtime Allowed / Month</th><th>Nickname</th></tr></thead>
+          <tbody>
+            <tr><td><strong>99%</strong></td><td style="color:var(--danger)">7.2 hours</td><td>Two nines</td></tr>
+            <tr><td><strong>99.9%</strong></td><td style="color:#f59e0b">43.2 minutes</td><td>Three nines</td></tr>
+            <tr><td><strong>99.95%</strong></td><td style="color:#f59e0b">21.6 minutes</td><td>Three and a half nines</td></tr>
+            <tr><td><strong>99.99%</strong></td><td style="color:var(--accent)">4.32 minutes</td><td>Four nines</td></tr>
+            <tr><td><strong>99.999%</strong></td><td style="color:var(--accent)">25.9 seconds</td><td>Five nines</td></tr>
+          </tbody>
+        </table>
+
+        <h3>How Availability is Calculated</h3>
+        <pre><code class="language-text">Availability = (Total Time - Downtime) / Total Time × 100
+
+Example: 30-day month = 43,200 minutes
+If system is down for 43 minutes:
+  Availability = (43,200 - 43) / 43,200 × 100 = 99.9% ✅</code></pre>
+
+        <h3>Latency (Response Time)</h3>
+        <pre><code class="language-text">Latency SLA Example:
+  "95% of requests must complete within 200ms"
+
+  Measurement: P95 latency (95th percentile)
+
+  ├─────────────────────────── 95% ──────────────────────┤░░░░░
+  0ms                                                  200ms  500ms
+                                                              ↑
+                                               5% slower than 200ms</code></pre>
+
+        <h3>Error Rate</h3>
+        <pre><code class="language-text">Error Rate = (Total Errors / Total Requests) × 100
+
+Example: 1,000,000 requests, 100 errors
+  Error Rate = 100 / 1,000,000 × 100 = 0.01% ✅
+
+Alert if > 1,000 errors (0.1%) ❌</code></pre>
+      </section>
+
+      <!-- ─── SLO SLA SLI ────────────────────────────────────── -->
+      <section id="slo-sla-sli">
+        <h2>SLO vs SLA vs SLI — THE THREE S'S</h2>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin:1.5rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1.25rem;text-align:center">
+            <p style="color:var(--danger);font-size:1.5rem;margin-bottom:0.5rem"><i class="fa-solid fa-file-contract"></i></p>
+            <p style="color:var(--text-primary);font-weight:700;margin-bottom:0.25rem;font-size:1.1rem">SLA</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.5rem">Service Level Agreement</p>
+            <p style="color:var(--danger);font-size:0.8rem;margin-bottom:0">Formal contract with penalties<br/><em>"We guarantee 99.9% uptime"</em></p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid #f59e0b;border-radius:8px;padding:1.25rem;text-align:center">
+            <p style="color:#f59e0b;font-size:1.5rem;margin-bottom:0.5rem"><i class="fa-solid fa-bullseye"></i></p>
+            <p style="color:var(--text-primary);font-weight:700;margin-bottom:0.25rem;font-size:1.1rem">SLO</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.5rem">Service Level Objective</p>
+            <p style="color:#f59e0b;font-size:0.8rem;margin-bottom:0">Internal target to meet<br/><em>"Our target is 99.95% uptime"</em></p>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1.25rem;text-align:center">
+            <p style="color:var(--accent);font-size:1.5rem;margin-bottom:0.5rem"><i class="fa-solid fa-chart-line"></i></p>
+            <p style="color:var(--text-primary);font-weight:700;margin-bottom:0.25rem;font-size:1.1rem">SLI</p>
+            <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:0.5rem">Service Level Indicator</p>
+            <p style="color:var(--accent);font-size:0.8rem;margin-bottom:0">The actual measurement<br/><em>"We achieved 99.92% uptime"</em></p>
+          </div>
+        </div>
+
+        <table>
+          <thead><tr><th>Term</th><th>Definition</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SLI</strong></td><td>What you're measuring</td><td><code>http_request_duration_seconds</code></td></tr>
+            <tr><td><strong>SLO</strong></td><td>Your internal target</td><td>P95 &lt; 200ms</td></tr>
+            <tr><td><strong>SLA</strong></td><td>The customer promise</td><td>P95 &lt; 200ms or money back</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent)">
+          <span class="note-title" style="color:var(--accent)"><i class="fa-solid fa-lightbulb"></i> The Key Relationship</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            SLO is always <strong>tighter</strong> than SLA. If SLA says 99.9%, your SLO should be 99.95%.
+            That buffer gives you room to detect and fix issues before you breach the customer contract.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── WHY O11Y ───────────────────────────────────────── -->
+      <section id="why-o11y">
+        <h2>WHY SLA IS DIRECTLY RELATED TO OBSERVABILITY</h2>
+
+        <pre><code class="language-text">Observability (O11y)
+        │
+        ▼
+Measures SLIs  →  Checks SLOs  →  Reports SLAs
+        │                               │
+        ▼                               ▼
+   Alert System                  Customer Promise
+   (Detect issues)               (Penalties if broken)</code></pre>
+
+        <h3>How Each O11y Component Serves SLA</h3>
+        <table>
+          <thead><tr><th>O11y Component</th><th>SLA Role</th><th>Example</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Metrics</strong></td><td>Measure SLIs</td><td>Prometheus tracks latency, error rate, uptime</td></tr>
+            <tr><td><strong>Logs</strong></td><td>Debug failures</td><td>Logs show why errors happened</td></tr>
+            <tr><td><strong>Traces</strong></td><td>Identify bottlenecks</td><td>Traces pinpoint slow database queries</td></tr>
+            <tr><td><strong>Alerts</strong></td><td>Detect SLA breaches</td><td>Alert when error rate &gt; 0.1%</td></tr>
+            <tr><td><strong>Dashboards</strong></td><td>Visualize SLA status</td><td>Show current vs target metrics</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ─── REAL EXAMPLE ───────────────────────────────────── -->
+      <section id="real-example">
+        <h2>REAL EXAMPLE — E-COMMERCE SLA</h2>
+
+        <h3>The Agreement (SLA)</h3>
+        <pre><code class="language-text">SLA: "Our payment service will process 99.9% of transactions
+     within 2 seconds, with error rate below 0.01%"
+
+Penalties:
+  99.8% – 99.9%  → 10% refund
+  99.5% – 99.8%  → 25% refund
+  below 99.5%    → 100% refund</code></pre>
+
+        <h3>The Targets (SLO)</h3>
+        <pre><code class="language-text">Payment Service SLOs (tighter than SLA for safety):
+  Availability: 99.95%
+  Latency P95:  1.5 seconds   (SLA says 2s)
+  Error Rate:   < 0.005%      (SLA says 0.01%)
+  Success Rate: > 99.99%</code></pre>
+
+        <h3>The Measurements (SLI) — PromQL</h3>
+        <pre><code class="language-javascript">// Availability
+up{service="payment"} == 1
+
+// Latency P95
+histogram_quantile(0.95,
+  rate(http_request_duration_seconds_bucket{service="payment"}[5m])
+)
+
+// Error Rate
+sum(rate(http_requests_total{service="payment", status=~"5.."}[5m])) /
+sum(rate(http_requests_total{service="payment"}[5m]))</code></pre>
+
+        <h3>Alerting Rules</h3>
+        <pre><code class="language-yaml">groups:
+  - name: sla_alerts
+    rules:
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) /
+          sum(rate(http_requests_total[5m])) > 0.01
+        for: 5m
+        annotations:
+          summary: "Error rate over SLA threshold"
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 2
+        for: 5m
+        annotations:
+          summary: "P95 latency over SLA threshold"</code></pre>
+      </section>
+
+      <!-- ─── GRAFANA DASHBOARD ──────────────────────────────── -->
+      <section id="grafana-dashboard">
+        <h2>SLA DASHBOARD IN GRAFANA</h2>
+
+        <h3>1. Availability Panel</h3>
+        <pre><code class="language-javascript">// Current uptime percentage
+sum(up{service="payment"}) / count(up{service="payment"}) * 100</code></pre>
+
+        <h3>2. SLA Breach Logs (LogQL)</h3>
+        <pre><code class="language-javascript">// Logs showing SLA breaches
+{service="payment"} |= "SLA" |= "breach" | json</code></pre>
+
+        <h3>3. Latency vs SLA Target</h3>
+        <pre><code class="language-javascript">// P95 latency — add a threshold line at 2s for SLA
+histogram_quantile(0.95,
+  rate(http_request_duration_seconds_bucket{service="payment"}[5m])
+)</code></pre>
+
+        <div class="note-box" style="background:var(--bg-secondary);border-left:4px solid #3b82f6">
+          <span class="note-title" style="color:#3b82f6"><i class="fa-solid fa-circle-info"></i> Grafana Tip</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            In Grafana, add a <strong>threshold line</strong> on latency panels at your SLA value (e.g. 2s).
+            The panel will turn red automatically when the metric crosses the line — instant visual SLA status.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── PROMETHEUS CALC ────────────────────────────────── -->
+      <section id="prometheus-calc">
+        <h2>SLA CALCULATIONS IN PROMETHEUS</h2>
+
+        <h3>Availability Over 30 Days</h3>
+        <pre><code class="language-javascript">// Monthly uptime percentage (last 30 days)
+(
+  count_over_time(up{service="payment"}[30d])
+  /
+  (count_over_time(up{service="payment"}[30d]) + 1)
+) * 100</code></pre>
+
+        <h3>Error Budget</h3>
+        <pre><code class="language-text">Error Budget = Allowed failures - Actual failures
+
+Example:
+  SLA:             99.9% availability
+  30 days:         43,200 minutes
+  Allowed downtime: 43.2 minutes  (0.1%)
+  Used downtime:    15 minutes
+  Remaining budget: 28.2 minutes  ✅
+
+Alert when: Error Budget < 25% remaining</code></pre>
+
+        <pre><code class="language-javascript">// Remaining error budget in minutes
+(
+  0.001 * 43200             // Total allowed downtime (0.1% of 43,200 min)
+  -
+  max(up{service="payment"} == 0)  // Actual downtime minutes
+)</code></pre>
+
+        <div class="note-box warning">
+          <span class="note-title"><i class="fa-solid fa-triangle-exclamation"></i> Alert on Budget Burn Rate</span>
+          <p style="margin-bottom:0">
+            Don't just alert when the budget is <em>gone</em> — alert when it's
+            <strong>burning too fast</strong>. If you're 3 days into the month and
+            already used 50% of your error budget, you'll breach the SLA before month end.
+          </p>
+        </div>
+      </section>
+
+      <!-- ─── BEST PRACTICES ────────────────────────────────── -->
+      <section id="best-practices">
+        <h2>BEST PRACTICES</h2>
+
+        <h3>1. Set Realistic SLAs</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0">
+          <div style="background:var(--bg-secondary);border:1px solid var(--accent);border-radius:8px;padding:1rem">
+            <p style="color:var(--accent);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">✅ Good SLA</p>
+            <code style="color:var(--text-primary)">99.9% uptime, P95 &lt; 200ms</code>
+          </div>
+          <div style="background:var(--bg-secondary);border:1px solid var(--danger);border-radius:8px;padding:1rem">
+            <p style="color:var(--danger);font-weight:700;margin-bottom:0.5rem;font-size:0.85rem">❌ Bad SLA</p>
+            <code style="color:var(--text-primary)">100% uptime, P99 &lt; 50ms</code>
+          </div>
+        </div>
+
+        <h3>2. Start with SLOs, Then SLAs</h3>
+        <pre><code class="language-text">Internal SLO  →  Prove you can meet it  →  Customer SLA</code></pre>
+
+        <h3>3. Monitor Error Budget</h3>
+        <pre><code class="language-text">Alert when:
+  - Error budget is below 50%
+  - Error budget is burning faster than usual</code></pre>
+
+        <h3>4. Link to Business Impact</h3>
+        <pre><code class="language-text">"Downtime     = $10,000 per minute"
+"Slow API     = Abandoned carts = Lost revenue"
+"High latency = Lower conversion rate"</code></pre>
+
+        <h3>5. Measure Real User Experience</h3>
+        <pre><code class="language-javascript">// Server-side latency (what your code sees)
+http_request_duration_seconds
+
+// Real user monitoring (what the user sees)
+browser_http_request_duration   // client-side if instrumented</code></pre>
+      </section>
+
+      <!-- ─── SUMMARY ───────────────────────────────────────── -->
+      <section id="summary">
+        <h2>SUMMARY</h2>
+
+        <table>
+          <thead><tr><th>Concept</th><th>Definition</th><th>O11y Role</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SLA</strong></td><td>Formal agreement with customer</td><td>The target to meet</td></tr>
+            <tr><td><strong>SLO</strong></td><td>Internal target</td><td>What you aim for</td></tr>
+            <tr><td><strong>SLI</strong></td><td>Actual measurement</td><td>What you measure</td></tr>
+            <tr><td><strong>Error Budget</strong></td><td>Allowed failures</td><td>What alerts you can set</td></tr>
+            <tr><td><strong>Availability</strong></td><td>% of time service works</td><td>Monitored via metrics</td></tr>
+            <tr><td><strong>Latency</strong></td><td>Response time</td><td>Traced via histograms</td></tr>
+            <tr><td><strong>Error Rate</strong></td><td>% of failed requests</td><td>Counted via logs/metrics</td></tr>
+          </tbody>
+        </table>
+
+        <div class="note-box" style="background:var(--accent-dim);border-left:4px solid var(--accent);margin-top:2rem">
+          <span class="note-title" style="color:var(--accent);font-size:1rem">💡 One-Line Summary</span>
+          <p style="color:var(--text-primary);margin-bottom:0">
+            SLAs are the promises you make to customers about service quality. SLOs are your internal
+            targets to meet those promises. Observability (O11y) is how you measure, monitor, and
+            <strong>prove</strong> you're meeting them — making it impossible to run a reliable service
+            without proper observability.
+          </p>
+        </div>
+      </section>
+
+      <footer>
+        <p>SLA, SLO & SLI Guide</p>
+        <p>Generated for <strong>DevOps & SRE</strong></p>
+        <p>Built with 💝 by Arman Khan</p>
+        <div style="margin-top:1rem">
+          <a href="https://www.linkedin.com/in/arman-khan-5a790430a/" target="_blank"
+            style="color:var(--accent);text-decoration:none;display:inline-flex;align-items:center;gap:0.5rem;transition:opacity 0.2s"
+            onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+            <i class="fab fa-linkedin" style="font-size:1.2rem"></i>
+            Connect on LinkedIn
+          </a>
+        </div>
+      </footer>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
